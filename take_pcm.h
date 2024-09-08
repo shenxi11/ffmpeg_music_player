@@ -20,6 +20,8 @@ signals:
     void begin_take_lrc(QString Path);
 
     void begin_to_play(QString path);
+
+    void durations(int64_t value);
 private:
      AVFormatContext* ifmt_ctx;
 };

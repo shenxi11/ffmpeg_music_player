@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include<QWidget>
+#include<QSlider>
 #include"headers.h"
 #include"worker.h"
 #include"lrc_analyze.h"
@@ -46,5 +47,8 @@ private:
 
     QThreadPool *threadPool;
 
+    QSlider *slider;
+
+    qint64 duration=0;
 };
 #endif // MAINWINDOW_H

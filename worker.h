@@ -23,14 +23,20 @@ public slots:
     void stop_play();
 
     void receive_lrc(std::map<int, std::string> lyrics);
+
+    void Set_Volume(int value);
 signals:
+    void durations(qint64 value);
+
     void play(QString pcmFilePath);
 
     void stopPlay();
 
     void send_lrc(QString lrc_str);
 
-    void stopped();
+    void Stop();
+
+    void Begin();
 private:
     std::map<int, std::string> lyrics;
 

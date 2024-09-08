@@ -7,6 +7,16 @@ MainWindow::MainWindow(QWidget *parent)
 
 {
     ui->setupUi(this);
+    ui->play->setStyleSheet(
+                "QPushButton {"
+                "    border-image: url(:/new/prefix1/icon/播放_bg.png);"
+                "}"
+                );
+
+    slider = new QSlider(Qt::Vertical, this);
+    slider->close();
+
+    ui->Slider->setRange(0,100);
 
     work=std::make_unique<Worker>();
     work->start();
@@ -18,16 +28,16 @@ MainWindow::MainWindow(QWidget *parent)
     take_pcm->start();
 
     QThreadPool *threadPool = QThreadPool::globalInstance();
-       qDebug() << "活动线程数:" << threadPool->activeThreadCount();
+    qDebug() << "活动线程数:" << threadPool->activeThreadCount();
 
-    connect(ui->pushButton,&QPushButton::clicked,this,&MainWindow::openfile);
+    connect(ui->dir,&QPushButton::clicked,this,&MainWindow::openfile);
 
     connect(this,&MainWindow::filepath,take_pcm.get(),&Take_pcm::make_pcm);
 
     connect(take_pcm.get(),&Take_pcm::begin_to_play,this,&MainWindow::_begin_to_play,Qt::QueuedConnection);
     connect(this,&MainWindow::begin_to_play,work.get(),&Worker::begin_play,Qt::QueuedConnection);
 
-    connect(ui->pushButton_2,&QPushButton::clicked,work.get(),&Worker::stop_play,Qt::QueuedConnection);
+    connect(ui->play,&QPushButton::clicked,work.get(),&Worker::stop_play,Qt::QueuedConnection);
 
     connect(take_pcm.get(),&Take_pcm::begin_take_lrc,this,&MainWindow::_begin_take_lrc,Qt::QueuedConnection);
     connect(this,&MainWindow::begin_take_lrc,lrc.get(),&lrc_analyze::begin_take_lrc);
@@ -37,6 +47,49 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(work.get(),&Worker::send_lrc,this,[=](QString lrc_str){
         ui->label->setText(lrc_str);//显示歌词
+    });
+
+    connect(work.get(),&Worker::Stop,this,[=](){
+
+        ui->play->setStyleSheet(
+                    "QPushButton {"
+                    "    border-image: url(:/new/prefix1/icon/播放_bg.png);"
+                    "}"
+                    );
+    });
+    connect(work.get(),&Worker::Begin,this,[=](){
+        ui->play->setStyleSheet(
+                    "QPushButton {"
+                    "    border-image: url(:/new/prefix1/icon/暂停1_bg.png);"
+                    "}"
+                    );
+    });
+
+    connect(ui->video,&QPushButton::toggled,this,[=](bool checked){
+        if(checked){
+            qDebug()<<"被选中";
+            slider->setMinimum(0);
+            slider->setMaximum(100);
+            slider->setValue(50);
+            slider->setTickPosition(QSlider::TicksRight);  // 在滑条右侧显示刻度
+            slider->setTickInterval(10);
+            slider->setGeometry(ui->video->pos().x(),ui->video->pos().y()-ui->video->height()*3,ui->video->width(),ui->video->height()*3);
+            slider->show();
+        }else{
+            if(slider){
+                slider->close();
+            }
+        }
+    });
+    connect(slider,&QSlider::valueChanged,work.get(),&Worker::Set_Volume);
+
+    connect(take_pcm.get(),&Take_pcm::durations,[=](int64_t value){
+       this->duration=static_cast<qint64>(value);
+        qDebug()<<'0';
+    });
+    connect(work.get(),&Worker::durations,[=](qint64 value){
+        ui->Slider->setValue((value*100)/this->duration);
+        qDebug()<<value<<' '<<this->duration;
     });
 }
 void MainWindow::_begin_to_play(QString Path){

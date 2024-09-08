@@ -75,6 +75,8 @@ void Take_pcm::make_pcm(QString Path){
     int64_t input_channel_layout = codec_ctx->channel_layout;  // 输入通道布局
     enum AVSampleFormat input_sample_fmt = codec_ctx->sample_fmt;  // 输入样本格式
 
+    emit durations(ifmt_ctx->duration);
+
     // 打印音频流信息
     qDebug() << "Input Sample Rate:" << input_sample_rate;
     qDebug() << "Input Channels:" << codec_ctx->channels;

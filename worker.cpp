@@ -2,7 +2,7 @@
 
 Worker::Worker():
 
-  isPaused(false)
+    isPaused(false)
 {
 
 }
@@ -22,6 +22,10 @@ void  Worker::begin_play(QString pcmFilePath){
 }
 void Worker::stop_play(){
     emit stopPlay();
+}
+void Worker::Set_Volume(int value){
+    if(audioOutput)
+        audioOutput->setVolume(value/100.0);
 }
 void Worker::play_pcm(QString pcmFilePath ){
     if (file) {
@@ -60,6 +64,8 @@ void Worker::play_pcm(QString pcmFilePath ){
         return;
     }
 
+    audioOutput->setVolume(50/100.0);
+
     const int bufferSize = 44100 * 2 * 2 * 0.1;
     char* buffer = new char[bufferSize];
 
@@ -86,7 +92,7 @@ void Worker::play_pcm(QString pcmFilePath ){
 
             // 获取当前音频播放的微秒数，并将其转换为毫秒
             qint64 currentTimeMS = audioOutput->processedUSecs() / 1000;
-
+            emit durations(audioOutput->processedUSecs());
             // 遍历歌词并同步显示
             if (!lyrics.empty() && currentLyricIndex < (int)lyrics.size()) {
                 auto it = std::next(lyrics.begin(), currentLyricIndex);  // 获取当前歌词
@@ -99,7 +105,7 @@ void Worker::play_pcm(QString pcmFilePath ){
         } else {
             // 文件读取完毕，停止定时器
             timer->stop();
-             qDebug() << "Playback finished AA";
+            qDebug() << "Playback finished AA";
             delete[] buffer;
             file->close();
             file.reset();
@@ -134,7 +140,7 @@ void Worker::play_pcm(QString pcmFilePath ){
     //    });
 
     timer->start(10);  // 每10毫秒检查一次
-
+    emit Begin();
 
     //    // 等待播放结束
     //    connect(audioOutput, &QAudioOutput::stateChanged, this, [=](QAudio::State state) mutable {
@@ -164,12 +170,14 @@ void Worker::play_pcm(QString pcmFilePath ){
             timer->stop();
             isPaused = true;
             qDebug() << "Playback paused CC:";
+            emit Stop();
         } else if (isPaused) {
             // 恢复播放
             qDebug() << "恢复";
             audioOutput->resume();
             isPaused = false;
             timer->start();
+            emit Begin();
             qDebug() << "Playback resumed.";
         }
     });

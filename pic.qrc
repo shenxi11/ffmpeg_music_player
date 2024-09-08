@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/new/prefix1">
+        <file>icon/播放_bg.png</file>
+        <file>icon/喇叭_bg.png</file>
+        <file>icon/文件夹_bg.png</file>
+        <file>icon/暂停1_bg.png</file>
+    </qresource>
+</RCC>
