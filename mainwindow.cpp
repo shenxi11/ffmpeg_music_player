@@ -16,7 +16,7 @@ MainWindow::MainWindow(QWidget *parent)
     slider = new QSlider(Qt::Vertical, this);
     slider->close();
 
-    ui->Slider->setRange(0,100);
+    ui->Slider->setRange(0,10000);
 
     work=std::make_unique<Worker>();
     work->start();
@@ -26,6 +26,10 @@ MainWindow::MainWindow(QWidget *parent)
 
     take_pcm=std::make_unique<Take_pcm>();
     take_pcm->start();
+
+
+
+    init_TextEdit();
 
     QThreadPool *threadPool = QThreadPool::globalInstance();
     qDebug() << "活动线程数:" << threadPool->activeThreadCount();
@@ -44,9 +48,53 @@ MainWindow::MainWindow(QWidget *parent)
 
 
     connect(lrc.get(),&lrc_analyze::send_lrc,work.get(),&Worker::receive_lrc);
+    connect(lrc.get(),&lrc_analyze::send_lrc,this,[=](std::map<int, std::string> lyrics){
+//        if(textEdit){
+//            textEdit->clear();
+//            delete textEdit;
+//            textEdit=nullptr;
+//        }
+
+        this->textEdit->clear();
+        this->textEdit->currentLine=5;
+        this->lyrics.clear();
+        for(int i=0;i<5;i++){
+            textEdit->append("    ");
+        }
+        for (const auto& [time, text] : lyrics){
+            textEdit->append(QString::fromStdString(text));
+            qDebug()<<QString::fromStdString(text);
+        }
+        this->lyrics=lyrics;
+        for(int i=0;i<5;i++){
+            textEdit->append("    ");
+        }
+
+
+        // 获取 QTextEdit 的光标
+        QTextCursor cursor = textEdit->textCursor();
+
+        // 选择整个文档的文本
+        cursor.select(QTextCursor::Document);
+
+        // 创建一个 QTextBlockFormat 对象
+        QTextBlockFormat blockFormat;
+        blockFormat.setAlignment(Qt::AlignCenter); // 设置对齐方式为居中
+
+        // 应用格式到选中的文本
+        cursor.mergeBlockFormat(blockFormat);
+
+        // 更新 QTextEdit 的光标位置
+        textEdit->setTextCursor(cursor);
+
+        textEdit->disableScrollBar();
+    });
+
 
     connect(work.get(),&Worker::send_lrc,this,[=](QString lrc_str){
-        ui->label->setText(lrc_str);//显示歌词
+        textEdit->highlightLine(textEdit->currentLine);
+        textEdit->scrollOneLine();
+        textEdit->currentLine++;
     });
 
     connect(work.get(),&Worker::Stop,this,[=](){
@@ -84,20 +132,41 @@ MainWindow::MainWindow(QWidget *parent)
     connect(slider,&QSlider::valueChanged,work.get(),&Worker::Set_Volume);
 
     connect(take_pcm.get(),&Take_pcm::durations,[=](int64_t value){
-       this->duration=static_cast<qint64>(value);
+        this->duration=static_cast<qint64>(value);
         qDebug()<<'0';
     });
     connect(work.get(),&Worker::durations,[=](qint64 value){
-        ui->Slider->setValue((value*100)/this->duration);
-        qDebug()<<value<<' '<<this->duration;
+        ui->Slider->setValue((value*10000)/this->duration);
+        // qDebug()<<value<<' '<<this->duration;
     });
 }
 void MainWindow::_begin_to_play(QString Path){
     emit begin_to_play(Path);
 }
 
+void MainWindow::init_TextEdit(){
+    this->textEdit=new LyricTextEdit(this);
+    this->textEdit->setFixedSize(450,300);
+    QFont font = this->textEdit->font(); // 获取当前字体
+    font.setPointSize(16);     // 设置字号为 16
+    this->textEdit->setFont(font);       // 应用新字体
+    this->textEdit->setStyleSheet("QTextEdit { background: transparent; border: none; }");
+    this->textEdit->move(this->width()/2-100, 0);
+}
+
+
+
 void MainWindow::_begin_take_lrc(QString str){
+
     emit begin_take_lrc(str);
+    QTextCursor cursor = textEdit->textCursor();
+
+    // 将光标移动到文档的开始
+    cursor.movePosition(QTextCursor::Start);
+
+    //cursor.movePosition(QTextCursor::Down, QTextCursor::MoveAnchor, 5);
+
+    textEdit->setTextCursor(cursor);
 }
 void MainWindow::openfile(){
 

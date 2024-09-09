@@ -70,6 +70,7 @@ void Worker::play_pcm(QString pcmFilePath ){
     char* buffer = new char[bufferSize];
 
     timer = new QTimer(this);
+    timer1= new QTimer(this);
     int currentLyricIndex = 0;  // 用于追踪当前歌词的位置
     connect(timer, &QTimer::timeout, this, [=]() mutable {
         if (audioOutput->bytesFree() < bufferSize) {
@@ -84,6 +85,7 @@ void Worker::play_pcm(QString pcmFilePath ){
             if (bytesWritten < 0) {
                 qDebug() << "Error writing audio data:" << audioDevice->errorString();
                 timer->stop();
+                timer1->stop();
                 delete[] buffer;
                 file->close();
                 file.reset();
@@ -92,7 +94,7 @@ void Worker::play_pcm(QString pcmFilePath ){
 
             // 获取当前音频播放的微秒数，并将其转换为毫秒
             qint64 currentTimeMS = audioOutput->processedUSecs() / 1000;
-            emit durations(audioOutput->processedUSecs());
+
             // 遍历歌词并同步显示
             if (!lyrics.empty() && currentLyricIndex < (int)lyrics.size()) {
                 auto it = std::next(lyrics.begin(), currentLyricIndex);  // 获取当前歌词
@@ -105,10 +107,12 @@ void Worker::play_pcm(QString pcmFilePath ){
         } else {
             // 文件读取完毕，停止定时器
             timer->stop();
+            timer1->stop();
             qDebug() << "Playback finished AA";
             delete[] buffer;
             file->close();
             file.reset();
+            emit Stop();
         }
     });
 
@@ -140,8 +144,12 @@ void Worker::play_pcm(QString pcmFilePath ){
     //    });
 
     timer->start(10);  // 每10毫秒检查一次
+    timer1->start(1000);
     emit Begin();
 
+    connect(timer1,&QTimer::timeout,this,[=](){
+        emit durations(audioOutput->processedUSecs());
+    });
     //    // 等待播放结束
     //    connect(audioOutput, &QAudioOutput::stateChanged, this, [=](QAudio::State state) mutable {
     //        if (state == QAudio::IdleState && audioOutput->processedUSecs()/1000) {
@@ -168,6 +176,7 @@ void Worker::play_pcm(QString pcmFilePath ){
             qDebug() << "暂停";
             audioOutput->suspend();
             timer->stop();
+            timer1->stop();
             isPaused = true;
             qDebug() << "Playback paused CC:";
             emit Stop();
@@ -177,6 +186,7 @@ void Worker::play_pcm(QString pcmFilePath ){
             audioOutput->resume();
             isPaused = false;
             timer->start();
+            timer1->start();
             emit Begin();
             qDebug() << "Playback resumed.";
         }

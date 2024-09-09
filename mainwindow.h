@@ -4,10 +4,13 @@
 #include <QMainWindow>
 #include<QWidget>
 #include<QSlider>
+#include<QScrollBar>
+#include<QTextBlock>
 #include"headers.h"
 #include"worker.h"
 #include"lrc_analyze.h"
 #include"take_pcm.h"
+#include"lyrictextedit.h"
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
@@ -45,10 +48,19 @@ private:
 
     std::unique_ptr<Take_pcm>take_pcm;//播放pcm的线程
 
+
+    std::map<QString,int>lrc_check;
+
+    std::map<int, std::string> lyrics;
+
     QThreadPool *threadPool;
+
+    LyricTextEdit*textEdit;
 
     QSlider *slider;
 
     qint64 duration=0;
+
+    void init_TextEdit();
 };
 #endif // MAINWINDOW_H

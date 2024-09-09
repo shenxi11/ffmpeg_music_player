@@ -45,6 +45,7 @@ private:
     QIODevice* audioDevice ;
 
     QTimer* timer;
+    QTimer* timer1;
 
     std::unique_ptr<QAudioOutput>audioOutput;
 

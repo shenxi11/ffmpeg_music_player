@@ -13,6 +13,14 @@ private slots:
     void begin_send(std::string lrcFile);
 
 private:
+    bool hasTimestamp(const std::string& line);
+
+    void removeEmptyLinesWithTimestamps(const std::string& filename);
+
+    bool isBlank(const std::string &str) ;
+
+    void clearEmptyLines(std::map<int, std::string> &lyrics);
+
     void take_lrc(QString Path);
 
     int timeToMilliseconds(const std::string& timeStr);

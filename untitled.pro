@@ -17,6 +17,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 SOURCES += \
     lrc_analyze.cpp \
+    lyrictextedit.cpp \
     main.cpp \
     mainwindow.cpp \
     take_pcm.cpp \
@@ -25,6 +26,7 @@ SOURCES += \
 HEADERS += \
     headers.h \
     lrc_analyze.h \
+    lyrictextedit.h \
     mainwindow.h \
     take_pcm.h \
     worker.h
