@@ -31,5 +31,7 @@ extern "C" {
 #include<QProcess>
 #include<QTextCodec>
 #include<QThreadPool>
-
+#include<mutex>
+#include <QWaitCondition>
+#include<QMetaObject>
 #endif // HEADERS_H

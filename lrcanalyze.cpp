@@ -1,18 +1,14 @@
-#include "lrc_analyze.h"
+#include "lrcanalyze.h"
 
-lrc_analyze::lrc_analyze()
+lrcAnalyze::lrcAnalyze()
 {
-    connect(this,&lrc_analyze::begin_take_lrc,this,&lrc_analyze::take_lrc);
+    connect(this,&lrcAnalyze::begin_take_lrc,this,&lrcAnalyze::take_lrc);
 
-    connect(this,&lrc_analyze::Begin_send,this,&lrc_analyze::begin_send);
+    connect(this,&lrcAnalyze::Begin_send,this,&lrcAnalyze::begin_send);
 }
-//void lrc_analyze::run(){
 
-
-
-//}
 // 使用 uchardet 检测文件编码
-QString lrc_analyze::detectEncodingWithUchardet(const QString &filePath) {
+QString lrcAnalyze::detectEncodingWithUchardet(const QString &filePath) {
     QProcess process;
     process.start("uchardet", QStringList() << filePath);
     process.waitForFinished();
@@ -22,7 +18,7 @@ QString lrc_analyze::detectEncodingWithUchardet(const QString &filePath) {
 }
 
 // 根据指定的编码格式读取文件
-QString lrc_analyze::readFileWithEncoding(const QString &filePath, const QByteArray &encoding) {
+QString lrcAnalyze::readFileWithEncoding(const QString &filePath, const QByteArray &encoding) {
     QFile file(filePath);
 
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -46,7 +42,7 @@ QString lrc_analyze::readFileWithEncoding(const QString &filePath, const QByteAr
 }
 
 // 将内容覆盖原文件，并保存为 UTF-8 编码
-void lrc_analyze::saveFileAsUtf8(const QString &content, const QString &filePath) {
+void lrcAnalyze::saveFileAsUtf8(const QString &content, const QString &filePath) {
     QFile file(filePath);
 
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
@@ -60,7 +56,7 @@ void lrc_analyze::saveFileAsUtf8(const QString &content, const QString &filePath
     out << content;
     file.close();
 }
-void lrc_analyze::take_lrc(QString Path){
+void lrcAnalyze::take_lrc(QString Path){
     std::string lrcFile = Path.toStdString();  // 歌词文件路径
 
 
@@ -93,21 +89,18 @@ void lrc_analyze::take_lrc(QString Path){
         } else {
             qDebug() << "文件已经是 UTF-8 编码，不需要转换";
         }
-
-        emit Begin_send(lrcFile);
-
     } else {
         qWarning() << "无法检测文件编码";
     }
 
-
+    emit Begin_send(lrcFile);
 
     //    // 打印解析后的歌词
     //    for (const auto& [time, text] : lyrics) {
     //         qDebug() << "Time:" << time << "ms," << "Lyrics:" << QString::fromStdString(text);
     //    }
 }
-void lrc_analyze::begin_send(std::string lrcFile){
+void lrcAnalyze::begin_send(std::string lrcFile){
     lyrics.clear();
 
     //removeEmptyLinesWithTimestamps(lrcFile);
@@ -119,12 +112,12 @@ void lrc_analyze::begin_send(std::string lrcFile){
     emit send_lrc(lyrics);
 }
 // 函数用于检查字符串是否为空或仅包含空白字符
-bool lrc_analyze::isBlank(const std::string &str) {
+bool lrcAnalyze::isBlank(const std::string &str) {
     return std::all_of(str.begin(), str.end(), ::isspace);
 }
 
 // 函数用于清除歌词中的空行
-void lrc_analyze::clearEmptyLines(std::map<int, std::string> &lyrics) {
+void lrcAnalyze::clearEmptyLines(std::map<int, std::string> &lyrics) {
     // 使用标准库算法从 map 中移除空行
     for (auto it = lyrics.begin(); it != lyrics.end(); ) {
         if (isBlank(it->second)) {
@@ -135,7 +128,7 @@ void lrc_analyze::clearEmptyLines(std::map<int, std::string> &lyrics) {
     }
 }
 // 将时间戳 [mm:ss.xx] 转换为毫秒
-int lrc_analyze::timeToMilliseconds(const std::string& timeStr) {
+int lrcAnalyze::timeToMilliseconds(const std::string& timeStr) {
     int minutes = std::stoi(timeStr.substr(0, 2));
     int seconds = std::stoi(timeStr.substr(3, 2));
     int milliseconds = std::stoi(timeStr.substr(6, 2)) * 10;
@@ -160,7 +153,7 @@ int lrc_analyze::timeToMilliseconds(const std::string& timeStr) {
 //    return lyrics;
 //}
 
-std::map<int, std::string> lrc_analyze::parseLrcFile(const std::string& lrcFile) {
+std::map<int, std::string> lrcAnalyze::parseLrcFile(const std::string& lrcFile) {
     std::ifstream file(lrcFile);
     std::map<int, std::string> lyrics;
 
@@ -188,12 +181,12 @@ std::map<int, std::string> lrc_analyze::parseLrcFile(const std::string& lrcFile)
     file.close();
     return lyrics;
 }
-bool lrc_analyze::hasTimestamp(const std::string& line) {
+bool lrcAnalyze::hasTimestamp(const std::string& line) {
     return line.size() > 1 && line[0] == '[' && line[1] >= '0' && line[1] <= '9';
 }
 
 // 函数用于清除歌词文件中的空行
-void lrc_analyze::removeEmptyLinesWithTimestamps(const std::string& filename) {
+void lrcAnalyze::removeEmptyLinesWithTimestamps(const std::string& filename) {
     std::ifstream fileIn(filename);
     if (!fileIn.is_open()) {
         std::cerr << "Error opening file for reading: " << filename << std::endl;

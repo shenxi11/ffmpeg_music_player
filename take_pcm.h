@@ -5,13 +5,11 @@
 #include<QThreadPool>
 #include"headers.h"
 
-class Take_pcm : public QThread
+class Take_pcm : public QObject
 {
     Q_OBJECT
 public:
     explicit Take_pcm();
-
-    void run() override;
 
 public slots:
     void make_pcm(QString Path);

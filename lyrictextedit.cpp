@@ -15,7 +15,7 @@ void LyricTextEdit::highlightLine(int lineNumber) {
         // 选中整行
         cursor.select(QTextCursor::LineUnderCursor);
 
-         qDebug()<<cursor.selectedText();
+         //qDebug()<<cursor.selectedText();
 
        highlightLineFormat(cursor);
     }

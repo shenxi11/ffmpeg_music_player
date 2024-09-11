@@ -12,6 +12,7 @@ int main(int argc, char *argv[])
 //    int lineHeight = getLineHeight(fontSize);
 //    qDebug() << "Font Size:" << fontSize << "Line Height:" << lineHeight;
 
+    qRegisterMetaType<std::map<int, std::string>>("std::map<int, std::string>");
     MainWindow w;
     w.show();
 

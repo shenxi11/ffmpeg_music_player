@@ -4,11 +4,10 @@ Take_pcm::Take_pcm()
 {
 
 }
-void Take_pcm::run(){
 
-}
 //将音频文件转化为pcm文件
 void Take_pcm::make_pcm(QString Path){
+    qDebug()<<"Take_pcm"<<QThread::currentThreadId();
     avformat_network_init();
 
     const char* inputUrl = Path.toUtf8().constData();
@@ -77,11 +76,11 @@ void Take_pcm::make_pcm(QString Path){
 
     emit durations(ifmt_ctx->duration);
 
-    // 打印音频流信息
-    qDebug() << "Input Sample Rate:" << input_sample_rate;
-    qDebug() << "Input Channels:" << codec_ctx->channels;
-    qDebug() << "Input Bitrate:" << codec_ctx->bit_rate;
-    qDebug() << "Input Sample Format:" << input_sample_fmt;
+//    // 打印音频流信息
+//    qDebug() << "Input Sample Rate:" << input_sample_rate;
+//    qDebug() << "Input Channels:" << codec_ctx->channels;
+//    qDebug() << "Input Bitrate:" << codec_ctx->bit_rate;
+//    qDebug() << "Input Sample Format:" << input_sample_fmt;
 
     // 初始化 AVFrame 和 AVPacket
     AVFrame* frame = av_frame_alloc();
@@ -190,7 +189,7 @@ void Take_pcm::make_pcm(QString Path){
     avformat_close_input(&ifmt_ctx);
     swr_free(&swr_ctx);
 
-    qDebug()<<"finish taking";
+    //qDebug()<<"finish taking";
 
     emit begin_to_play(path);
 }

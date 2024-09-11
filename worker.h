@@ -4,7 +4,7 @@
 #include <QObject>
 #include"headers.h"
 
-class Worker :public QThread
+class Worker :public QObject
 {
     Q_OBJECT
 public:
@@ -12,7 +12,6 @@ public:
 
     ~Worker();
 
-    void run() override;
 
     void play_pcm(QString pcmFilePath);
 
@@ -25,6 +24,8 @@ public slots:
     void receive_lrc(std::map<int, std::string> lyrics);
 
     void Set_Volume(int value);
+
+    void stop();
 signals:
     void durations(qint64 value);
 
@@ -32,11 +33,13 @@ signals:
 
     void stopPlay();
 
-    void send_lrc(QString lrc_str);
+    void send_lrc(QString str);
 
     void Stop();
 
     void Begin();
+
+    void rePlay();
 private:
     std::map<int, std::string> lyrics;
 
@@ -47,12 +50,15 @@ private:
     QTimer* timer;
     QTimer* timer1;
 
-    std::unique_ptr<QAudioOutput>audioOutput;
+    QAudioOutput*audioOutput;
 
     bool isPaused; // 用于区分是否是暂停恢复的情况
 
-    int count=0;
+    std::mutex mtx;
 
+    char* buffer;
+
+    const int bufferSize = 44100 * 2 * 2 * 0.1;
 };
 
 #endif // WORKER_H

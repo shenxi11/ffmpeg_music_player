@@ -39,8 +39,12 @@ signals:
     void begin_to_play(QString path);
 
     void begin_take_lrc(QString str);
+
+    void play_changed(bool flag);
 private:
     Ui::MainWindow *ui;
+
+    void rePlay(QString path);
 
     std::unique_ptr<Worker>work;//音频转化为pcm的线程
 
@@ -53,7 +57,7 @@ private:
 
     std::map<int, std::string> lyrics;
 
-    QThreadPool *threadPool;
+    QString filePath;
 
     LyricTextEdit*textEdit;
 
@@ -62,5 +66,15 @@ private:
     qint64 duration=0;
 
     void init_TextEdit();
+
+    std::mutex mtx;
+
+    QThread*a;
+    QThread*b;
+    QThread*c;
+
+    bool played;
+
+    bool loop;
 };
 #endif // MAINWINDOW_H

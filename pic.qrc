@@ -4,5 +4,7 @@
         <file>icon/喇叭_bg.png</file>
         <file>icon/文件夹_bg.png</file>
         <file>icon/暂停1_bg.png</file>
+        <file>icon/循环_bg.png</file>
+        <file>icon/正在循环.png</file>
     </qresource>
 </RCC>

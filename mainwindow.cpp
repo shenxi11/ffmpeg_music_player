@@ -4,6 +4,8 @@
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
+    ,played(false)
+    ,loop(false)
 
 {
     ui->setupUi(this);
@@ -16,44 +18,89 @@ MainWindow::MainWindow(QWidget *parent)
     slider = new QSlider(Qt::Vertical, this);
     slider->close();
 
+    ui->Loop->setStyleSheet(
+                "QPushButton {"
+                "    border-image: url(:/new/prefix1/icon/循环_bg.png);"
+                "}"
+                );
+
+    //QThread*a=new QThread();
+    //QThread*b=new QThread();
+    //QThread*c=new QThread();
+
+    a=new QThread();
+    b=new QThread();
+    c=new QThread();
+
     ui->Slider->setRange(0,10000);
 
     work=std::make_unique<Worker>();
-    work->start();
+    work->moveToThread(c);
 
     lrc=std::make_unique<lrc_analyze>();
-    lrc->start();
+    //lrc->moveToThread(b);
+    //lrc.get()->moveToThread(b);
 
     take_pcm=std::make_unique<Take_pcm>();
-    take_pcm->start();
+    //take_pcm->start();
+
+    take_pcm->moveToThread(a);
 
 
-
+    a->start();
+    b->start();
+    c->start();
     init_TextEdit();
 
-    QThreadPool *threadPool = QThreadPool::globalInstance();
-    qDebug() << "活动线程数:" << threadPool->activeThreadCount();
+    qDebug()<<"MainWindow"<<QThread::currentThreadId();
+
+//    connect(this,&MainWindow::play_changed,[=](bool flag){
+
+//    });
 
     connect(ui->dir,&QPushButton::clicked,this,&MainWindow::openfile);
 
     connect(this,&MainWindow::filepath,take_pcm.get(),&Take_pcm::make_pcm);
 
-    connect(take_pcm.get(),&Take_pcm::begin_to_play,this,&MainWindow::_begin_to_play,Qt::QueuedConnection);
-    connect(this,&MainWindow::begin_to_play,work.get(),&Worker::begin_play,Qt::QueuedConnection);
+    //    connect(take_pcm.get(),&Take_pcm::begin_to_play,this,&MainWindow::_begin_to_play);
+    //    connect(this,&MainWindow::begin_to_play,work.get(),&Worker::begin_play);
 
-    connect(ui->play,&QPushButton::clicked,work.get(),&Worker::stop_play,Qt::QueuedConnection);
+    connect(take_pcm.get(),&Take_pcm::begin_to_play,this,&MainWindow::_begin_to_play);
+    connect(this,&MainWindow::begin_to_play,work.get(),&Worker::play_pcm);
 
-    connect(take_pcm.get(),&Take_pcm::begin_take_lrc,this,&MainWindow::_begin_take_lrc,Qt::QueuedConnection);
+
+
+    connect(work.get(),&Worker::rePlay,this,[=](){
+        {
+            std::lock_guard<std::mutex>lock(mtx);
+            this->played=true;
+        }
+        if(this->loop&&this->filePath.size()>0){
+            rePlay(this->filePath);
+        }
+    });
+
+    connect(ui->play,&QPushButton::clicked,work.get(),&Worker::stop_play);
+    connect(ui->play,&QPushButton::clicked,[=](){
+        if(!this->loop&&filePath.size()>0&&played){
+            rePlay(this->filePath);
+            qDebug()<<"rePlay"<<this->filePath;
+        }
+    });
+    //    connect(take_pcm.get(),&Take_pcm::begin_take_lrc,this,&MainWindow::_begin_take_lrc);
+    //    connect(this,&MainWindow::begin_take_lrc,lrc.get(),&lrc_analyze::begin_take_lrc);
+
+
+    connect(take_pcm.get(),&Take_pcm::begin_take_lrc,this,&MainWindow::_begin_take_lrc);
     connect(this,&MainWindow::begin_take_lrc,lrc.get(),&lrc_analyze::begin_take_lrc);
 
-
     connect(lrc.get(),&lrc_analyze::send_lrc,work.get(),&Worker::receive_lrc);
-    connect(lrc.get(),&lrc_analyze::send_lrc,this,[=](std::map<int, std::string> lyrics){
-//        if(textEdit){
-//            textEdit->clear();
-//            delete textEdit;
-//            textEdit=nullptr;
-//        }
+    connect(lrc.get(),&lrc_analyze::send_lrc,this,[=](const std::map<int, std::string> lyrics){
+        //        if(textEdit){
+        //            textEdit->clear();
+        //            delete textEdit;
+        //            textEdit=nullptr;
+        //        }
 
         this->textEdit->clear();
         this->textEdit->currentLine=5;
@@ -61,11 +108,14 @@ MainWindow::MainWindow(QWidget *parent)
         for(int i=0;i<5;i++){
             textEdit->append("    ");
         }
-        for (const auto& [time, text] : lyrics){
-            textEdit->append(QString::fromStdString(text));
-            qDebug()<<QString::fromStdString(text);
+        {
+            std::lock_guard<std::mutex>lock(mtx);
+            for (const auto& [time, text] : lyrics){
+                textEdit->append(QString::fromStdString(text));
+                //qDebug()<<QString::fromStdString(text);
+            }
+            this->lyrics=lyrics;
         }
-        this->lyrics=lyrics;
         for(int i=0;i<5;i++){
             textEdit->append("    ");
         }
@@ -91,10 +141,23 @@ MainWindow::MainWindow(QWidget *parent)
     });
 
 
-    connect(work.get(),&Worker::send_lrc,this,[=](QString lrc_str){
-        textEdit->highlightLine(textEdit->currentLine);
-        textEdit->scrollOneLine();
-        textEdit->currentLine++;
+    connect(work.get(),&Worker::send_lrc,this,[=](QString str){
+        qDebug()<<"textEdit->currentLine"<<textEdit->currentLine<<str;
+        QTextDocument *document = textEdit->document();
+
+        // 获取指定行的文本块
+        QTextBlock block = document->findBlockByLineNumber(textEdit->currentLine);
+        QString lineText;
+        // 检查是否找到有效的块
+        if (block.isValid()) {
+            lineText= block.text();  // 获取该行的文本
+        }
+        if(str==lineText){
+            textEdit->highlightLine(textEdit->currentLine);
+            textEdit->scrollOneLine();
+            textEdit->currentLine++;
+            update();
+        }
     });
 
     connect(work.get(),&Worker::Stop,this,[=](){
@@ -106,12 +169,33 @@ MainWindow::MainWindow(QWidget *parent)
                     );
     });
     connect(work.get(),&Worker::Begin,this,[=](){
+
         ui->play->setStyleSheet(
                     "QPushButton {"
                     "    border-image: url(:/new/prefix1/icon/暂停1_bg.png);"
                     "}"
                     );
     });
+
+    connect(ui->Loop,&QPushButton::clicked,this,[=](){
+        if(this->loop){
+            ui->Loop->setStyleSheet(
+                        "QPushButton {"
+                        "    border-image: url(:/new/prefix1/icon/循环_bg.png);"
+                        "}"
+                        );
+        }else{
+            ui->Loop->setStyleSheet(
+                        "QPushButton {"
+                        "    border-image: url(:/new/prefix1/icon/正在循环.png);"
+                        "}"
+                        );
+        }
+        this->loop=!this->loop;
+
+        qDebug()<<"Loop state"<<this->loop;
+    });
+
 
     connect(ui->video,&QPushButton::toggled,this,[=](bool checked){
         if(checked){
@@ -133,12 +217,24 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(take_pcm.get(),&Take_pcm::durations,[=](int64_t value){
         this->duration=static_cast<qint64>(value);
-        qDebug()<<'0';
+
     });
     connect(work.get(),&Worker::durations,[=](qint64 value){
         ui->Slider->setValue((value*10000)/this->duration);
         // qDebug()<<value<<' '<<this->duration;
     });
+
+
+
+}
+
+void MainWindow::rePlay(QString path){
+    emit filepath(path);
+    {
+        std::lock_guard<std::mutex>lock(mtx);
+        this->played=false;
+    }
+
 }
 void MainWindow::_begin_to_play(QString Path){
     emit begin_to_play(Path);
@@ -157,6 +253,7 @@ void MainWindow::init_TextEdit(){
 
 
 void MainWindow::_begin_take_lrc(QString str){
+    this->textEdit->clear();
 
     emit begin_take_lrc(str);
     QTextCursor cursor = textEdit->textCursor();
@@ -183,7 +280,7 @@ void MainWindow::openfile(){
 
     // 打印选中的文件路径
     if (!filePath.isEmpty()) {
-
+        this->filePath=filePath;
         emit filepath(filePath);
 
         qDebug() << "Selected file:" << filePath;
@@ -197,6 +294,15 @@ void MainWindow::openfile(){
 
 MainWindow::~MainWindow()
 {
+    QMetaObject::invokeMethod(work.get(), "stop", Qt::QueuedConnection);
+
+    a->quit();
+    b->quit();
+    c->quit();
+
+    a->wait();
+    b->wait();
+    c->wait();
 
     delete ui;
 }

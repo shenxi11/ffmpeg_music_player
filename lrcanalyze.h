@@ -3,11 +3,11 @@
 
 #include <QObject>
 #include"headers.h"
-class lrc_analyze : public QObject
+class lrcAnalyze : public QObject
 {
     Q_OBJECT
 public:
-    explicit lrc_analyze();
+    explicit lrcAnalyze();
 
 private slots:
     void begin_send(std::string lrcFile);
@@ -33,7 +33,6 @@ private:
 
     QString readFileWithEncoding(const QString &filePath, const QByteArray &encoding);
 
-//    void run() override;
 
     std::map<int, std::string> lyrics;  // 用来存储解析的歌词，时间戳为 key，歌词文本为 value
 
