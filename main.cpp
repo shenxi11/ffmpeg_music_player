@@ -2,7 +2,7 @@
 #include <QFontMetrics>
 #include <QDebug>
 #include <QApplication>
-
+#include"test_widget.h"
 
 int main(int argc, char *argv[])
 {
@@ -13,10 +13,13 @@ int main(int argc, char *argv[])
 //    qDebug() << "Font Size:" << fontSize << "Line Height:" << lineHeight;
 
     qRegisterMetaType<std::map<int, std::string>>("std::map<int, std::string>");
+
     MainWindow w;
     w.show();
 
 
+
+    qDebug()<<"启动";
     return a.exec();
 }
 

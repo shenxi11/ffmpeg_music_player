@@ -1,33 +1,33 @@
 #include "worker.h"
 
 Worker::Worker():
-
+    
     isPaused(false)
   ,audioOutput(nullptr)
 {
     timer = new QTimer(this);
     timer1 = new QTimer(this);
-
-
+    
+    
     connect(timer, &QTimer::timeout, this,&Worker::onTimeOut);
-
+    
     connect(timer1, &QTimer::timeout, this, [=]() {
         emit durations(audioOutput->processedUSecs());
     });
-
-
+    
+    
 }
 Worker::~Worker() {
-
-
+    
+    
     timer->stop();
     timer1->stop();
-
+    
     qDebug()<<"Destruct Worker";
 }
 
 void Worker::stop(){
-
+    
 }
 void Worker::receive_lrc(std::map<int, std::string> lyrics){
     std::lock_guard<std::mutex>lock(mtx);
@@ -36,7 +36,7 @@ void Worker::receive_lrc(std::map<int, std::string> lyrics){
 void  Worker::begin_play(QString pcmFilePath){
     //qDebug()<<"Worker"<<QThread::currentThreadId();
     emit play(pcmFilePath);
-
+    
 }
 void Worker::stop_play(){
     emit stopPlay();
@@ -201,9 +201,9 @@ void Worker::onTimeOut(){
     if (audioOutput->bytesFree() < bufferSize) {
         return;
     }
-
+    
     qint64 bytesRead = file->read(buffer.get(), bufferSize);
-
+    
     if (bytesRead > 0) {
         qint64 bytesWritten = audioDevice->write(buffer.get(), bytesRead);
         if (bytesWritten < 0) {
@@ -214,15 +214,18 @@ void Worker::onTimeOut(){
             file.reset();
             return;
         }
-
+        
         qint64 currentTimeMS = audioOutput->processedUSecs() / 1000;
-
-        if (!lyrics.empty() && currentLyricIndex < (int)lyrics.size()) {
-            auto it = std::next(lyrics.begin(), currentLyricIndex);
-            if (currentTimeMS >= it->first) {
-                if (it->second != "")
-                    emit send_lrc(QString::fromStdString(it->second));
-                currentLyricIndex++;
+        {
+            std::lock_guard<std::mutex>lock(mtx);
+            
+            if (!lyrics.empty() && currentLyricIndex < (int)lyrics.size()) {
+                auto it = std::next(lyrics.begin(), currentLyricIndex);
+                if (currentTimeMS >= it->first) {
+                    if (it->second != "")
+                        emit send_lrc(QString::fromStdString(it->second));
+                    currentLyricIndex++;
+                }
             }
         }
     } else {
@@ -237,57 +240,57 @@ void Worker::onTimeOut(){
     }
 }
 void Worker::play_pcm(QString pcmFilePath) {
-
+    
     qDebug() << "Worker" << QThread::currentThreadId();
-
+    
     // 1. 停止并清理当前播放
     if (file) {
         file->close();
         file.reset();
     }
-
+    
     if (audioOutput) {
         audioOutput->stop();
         audioOutput->reset();
-//        delete audioOutput;
-//        audioOutput = nullptr;
-
+        //        delete audioOutput;
+        //        audioOutput = nullptr;
+        
         timer->stop();
         timer1->stop();
-
+        
         disconnect(this, &Worker::stopPlay, this, nullptr);
-
+        
         if(buffer){
             qDebug()<<"缓冲区未处理"<<sizeof (buffer)<<"bytes";
         }
     }
-
+    
     //    if (timer) {
     //        timer->stop();
     //        delete timer;
     //        timer = nullptr;
     //    }
-
+    
     //    if (timer1) {
     //        timer1->stop();
     //        delete timer1;
     //        timer1 = nullptr;
     //    }
-
+    
     //    if (buffer) {
     //        delete[] buffer;
     //        buffer = nullptr;
     //    }
-
-
-
+    
+    
+    
     // 2. 重新初始化并开始播放
     file = std::make_unique<QFile>(pcmFilePath);
     if (!file->open(QIODevice::ReadOnly)) {
         qDebug() << "Failed to open file for reading:" << file->errorString();
         return;
     }
-
+    
     QAudioFormat format;
     format.setSampleRate(44100);
     format.setChannelCount(2);
@@ -299,7 +302,7 @@ void Worker::play_pcm(QString pcmFilePath) {
         audioOutput = new QAudioOutput(format, this);
     }
     audioOutput->setBufferSize(8192 * 8);
-
+    
     audioDevice = audioOutput->start();
     if (!audioDevice) {
         qDebug() << "Failed to start audio device";
@@ -307,21 +310,21 @@ void Worker::play_pcm(QString pcmFilePath) {
         file.reset();
         return;
     }
-
+    
     audioOutput->setVolume(50 / 100.0);
-
+    
     buffer = std::make_unique<char[]>(bufferSize);
-
-
+    
+    
     this->currentLyricIndex=0;
-
-
+    
+    
     timer->start(10);
     timer1->start(1000);
     emit Begin();
-
-
-
+    
+    
+    
     connect(this, &Worker::stopPlay, this, &Worker::Pause);
 }
 

@@ -6,6 +6,11 @@ lrc_analyze::lrc_analyze()
 
     connect(this,&lrc_analyze::Begin_send,this,&lrc_analyze::begin_send);
 }
+
+ lrc_analyze::~lrc_analyze(){
+    qDebug()<<"Destruct lrc_analyze";
+}
+
 //void lrc_analyze::run(){
 
 

@@ -4,7 +4,9 @@ Take_pcm::Take_pcm()
 {
 
 }
-
+Take_pcm::~Take_pcm(){
+    qDebug()<<"Destruct Take_pcm";
+}
 //将音频文件转化为pcm文件
 void Take_pcm::make_pcm(QString Path){
     qDebug()<<"Take_pcm"<<QThread::currentThreadId();
@@ -12,7 +14,7 @@ void Take_pcm::make_pcm(QString Path){
 
     const char* inputUrl = Path.toUtf8().constData();
 
-    ifmt_ctx = nullptr;
+     AVFormatContext* ifmt_ctx=nullptr;
     if (avformat_open_input(&ifmt_ctx, inputUrl, nullptr, nullptr) != 0) {
         qDebug() << "Could not open input fileA";
         return;

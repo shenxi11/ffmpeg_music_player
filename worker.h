@@ -26,6 +26,12 @@ public slots:
     void Set_Volume(int value);
 
     void stop();
+
+private slots:
+    void onTimeOut();
+
+    void Pause();
+
 signals:
     void durations(qint64 value);
 
@@ -56,9 +62,11 @@ private:
 
     std::mutex mtx;
 
-    char* buffer;
+    std::unique_ptr<char[]>buffer;
 
     const int bufferSize = 44100 * 2 * 2 * 0.1;
+
+    int currentLyricIndex = 0;
 };
 
 #endif // WORKER_H

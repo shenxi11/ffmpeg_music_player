@@ -21,6 +21,7 @@ SOURCES += \
     main.cpp \
     mainwindow.cpp \
     take_pcm.cpp \
+    test_widget.cpp \
     worker.cpp
 
 HEADERS += \
@@ -29,6 +30,7 @@ HEADERS += \
     lyrictextedit.h \
     mainwindow.h \
     take_pcm.h \
+    test_widget.h \
     worker.h
 
 FORMS += \

@@ -14,6 +14,7 @@ public:
     LyricTextEdit(QWidget *parent = nullptr)
         : QTextEdit(parent), lastHighlightedLine(-1) { }
 
+    ~LyricTextEdit();
 //    // 更新并高亮显示歌词的当前行
 //    void updateHighlight() ;
 

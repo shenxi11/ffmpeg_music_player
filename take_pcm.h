@@ -11,6 +11,7 @@ class Take_pcm : public QObject
 public:
     explicit Take_pcm();
 
+    ~Take_pcm();
 public slots:
     void make_pcm(QString Path);
 
@@ -20,8 +21,7 @@ signals:
     void begin_to_play(QString path);
 
     void durations(int64_t value);
-private:
-     AVFormatContext* ifmt_ctx;
+
 };
 
 #endif // TAKE_PCM_H

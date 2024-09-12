@@ -105,3 +105,7 @@ void LyricTextEdit::scrollOneLine() {
        // scrollBar->setValue(currentValue - lineSpacing);
 
 }
+
+LyricTextEdit::~LyricTextEdit(){
+    qDebug()<<"Destruct LyricTextEdit";
+}

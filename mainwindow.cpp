@@ -28,9 +28,9 @@ MainWindow::MainWindow(QWidget *parent)
     //QThread*b=new QThread();
     //QThread*c=new QThread();
 
-    a=new QThread();
-    b=new QThread();
-    c=new QThread();
+    a=new QThread(this);
+    b=new QThread(this);
+    c=new QThread(this);
 
     ui->Slider->setRange(0,10000);
 
@@ -54,9 +54,9 @@ MainWindow::MainWindow(QWidget *parent)
 
     qDebug()<<"MainWindow"<<QThread::currentThreadId();
 
-//    connect(this,&MainWindow::play_changed,[=](bool flag){
+    //    connect(this,&MainWindow::play_changed,[=](bool flag){
 
-//    });
+    //    });
 
     connect(ui->dir,&QPushButton::clicked,this,&MainWindow::openfile);
 
@@ -142,7 +142,7 @@ MainWindow::MainWindow(QWidget *parent)
 
 
     connect(work.get(),&Worker::send_lrc,this,[=](QString str){
-        qDebug()<<"textEdit->currentLine"<<textEdit->currentLine<<str;
+        // qDebug()<<"textEdit->currentLine"<<textEdit->currentLine<<str;
         QTextDocument *document = textEdit->document();
 
         // 获取指定行的文本块
@@ -295,14 +295,21 @@ void MainWindow::openfile(){
 MainWindow::~MainWindow()
 {
     QMetaObject::invokeMethod(work.get(), "stop", Qt::QueuedConnection);
+    if(a){
+        a->quit();
+        a->wait();
+    }
+    if(b){
+        b->quit();
+        b->wait();
+    }
+    if(c){
+        c->quit();
+        c->wait();
+    }
 
-    a->quit();
-    b->quit();
-    c->quit();
-
-    a->wait();
-    b->wait();
-    c->wait();
+    this->textEdit->deleteLater();
+    this->slider->deleteLater();
 
     delete ui;
 }

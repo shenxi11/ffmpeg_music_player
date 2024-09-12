@@ -9,6 +9,7 @@ class lrc_analyze : public QObject
 public:
     explicit lrc_analyze();
 
+    ~lrc_analyze();
 private slots:
     void begin_send(std::string lrcFile);
 
