@@ -14,7 +14,7 @@ void Take_pcm::make_pcm(QString Path){
 
     const char* inputUrl = Path.toUtf8().constData();
 
-     AVFormatContext* ifmt_ctx=nullptr;
+    AVFormatContext* ifmt_ctx=nullptr;
     if (avformat_open_input(&ifmt_ctx, inputUrl, nullptr, nullptr) != 0) {
         qDebug() << "Could not open input fileA";
         return;
@@ -78,11 +78,11 @@ void Take_pcm::make_pcm(QString Path){
 
     emit durations(ifmt_ctx->duration);
 
-//    // 打印音频流信息
-//    qDebug() << "Input Sample Rate:" << input_sample_rate;
-//    qDebug() << "Input Channels:" << codec_ctx->channels;
-//    qDebug() << "Input Bitrate:" << codec_ctx->bit_rate;
-//    qDebug() << "Input Sample Format:" << input_sample_fmt;
+    //    // 打印音频流信息
+    //    qDebug() << "Input Sample Rate:" << input_sample_rate;
+    //    qDebug() << "Input Channels:" << codec_ctx->channels;
+    //    qDebug() << "Input Bitrate:" << codec_ctx->bit_rate;
+    //    qDebug() << "Input Sample Format:" << input_sample_fmt;
 
     // 初始化 AVFrame 和 AVPacket
     AVFrame* frame = av_frame_alloc();
@@ -114,7 +114,7 @@ void Take_pcm::make_pcm(QString Path){
     }
 
     // 配置 SwrContext
-    int output_sample_rate = 44100;  // 目标采样率（可以根据需要调整）
+    int output_sample_rate = RATE;  // 目标采样率（可以根据需要调整）
     int64_t output_channel_layout = AV_CH_LAYOUT_STEREO;  // 目标通道布局（例如立体声）
     enum AVSampleFormat output_sample_fmt = AV_SAMPLE_FMT_S16;  // 目标样本格式（例如 16-bit）
 
@@ -153,12 +153,30 @@ void Take_pcm::make_pcm(QString Path){
         swr_free(&swr_ctx);
         return;
     }
+    // PTS-PCM 位置映射表
+    std::vector<std::pair<qint64, qint64>> pcmTimeMap;
+    qint64 currentPcmPosition = 0;  // 当前 PCM 文件的字节位置
 
+    // 获取音频文件的总时长
+    qint64 totalAudioDurationInMS = ifmt_ctx->duration * av_q2d(AV_TIME_BASE_Q) * 1000;
+
+    emit send_totalDuration(totalAudioDurationInMS);
 
     while (av_read_frame(ifmt_ctx, pkt) >= 0) {
         if (pkt->stream_index == audioStreamIndex) {
             if (avcodec_send_packet(codec_ctx, pkt) >= 0) {
                 while (avcodec_receive_frame(codec_ctx, frame) >= 0) {
+                    // 获取 PTS（如果 PTS 不可用，则忽略）
+                    if (pkt->pts != AV_NOPTS_VALUE) {
+                        int64_t pts = pkt->pts;
+                        // 将 PTS 转换为毫秒（假设时间基为秒的分数，time_base=秒/单位）
+                        int64_t timeInMS = pts * av_q2d(ifmt_ctx->streams[audioStreamIndex]->time_base) * 1000;
+
+                        // 记录当前 PCM 文件的字节位置和 PTS 的对应关系
+                        pcmTimeMap.push_back(std::make_pair(currentPcmPosition, timeInMS));
+                    }
+
+                    // 处理音频重采样
                     int dst_nb_samples = av_rescale_rnd(swr_get_delay(swr_ctx, codec_ctx->sample_rate) + frame->nb_samples, 44100, codec_ctx->sample_rate, AV_ROUND_UP);
                     uint8_t* buffer = nullptr;
                     int buffer_size = av_samples_get_buffer_size(nullptr, 2, dst_nb_samples, AV_SAMPLE_FMT_S16, 1);
@@ -172,9 +190,14 @@ void Take_pcm::make_pcm(QString Path){
                         continue;
                     }
 
+                    // 转换音频并写入 PCM 文件
                     int converted_samples = swr_convert(swr_ctx, &buffer, dst_nb_samples, (const uint8_t**)frame->data, frame->nb_samples);
                     int converted_buffer_size = av_samples_get_buffer_size(nullptr, 2, converted_samples, AV_SAMPLE_FMT_S16, 1);
                     fwrite(buffer, 1, converted_buffer_size, f);
+
+                    // 更新 PCM 文件字节位置
+                    currentPcmPosition += converted_buffer_size;
+
                     free(buffer);
                 }
             }
@@ -184,6 +207,7 @@ void Take_pcm::make_pcm(QString Path){
 
     fclose(f);
 
+    emit send_pcmMap(pcmTimeMap);
 
     av_frame_free(&frame);
     av_packet_free(&pkt);

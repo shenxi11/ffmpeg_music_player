@@ -22,6 +22,9 @@ signals:
 
     void durations(int64_t value);
 
+    void send_pcmMap(std::vector<std::pair<qint64, qint64>> pcmTimeMap);
+
+    void send_totalDuration(qint64 totalAudioDurationInMS);
 };
 
 #endif // TAKE_PCM_H

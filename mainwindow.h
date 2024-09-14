@@ -41,6 +41,10 @@ signals:
     void begin_take_lrc(QString str);
 
     void play_changed(bool flag);
+
+    void set_SliderMove(bool flag);
+
+    void process_Change(qint64 newPosition);
 private:
     Ui::MainWindow *ui;
 
@@ -62,6 +66,19 @@ private:
     LyricTextEdit*textEdit;
 
     QSlider *slider;
+
+    QPushButton*video;
+
+    QPushButton*play;
+
+    QPushButton*Loop;
+
+    QPushButton*dir;
+
+    QSlider *Slider;
+
+
+
 
     qint64 duration=0;
 

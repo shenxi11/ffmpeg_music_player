@@ -3,6 +3,7 @@
 Worker::Worker():
 
     isPaused(false)
+  ,sliderMove(false)
   ,audioOutput(nullptr)
 {
     timer = new QTimer(this);
@@ -11,9 +12,9 @@ Worker::Worker():
 
     connect(timer, &QTimer::timeout, this,&Worker::onTimeOut);
 
-    connect(timer1, &QTimer::timeout, this, [=]() {
-        emit durations(audioOutput->processedUSecs());
-    });
+    //    connect(timer1, &QTimer::timeout, this, [=]() {
+    //        emit durations(audioOutput->processedUSecs());
+    //    });//更新进度条
 
 
 }
@@ -23,11 +24,73 @@ Worker::~Worker() {
     timer->stop();
     timer1->stop();
 
+    if(audioOutput){
+        qDebug()<<"audioOutput not destruct";
+    }
+    if(timer||timer1){
+        qDebug()<<"timer not destruct";
+    }
+
+
     qDebug()<<"Destruct Worker";
 }
 
 void Worker::stop(){
 
+}
+void Worker::receive_totalDuration(qint64 total){
+    this->totalAudioDurationInMS=total;
+}
+qint64 Worker::calculatePlaybackTime(qint64 pcmPosition) {
+    qint64 totalPcmSize = file->size();  // PCM 文件的总字节数
+    qint64 totalDurationMS = totalAudioDurationInMS;  // 总播放时间（毫秒）
+    //qDebug()<<"calculate"<<(pcmPosition * totalDurationMS) / totalPcmSize;
+    return (pcmPosition * totalDurationMS) / totalPcmSize;
+}
+// 获取 PCM 文件中某个字节位置对应的时间戳
+qint64 Worker::getPlaybackTimeFromPcmPosition(qint64 pcmPosition) {
+    for (size_t i = 0; i < pcmTimeMap.size() - 1; i++) {
+        if (pcmPosition >= pcmTimeMap[i].first && pcmPosition < pcmTimeMap[i + 1].first) {
+            return pcmTimeMap[i].second;  // 返回毫秒单位的播放时间
+        }
+    }
+    return -1;  // 未找到对应时间
+}
+void Worker::seekToPosition(int newPosition) {
+
+    //disconnect(timer,&QTimer::timeout,this,nullptr);
+    // 计算 PCM 文件中的字节位置
+    qint64 bytesPosition = (newPosition / 10000.0) * file->size();
+
+    // 确保 bytesPosition 在文件大小范围内
+    if (bytesPosition >= 0 && bytesPosition < file->size()) {
+        {
+            std::lock_guard<std::mutex> lock(mtx);
+            // 移动文件指针到指定位置
+            file->seek(bytesPosition);
+        }
+        //        // 清空当前音频设备的缓冲区
+        //        audioDevice->reset();
+
+        //        // 读取数据到缓冲区
+        //        qint64 bytesRead = file->read(buffer.get(), BUFFER_SIZE);
+        //        if (bytesRead > 0) {
+        //            qint64 bytesWritten = audioDevice->write(buffer.get(), bytesRead);
+        //            if (bytesWritten < 0) {
+        //                qDebug() << "Error writing audio data:" << audioDevice->errorString();
+        //            }
+        //        }
+
+        //        // 计算并同步新位置的播放时间
+        //        qint64 newPlaybackTime = calculatePlaybackTime(bytesPosition);  // 计算跳转后的播放时间
+        //        emit durations(newPlaybackTime);  // 通知其他组件同步显示时间
+
+        //        // 恢复播放
+        //        audioOutput->resume();
+    } else {
+        qDebug() << "Invalid position for seek";
+    }
+    //connect(timer,&QTimer::timeout,this,&Worker::onTimeOut);
 }
 void Worker::receive_lrc(std::map<int, std::string> lyrics){
     std::lock_guard<std::mutex>lock(mtx);
@@ -45,8 +108,12 @@ void Worker::Set_Volume(int value){
     if(audioOutput)
         audioOutput->setVolume(value/100.0);
 }
+void Worker::set_SliderMove(bool flag){
+    this->sliderMove=flag;
+    Pause();
+}
 void Worker::Pause(){
-    if (!isPaused) {
+    if (!isPaused||this->sliderMove) {
         qDebug() << "暂停";
         audioOutput->suspend();
         timer->stop();
@@ -196,13 +263,20 @@ void Worker::Pause(){
 
 //    });
 //}
+void Worker::receive_pcmMap(std::vector<std::pair<qint64, qint64>> pcmTimeMap){
+    this->pcmTimeMap=pcmTimeMap;
+}
 
 void Worker::onTimeOut(){
-    if (audioOutput->bytesFree() < bufferSize) {
+    std::lock_guard<std::mutex>lock(mtx);
+    if (audioOutput->bytesFree() < BUFFER_SIZE) {
         return;
     }
 
-    qint64 bytesRead = file->read(buffer.get(), bufferSize);
+    // 获取当前文件位置
+    qint64 bytesPosition = file->pos();
+
+    qint64 bytesRead = file->read(buffer.get(), BUFFER_SIZE);
 
     if (bytesRead > 0) {
         qint64 bytesWritten = audioDevice->write(buffer.get(), bytesRead);
@@ -215,16 +289,25 @@ void Worker::onTimeOut(){
             return;
         }
 
-        qint64 currentTimeMS = audioOutput->processedUSecs() / 1000;
+        // qint64 currentTimeMS = audioOutput->processedUSecs() / 1000;
+
+        // 计算并同步新位置的播放时间
+        qint64 newPlaybackTime = calculatePlaybackTime(bytesPosition);
+        emit durations(newPlaybackTime);  // 通知其他组件同步显示时间
+
+        // emit durations(currentTimeMS);
+
+
 
         if (!lyrics.empty() && currentLyricIndex < (int)lyrics.size()) {
             auto it = std::next(lyrics.begin(), currentLyricIndex);
-            if (currentTimeMS >= it->first) {
+            if (newPlaybackTime >= it->first) {
                 if (it->second != "")
                     emit send_lrc(QString::fromStdString(it->second));
                 currentLyricIndex++;
             }
         }
+
     } else {
         timer->stop();
         timer1->stop();
@@ -249,8 +332,8 @@ void Worker::play_pcm(QString pcmFilePath) {
     if (audioOutput) {
         audioOutput->stop();
         audioOutput->reset();
-//        delete audioOutput;
-//        audioOutput = nullptr;
+        //        delete audioOutput;
+        //        audioOutput = nullptr;
 
         timer->stop();
         timer1->stop();
@@ -289,16 +372,16 @@ void Worker::play_pcm(QString pcmFilePath) {
     }
 
     QAudioFormat format;
-    format.setSampleRate(44100);
-    format.setChannelCount(2);
-    format.setSampleSize(16);
+    format.setSampleRate(RATE);
+    format.setChannelCount(CHANNELS);
+    format.setSampleSize(SAMPLE_SIZE);
     format.setCodec("audio/pcm");
     format.setByteOrder(QAudioFormat::LittleEndian);
     format.setSampleType(QAudioFormat::SignedInt);
     if(!audioOutput){
         audioOutput = new QAudioOutput(format, this);
     }
-    audioOutput->setBufferSize(8192 * 8);
+    audioOutput->setBufferSize(AUDIO_BUFFER_SIZE);
 
     audioDevice = audioOutput->start();
     if (!audioDevice) {
@@ -310,7 +393,7 @@ void Worker::play_pcm(QString pcmFilePath) {
 
     audioOutput->setVolume(50 / 100.0);
 
-    buffer = std::make_unique<char[]>(bufferSize);
+    buffer = std::make_unique<char[]>(BUFFER_SIZE);
 
 
     this->currentLyricIndex=0;
@@ -319,8 +402,6 @@ void Worker::play_pcm(QString pcmFilePath) {
     timer->start(10);
     timer1->start(1000);
     emit Begin();
-
-
 
     connect(this, &Worker::stopPlay, this, &Worker::Pause);
 }

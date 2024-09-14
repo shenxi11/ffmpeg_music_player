@@ -9,7 +9,45 @@ MainWindow::MainWindow(QWidget *parent)
 
 {
     ui->setupUi(this);
-    ui->play->setStyleSheet(
+
+    play=new QPushButton(this);
+    video=new QPushButton(this);
+    Loop=new QPushButton(this);
+    dir=new QPushButton(this);
+
+    Slider=new QSlider(Qt::Horizontal,this);
+
+    Loop->setFixedSize(50,50);
+    Loop->move(100,400);
+
+    dir->setFixedSize(50,50);
+    dir->move(250,400);
+
+    play->setFixedSize(50,50);
+    play->move(400,400);
+
+    video->setFixedSize(50,50);
+    video->move(550,400);
+
+
+    Slider->setFixedSize(800,20);
+    Slider->move(30,350);
+
+
+
+    dir->setStyleSheet(
+                "QPushButton {"
+                "    border-image: url(:/new/prefix1/icon/文件夹_bg.png);"
+                "}"
+                );
+
+    video->setStyleSheet(
+                "QPushButton {"
+                "    border-image: url(:/new/prefix1/icon/喇叭_bg.png);"
+                "}"
+                );
+
+    play->setStyleSheet(
                 "QPushButton {"
                 "    border-image: url(:/new/prefix1/icon/播放_bg.png);"
                 "}"
@@ -18,21 +56,24 @@ MainWindow::MainWindow(QWidget *parent)
     slider = new QSlider(Qt::Vertical, this);
     slider->close();
 
-    ui->Loop->setStyleSheet(
+    Loop->setStyleSheet(
                 "QPushButton {"
                 "    border-image: url(:/new/prefix1/icon/循环_bg.png);"
                 "}"
                 );
 
-    //QThread*a=new QThread();
-    //QThread*b=new QThread();
-    //QThread*c=new QThread();
+
+
+//    QThread*a=new QThread();
+//    QThread*b=new QThread();
+//    QThread*c=new QThread();
+
 
     a=new QThread(this);
     b=new QThread(this);
     c=new QThread(this);
 
-    ui->Slider->setRange(0,10000);
+    Slider->setRange(0,10000);
 
     work=std::make_unique<Worker>();
     work->moveToThread(c);
@@ -58,7 +99,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     //    });
 
-    connect(ui->dir,&QPushButton::clicked,this,&MainWindow::openfile);
+    connect(dir,&QPushButton::clicked,this,&MainWindow::openfile);
 
     connect(this,&MainWindow::filepath,take_pcm.get(),&Take_pcm::make_pcm);
 
@@ -68,7 +109,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(take_pcm.get(),&Take_pcm::begin_to_play,this,&MainWindow::_begin_to_play);
     connect(this,&MainWindow::begin_to_play,work.get(),&Worker::play_pcm);
 
-
+    connect(take_pcm.get(),&Take_pcm::send_pcmMap,work.get(),&Worker::receive_pcmMap);
+    connect(take_pcm.get(),&Take_pcm::send_totalDuration,work.get(),&Worker::receive_totalDuration);
 
     connect(work.get(),&Worker::rePlay,this,[=](){
         {
@@ -80,8 +122,8 @@ MainWindow::MainWindow(QWidget *parent)
         }
     });
 
-    connect(ui->play,&QPushButton::clicked,work.get(),&Worker::stop_play);
-    connect(ui->play,&QPushButton::clicked,[=](){
+    connect(play,&QPushButton::clicked,work.get(),&Worker::stop_play);
+    connect(play,&QPushButton::clicked,[=](){
         if(!this->loop&&filePath.size()>0&&played){
             rePlay(this->filePath);
             qDebug()<<"rePlay"<<this->filePath;
@@ -162,7 +204,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(work.get(),&Worker::Stop,this,[=](){
 
-        ui->play->setStyleSheet(
+        play->setStyleSheet(
                     "QPushButton {"
                     "    border-image: url(:/new/prefix1/icon/播放_bg.png);"
                     "}"
@@ -170,22 +212,22 @@ MainWindow::MainWindow(QWidget *parent)
     });
     connect(work.get(),&Worker::Begin,this,[=](){
 
-        ui->play->setStyleSheet(
+        play->setStyleSheet(
                     "QPushButton {"
                     "    border-image: url(:/new/prefix1/icon/暂停1_bg.png);"
                     "}"
                     );
     });
 
-    connect(ui->Loop,&QPushButton::clicked,this,[=](){
+    connect(Loop,&QPushButton::clicked,this,[=](){
         if(this->loop){
-            ui->Loop->setStyleSheet(
+            Loop->setStyleSheet(
                         "QPushButton {"
                         "    border-image: url(:/new/prefix1/icon/循环_bg.png);"
                         "}"
                         );
         }else{
-            ui->Loop->setStyleSheet(
+            Loop->setStyleSheet(
                         "QPushButton {"
                         "    border-image: url(:/new/prefix1/icon/正在循环.png);"
                         "}"
@@ -197,7 +239,7 @@ MainWindow::MainWindow(QWidget *parent)
     });
 
 
-    connect(ui->video,&QPushButton::toggled,this,[=](bool checked){
+    connect(video,&QPushButton::toggled,this,[=](bool checked){
         if(checked){
             qDebug()<<"被选中";
             slider->setMinimum(0);
@@ -205,7 +247,7 @@ MainWindow::MainWindow(QWidget *parent)
             slider->setValue(50);
             slider->setTickPosition(QSlider::TicksRight);  // 在滑条右侧显示刻度
             slider->setTickInterval(10);
-            slider->setGeometry(ui->video->pos().x(),ui->video->pos().y()-ui->video->height()*3,ui->video->width(),ui->video->height()*3);
+            slider->setGeometry(video->pos().x(),video->pos().y()-video->height()*3,video->width(),video->height()*3);
             slider->show();
         }else{
             if(slider){
@@ -215,16 +257,33 @@ MainWindow::MainWindow(QWidget *parent)
     });
     connect(slider,&QSlider::valueChanged,work.get(),&Worker::Set_Volume);
 
-    connect(take_pcm.get(),&Take_pcm::durations,[=](int64_t value){
+    connect(take_pcm.get(),&Take_pcm::durations,[=](qint64 value){
         this->duration=static_cast<qint64>(value);
-
+        //qDebug()<<"this->duration"<<this->duration;
     });
     connect(work.get(),&Worker::durations,[=](qint64 value){
-        ui->Slider->setValue((value*10000)/this->duration);
-        // qDebug()<<value<<' '<<this->duration;
+        Slider->setValue((value*10000000)/this->duration);
+         //qDebug()<<(value)<<" "<<this->duration;
     });
+//    connect(this,&MainWindow::set_SliderMove,work.get(),&Worker::set_SliderMove);
+
+//    connect(Slider,&QSlider::sliderPressed,[=](){
+//        emit set_SliderMove(true);
+
+//    });
+
+//    connect(Slider,&QSlider::sliderReleased,[=](){
 
 
+//        qint64 newPosition=Slider->value();
+
+//        emit process_Change(newPosition);
+//        emit set_SliderMove(false);
+
+//        Slider->setValue((newPosition*10000)/this->duration);
+//    });
+
+//    connect(this,&MainWindow::process_Change,work.get(),&Worker::seekToPosition);
 
 }
 
