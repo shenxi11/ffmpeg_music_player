@@ -57,8 +57,6 @@ private:
     std::unique_ptr<Take_pcm>take_pcm;//播放pcm的线程
 
 
-    std::map<QString,int>lrc_check;
-
     std::map<int, std::string> lyrics;
 
     QString filePath;
@@ -78,8 +76,6 @@ private:
     QSlider *Slider;
 
 
-
-
     qint64 duration=0;
 
     void init_TextEdit();
@@ -93,5 +89,8 @@ private:
     bool played;
 
     bool loop;
+
+
+
 };
 #endif // MAINWINDOW_H

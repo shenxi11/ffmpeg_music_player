@@ -16,6 +16,8 @@ MainWindow::MainWindow(QWidget *parent)
     dir=new QPushButton(this);
 
     Slider=new QSlider(Qt::Horizontal,this);
+    Slider->setMinimum(0);
+    Slider->setMaximum(0);
 
     Loop->setFixedSize(50,50);
     Loop->move(100,400);
@@ -34,6 +36,7 @@ MainWindow::MainWindow(QWidget *parent)
     Slider->move(30,350);
 
 
+    video->setCheckable(true);
 
     dir->setStyleSheet(
                 "QPushButton {"
@@ -64,19 +67,23 @@ MainWindow::MainWindow(QWidget *parent)
 
 
 
-//    QThread*a=new QThread();
-//    QThread*b=new QThread();
-//    QThread*c=new QThread();
+    //    QThread*a=new QThread();
+    //    QThread*b=new QThread();
+    //    QThread*c=new QThread();
 
 
     a=new QThread(this);
     b=new QThread(this);
     c=new QThread(this);
 
-    Slider->setRange(0,10000);
+    //Slider->setRange(0,10000);
 
-    work=std::make_unique<Worker>();
+
+
+    QTimer*timer = new QTimer();
+    work=std::make_unique<Worker>(timer);
     work->moveToThread(c);
+    timer->moveToThread(c);
 
     lrc=std::make_unique<lrc_analyze>();
     //lrc->moveToThread(b);
@@ -87,11 +94,14 @@ MainWindow::MainWindow(QWidget *parent)
 
     take_pcm->moveToThread(a);
 
-
+    connect(c,&QThread::started,work.get(),&Worker::init);
+    connect(c,&QThread::finished,work.get(),&Worker::stop);
     a->start();
     b->start();
     c->start();
     init_TextEdit();
+
+
 
     qDebug()<<"MainWindow"<<QThread::currentThreadId();
 
@@ -99,17 +109,24 @@ MainWindow::MainWindow(QWidget *parent)
 
     //    });
 
+
+
     connect(dir,&QPushButton::clicked,this,&MainWindow::openfile);
 
     connect(this,&MainWindow::filepath,take_pcm.get(),&Take_pcm::make_pcm);
+    connect(this,&MainWindow::filepath,work.get(),&Worker::play_pcm);
+    //connect(take_pcm.get(),&Take_pcm::begin_to_play,work.get(),&Worker::play_pcm);
+    connect(take_pcm.get(),&Take_pcm::data,work.get(),&Worker::receive_data);
+    connect(take_pcm.get(),&Take_pcm::Position_Change,work.get(),&Worker::reset_play);
 
     //    connect(take_pcm.get(),&Take_pcm::begin_to_play,this,&MainWindow::_begin_to_play);
     //    connect(this,&MainWindow::begin_to_play,work.get(),&Worker::begin_play);
 
-    connect(take_pcm.get(),&Take_pcm::begin_to_play,this,&MainWindow::_begin_to_play);
-    connect(this,&MainWindow::begin_to_play,work.get(),&Worker::play_pcm);
+    //    connect(take_pcm.get(),&Take_pcm::begin_to_play,this,&MainWindow::_begin_to_play);
+    //    connect(this,&MainWindow::begin_to_play,work.get(),&Worker::play_pcm);
 
-    connect(take_pcm.get(),&Take_pcm::send_pcmMap,work.get(),&Worker::receive_pcmMap);
+
+
     connect(take_pcm.get(),&Take_pcm::send_totalDuration,work.get(),&Worker::receive_totalDuration);
 
     connect(work.get(),&Worker::rePlay,this,[=](){
@@ -138,14 +155,10 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(lrc.get(),&lrc_analyze::send_lrc,work.get(),&Worker::receive_lrc);
     connect(lrc.get(),&lrc_analyze::send_lrc,this,[=](const std::map<int, std::string> lyrics){
-        //        if(textEdit){
-        //            textEdit->clear();
-        //            delete textEdit;
-        //            textEdit=nullptr;
-        //        }
 
+        Slider->setRange(0,10000);
         this->textEdit->clear();
-        this->textEdit->currentLine=5;
+        this->textEdit->currentLine=4;
         this->lyrics.clear();
         for(int i=0;i<5;i++){
             textEdit->append("    ");
@@ -183,21 +196,27 @@ MainWindow::MainWindow(QWidget *parent)
     });
 
 
-    connect(work.get(),&Worker::send_lrc,this,[=](QString str){
+    connect(work.get(),&Worker::send_lrc,this,[=](int line){
         // qDebug()<<"textEdit->currentLine"<<textEdit->currentLine<<str;
-        QTextDocument *document = textEdit->document();
+        //        QTextDocument *document = textEdit->document();
 
-        // 获取指定行的文本块
-        QTextBlock block = document->findBlockByLineNumber(textEdit->currentLine);
-        QString lineText;
-        // 检查是否找到有效的块
-        if (block.isValid()) {
-            lineText= block.text();  // 获取该行的文本
-        }
-        if(str==lineText){
-            textEdit->highlightLine(textEdit->currentLine);
-            textEdit->scrollOneLine();
-            textEdit->currentLine++;
+        //        // 获取指定行的文本块
+        //        QTextBlock block = document->findBlockByLineNumber(textEdit->currentLine);
+        //        QString lineText;
+        //        // 检查是否找到有效的块
+        //        if (block.isValid()) {
+        //            lineText= block.text();  // 获取该行的文本
+        //        }
+        if(line!=textEdit->currentLine){
+
+            textEdit->highlightLine(line);
+
+            textEdit->scrollLines(line-textEdit->currentLine);
+
+            qDebug()<<"line:"<<line<<"textEdit->currentLine:"<<textEdit->currentLine;
+
+            textEdit->currentLine=line;
+
             update();
         }
     });
@@ -263,27 +282,27 @@ MainWindow::MainWindow(QWidget *parent)
     });
     connect(work.get(),&Worker::durations,[=](qint64 value){
         Slider->setValue((value*10000000)/this->duration);
-         //qDebug()<<(value)<<" "<<this->duration;
+        // qDebug()<<Slider->value()*this->duration/10000000;
     });
-//    connect(this,&MainWindow::set_SliderMove,work.get(),&Worker::set_SliderMove);
+    connect(this,&MainWindow::set_SliderMove,work.get(),&Worker::set_SliderMove);
 
-//    connect(Slider,&QSlider::sliderPressed,[=](){
-//        emit set_SliderMove(true);
+    connect(Slider,&QSlider::sliderPressed,[=](){
+        emit set_SliderMove(true);
 
-//    });
+    });
 
-//    connect(Slider,&QSlider::sliderReleased,[=](){
+    connect(Slider,&QSlider::sliderReleased,[=](){
 
 
-//        qint64 newPosition=Slider->value();
+        int newPosition=Slider->value()*this->duration/10000000;
 
-//        emit process_Change(newPosition);
-//        emit set_SliderMove(false);
+        emit process_Change(newPosition);
+        emit set_SliderMove(false);
 
-//        Slider->setValue((newPosition*10000)/this->duration);
-//    });
+        Slider->setValue((newPosition*10000)/this->duration);
+    });
 
-//    connect(this,&MainWindow::process_Change,work.get(),&Worker::seekToPosition);
+    connect(this,&MainWindow::process_Change,take_pcm.get(),&Take_pcm::seekToPosition);
 
 }
 
@@ -301,6 +320,7 @@ void MainWindow::_begin_to_play(QString Path){
 
 void MainWindow::init_TextEdit(){
     this->textEdit=new LyricTextEdit(this);
+    this->textEdit->setTextInteractionFlags(Qt::NoTextInteraction);//禁用交互
     this->textEdit->setFixedSize(450,300);
     QFont font = this->textEdit->font(); // 获取当前字体
     font.setPointSize(16);     // 设置字号为 16
@@ -353,7 +373,7 @@ void MainWindow::openfile(){
 
 MainWindow::~MainWindow()
 {
-    QMetaObject::invokeMethod(work.get(), "stop", Qt::QueuedConnection);
+
     if(a){
         a->quit();
         a->wait();

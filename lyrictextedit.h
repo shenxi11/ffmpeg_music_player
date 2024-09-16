@@ -18,13 +18,13 @@ public:
 //    // 更新并高亮显示歌词的当前行
 //    void updateHighlight() ;
 
-    void scrollOneLine();
+    void scrollLines(int lines);
 
     void highlightLine(int lineNumber);
 
     void updateScrollBar();
 
-    int currentLine=5;  // 当前的歌词行
+    int currentLine=4;  // 当前的歌词行
 
     void disableScrollBar();
 signals:

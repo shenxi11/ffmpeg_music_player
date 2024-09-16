@@ -1,20 +1,51 @@
 #include "take_pcm.h"
 
-Take_pcm::Take_pcm()
-{
+Take_pcm::Take_pcm():drag(false)
 
+{
+    connect(this,&Take_pcm::begin_to_decode,this,&Take_pcm::decode);
 }
 Take_pcm::~Take_pcm(){
+    av_frame_free(&frame);
+    av_packet_free(&pkt);
+    avcodec_free_context(&codec_ctx);
+    avformat_close_input(&ifmt_ctx);
+    swr_free(&swr_ctx);
     qDebug()<<"Destruct Take_pcm";
 }
+void Take_pcm::seekToPosition(int newPosition){
+
+
+    // 将毫秒转换为微秒（1毫秒 = 1000微秒）
+    int64_t targetTimestamp = static_cast<int64_t>(newPosition) * 1000;
+
+    //qDebug()<<targetTimestamp;
+
+    int ret=av_seek_frame(ifmt_ctx, -1, targetTimestamp, AVSEEK_FLAG_BACKWARD);
+
+    //qDebug()<<ret;
+
+    avcodec_flush_buffers(codec_ctx);
+
+    emit Position_Change();
+
+    emit begin_to_decode();
+
+
+
+}
+
 //将音频文件转化为pcm文件
 void Take_pcm::make_pcm(QString Path){
     qDebug()<<"Take_pcm"<<QThread::currentThreadId();
     avformat_network_init();
 
+
+
+
     const char* inputUrl = Path.toUtf8().constData();
 
-    AVFormatContext* ifmt_ctx=nullptr;
+    ifmt_ctx=nullptr;
     if (avformat_open_input(&ifmt_ctx, inputUrl, nullptr, nullptr) != 0) {
         qDebug() << "Could not open input fileA";
         return;
@@ -26,7 +57,7 @@ void Take_pcm::make_pcm(QString Path){
         return;
     }
 
-    int audioStreamIndex = -1;
+    audioStreamIndex = -1;
     for (int i = 0; i <(int)ifmt_ctx->nb_streams; ++i) {
         if (ifmt_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
             audioStreamIndex = i;
@@ -48,7 +79,7 @@ void Take_pcm::make_pcm(QString Path){
     }
 
     // 初始化 AVCodecContext
-    AVCodecContext* codec_ctx = avcodec_alloc_context3(codec);
+    codec_ctx = avcodec_alloc_context3(codec);
     if (!codec_ctx) {
         qDebug() << "Could not allocate codec context";
         avformat_close_input(&ifmt_ctx);
@@ -85,7 +116,7 @@ void Take_pcm::make_pcm(QString Path){
     //    qDebug() << "Input Sample Format:" << input_sample_fmt;
 
     // 初始化 AVFrame 和 AVPacket
-    AVFrame* frame = av_frame_alloc();
+    frame = av_frame_alloc();
     if (!frame) {
         qDebug() << "Could not allocate frame";
         avcodec_free_context(&codec_ctx);
@@ -93,7 +124,7 @@ void Take_pcm::make_pcm(QString Path){
         return;
     }
 
-    AVPacket* pkt = av_packet_alloc();
+    pkt = av_packet_alloc();
     if (!pkt) {
         qDebug() << "Could not allocate packet";
         av_frame_free(&frame);
@@ -103,7 +134,7 @@ void Take_pcm::make_pcm(QString Path){
     }
 
     // 初始化 SwrContext
-    SwrContext* swr_ctx = swr_alloc();
+    swr_ctx = swr_alloc();
     if (!swr_ctx) {
         qDebug() << "Could not allocate SwrContext";
         av_packet_free(&pkt);
@@ -143,16 +174,7 @@ void Take_pcm::make_pcm(QString Path){
 
     emit begin_take_lrc(Path);
 
-    FILE* f = fopen(path.toUtf8().constData(), "wb");
-    if (!f) {
-        qDebug() << "Could not open output fileB";
-        av_frame_free(&frame);
-        av_packet_free(&pkt);
-        avcodec_free_context(&codec_ctx);
-        avformat_close_input(&ifmt_ctx);
-        swr_free(&swr_ctx);
-        return;
-    }
+
     // PTS-PCM 位置映射表
     std::vector<std::pair<qint64, qint64>> pcmTimeMap;
     qint64 currentPcmPosition = 0;  // 当前 PCM 文件的字节位置
@@ -161,61 +183,71 @@ void Take_pcm::make_pcm(QString Path){
     qint64 totalAudioDurationInMS = ifmt_ctx->duration * av_q2d(AV_TIME_BASE_Q) * 1000;
 
     emit send_totalDuration(totalAudioDurationInMS);
+    emit begin_to_play();
 
+
+    emit begin_to_decode();
+
+
+}
+
+void Take_pcm::decode(){
     while (av_read_frame(ifmt_ctx, pkt) >= 0) {
         if (pkt->stream_index == audioStreamIndex) {
             if (avcodec_send_packet(codec_ctx, pkt) >= 0) {
                 while (avcodec_receive_frame(codec_ctx, frame) >= 0) {
-                    // 获取 PTS（如果 PTS 不可用，则忽略）
-                    if (pkt->pts != AV_NOPTS_VALUE) {
-                        int64_t pts = pkt->pts;
-                        // 将 PTS 转换为毫秒（假设时间基为秒的分数，time_base=秒/单位）
-                        int64_t timeInMS = pts * av_q2d(ifmt_ctx->streams[audioStreamIndex]->time_base) * 1000;
-
-                        // 记录当前 PCM 文件的字节位置和 PTS 的对应关系
-                        pcmTimeMap.push_back(std::make_pair(currentPcmPosition, timeInMS));
-                    }
-
-                    // 处理音频重采样
-                    int dst_nb_samples = av_rescale_rnd(swr_get_delay(swr_ctx, codec_ctx->sample_rate) + frame->nb_samples, 44100, codec_ctx->sample_rate, AV_ROUND_UP);
-                    uint8_t* buffer = nullptr;
+                    // 计算目标缓冲区大小
+                    int dst_nb_samples = av_rescale_rnd(
+                                swr_get_delay(swr_ctx, codec_ctx->sample_rate) + frame->nb_samples,
+                                44100,
+                                codec_ctx->sample_rate,
+                                AV_ROUND_UP
+                                );
                     int buffer_size = av_samples_get_buffer_size(nullptr, 2, dst_nb_samples, AV_SAMPLE_FMT_S16, 1);
-                    if (buffer_size < 0) {
+
+                    // 确保 buffer_size 不小于0
+                    if (buffer_size <= 0) {
                         qDebug() << "Error calculating buffer size:" << buffer_size;
                         continue;
                     }
-                    buffer = (uint8_t*)malloc(buffer_size);
-                    if (!buffer) {
-                        qDebug() << "Could not allocate buffer";
-                        continue;
-                    }
 
-                    // 转换音频并写入 PCM 文件
+                    //                    QByteArray pcmData;
+                    //                    pcmData.resize(buffer_size);
+                    //                    uint8_t* buffer = (uint8_t*)pcmData.data();
+                    uint8_t* buffer = nullptr;
+                    buffer = (uint8_t*)malloc(buffer_size);
+
+
                     int converted_samples = swr_convert(swr_ctx, &buffer, dst_nb_samples, (const uint8_t**)frame->data, frame->nb_samples);
                     int converted_buffer_size = av_samples_get_buffer_size(nullptr, 2, converted_samples, AV_SAMPLE_FMT_S16, 1);
-                    fwrite(buffer, 1, converted_buffer_size, f);
 
-                    // 更新 PCM 文件字节位置
-                    currentPcmPosition += converted_buffer_size;
 
-                    free(buffer);
+                    // 获取时间戳（以毫秒为单位）
+                    AVRational time_base = ifmt_ctx->streams[audioStreamIndex]->time_base;
+                    if (pkt->pts != AV_NOPTS_VALUE) {
+                        int64_t pts = pkt->pts;
+                        qint64 timestamp_ms = av_rescale_q(pts, time_base, {1, 1000});
+                        //qDebug() << "Timestamp (ms):" << timestamp_ms;
+
+                        // 可以将时间戳与对应的数据一起发送
+                        send_data(buffer, converted_buffer_size, timestamp_ms);
+                    }
+
                 }
             }
         }
         av_packet_unref(pkt);
     }
+}
 
-    fclose(f);
+void Take_pcm::send_data(uint8_t *buffer, int bufferSize,qint64 timeMap){
 
-    emit send_pcmMap(pcmTimeMap);
 
-    av_frame_free(&frame);
-    av_packet_free(&pkt);
-    avcodec_free_context(&codec_ctx);
-    avformat_close_input(&ifmt_ctx);
-    swr_free(&swr_ctx);
+    QByteArray byteArray(reinterpret_cast<const char*>(buffer), bufferSize);
 
-    //qDebug()<<"finish taking";
+    free(buffer);
 
-    emit begin_to_play(path);
+    emit data(byteArray,timeMap);
+
+
 }

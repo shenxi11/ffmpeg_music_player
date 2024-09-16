@@ -4,6 +4,19 @@
 
 void LyricTextEdit::highlightLine(int lineNumber) {
 
+    QTextBlock block1 = this->document()->findBlockByNumber(this->currentLine);
+
+    if (block1.isValid()) {
+        // 创建一个光标并定位到该行
+        QTextCursor cursor(block1);
+
+        // 选中整行
+        cursor.select(QTextCursor::LineUnderCursor);
+
+
+
+        resetLineFormat(cursor);
+    }
 
     // 获取指定行的 QTextBlock
     QTextBlock block = this->document()->findBlockByNumber(lineNumber);
@@ -15,24 +28,12 @@ void LyricTextEdit::highlightLine(int lineNumber) {
         // 选中整行
         cursor.select(QTextCursor::LineUnderCursor);
 
-         //qDebug()<<cursor.selectedText();
+        //qDebug()<<cursor.selectedText();
 
-       highlightLineFormat(cursor);
+        highlightLineFormat(cursor);
     }
 
-    QTextBlock block1 = this->document()->findBlockByNumber(lineNumber-1);
 
-    if (block1.isValid()) {
-        // 创建一个光标并定位到该行
-        QTextCursor cursor(block1);
-
-        // 选中整行
-        cursor.select(QTextCursor::LineUnderCursor);
-
-
-
-       resetLineFormat(cursor);
-    }
 }
 
 void LyricTextEdit::resetLineFormat(QTextCursor &cursor){
@@ -71,7 +72,7 @@ void LyricTextEdit::updateScrollBar() {
 void LyricTextEdit::disableScrollBar() {
     QScrollBar *scrollBar = this->verticalScrollBar();
     scrollBar->setEnabled(false);
-     scrollBar->setVisible(false);
+    scrollBar->setVisible(false);
 }
 
 int LyricTextEdit::getLineHeight(int fontSize) {
@@ -89,7 +90,7 @@ int LyricTextEdit::getLineSpacing(int fontSize)  {
     QFontMetrics metrics(font);
     return metrics.lineSpacing();  // 行间距
 }
-void LyricTextEdit::scrollOneLine() {
+void LyricTextEdit::scrollLines(int lines) {
     int fontSize = 20;  // 假设你使用的是 16 号字体
 
     // 获取行间距（包括行高和额外的空间）
@@ -98,11 +99,9 @@ void LyricTextEdit::scrollOneLine() {
     QScrollBar *scrollBar = this->verticalScrollBar();
     int currentValue = scrollBar->value();
 
-    // 根据滚动方向调整滚动条的值
 
-        scrollBar->setValue(currentValue + lineSpacing);
+    scrollBar->setValue(currentValue + lines*lineSpacing);
 
-       // scrollBar->setValue(currentValue - lineSpacing);
 
 }
 

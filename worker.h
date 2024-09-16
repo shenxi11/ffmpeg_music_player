@@ -10,20 +10,17 @@ class Worker :public QObject
 {
     Q_OBJECT
 public:
-    explicit Worker();
+    explicit Worker(QTimer*timer);
 
     ~Worker();
 
 
-    void play_pcm(QString pcmFilePath);
+
 
     bool getAudioFileInfo(const QString& filePath, int& sampleRate, int& channelCount, int& sampleSize, QAudioFormat::SampleType& sampleType);
 
-    qint64 getPlaybackTimeFromPcmPosition(qint64 pcmPosition);
 
-    qint64 calculatePlaybackTime(qint64 pcmPosition);
 public slots:
-    void begin_play(QString pcmFilePath);
 
     void stop_play();
 
@@ -35,12 +32,15 @@ public slots:
 
     void set_SliderMove(bool flag);
 
-    void seekToPosition(int newPosition);
-
-    void receive_pcmMap(std::vector<std::pair<qint64, qint64>> pcmTimeMap);
-
     void receive_totalDuration(qint64 total);
 
+    void play_pcm();
+
+    void receive_data(const QByteArray &data,qint64 timeMap);
+
+    void reset_play();
+
+    void init();
 private slots:
     void onTimeOut();
 
@@ -49,11 +49,9 @@ private slots:
 signals:
     void durations(qint64 value);
 
-    void play(QString pcmFilePath);
-
     void stopPlay();
 
-    void send_lrc(QString str);
+    void send_lrc(int line);
 
     void Stop();
 
@@ -62,6 +60,8 @@ signals:
     void rePlay();
 
     void updatePlaybackTime(qint64 newPlaybackTime);
+
+    void pause();
 private:
     std::map<int, std::string> lyrics;
 
@@ -69,12 +69,17 @@ private:
 
     std::vector<std::pair<qint64, qint64>> pcmTimeMap;
 
-    QIODevice* audioDevice ;
+    QIODevice* audioDevice=nullptr;
 
     QTimer* timer;
-    QTimer* timer1;
 
-    QAudioOutput*audioOutput;
+    QQueue<QByteArray> audioBuffer;
+
+    QMutex mutex;
+
+    QWaitCondition *cond;
+
+    QAudioOutput *audioOutput;
 
     qint64 totalAudioDurationInMS;
 
@@ -83,9 +88,13 @@ private:
     bool sliderMove;
 
     std::mutex mtx;
+    std::mutex mtx1;
 
     std::unique_ptr<char[]>buffer;
 
+    std::map<QByteArray,qint64>mp;
+
+    QAudioFormat format;
 
     int currentLyricIndex = 0;
 };

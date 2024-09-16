@@ -186,6 +186,7 @@ std::map<int, std::string> lrc_analyze::parseLrcFile(const std::string& lrcFile)
             if (!lyricText.empty() && lyricText.find_first_not_of(" \t\r\n") != std::string::npos) {
                 int timeInMs = timeToMilliseconds(timeStr);  // 将时间戳转换为毫秒
                 lyrics[timeInMs] = lyricText;  // 存储时间和歌词
+
             }
         }
     }

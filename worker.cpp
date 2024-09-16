@@ -1,106 +1,54 @@
 #include "worker.h"
 
-Worker::Worker():
+Worker::Worker(QTimer*timer):
 
     isPaused(false)
   ,sliderMove(false)
-  ,audioOutput(nullptr)
+  ,timer(timer)
 {
-    timer = new QTimer(this);
-    timer1 = new QTimer(this);
 
 
     connect(timer, &QTimer::timeout, this,&Worker::onTimeOut);
 
-    //    connect(timer1, &QTimer::timeout, this, [=]() {
-    //        emit durations(audioOutput->processedUSecs());
-    //    });//更新进度条
-
 
 }
+void Worker::init(){
+    QAudioFormat format;
+    format.setSampleRate(RATE);
+    format.setChannelCount(CHANNELS);
+    format.setSampleSize(SAMPLE_SIZE);
+    format.setCodec("audio/pcm");
+    format.setByteOrder(QAudioFormat::LittleEndian);
+    format.setSampleType(QAudioFormat::SignedInt);
+
+
+
+    audioOutput = new QAudioOutput(format, this);
+
+    audioOutput->setBufferSize(AUDIO_BUFFER_SIZE);
+}
+
 Worker::~Worker() {
-
-
-    timer->stop();
-    timer1->stop();
-
-    if(audioOutput){
-        qDebug()<<"audioOutput not destruct";
-    }
-    if(timer||timer1){
-        qDebug()<<"timer not destruct";
-    }
-
-
-    qDebug()<<"Destruct Worker";
+    qDebug()<<"desruct Worker";
 }
 
 void Worker::stop(){
-
+    timer->stop();
+    timer->deleteLater();
 }
+
 void Worker::receive_totalDuration(qint64 total){
     this->totalAudioDurationInMS=total;
-}
-qint64 Worker::calculatePlaybackTime(qint64 pcmPosition) {
-    qint64 totalPcmSize = file->size();  // PCM 文件的总字节数
-    qint64 totalDurationMS = totalAudioDurationInMS;  // 总播放时间（毫秒）
-    //qDebug()<<"calculate"<<(pcmPosition * totalDurationMS) / totalPcmSize;
-    return (pcmPosition * totalDurationMS) / totalPcmSize;
-}
-// 获取 PCM 文件中某个字节位置对应的时间戳
-qint64 Worker::getPlaybackTimeFromPcmPosition(qint64 pcmPosition) {
-    for (size_t i = 0; i < pcmTimeMap.size() - 1; i++) {
-        if (pcmPosition >= pcmTimeMap[i].first && pcmPosition < pcmTimeMap[i + 1].first) {
-            return pcmTimeMap[i].second;  // 返回毫秒单位的播放时间
-        }
-    }
-    return -1;  // 未找到对应时间
-}
-void Worker::seekToPosition(int newPosition) {
-
-    //disconnect(timer,&QTimer::timeout,this,nullptr);
-    // 计算 PCM 文件中的字节位置
-    qint64 bytesPosition = (newPosition / 10000.0) * file->size();
-
-    // 确保 bytesPosition 在文件大小范围内
-    if (bytesPosition >= 0 && bytesPosition < file->size()) {
-        {
-            std::lock_guard<std::mutex> lock(mtx);
-            // 移动文件指针到指定位置
-            file->seek(bytesPosition);
-        }
-        //        // 清空当前音频设备的缓冲区
-        //        audioDevice->reset();
-
-        //        // 读取数据到缓冲区
-        //        qint64 bytesRead = file->read(buffer.get(), BUFFER_SIZE);
-        //        if (bytesRead > 0) {
-        //            qint64 bytesWritten = audioDevice->write(buffer.get(), bytesRead);
-        //            if (bytesWritten < 0) {
-        //                qDebug() << "Error writing audio data:" << audioDevice->errorString();
-        //            }
-        //        }
-
-        //        // 计算并同步新位置的播放时间
-        //        qint64 newPlaybackTime = calculatePlaybackTime(bytesPosition);  // 计算跳转后的播放时间
-        //        emit durations(newPlaybackTime);  // 通知其他组件同步显示时间
-
-        //        // 恢复播放
-        //        audioOutput->resume();
-    } else {
-        qDebug() << "Invalid position for seek";
-    }
-    //connect(timer,&QTimer::timeout,this,&Worker::onTimeOut);
 }
 void Worker::receive_lrc(std::map<int, std::string> lyrics){
     std::lock_guard<std::mutex>lock(mtx);
     this->lyrics=lyrics;
 }
-void  Worker::begin_play(QString pcmFilePath){
-    //qDebug()<<"Worker"<<QThread::currentThreadId();
-    emit play(pcmFilePath);
+//void  Worker::begin_play(QString pcmFilePath){
+//    //qDebug()<<"Worker"<<QThread::currentThreadId();
+//    emit play(pcmFilePath);
 
-}
+//}
 void Worker::stop_play(){
     emit stopPlay();
 }
@@ -110,14 +58,16 @@ void Worker::Set_Volume(int value){
 }
 void Worker::set_SliderMove(bool flag){
     this->sliderMove=flag;
-    Pause();
+
+    emit stopPlay();
 }
 void Worker::Pause(){
+
     if (!isPaused||this->sliderMove) {
         qDebug() << "暂停";
         audioOutput->suspend();
         timer->stop();
-        timer1->stop();
+
         isPaused = true;
         qDebug() << "Playback paused CC:";
         emit Stop();
@@ -126,7 +76,7 @@ void Worker::Pause(){
         audioOutput->resume();
         isPaused = false;
         timer->start();
-        timer1->start();
+
         emit Begin();
         qDebug() << "Playback resumed.";
     }
@@ -263,146 +213,143 @@ void Worker::Pause(){
 
 //    });
 //}
-void Worker::receive_pcmMap(std::vector<std::pair<qint64, qint64>> pcmTimeMap){
-    this->pcmTimeMap=pcmTimeMap;
+void Worker::reset_play(){
+    std::lock_guard<std::mutex>lock(mtx);
+    this->audioBuffer.clear();
+    this->mp.clear();
+    this->audioOutput->reset();
+    audioDevice=this->audioOutput->start();
+
+
 }
 
 void Worker::onTimeOut(){
-    std::lock_guard<std::mutex>lock(mtx);
-    if (audioOutput->bytesFree() < BUFFER_SIZE) {
-        return;
-    }
+    qint64 currentTimeMS;
+    {
+        std::lock_guard<std::mutex> lock(mtx);
 
-    // 获取当前文件位置
-    qint64 bytesPosition = file->pos();
+        if (audioBuffer.isEmpty()) {
+            timer->stop();
+            emit Stop();
+            emit rePlay();
+            return;  // 如果缓冲区为空，退出
+        }
 
-    qint64 bytesRead = file->read(buffer.get(), BUFFER_SIZE);
+        QByteArray pcmData = audioBuffer.front();
 
-    if (bytesRead > 0) {
-        qint64 bytesWritten = audioDevice->write(buffer.get(), bytesRead);
+        // 检查 audioDevice 的可用空间
+        qint64 bytesFree = audioOutput->bytesFree();
+        //qDebug() << "Audio buffer size:" << pcmData.size() << "audioBytesFree:" << bytesFree<<" number:"<<audioBuffer.size();
+
+        if ( bytesFree<2*pcmData.size()) {
+            //qDebug() << "Not enough space in audio output buffer. PCM data size:" << pcmData.size() << "bytesFree:" << bytesFree;
+            //audioBuffer.enqueue(pcmData);  // 将数据重新放回缓冲区
+            return;  // 等待下一次调用
+        }
+
+        qint64 bytesWritten = audioDevice->write(pcmData);  // 写入音频设备
+
+        currentTimeMS = mp[pcmData];
+
+
+
+        mp.erase(pcmData);
+        audioBuffer.pop_front();
         if (bytesWritten < 0) {
             qDebug() << "Error writing audio data:" << audioDevice->errorString();
-            timer->stop();
-            timer1->stop();
-            file->close();
-            file.reset();
+            timer->stop();  // 停止定时器
             return;
         }
-
-        // qint64 currentTimeMS = audioOutput->processedUSecs() / 1000;
-
-        // 计算并同步新位置的播放时间
-        qint64 newPlaybackTime = calculatePlaybackTime(bytesPosition);
-        emit durations(newPlaybackTime);  // 通知其他组件同步显示时间
-
-        // emit durations(currentTimeMS);
-
-
-
-        if (!lyrics.empty() && currentLyricIndex < (int)lyrics.size()) {
-            auto it = std::next(lyrics.begin(), currentLyricIndex);
-            if (newPlaybackTime >= it->first) {
-                if (it->second != "")
-                    emit send_lrc(QString::fromStdString(it->second));
-                currentLyricIndex++;
-            }
-        }
-
-    } else {
-        timer->stop();
-        timer1->stop();
-        qDebug() << "Playback finished AA";
-        file->close();
-        file.reset();
-        emit Stop();
-        emit rePlay();
-        disconnect(this, &Worker::stopPlay, this, nullptr);
     }
+
+
+    emit durations(currentTimeMS);  // 通知其他组件同步显示时间
+    int index=0;
+    for (auto it = lyrics.begin(); it != lyrics.end(); ++it,++index) {
+
+        // 访问下一个元素
+        auto nextIt = std::next(it);
+
+        if (nextIt != lyrics.end()) {
+
+            if (it->first <= static_cast<int>(currentTimeMS)&& nextIt->first>static_cast<int>(currentTimeMS)) {
+                emit send_lrc(index+5);
+
+                break;
+            }
+
+        }
+        else{
+            emit send_lrc(index+5);
+
+            break;
+        }
+    }
+
+
+    //    if (!lyrics.empty() && currentLyricIndex < (int)lyrics.size()) {
+    //        auto it = std::next(lyrics.begin(), currentLyricIndex);
+    //        if (currentTimeMS >= it->first) {
+    //            if (!it->second.empty())
+    //                emit send_lrc(QString::fromStdString(it->second));
+    //                qDebug()<<QString::fromStdString(it->second);
+    //            currentLyricIndex++;
+    //        }
+    //    }
+
+
 }
-void Worker::play_pcm(QString pcmFilePath) {
+
+
+void Worker::receive_data(const QByteArray &data,qint64 timeMap){
+    std::lock_guard<std::mutex>lock(mtx);
+    this->audioBuffer.enqueue(data);
+    this->mp[data]=timeMap;
+
+}
+
+void Worker::play_pcm() {
 
     qDebug() << "Worker" << QThread::currentThreadId();
 
-    // 1. 停止并清理当前播放
-    if (file) {
-        file->close();
-        file.reset();
-    }
+
 
     if (audioOutput) {
         audioOutput->stop();
         audioOutput->reset();
-        //        delete audioOutput;
-        //        audioOutput = nullptr;
 
         timer->stop();
-        timer1->stop();
-
+        {
+            std::lock_guard<std::mutex>lock(mtx);
+            this->audioBuffer.clear();
+        }
         disconnect(this, &Worker::stopPlay, this, nullptr);
 
-        if(buffer){
-            qDebug()<<"缓冲区未处理"<<sizeof (buffer)<<"bytes";
-        }
     }
 
-    //    if (timer) {
-    //        timer->stop();
-    //        delete timer;
-    //        timer = nullptr;
-    //    }
-
-    //    if (timer1) {
-    //        timer1->stop();
-    //        delete timer1;
-    //        timer1 = nullptr;
-    //    }
-
-    //    if (buffer) {
-    //        delete[] buffer;
-    //        buffer = nullptr;
-    //    }
 
 
 
-    // 2. 重新初始化并开始播放
-    file = std::make_unique<QFile>(pcmFilePath);
-    if (!file->open(QIODevice::ReadOnly)) {
-        qDebug() << "Failed to open file for reading:" << file->errorString();
-        return;
-    }
-
-    QAudioFormat format;
-    format.setSampleRate(RATE);
-    format.setChannelCount(CHANNELS);
-    format.setSampleSize(SAMPLE_SIZE);
-    format.setCodec("audio/pcm");
-    format.setByteOrder(QAudioFormat::LittleEndian);
-    format.setSampleType(QAudioFormat::SignedInt);
-    if(!audioOutput){
-        audioOutput = new QAudioOutput(format, this);
-    }
-    audioOutput->setBufferSize(AUDIO_BUFFER_SIZE);
 
     audioDevice = audioOutput->start();
-    if (!audioDevice) {
-        qDebug() << "Failed to start audio device";
-        file->close();
-        file.reset();
-        return;
-    }
 
-    audioOutput->setVolume(50 / 100.0);
 
-    buffer = std::make_unique<char[]>(BUFFER_SIZE);
+    audioOutput->setVolume(75/ 100.0);
 
 
     this->currentLyricIndex=0;
 
+    timer->setInterval(2);
+    timer->start();
 
-    timer->start(10);
-    timer1->start(1000);
+
+
     emit Begin();
 
     connect(this, &Worker::stopPlay, this, &Worker::Pause);
+
+
+    bool restartAttempted = false;
+
 }
 
