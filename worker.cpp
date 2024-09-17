@@ -215,8 +215,8 @@ void Worker::Pause(){
 //}
 void Worker::reset_play(){
     std::lock_guard<std::mutex>lock(mtx);
-    this->audioBuffer.clear();
     this->mp.clear();
+    this->audioBuffer.clear();
     this->audioOutput->reset();
     audioDevice=this->audioOutput->start();
 
@@ -224,9 +224,11 @@ void Worker::reset_play(){
 }
 
 void Worker::onTimeOut(){
-    qint64 currentTimeMS;
-    {
+
         std::lock_guard<std::mutex> lock(mtx);
+
+        qint64 currentTimeMS;
+
 
         if (audioBuffer.isEmpty()) {
             timer->stop();
@@ -260,7 +262,7 @@ void Worker::onTimeOut(){
             timer->stop();  // 停止定时器
             return;
         }
-    }
+
 
 
     emit durations(currentTimeMS);  // 通知其他组件同步显示时间
@@ -272,7 +274,7 @@ void Worker::onTimeOut(){
 
         if (nextIt != lyrics.end()) {
 
-            if (it->first <= static_cast<int>(currentTimeMS)&& nextIt->first>static_cast<int>(currentTimeMS)) {
+            if ((it->first <= static_cast<int>(currentTimeMS)&& nextIt->first>static_cast<int>(currentTimeMS))||(it==lyrics.begin()&&it->first>=static_cast<int>(currentTimeMS))) {
                 emit send_lrc(index+5);
 
                 break;
@@ -344,12 +346,13 @@ void Worker::play_pcm() {
 
 
 
-    emit Begin();
+
 
     connect(this, &Worker::stopPlay, this, &Worker::Pause);
 
+    emit Begin();
 
-    bool restartAttempted = false;
+
 
 }
 
