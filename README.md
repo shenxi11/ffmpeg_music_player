@@ -5,6 +5,6 @@
 - **构建工具**: qMake
 - **依赖库**: 
   - Qt 5.14.2
-  - ffmpeg6.1.1
+  - ffmpeg4.4
 - **构建脚本**: 使用qMake配置
 ![Example image](test_img.png)
