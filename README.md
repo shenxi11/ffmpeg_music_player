@@ -7,4 +7,4 @@
   - Qt 5.14.2
   - ffmpeg6.1.1
 - **构建脚本**: 使用qMake配置
-![Example image]test_img.png
+![Example image](test_img.png)
