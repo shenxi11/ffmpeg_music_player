@@ -1,15 +1,30 @@
 #include "take_pcm.h"
 
-Take_pcm::Take_pcm():drag(false)
+Take_pcm::Take_pcm():drag(false) ,
+    ifmt_ctx(nullptr)
+
+    ,codec_ctx(nullptr)
+
+    ,swr_ctx(nullptr)
+
+    ,frame(nullptr)
+
+    ,pkt(nullptr)
 
 {
     connect(this,&Take_pcm::begin_to_decode,this,&Take_pcm::decode);
 }
 Take_pcm::~Take_pcm(){
+
+    if(frame)
     av_frame_free(&frame);
+    if(pkt)
     av_packet_free(&pkt);
+    if(codec_ctx)
     avcodec_free_context(&codec_ctx);
+    if(ifmt_ctx)
     avformat_close_input(&ifmt_ctx);
+    if(swr_ctx)
     swr_free(&swr_ctx);
     qDebug()<<"Destruct Take_pcm";
 }

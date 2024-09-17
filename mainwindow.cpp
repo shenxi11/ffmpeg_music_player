@@ -387,8 +387,5 @@ MainWindow::~MainWindow()
         c->wait();
     }
 
-    this->textEdit->deleteLater();
-    this->slider->deleteLater();
-
     delete ui;
 }
