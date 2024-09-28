@@ -1,8 +1,9 @@
-#include "mainwindow.h"
+#include "play_widget.h"
 #include <QFontMetrics>
 #include <QDebug>
 #include <QApplication>
-#include"test_widget.h"
+
+#include"main_widget.h"
 // 自定义日志处理函数
 void customLogHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg)
 {
@@ -26,9 +27,13 @@ int main(int argc, char *argv[])
     qRegisterMetaType<std::map<int, std::string>>("std::map<int, std::string>");
     QLoggingCategory::setFilterRules("qt.audio.debug=false");
     qRegisterMetaType<std::vector<std::pair<qint64,qint64> >>("std::vector<std::pair<qint64,qint64> >");
-    MainWindow w;
+
+    Main_Widget w;
+
+
     w.show();
 
+    w.show_widget();
 
 
     qDebug()<<"启动";

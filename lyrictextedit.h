@@ -32,7 +32,6 @@ signals:
 private:
 
 
-
     int lastHighlightedLine;  // 上一次高亮的行
 
     // 恢复行的默认格式

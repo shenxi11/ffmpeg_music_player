@@ -19,18 +19,20 @@ SOURCES += \
     lrc_analyze.cpp \
     lyrictextedit.cpp \
     main.cpp \
-    mainwindow.cpp \
+    main_widget.cpp \
+    music_list_widget.cpp \
+    play_widget.cpp \
     take_pcm.cpp \
-    test_widget.cpp \
     worker.cpp
 
 HEADERS += \
     headers.h \
     lrc_analyze.h \
     lyrictextedit.h \
-    mainwindow.h \
+    main_widget.h \
+    music_list_widget.h \
+    play_widget.h \
     take_pcm.h \
-    test_widget.h \
     worker.h
 
 FORMS += \

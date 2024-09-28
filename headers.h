@@ -38,6 +38,11 @@ extern "C" {
 #include <QQueue>
 #include <QWaitCondition>
 #include <QByteArray>
+#include<QVBoxLayout>
+#include<QPainter>
+#include<QRegion>
+
+
 
 #define BUFFER_SIZE 17640
 #define AUDIO_BUFFER_SIZE 65536

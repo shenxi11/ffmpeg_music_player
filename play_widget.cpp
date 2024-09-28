@@ -1,67 +1,81 @@
-#include "mainwindow.h"
-#include "ui_mainwindow.h"
+#include "play_widget.h"
 
-MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent)
-    , ui(new Ui::MainWindow)
+Play_Widget::Play_Widget(QWidget *parent)
+    : QWidget(parent)
     ,played(false)
     ,loop(false)
 
 {
-    ui->setupUi(this);
+
+
 
     play=new QPushButton(this);
     video=new QPushButton(this);
     Loop=new QPushButton(this);
     dir=new QPushButton(this);
+    music=new QPushButton(this);
+
 
     Slider=new QSlider(Qt::Horizontal,this);
     Slider->setMinimum(0);
     Slider->setMaximum(0);
 
+    int space=(800-4*50)/6;
+
     Loop->setFixedSize(50,50);
-    Loop->move(100,400);
+    Loop->move(space,400);
 
     dir->setFixedSize(50,50);
-    dir->move(250,400);
+    dir->move(space*2+50,400);
 
     play->setFixedSize(50,50);
-    play->move(400,400);
+    play->move(50*2+3*space,400);
 
     video->setFixedSize(50,50);
-    video->move(550,400);
+    video->move(3*50+4*space,400);
 
+    music->setFixedSize(50,50);
+    music->move(4*50+5*space,400);
 
     Slider->setFixedSize(800,20);
-    Slider->move(30,350);
+    Slider->move((800-Slider->width())/2,350);
 
 
     video->setCheckable(true);
+    music->setCheckable(true);
+
 
     dir->setStyleSheet(
                 "QPushButton {"
-                "    border-image: url(:/new/prefix1/icon/文件夹_bg.png);"
+                "    border-image: url(:/new/prefix1/icon/上传存盘.png);"
                 "}"
                 );
 
     video->setStyleSheet(
                 "QPushButton {"
-                "    border-image: url(:/new/prefix1/icon/喇叭_bg.png);"
+                "    border-image: url(:/new/prefix1/icon/音量.png);"
                 "}"
                 );
 
     play->setStyleSheet(
                 "QPushButton {"
-                "    border-image: url(:/new/prefix1/icon/播放_bg.png);"
+                "    border-image: url(:/new/prefix1/icon/播放.png);"
                 "}"
                 );
 
     slider = new QSlider(Qt::Vertical, this);
     slider->close();
+    slider->setMinimum(0);
+    slider->setMaximum(100);
+    slider->setValue(50);
+    slider->setTickPosition(QSlider::TicksRight);  // 在滑条右侧显示刻度
+    slider->setTickInterval(10);
+    slider->setGeometry(video->pos().x(),video->pos().y()-video->height()*3,video->width(),video->height()*3);
+
 
     Loop->setStyleSheet(
                 "QPushButton {"
-                "    border-image: url(:/new/prefix1/icon/循环_bg.png);"
+                "    border-image: url(:/new/prefix1/icon/随机播放.png);"
                 "}"
                 );
 
@@ -85,7 +99,7 @@ MainWindow::MainWindow(QWidget *parent)
     work->moveToThread(c);
     timer->moveToThread(c);
 
-    lrc=std::make_unique<lrc_analyze>();
+    lrc=std::make_unique<LrcAnalyze>();
     //lrc->moveToThread(b);
     //lrc.get()->moveToThread(b);
 
@@ -100,7 +114,7 @@ MainWindow::MainWindow(QWidget *parent)
     b->start();
     c->start();
     init_TextEdit();
-
+    this->textEdit->setCursor(Qt::ArrowCursor);
 
 
     qDebug()<<"MainWindow"<<QThread::currentThreadId();
@@ -110,11 +124,16 @@ MainWindow::MainWindow(QWidget *parent)
     //    });
 
 
+    connect(music,&QPushButton::toggled,this,[=](bool checked){
+        emit big_clicked(checked);
+    });
 
-    connect(dir,&QPushButton::clicked,this,&MainWindow::openfile);
 
-    connect(this,&MainWindow::filepath,take_pcm.get(),&Take_pcm::make_pcm);
-    connect(this,&MainWindow::filepath,work.get(),&Worker::play_pcm);
+
+    connect(dir,&QPushButton::clicked,this,&Play_Widget::openfile);
+
+    connect(this,&Play_Widget::filepath,take_pcm.get(),&Take_pcm::make_pcm);
+    connect(this,&Play_Widget::filepath,work.get(),&Worker::play_pcm);
     //connect(take_pcm.get(),&Take_pcm::begin_to_play,work.get(),&Worker::play_pcm);
     connect(take_pcm.get(),&Take_pcm::data,work.get(),&Worker::receive_data);
     connect(take_pcm.get(),&Take_pcm::Position_Change,work.get(),&Worker::reset_play);
@@ -150,11 +169,11 @@ MainWindow::MainWindow(QWidget *parent)
     //    connect(this,&MainWindow::begin_take_lrc,lrc.get(),&lrc_analyze::begin_take_lrc);
 
 
-    connect(take_pcm.get(),&Take_pcm::begin_take_lrc,this,&MainWindow::_begin_take_lrc);
-    connect(this,&MainWindow::begin_take_lrc,lrc.get(),&lrc_analyze::begin_take_lrc);
+    connect(take_pcm.get(),&Take_pcm::begin_take_lrc,this,&Play_Widget::_begin_take_lrc);
+    connect(this,&Play_Widget::begin_take_lrc,lrc.get(),&LrcAnalyze::begin_take_lrc);
 
-    connect(lrc.get(),&lrc_analyze::send_lrc,work.get(),&Worker::receive_lrc);
-    connect(lrc.get(),&lrc_analyze::send_lrc,this,[=](const std::map<int, std::string> lyrics){
+    connect(lrc.get(),&LrcAnalyze::send_lrc,work.get(),&Worker::receive_lrc);
+    connect(lrc.get(),&LrcAnalyze::send_lrc,this,[=](const std::map<int, std::string> lyrics){
 
         Slider->setRange(0,10000);
         this->textEdit->clear();
@@ -192,7 +211,7 @@ MainWindow::MainWindow(QWidget *parent)
         // 更新 QTextEdit 的光标位置
         textEdit->setTextCursor(cursor);
 
-        textEdit->disableScrollBar();
+
     });
 
 
@@ -225,7 +244,7 @@ MainWindow::MainWindow(QWidget *parent)
 
         play->setStyleSheet(
                     "QPushButton {"
-                    "    border-image: url(:/new/prefix1/icon/播放_bg.png);"
+                    "    border-image: url(:/new/prefix1/icon/播放.png);"
                     "}"
                     );
     });
@@ -233,7 +252,7 @@ MainWindow::MainWindow(QWidget *parent)
 
         play->setStyleSheet(
                     "QPushButton {"
-                    "    border-image: url(:/new/prefix1/icon/暂停1_bg.png);"
+                    "    border-image: url(:/new/prefix1/icon/暂停.png);"
                     "}"
                     );
     });
@@ -242,13 +261,13 @@ MainWindow::MainWindow(QWidget *parent)
         if(this->loop){
             Loop->setStyleSheet(
                         "QPushButton {"
-                        "    border-image: url(:/new/prefix1/icon/循环_bg.png);"
+                        "    border-image: url(:/new/prefix1/icon/随机播放.png);"
                         "}"
                         );
         }else{
             Loop->setStyleSheet(
                         "QPushButton {"
-                        "    border-image: url(:/new/prefix1/icon/正在循环.png);"
+                        "    border-image: url(:/new/prefix1/icon/循环播放.png);"
                         "}"
                         );
         }
@@ -261,12 +280,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(video,&QPushButton::toggled,this,[=](bool checked){
         if(checked){
             qDebug()<<"被选中";
-            slider->setMinimum(0);
-            slider->setMaximum(100);
-            slider->setValue(50);
-            slider->setTickPosition(QSlider::TicksRight);  // 在滑条右侧显示刻度
-            slider->setTickInterval(10);
-            slider->setGeometry(video->pos().x(),video->pos().y()-video->height()*3,video->width(),video->height()*3);
+
             slider->show();
         }else{
             if(slider){
@@ -284,7 +298,7 @@ MainWindow::MainWindow(QWidget *parent)
         Slider->setValue((value*10000000)/this->duration);
         // qDebug()<<Slider->value()*this->duration/10000000;
     });
-    connect(this,&MainWindow::set_SliderMove,work.get(),&Worker::set_SliderMove);
+    connect(this,&Play_Widget::set_SliderMove,work.get(),&Worker::set_SliderMove);
 
     connect(Slider,&QSlider::sliderPressed,[=](){
         emit set_SliderMove(true);
@@ -302,11 +316,11 @@ MainWindow::MainWindow(QWidget *parent)
         Slider->setValue((newPosition*10000)/this->duration);
     });
 
-    connect(this,&MainWindow::process_Change,take_pcm.get(),&Take_pcm::seekToPosition);
+    connect(this,&Play_Widget::process_Change,take_pcm.get(),&Take_pcm::seekToPosition);
 
 }
 
-void MainWindow::rePlay(QString path){
+void Play_Widget::rePlay(QString path){
     emit filepath(path);
     {
         std::lock_guard<std::mutex>lock(mtx);
@@ -314,24 +328,28 @@ void MainWindow::rePlay(QString path){
     }
 
 }
-void MainWindow::_begin_to_play(QString Path){
+void Play_Widget::_begin_to_play(QString Path){
     emit begin_to_play(Path);
 }
 
-void MainWindow::init_TextEdit(){
+void Play_Widget::init_TextEdit(){
     this->textEdit=new LyricTextEdit(this);
     this->textEdit->setTextInteractionFlags(Qt::NoTextInteraction);//禁用交互
+    this->textEdit->disableScrollBar();
     this->textEdit->setFixedSize(450,300);
+
+    this->textEdit->viewport()->setCursor(Qt::ArrowCursor);
+
     QFont font = this->textEdit->font(); // 获取当前字体
     font.setPointSize(16);     // 设置字号为 16
     this->textEdit->setFont(font);       // 应用新字体
     this->textEdit->setStyleSheet("QTextEdit { background: transparent; border: none; }");
-    this->textEdit->move(this->width()/2-100, 0);
+    this->textEdit->move(400, 0);
 }
 
 
 
-void MainWindow::_begin_take_lrc(QString str){
+void Play_Widget::_begin_take_lrc(QString str){
     this->textEdit->clear();
 
     emit begin_take_lrc(str);
@@ -344,7 +362,7 @@ void MainWindow::_begin_take_lrc(QString str){
 
     textEdit->setTextCursor(cursor);
 }
-void MainWindow::openfile(){
+void Play_Widget::openfile(){
 
     // 创建一个临时的 QWidget 实例，用于显示文件对话框
     QWidget dummyWidget;
@@ -369,9 +387,11 @@ void MainWindow::openfile(){
 
 
 }
+QPushButton*Play_Widget::get_dir(){
+    return this->dir;
+}
 
-
-MainWindow::~MainWindow()
+Play_Widget::~Play_Widget()
 {
 
     if(a){
@@ -387,5 +407,4 @@ MainWindow::~MainWindow()
         c->wait();
     }
 
-    delete ui;
 }

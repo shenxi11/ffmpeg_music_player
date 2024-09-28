@@ -3,13 +3,13 @@
 
 #include <QObject>
 #include"headers.h"
-class lrc_analyze : public QObject
+class LrcAnalyze : public QObject
 {
     Q_OBJECT
 public:
-    explicit lrc_analyze();
+    explicit LrcAnalyze();
 
-    ~lrc_analyze();
+    ~LrcAnalyze();
 private slots:
     void begin_send(std::string lrcFile);
 

@@ -327,13 +327,14 @@ void Worker::play_pcm() {
         }
         disconnect(this, &Worker::stopPlay, this, nullptr);
 
+        audioDevice = audioOutput->start();
     }
 
 
 
 
 
-    audioDevice = audioOutput->start();
+
 
 
     audioOutput->setVolume(75/ 100.0);
