@@ -35,8 +35,7 @@ HEADERS += \
     take_pcm.h \
     worker.h
 
-FORMS += \
-    mainwindow.ui
+FORMS +=
 
 TRANSLATIONS += \
     untitled_zh_CN.ts
