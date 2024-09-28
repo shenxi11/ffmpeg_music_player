@@ -1,7 +1,6 @@
-#ifndef MAINWINDOW_H
-#define MAINWINDOW_H
+#ifndef PLAY_WIDGET_H
+#define PLAY_WIDGET_H
 
-#include <QMainWindow>
 #include<QWidget>
 #include<QSlider>
 #include<QScrollBar>
@@ -11,17 +10,17 @@
 #include"lrc_analyze.h"
 #include"take_pcm.h"
 #include"lyrictextedit.h"
-QT_BEGIN_NAMESPACE
-namespace Ui { class MainWindow; }
-QT_END_NAMESPACE
 
-class MainWindow : public QMainWindow
+
+class Play_Widget : public QWidget
 {
     Q_OBJECT
 
 public:
-    MainWindow(QWidget *parent = nullptr);
-    ~MainWindow();
+    Play_Widget(QWidget *parent = nullptr);
+    ~Play_Widget();
+
+    QPushButton*get_dir();
 
 public slots:
 
@@ -45,14 +44,16 @@ signals:
     void set_SliderMove(bool flag);
 
     void process_Change(qint64 newPosition);
+
+    void big_clicked(bool checked);
 private:
-    Ui::MainWindow *ui;
+
 
     void rePlay(QString path);
 
     std::unique_ptr<Worker>work;//音频转化为pcm的线程
 
-    std::unique_ptr<lrc_analyze>lrc;//解析歌词的线程
+    std::unique_ptr<LrcAnalyze>lrc;//解析歌词的线程
 
     std::unique_ptr<Take_pcm>take_pcm;//播放pcm的线程
 
@@ -73,6 +74,8 @@ private:
 
     QPushButton*dir;
 
+    QPushButton*music;
+
     QSlider *Slider;
 
 
@@ -90,7 +93,26 @@ private:
 
     bool loop;
 
+protected:
+//    void resizeEvent(QResizeEvent *event) override {
+//            // Update the mask when the window is resized
+//            QRegion region(0, 350, width(), 350);
+//            setMask(region);
 
+//            QWidget::resizeEvent(event);
+//        }
 
+    void paintEvent(QPaintEvent *event) override {
+            QWidget::paintEvent(event);
+
+            // 创建画笔对象，用于在窗口上绘图
+            QPainter painter(this);
+
+            // 加载背景图片
+            QPixmap background(":/new/prefix1/icon/bg.png");
+
+            // 按窗口大小缩放背景图片
+            painter.drawPixmap(0, 0, width(), height(), background);
+        }
 };
 #endif // MAINWINDOW_H
