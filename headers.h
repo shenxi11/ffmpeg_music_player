@@ -38,6 +38,7 @@ extern "C"
 #include <QMetaObject>
 #include <QMutex>
 #include <QQueue>
+#include <QRegularExpression>
 #include <QWaitCondition>
 #include <QByteArray>
 #include <QVBoxLayout>

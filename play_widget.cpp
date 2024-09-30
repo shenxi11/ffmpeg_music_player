@@ -7,18 +7,20 @@ Play_Widget::Play_Widget(QWidget *parent)
 
 {
 
-    play = new QPushButton(this);
+    play  = new QPushButton(this);
     video = new QPushButton(this);
-    Loop = new QPushButton(this);
-    dir = new QPushButton(this);
+    Loop  = new QPushButton(this);
+    dir   = new QPushButton(this);
     music = new QPushButton(this);
     mlist = new QPushButton(this);
+    last  = new QPushButton(this);
+    next  = new QPushButton(this);
 
     Slider = new QSlider(Qt::Horizontal,this);
     // Slider->setMinimum(0);
     // Slider->setMaximum(0);
 
-    int space = (800-6*50)/7;
+    int space = (800-8*50)/9;
 
     Loop->setFixedSize(50,50);
     Loop->move(space,400);
@@ -26,47 +28,62 @@ Play_Widget::Play_Widget(QWidget *parent)
     dir->setFixedSize(50,50);
     dir->move(space*2+50,400);
 
+    music->setFixedSize(50,50);
+    music->move(2*50+3*space,400);
+
+    last->setFixedSize(50,50);
+    last->move(3*50+4*space,400);
+
     play->setFixedSize(50,50);
-    play->move(50*2+3*space,400);
+    play->move(50*4+5*space,400);
+
+    next->setFixedSize(50,50);
+    next->move(5*50+6*space,400);
 
     video->setFixedSize(50,50);
-    video->move(3*50+4*space,400);
-
-    music->setFixedSize(50,50);
-    music->move(4*50+5*space,400);
+    video->move(6*50+7*space,400);
 
     mlist->setFixedSize(50,50);
-    mlist->move(5*50+6*space,400);
+    mlist->move(7*50+8*space,400);
 
     Slider->setFixedSize(800,20);
     Slider->move((800-Slider->width())/2,350);
 
 
     video->setCheckable(true);
-    music->setCheckable(true);
-
+    music->setCheckable(true);   
     mlist->setCheckable(true);
 
     dir->setStyleSheet(
-                "QPushButton {"
-                "    border-image: url(:/new/prefix1/icon/upload.png);"
-                "}"
-                );
+        "QPushButton {"
+        "    border-image: url(:/new/prefix1/icon/upload.png);"
+        "}"
+        );
 
     video->setStyleSheet(
-                "QPushButton {"
-                "    border-image: url(:/new/prefix1/icon/volume.png);"
-                "}"
-                );
+        "QPushButton {"
+        "    border-image: url(:/new/prefix1/icon/volume.png);"
+        "}"
+        );
 
     play->setStyleSheet(
-                "QPushButton {"
-                "    border-image: url(:/new/prefix1/icon/play.png);"
-                "}"
-                );
+        "QPushButton {"
+        "    border-image: url(:/new/prefix1/icon/play.png);"
+        "}"
+        );
     mlist->setStyleSheet(
         "QPushButton {"
         "    border-image: url(:/new/prefix1/icon/playlist.png);"
+        "}"
+        );
+    last->setStyleSheet(
+        "QPushButton {"
+        "    border-image: url(:/new/prefix1/icon/last_song.png);"
+        "}"
+        );
+    next->setStyleSheet(
+        "QPushButton {"
+        "    border-image: url(:/new/prefix1/icon/next_song.png);"
         "}"
         );
 
@@ -81,16 +98,10 @@ Play_Widget::Play_Widget(QWidget *parent)
 
 
     Loop->setStyleSheet(
-                "QPushButton {"
-                "    border-image: url(:/new/prefix1/icon/random_play.png);"
-                "}"
-                );
-
-
-
-    //    QThread*a = new QThread();
-    //    QThread*b = new QThread();
-    //    QThread*c = new QThread();
+        "QPushButton {"
+        "    border-image: url(:/new/prefix1/icon/random_play.png);"
+        "}"
+        );
 
 
     a = new QThread(this);
@@ -256,36 +267,36 @@ Play_Widget::Play_Widget(QWidget *parent)
     connect(work.get(),&Worker::Stop,this,[=](){
 
         play->setStyleSheet(
-                    "QPushButton {"
-                    "    border-image: url(:/new/prefix1/icon/play.png);"
-                    "}"
-                    );
+            "QPushButton {"
+            "    border-image: url(:/new/prefix1/icon/play.png);"
+            "}"
+            );
     });
     connect(work.get(),&Worker::Begin,this,[=](){
 
         play->setStyleSheet(
-                    "QPushButton {"
-                    "    border-image: url(:/new/prefix1/icon/pause.png);"
-                    "}"
-                    );
+            "QPushButton {"
+            "    border-image: url(:/new/prefix1/icon/pause.png);"
+            "}"
+            );
     });
 
     connect(Loop,&QPushButton::clicked,this,[=](){
         if(this->loop)
         {
             Loop->setStyleSheet(
-                        "QPushButton {"
-                        "    border-image: url(:/new/prefix1/icon/random_play.png);"
-                        "}"
-                        );
+                "QPushButton {"
+                "    border-image: url(:/new/prefix1/icon/random_play.png);"
+                "}"
+                );
         }
         else
         {
             Loop->setStyleSheet(
-                        "QPushButton {"
-                        "    border-image: url(:/new/prefix1/icon/loop.png);"
-                        "}"
-                        );
+                "QPushButton {"
+                "    border-image: url(:/new/prefix1/icon/loop.png);"
+                "}"
+                );
         }
         this->loop = !this->loop;
 
@@ -412,17 +423,21 @@ void Play_Widget::openfile()
 
     // 打开文件对话框
     QString filePath = QFileDialog::getOpenFileName(
-                &dummyWidget,                   // 父窗口（可以是 nullptr）
-                "Open File",                    // 对话框标题
-                QDir::homePath(),               // 起始目录（可以是任意路径）
-                "Audio Files (*.mp3 *.wav *.flac *.ogg);;All Files (*)"  // 文件过滤器
-                );
+        &dummyWidget,                   // 父窗口（可以是 nullptr）
+        "Open File",                    // 对话框标题
+        QDir::homePath(),               // 起始目录（可以是任意路径）
+        "Audio Files (*.mp3 *.wav *.flac *.ogg);;All Files (*)"  // 文件过滤器
+        );
 
     // 打印选中的文件路径
     if (!filePath.isEmpty())
     {
         this->filePath = filePath;
         emit filepath(filePath);
+
+        QFileInfo fileInfo(filePath);
+        QString fileName = fileInfo.fileName();
+        emit add_song(fileName,filePath);
 
         qDebug() << "Selected file:" << filePath;
     }

@@ -11,7 +11,7 @@ public:
 
     ~LrcAnalyze();
 private slots:
-    void begin_send(std::string lrcFile);
+    void begin_send(QString lrcFile);
 
 private:
     bool hasTimestamp(const std::string& line);
@@ -26,7 +26,7 @@ private:
 
     int timeToMilliseconds(const std::string& timeStr);
 
-    std::map<int, std::string> parseLrcFile(const std::string& lrcFile);
+    std::map<int, std::string> parseLrcFile(const QString& lrcFile);
 
     QString detectEncodingWithUchardet(const QString& filePath);
 
@@ -43,7 +43,7 @@ signals:
 
     void send_lrc(std::map<int, std::string> lyrics);
 
-    void Begin_send(std::string lrcFile);
+    void Begin_send(QString lrcFile);
 };
 
 #endif // LRC_ANALYZE_H
