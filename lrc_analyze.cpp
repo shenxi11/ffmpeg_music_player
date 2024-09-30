@@ -87,6 +87,7 @@ void LrcAnalyze::take_lrc(QString Path)
     lrcFile = lrcFile.substr(0,len-pos)+"lrc";
 
     QString encoding = detectEncodingWithUchardet(QString::fromStdString(lrcFile));
+
     if (!encoding.isEmpty())
     {
         qDebug() << "检测到的编码为:" << encoding;
