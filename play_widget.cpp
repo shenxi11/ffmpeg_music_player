@@ -7,20 +7,18 @@ Play_Widget::Play_Widget(QWidget *parent)
 
 {
 
+    play = new QPushButton(this);
+    video = new QPushButton(this);
+    Loop = new QPushButton(this);
+    dir = new QPushButton(this);
+    music = new QPushButton(this);
 
 
-    play=new QPushButton(this);
-    video=new QPushButton(this);
-    Loop=new QPushButton(this);
-    dir=new QPushButton(this);
-    music=new QPushButton(this);
-
-
-    Slider=new QSlider(Qt::Horizontal,this);
+    Slider = new QSlider(Qt::Horizontal,this);
     Slider->setMinimum(0);
     Slider->setMaximum(0);
 
-    int space=(800-4*50)/6;
+    int space = (800-4*50)/6;
 
     Loop->setFixedSize(50,50);
     Loop->move(space,400);
@@ -81,29 +79,29 @@ Play_Widget::Play_Widget(QWidget *parent)
 
 
 
-    //    QThread*a=new QThread();
-    //    QThread*b=new QThread();
-    //    QThread*c=new QThread();
+    //    QThread*a = new QThread();
+    //    QThread*b = new QThread();
+    //    QThread*c = new QThread();
 
 
-    a=new QThread(this);
-    b=new QThread(this);
-    c=new QThread(this);
+    a = new QThread(this);
+    b = new QThread(this);
+    c = new QThread(this);
 
     //Slider->setRange(0,10000);
 
 
 
     QTimer*timer = new QTimer();
-    work=std::make_unique<Worker>(timer);
+    work = std::make_unique<Worker>(timer);
     work->moveToThread(c);
     timer->moveToThread(c);
 
-    lrc=std::make_unique<LrcAnalyze>();
+    lrc = std::make_unique<LrcAnalyze>();
     //lrc->moveToThread(b);
     //lrc.get()->moveToThread(b);
 
-    take_pcm=std::make_unique<Take_pcm>();
+    take_pcm = std::make_unique<Take_pcm>();
     //take_pcm->start();
 
     take_pcm->moveToThread(a);
@@ -151,7 +149,7 @@ Play_Widget::Play_Widget(QWidget *parent)
     connect(work.get(),&Worker::rePlay,this,[=](){
         {
             std::lock_guard<std::mutex>lock(mtx);
-            this->played=true;
+            this->played = true;
         }
         if(this->loop&&this->filePath.size()>0){
             rePlay(this->filePath);
@@ -177,9 +175,9 @@ Play_Widget::Play_Widget(QWidget *parent)
 
         Slider->setRange(0,10000);
         this->textEdit->clear();
-        this->textEdit->currentLine=4;
+        this->textEdit->currentLine = 4;
         this->lyrics.clear();
-        for(int i=0;i<5;i++){
+        for(int i = 0;i<5;i++){
             textEdit->append("    ");
         }
         {
@@ -188,9 +186,9 @@ Play_Widget::Play_Widget(QWidget *parent)
                 textEdit->append(QString::fromStdString(text));
                 //qDebug()<<QString::fromStdString(text);
             }
-            this->lyrics=lyrics;
+            this->lyrics = lyrics;
         }
-        for(int i=0;i<5;i++){
+        for(int i = 0;i<5;i++){
             textEdit->append("    ");
         }
 
@@ -224,7 +222,7 @@ Play_Widget::Play_Widget(QWidget *parent)
         //        QString lineText;
         //        // 检查是否找到有效的块
         //        if (block.isValid()) {
-        //            lineText= block.text();  // 获取该行的文本
+        //            lineText =  block.text();  // 获取该行的文本
         //        }
         if(line!=textEdit->currentLine){
 
@@ -234,7 +232,7 @@ Play_Widget::Play_Widget(QWidget *parent)
 
             qDebug()<<"line:"<<line<<"textEdit->currentLine:"<<textEdit->currentLine;
 
-            textEdit->currentLine=line;
+            textEdit->currentLine = line;
 
             update();
         }
@@ -271,7 +269,7 @@ Play_Widget::Play_Widget(QWidget *parent)
                         "}"
                         );
         }
-        this->loop=!this->loop;
+        this->loop = !this->loop;
 
         qDebug()<<"Loop state"<<this->loop;
     });
@@ -290,8 +288,8 @@ Play_Widget::Play_Widget(QWidget *parent)
     });
     connect(slider,&QSlider::valueChanged,work.get(),&Worker::Set_Volume);
 
-    connect(take_pcm.get(),&Take_pcm::durations,[=](qint64 value){
-        this->duration=static_cast<qint64>(value);
+    connect(take_pcm.get(),&Take_pcm::durations,[ = ](qint64 value){
+        this->duration = static_cast<qint64>(value);
         //qDebug()<<"this->duration"<<this->duration;
     });
     connect(work.get(),&Worker::durations,[=](qint64 value){
@@ -308,7 +306,7 @@ Play_Widget::Play_Widget(QWidget *parent)
     connect(Slider,&QSlider::sliderReleased,[=](){
 
 
-        int newPosition=Slider->value()*this->duration/10000000;
+        int newPosition = Slider->value()*this->duration/10000000;
 
         emit process_Change(newPosition);
         emit set_SliderMove(false);
@@ -329,7 +327,7 @@ void Play_Widget::rePlay(QString path){
     emit filepath(path);
     {
         std::lock_guard<std::mutex>lock(mtx);
-        this->played=false;
+        this->played = false;
     }
 
 }
@@ -338,7 +336,7 @@ void Play_Widget::_begin_to_play(QString Path){
 }
 
 void Play_Widget::init_TextEdit(){
-    this->textEdit=new LyricTextEdit(this);
+    this->textEdit = new LyricTextEdit(this);
     this->textEdit->setTextInteractionFlags(Qt::NoTextInteraction);//禁用交互
     this->textEdit->disableScrollBar();
     this->textEdit->setFixedSize(450,300);
@@ -382,7 +380,7 @@ void Play_Widget::openfile(){
 
     // 打印选中的文件路径
     if (!filePath.isEmpty()) {
-        this->filePath=filePath;
+        this->filePath = filePath;
         emit filepath(filePath);
 
         qDebug() << "Selected file:" << filePath;

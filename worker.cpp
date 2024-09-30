@@ -12,7 +12,8 @@ Worker::Worker(QTimer*timer):
 
 
 }
-void Worker::init(){
+void Worker::init()
+{
     QAudioFormat format;
     format.setSampleRate(RATE);
     format.setChannelCount(CHANNELS);
@@ -28,19 +29,23 @@ void Worker::init(){
     audioOutput->setBufferSize(AUDIO_BUFFER_SIZE);
 }
 
-Worker::~Worker() {
+Worker::~Worker()
+{
     qDebug()<<"desruct Worker";
 }
 
-void Worker::stop(){
+void Worker::stop()
+{
     timer->stop();
     timer->deleteLater();
 }
 
-void Worker::receive_totalDuration(qint64 total){
+void Worker::receive_totalDuration(qint64 total)
+{
     this->totalAudioDurationInMS=total;
 }
-void Worker::receive_lrc(std::map<int, std::string> lyrics){
+void Worker::receive_lrc(std::map<int, std::string> lyrics)
+{
     std::lock_guard<std::mutex>lock(mtx);
     this->lyrics=lyrics;
 }
@@ -49,21 +54,26 @@ void Worker::receive_lrc(std::map<int, std::string> lyrics){
 //    emit play(pcmFilePath);
 
 //}
-void Worker::stop_play(){
+void Worker::stop_play()
+{
     emit stopPlay();
 }
-void Worker::Set_Volume(int value){
+void Worker::Set_Volume(int value)
+{
     if(audioOutput)
         audioOutput->setVolume(value/100.0);
 }
-void Worker::set_SliderMove(bool flag){
+void Worker::set_SliderMove(bool flag)
+{
     this->sliderMove=flag;
 
     emit stopPlay();
 }
-void Worker::Pause(){
+void Worker::Pause()
+{
 
-    if (!isPaused||this->sliderMove) {
+    if (!isPaused||this->sliderMove)
+    {
         qDebug() << "暂停";
         audioOutput->suspend();
         timer->stop();
@@ -71,7 +81,9 @@ void Worker::Pause(){
         isPaused = true;
         qDebug() << "Playback paused CC:";
         emit Stop();
-    } else if (isPaused) {
+    }
+    else if (isPaused)
+    {
         qDebug() << "恢复";
         audioOutput->resume();
         isPaused = false;
@@ -213,7 +225,8 @@ void Worker::Pause(){
 
 //    });
 //}
-void Worker::reset_play(){
+void Worker::reset_play()
+{
     std::lock_guard<std::mutex>lock(mtx);
     this->mp.clear();
     this->audioBuffer.clear();
@@ -223,14 +236,16 @@ void Worker::reset_play(){
 
 }
 
-void Worker::onTimeOut(){
+void Worker::onTimeOut()
+{
 
         std::lock_guard<std::mutex> lock(mtx);
 
         qint64 currentTimeMS;
 
 
-        if (audioBuffer.isEmpty()) {
+        if (audioBuffer.isEmpty())
+        {
             timer->stop();
             emit Stop();
             emit rePlay();
@@ -243,7 +258,8 @@ void Worker::onTimeOut(){
         qint64 bytesFree = audioOutput->bytesFree();
         //qDebug() << "Audio buffer size:" << pcmData.size() << "audioBytesFree:" << bytesFree<<" number:"<<audioBuffer.size();
 
-        if ( bytesFree<2*pcmData.size()) {
+        if ( bytesFree<2*pcmData.size())
+        {
             //qDebug() << "Not enough space in audio output buffer. PCM data size:" << pcmData.size() << "bytesFree:" << bytesFree;
             //audioBuffer.enqueue(pcmData);  // 将数据重新放回缓冲区
             return;  // 等待下一次调用
@@ -257,7 +273,8 @@ void Worker::onTimeOut(){
 
         mp.erase(pcmData);
         audioBuffer.pop_front();
-        if (bytesWritten < 0) {
+        if (bytesWritten < 0)
+        {
             qDebug() << "Error writing audio data:" << audioDevice->errorString();
             timer->stop();  // 停止定时器
             return;
@@ -267,21 +284,25 @@ void Worker::onTimeOut(){
 
     emit durations(currentTimeMS);  // 通知其他组件同步显示时间
     int index=0;
-    for (auto it = lyrics.begin(); it != lyrics.end(); ++it,++index) {
+    for (auto it = lyrics.begin(); it != lyrics.end(); ++it,++index)
+    {
 
         // 访问下一个元素
         auto nextIt = std::next(it);
 
-        if (nextIt != lyrics.end()) {
+        if (nextIt != lyrics.end())
+        {
 
-            if ((it->first <= static_cast<int>(currentTimeMS)&& nextIt->first>static_cast<int>(currentTimeMS))||(it==lyrics.begin()&&it->first>=static_cast<int>(currentTimeMS))) {
+            if ((it->first <= static_cast<int>(currentTimeMS)&& nextIt->first>static_cast<int>(currentTimeMS))||(it==lyrics.begin()&&it->first>=static_cast<int>(currentTimeMS)))
+            {
                 emit send_lrc(index+5);
 
                 break;
             }
 
         }
-        else{
+        else
+        {
             emit send_lrc(index+5);
 
             break;
@@ -303,20 +324,23 @@ void Worker::onTimeOut(){
 }
 
 
-void Worker::receive_data(const QByteArray &data,qint64 timeMap){
+void Worker::receive_data(const QByteArray &data,qint64 timeMap)
+{
     std::lock_guard<std::mutex>lock(mtx);
     this->audioBuffer.enqueue(data);
     this->mp[data]=timeMap;
 
 }
 
-void Worker::play_pcm() {
+void Worker::play_pcm()
+{
 
     qDebug() << "Worker" << QThread::currentThreadId();
 
 
 
-    if (audioOutput) {
+    if (audioOutput)
+    {
         audioOutput->stop();
         audioOutput->reset();
 

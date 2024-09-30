@@ -27,11 +27,7 @@ int main(int argc, char *argv[])
     qRegisterMetaType<std::vector<std::pair<qint64,qint64> >>("std::vector<std::pair<qint64,qint64> >");
 
     Main_Widget w;
-
-
     w.show();
-
-    w.show_widget();
 
 
     qDebug()<<"启动";

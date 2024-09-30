@@ -28,32 +28,25 @@ signals:
 
     void send_totalDuration(qint64 totalAudioDurationInMS);
 
-    void data(const QByteArray &data,qint64 timeMap);
+    void data(const QByteArray &data, qint64 timeMap);
 
     void Position_Change();
 
     void begin_to_decode();
 private:
-    void send_data(uint8_t *buffer, int bufferSize,qint64 timeMap);
+    void send_data(uint8_t *buffer, int bufferSize, qint64 timeMap);
 
     void decode();
 
-    // 手动计算 AVRational 的 double 值
-    double rationalToDouble(AVRational r) {
-        return (r.num == 0 || r.den == 0) ? 0 : static_cast<double>(r.num) / static_cast<double>(r.den);
-    }
-
-
-
     AVFormatContext *ifmt_ctx;
 
-    AVCodecContext*codec_ctx ;
+    AVCodecContext *codec_ctx ;
 
-    SwrContext*swr_ctx;
+    SwrContext *swr_ctx;
 
-    AVFrame* frame;
+    AVFrame *frame;
 
-    AVPacket* pkt;
+    AVPacket *pkt;
 
     int audioStreamIndex;
 

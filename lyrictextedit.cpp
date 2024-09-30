@@ -13,8 +13,6 @@ void LyricTextEdit::highlightLine(int lineNumber) {
         // 选中整行
         cursor.select(QTextCursor::LineUnderCursor);
 
-
-
         resetLineFormat(cursor);
     }
 

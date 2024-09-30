@@ -14,9 +14,6 @@ public:
 
     ~Worker();
 
-
-
-
     bool getAudioFileInfo(const QString& filePath, int& sampleRate, int& channelCount, int& sampleSize, QAudioFormat::SampleType& sampleType);
 
 
@@ -36,11 +33,12 @@ public slots:
 
     void play_pcm();
 
-    void receive_data(const QByteArray &data,qint64 timeMap);
+    void receive_data(const QByteArray &data, qint64 timeMap);
 
     void reset_play();
 
     void init();
+
 private slots:
     void onTimeOut();
 
@@ -65,13 +63,13 @@ signals:
 private:
     std::map<int, std::string> lyrics;
 
-    std::unique_ptr<QFile>file;
+    std::unique_ptr<QFile> file;
 
     std::vector<std::pair<qint64, qint64>> pcmTimeMap;
 
-    QIODevice* audioDevice=nullptr;
+    QIODevice* audioDevice = nullptr;
 
-    QTimer* timer;
+    QTimer *timer;
 
     QQueue<QByteArray> audioBuffer;
 
@@ -90,9 +88,9 @@ private:
     std::mutex mtx;
     std::mutex mtx1;
 
-    std::unique_ptr<char[]>buffer;
+    std::unique_ptr<char[]> buffer;
 
-    std::map<QByteArray,qint64>mp;
+    std::map<QByteArray,qint64> mp;
 
     QAudioFormat format;
 

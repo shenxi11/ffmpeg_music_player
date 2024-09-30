@@ -51,46 +51,48 @@ signals:
 
 private:
 
+    void init_TextEdit();
 
     void rePlay(QString path);
 
-    std::unique_ptr<Worker>work;//音频转化为pcm的线程
+    std::unique_ptr<Worker> work;//音频转化为pcm的线程
 
-    std::unique_ptr<LrcAnalyze>lrc;//解析歌词的线程
+    std::unique_ptr<LrcAnalyze> lrc;//解析歌词的线程
 
-    std::unique_ptr<Take_pcm>take_pcm;//播放pcm的线程
+    std::unique_ptr<Take_pcm> take_pcm;//播放pcm的线程
 
 
     std::map<int, std::string> lyrics;
 
     QString filePath;
 
-    LyricTextEdit*textEdit;
+    LyricTextEdit *textEdit;
 
     QSlider *slider;
 
-    QPushButton*video;
+    QPushButton *video;
 
-    QPushButton*play;
+    QPushButton *play;
 
-    QPushButton*Loop;
+    QPushButton *Loop;
 
-    QPushButton*dir;
+    QPushButton *dir;
 
-    QPushButton*music;
+    QPushButton *music;
+
+    QPushButton *list;
 
     QSlider *Slider;
 
 
-    qint64 duration=0;
+    qint64 duration = 0;
 
-    void init_TextEdit();
 
     std::mutex mtx;
 
-    QThread*a;
-    QThread*b;
-    QThread*c;
+    QThread *a;
+    QThread *b;
+    QThread *c;
 
     bool played;
 

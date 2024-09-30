@@ -35,6 +35,4 @@ Main_Widget::Main_Widget(QWidget *parent) : QWidget(parent)
         }
     });
 }
-void Main_Widget:: show_widget(){
-    //w->show();
-}
+
