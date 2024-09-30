@@ -5,11 +5,13 @@ MusicListWidget::MusicListWidget(QWidget *parent)
 {
 
 }
-void MusicListWidget::addSong(const QString songName, const QString path) {
+void MusicListWidget::addSong(const QString songName, const QString path)
+{
     addItem(songName);
     pathMap[songName] = path;
 }
-void MusicListWidget::mouseDoubleClickEvent(QMouseEvent *event) {
+void MusicListWidget::mouseDoubleClickEvent(QMouseEvent *event)
+{
     QListWidgetItem *item = itemAt(event->pos());
 
     if(item)

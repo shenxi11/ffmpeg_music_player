@@ -8,7 +8,8 @@
 #include <QTextCursor>
 #include <QFontMetrics>
 
-class LyricTextEdit : public QTextEdit {
+class LyricTextEdit : public QTextEdit
+{
     Q_OBJECT
 public:
     LyricTextEdit(QWidget *parent = nullptr)

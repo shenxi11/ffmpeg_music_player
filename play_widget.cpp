@@ -122,7 +122,7 @@ Play_Widget::Play_Widget(QWidget *parent)
     //    });
 
 
-    connect(music,&QPushButton::toggled,this,[=](bool checked){
+    connect(music,&QPushButton::toggled,this,[=](bool checked) {
         emit big_clicked(checked);
     });
 
@@ -151,14 +151,16 @@ Play_Widget::Play_Widget(QWidget *parent)
             std::lock_guard<std::mutex>lock(mtx);
             this->played = true;
         }
-        if(this->loop&&this->filePath.size()>0){
+        if(this->loop&&this->filePath.size()>0)
+        {
             rePlay(this->filePath);
         }
     });
 
     connect(play,&QPushButton::clicked,work.get(),&Worker::stop_play);
     connect(play,&QPushButton::clicked,[=](){
-        if(!this->loop&&filePath.size()>0&&played){
+        if(!this->loop&&filePath.size()>0&&played)
+        {
             rePlay(this->filePath);
             qDebug()<<"rePlay"<<this->filePath;
         }
@@ -177,18 +179,21 @@ Play_Widget::Play_Widget(QWidget *parent)
         this->textEdit->clear();
         this->textEdit->currentLine = 4;
         this->lyrics.clear();
-        for(int i = 0;i<5;i++){
+        for(int i = 0;i<5;i++)
+        {
             textEdit->append("    ");
         }
         {
             std::lock_guard<std::mutex>lock(mtx);
-            for (const auto& [time, text] : lyrics){
+            for (const auto& [time, text] : lyrics)
+            {
                 textEdit->append(QString::fromStdString(text));
                 //qDebug()<<QString::fromStdString(text);
             }
             this->lyrics = lyrics;
         }
-        for(int i = 0;i<5;i++){
+        for(int i = 0;i<5;i++)
+        {
             textEdit->append("    ");
         }
 
@@ -224,7 +229,8 @@ Play_Widget::Play_Widget(QWidget *parent)
         //        if (block.isValid()) {
         //            lineText =  block.text();  // 获取该行的文本
         //        }
-        if(line!=textEdit->currentLine){
+        if(line!=textEdit->currentLine)
+        {
 
             textEdit->highlightLine(line);
 
@@ -256,13 +262,16 @@ Play_Widget::Play_Widget(QWidget *parent)
     });
 
     connect(Loop,&QPushButton::clicked,this,[=](){
-        if(this->loop){
+        if(this->loop)
+        {
             Loop->setStyleSheet(
                         "QPushButton {"
                         "    border-image: url(:/new/prefix1/icon/random_play.png);"
                         "}"
                         );
-        }else{
+        }
+        else
+        {
             Loop->setStyleSheet(
                         "QPushButton {"
                         "    border-image: url(:/new/prefix1/icon/loop.png);"
@@ -276,12 +285,16 @@ Play_Widget::Play_Widget(QWidget *parent)
 
 
     connect(video,&QPushButton::toggled,this,[=](bool checked){
-        if(checked){
+        if(checked)
+        {
             qDebug()<<"被选中";
 
             slider->show();
-        }else{
-            if(slider){
+        }
+        else
+        {
+            if(slider)
+            {
                 slider->close();
             }
         }
@@ -323,7 +336,8 @@ void Play_Widget::_play_list_music(QString path)
     emit filepath(path);
 }
 
-void Play_Widget::rePlay(QString path){
+void Play_Widget::rePlay(QString path)
+{
     emit filepath(path);
     {
         std::lock_guard<std::mutex>lock(mtx);
@@ -331,11 +345,13 @@ void Play_Widget::rePlay(QString path){
     }
 
 }
-void Play_Widget::_begin_to_play(QString Path){
+void Play_Widget::_begin_to_play(QString Path)
+{
     emit begin_to_play(Path);
 }
 
-void Play_Widget::init_TextEdit(){
+void Play_Widget::init_TextEdit()
+{
     this->textEdit = new LyricTextEdit(this);
     this->textEdit->setTextInteractionFlags(Qt::NoTextInteraction);//禁用交互
     this->textEdit->disableScrollBar();
@@ -352,7 +368,8 @@ void Play_Widget::init_TextEdit(){
 
 
 
-void Play_Widget::_begin_take_lrc(QString str){
+void Play_Widget::_begin_take_lrc(QString str)
+{
     this->textEdit->clear();
 
     emit begin_take_lrc(str);
@@ -365,7 +382,8 @@ void Play_Widget::_begin_take_lrc(QString str){
 
     textEdit->setTextCursor(cursor);
 }
-void Play_Widget::openfile(){
+void Play_Widget::openfile()
+{
 
     // 创建一个临时的 QWidget 实例，用于显示文件对话框
     QWidget dummyWidget;
@@ -379,33 +397,40 @@ void Play_Widget::openfile(){
                 );
 
     // 打印选中的文件路径
-    if (!filePath.isEmpty()) {
+    if (!filePath.isEmpty())
+    {
         this->filePath = filePath;
         emit filepath(filePath);
 
         qDebug() << "Selected file:" << filePath;
-    } else {
+    }
+    else
+    {
         qDebug() << "No file selected.";
     }
 
 
 }
-QPushButton*Play_Widget::get_dir(){
+QPushButton*Play_Widget::get_dir()
+{
     return this->dir;
 }
 
 Play_Widget::~Play_Widget()
 {
 
-    if(a){
+    if(a)
+    {
         a->quit();
         a->wait();
     }
-    if(b){
+    if(b)
+    {
         b->quit();
         b->wait();
     }
-    if(c){
+    if(c)
+    {
         c->quit();
         c->wait();
     }

@@ -1,7 +1,8 @@
 #ifndef HEADERS_H
 #define HEADERS_H
 
-extern "C" {
+extern "C"
+{
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/avutil.h>

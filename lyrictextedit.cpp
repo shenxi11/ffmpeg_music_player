@@ -2,11 +2,13 @@
 #include<QDebug>
 
 
-void LyricTextEdit::highlightLine(int lineNumber) {
+void LyricTextEdit::highlightLine(int lineNumber)
+{
 
     QTextBlock block1 = this->document()->findBlockByNumber(this->currentLine);
 
-    if (block1.isValid()) {
+    if (block1.isValid())
+    {
         // 创建一个光标并定位到该行
         QTextCursor cursor(block1);
 
@@ -19,7 +21,8 @@ void LyricTextEdit::highlightLine(int lineNumber) {
     // 获取指定行的 QTextBlock
     QTextBlock block = this->document()->findBlockByNumber(lineNumber);
 
-    if (block.isValid()) {
+    if (block.isValid())
+    {
         // 创建一个光标并定位到该行
         QTextCursor cursor(block);
 
@@ -34,7 +37,8 @@ void LyricTextEdit::highlightLine(int lineNumber) {
 
 }
 
-void LyricTextEdit::resetLineFormat(QTextCursor &cursor){
+void LyricTextEdit::resetLineFormat(QTextCursor &cursor)
+{
     cursor.select(QTextCursor::LineUnderCursor);
     QTextCharFormat format;
     format.setFontWeight(QFont::Normal);
@@ -43,7 +47,8 @@ void LyricTextEdit::resetLineFormat(QTextCursor &cursor){
 }
 
 // 设置高亮行的格式
-void LyricTextEdit::highlightLineFormat(QTextCursor &cursor) {
+void LyricTextEdit::highlightLineFormat(QTextCursor &cursor)
+{
     cursor.select(QTextCursor::LineUnderCursor);
     QTextCharFormat format;
     format.setFontWeight(QFont::Bold);
@@ -51,7 +56,8 @@ void LyricTextEdit::highlightLineFormat(QTextCursor &cursor) {
     cursor.mergeCharFormat(format);
 }
 
-void LyricTextEdit::updateScrollBar() {
+void LyricTextEdit::updateScrollBar()
+{
     // 获取文档的总高度
     int documentHeight = this->document()->size().height();
 
@@ -63,17 +69,20 @@ void LyricTextEdit::updateScrollBar() {
     scrollBar->setRange(0, documentHeight - viewportHeight);
 
     // 如果文档的高度小于视口的高度，确保滚动条值为0
-    if (documentHeight <= viewportHeight) {
+    if (documentHeight <= viewportHeight)
+    {
         scrollBar->setValue(0);
     }
 }
-void LyricTextEdit::disableScrollBar() {
+void LyricTextEdit::disableScrollBar()
+{
     QScrollBar *scrollBar = this->verticalScrollBar();
     scrollBar->setEnabled(false);
     scrollBar->setVisible(false);
 }
 
-int LyricTextEdit::getLineHeight(int fontSize) {
+int LyricTextEdit::getLineHeight(int fontSize)
+{
     // 创建一个 QFont 对象，设置指定的字号
     QFont font;
     font.setPointSize(fontSize);
@@ -82,13 +91,15 @@ int LyricTextEdit::getLineHeight(int fontSize) {
     QFontMetrics metrics(font);
     return metrics.lineSpacing();  // 返回行高
 }
-int LyricTextEdit::getLineSpacing(int fontSize)  {
+int LyricTextEdit::getLineSpacing(int fontSize)
+{
     QFont font;
     font.setPointSize(fontSize);
     QFontMetrics metrics(font);
     return metrics.lineSpacing();  // 行间距
 }
-void LyricTextEdit::scrollLines(int lines) {
+void LyricTextEdit::scrollLines(int lines)
+{
     int fontSize = 20;  // 假设你使用的是 16 号字体
 
     // 获取行间距（包括行高和额外的空间）
@@ -103,6 +114,7 @@ void LyricTextEdit::scrollLines(int lines) {
 
 }
 
-LyricTextEdit::~LyricTextEdit(){
+LyricTextEdit::~LyricTextEdit()
+{
     qDebug()<<"Destruct LyricTextEdit";
 }
