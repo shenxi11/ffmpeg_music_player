@@ -7,7 +7,8 @@
 // 自定义日志处理函数
 void customLogHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg)
 {
-    if (msg.contains("pa_stream_begin_write, error = 无效参数")) {
+    if (msg.contains("pa_stream_begin_write, error = 无效参数"))
+    {
         // 忽略这条日志
         return;
     }
