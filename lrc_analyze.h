@@ -18,9 +18,9 @@ private:
 
     void removeEmptyLinesWithTimestamps(const std::string& filename);
 
-    bool isBlank(const std::string &str) ;
+    bool isBlank(const std::string& str) ;
 
-    void clearEmptyLines(std::map<int, std::string> &lyrics);
+    void clearEmptyLines(std::map<int, std::string>& lyrics);
 
     void take_lrc(QString Path);
 
@@ -28,11 +28,11 @@ private:
 
     std::map<int, std::string> parseLrcFile(const std::string& lrcFile);
 
-    QString detectEncodingWithUchardet(const QString &filePath);
+    QString detectEncodingWithUchardet(const QString& filePath);
 
-    void saveFileAsUtf8(const QString &content, const QString &outputFilePath);
+    void saveFileAsUtf8(const QString& content, const QString& outputFilePath);
 
-    QString readFileWithEncoding(const QString &filePath, const QByteArray &encoding);
+    QString readFileWithEncoding(const QString& filePath, const QByteArray& encoding);
 
 //    void run() override;
 

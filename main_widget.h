@@ -9,8 +9,6 @@ class Main_Widget : public QWidget
     Q_OBJECT
 public:
     explicit Main_Widget(QWidget *parent = nullptr);
-
-    void show_widget();
 signals:
 
 private:

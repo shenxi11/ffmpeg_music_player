@@ -11,37 +11,37 @@ extern "C" {
 #include <libavdevice/avdevice.h>
 #include <libswresample/swresample.h>
 }
-#include<locale.h>
-#include<QMediaPlayer>
-#include<QPushButton>
+#include <locale.h>
+#include <QMediaPlayer>
+#include <QPushButton>
 #include <QAudioFormat>
 #include <QAudioOutput>
 #include <QFile>
 #include <QTimer>
-#include<QDebug>
-#include<QDir>
-#include<QThread>
-#include<memory>
-#include<QFileDialog>
+#include <QDebug>
+#include <QDir>
+#include <QThread>
+#include <memory>
+#include <QFileDialog>
 #include <iostream>
 #include <fstream>
-#include<cstdio>
+#include <cstdio>
 #include <regex>
 #include <string>
 #include <map>
-#include<QProcess>
-#include<QTextCodec>
-#include<QThreadPool>
-#include<mutex>
+#include <QProcess>
+#include <QTextCodec>
+#include <QThreadPool>
+#include <mutex>
 #include <QWaitCondition>
-#include<QMetaObject>
+#include <QMetaObject>
 #include <QMutex>
 #include <QQueue>
 #include <QWaitCondition>
 #include <QByteArray>
-#include<QVBoxLayout>
-#include<QPainter>
-#include<QRegion>
+#include <QVBoxLayout>
+#include <QPainter>
+#include <QRegion>
 
 
 

@@ -15,8 +15,6 @@ public:
         : QTextEdit(parent), lastHighlightedLine(-1) { }
 
     ~LyricTextEdit();
-//    // 更新并高亮显示歌词的当前行
-//    void updateHighlight() ;
 
     void scrollLines(int lines);
 
