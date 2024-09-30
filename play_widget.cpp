@@ -12,13 +12,13 @@ Play_Widget::Play_Widget(QWidget *parent)
     Loop = new QPushButton(this);
     dir = new QPushButton(this);
     music = new QPushButton(this);
-
+    mlist = new QPushButton(this);
 
     Slider = new QSlider(Qt::Horizontal,this);
-    Slider->setMinimum(0);
-    Slider->setMaximum(0);
+    // Slider->setMinimum(0);
+    // Slider->setMaximum(0);
 
-    int space = (800-4*50)/6;
+    int space = (800-6*50)/7;
 
     Loop->setFixedSize(50,50);
     Loop->move(space,400);
@@ -35,6 +35,9 @@ Play_Widget::Play_Widget(QWidget *parent)
     music->setFixedSize(50,50);
     music->move(4*50+5*space,400);
 
+    mlist->setFixedSize(50,50);
+    mlist->move(5*50+6*space,400);
+
     Slider->setFixedSize(800,20);
     Slider->move((800-Slider->width())/2,350);
 
@@ -42,6 +45,7 @@ Play_Widget::Play_Widget(QWidget *parent)
     video->setCheckable(true);
     music->setCheckable(true);
 
+    mlist->setCheckable(true);
 
     dir->setStyleSheet(
                 "QPushButton {"
@@ -60,6 +64,11 @@ Play_Widget::Play_Widget(QWidget *parent)
                 "    border-image: url(:/new/prefix1/icon/play.png);"
                 "}"
                 );
+    mlist->setStyleSheet(
+        "QPushButton {"
+        "    border-image: url(:/new/prefix1/icon/playlist.png);"
+        "}"
+        );
 
     slider = new QSlider(Qt::Vertical, this);
     slider->close();
@@ -88,7 +97,7 @@ Play_Widget::Play_Widget(QWidget *parent)
     b = new QThread(this);
     c = new QThread(this);
 
-    //Slider->setRange(0,10000);
+    Slider->setRange(0,10000);
 
 
 
@@ -175,7 +184,7 @@ Play_Widget::Play_Widget(QWidget *parent)
     connect(lrc.get(),&LrcAnalyze::send_lrc,work.get(),&Worker::receive_lrc);
     connect(lrc.get(),&LrcAnalyze::send_lrc,this,[=](const std::map<int, std::string> lyrics){
 
-        Slider->setRange(0,10000);
+
         this->textEdit->clear();
         this->textEdit->currentLine = 4;
         this->lyrics.clear();
@@ -299,6 +308,18 @@ Play_Widget::Play_Widget(QWidget *parent)
             }
         }
     });
+
+    connect(mlist,&QPushButton::toggled,this,[=](bool checked){
+        if(checked)
+        {
+            emit list_show(true);
+            qDebug()<<"show";
+        }
+        else
+        {
+            emit list_show(false);
+        }
+    });
     connect(slider,&QSlider::valueChanged,work.get(),&Worker::Set_Volume);
 
     connect(take_pcm.get(),&Take_pcm::durations,[ = ](qint64 value){
@@ -373,6 +394,7 @@ void Play_Widget::_begin_take_lrc(QString str)
     this->textEdit->clear();
 
     emit begin_take_lrc(str);
+
     QTextCursor cursor = textEdit->textCursor();
 
     // 将光标移动到文档的开始

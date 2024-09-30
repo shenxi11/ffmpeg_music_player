@@ -49,6 +49,7 @@ signals:
 
     void big_clicked(bool checked);
 
+    void list_show(bool flag);
 private:
 
     void init_TextEdit();
@@ -80,7 +81,7 @@ private:
 
     QPushButton *music;
 
-    QPushButton *list;
+    QPushButton *mlist;
 
     QSlider *Slider;
 

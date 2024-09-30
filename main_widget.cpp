@@ -1,7 +1,7 @@
 #include "main_widget.h"
 
 Main_Widget::Main_Widget(QWidget *parent) : QWidget(parent)
-  ,w(nullptr)
+    ,w(nullptr)
     ,list(nullptr)
 {
     resize(1000,600);
@@ -19,17 +19,27 @@ Main_Widget::Main_Widget(QWidget *parent) : QWidget(parent)
     list->clear();
     list->close();
 
+    connect(w,&Play_Widget::list_show,[=](bool flag){
+        if(flag)
+        {
+            list->show();
+        }
+        else
+        {
+            list->close();
+        }
+    });
+
     connect(list,&MusicListWidget::selectMusic,w,&Play_Widget::_play_list_music);
 
-    connect(w,&Play_Widget::big_clicked,this,[=](bool checked)
-            {
+    connect(w,&Play_Widget::big_clicked,this,[=](bool checked){
         if(checked)
         {
             for(int i = 350; i >= 0;i -= 10)
             {
                 QRegion region1(0, i, w->width(), i);
                 w->setMask(region1);
-//                QThread::msleep(50);
+                //                QThread::msleep(50);
                 update();
             }
         }
