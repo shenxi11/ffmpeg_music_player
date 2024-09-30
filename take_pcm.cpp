@@ -1,5 +1,6 @@
 #include "take_pcm.h"
 
+
 Take_pcm::Take_pcm():drag(false) ,
     ifmt_ctx(nullptr)
 
@@ -17,15 +18,15 @@ Take_pcm::Take_pcm():drag(false) ,
 Take_pcm::~Take_pcm(){
 
     if(frame)
-    av_frame_free(&frame);
+        av_frame_free(&frame);
     if(pkt)
-    av_packet_free(&pkt);
+        av_packet_free(&pkt);
     if(codec_ctx)
-    avcodec_free_context(&codec_ctx);
+        avcodec_free_context(&codec_ctx);
     if(ifmt_ctx)
-    avformat_close_input(&ifmt_ctx);
+        avformat_close_input(&ifmt_ctx);
     if(swr_ctx)
-    swr_free(&swr_ctx);
+        swr_free(&swr_ctx);
     qDebug()<<"Destruct Take_pcm";
 }
 void Take_pcm::seekToPosition(int newPosition){
@@ -194,8 +195,10 @@ void Take_pcm::make_pcm(QString Path){
     std::vector<std::pair<qint64, qint64>> pcmTimeMap;
     qint64 currentPcmPosition = 0;  // 当前 PCM 文件的字节位置
 
-    // 获取音频文件的总时长
+    //获取音频文件的总时长
+
     qint64 totalAudioDurationInMS = ifmt_ctx->duration * av_q2d(AV_TIME_BASE_Q) * 1000;
+
 
     emit send_totalDuration(totalAudioDurationInMS);
     emit begin_to_play();
@@ -213,11 +216,11 @@ void Take_pcm::decode(){
                 while (avcodec_receive_frame(codec_ctx, frame) >= 0) {
                     // 计算目标缓冲区大小
                     int dst_nb_samples = av_rescale_rnd(
-                                swr_get_delay(swr_ctx, codec_ctx->sample_rate) + frame->nb_samples,
-                                44100,
-                                codec_ctx->sample_rate,
-                                AV_ROUND_UP
-                                );
+                        swr_get_delay(swr_ctx, codec_ctx->sample_rate) + frame->nb_samples,
+                        44100,
+                        codec_ctx->sample_rate,
+                        AV_ROUND_UP
+                        );
                     int buffer_size = av_samples_get_buffer_size(nullptr, 2, dst_nb_samples, AV_SAMPLE_FMT_S16, 1);
 
                     // 确保 buffer_size 不小于0

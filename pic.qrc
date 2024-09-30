@@ -1,17 +1,17 @@
 <RCC>
     <qresource prefix="/new/prefix1">
-        <file>icon/播放.png</file>
-        <file>icon/播放歌单.png</file>
-        <file>icon/歌单.png</file>
-        <file>icon/上传存盘.png</file>
-        <file>icon/上一首歌.png</file>
-        <file>icon/随机播放.png</file>
-        <file>icon/下一首.png</file>
-        <file>icon/循环播放.png</file>
-        <file>icon/音量.png</file>
-        <file>icon/暂停.png</file>
-        <file>icon/中等音量.png</file>
-        <file>icon/最大音量.png</file>
+        <file>icon/play.png</file>
+        <file>icon/playlist.png</file>
+        <file>icon/musiclist.png</file>
+        <file>icon/upload.png</file>
+        <file>icon/last_song.png</file>
+        <file>icon/random_play.png</file>
+        <file>icon/next_song.png</file>
+        <file>icon/loop.png</file>
+        <file>icon/volume.png</file>
+        <file>icon/pause.png</file>
+        <file>icon/medium_volume.png</file>
+        <file>icon/max_volume.png</file>
         <file>icon/bg.png</file>
     </qresource>
 </RCC>
