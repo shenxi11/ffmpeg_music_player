@@ -30,6 +30,8 @@ Main_Widget::Main_Widget(QWidget *parent) : QWidget(parent)
         }
     });
 
+    connect(w,&Play_Widget::add_song,list,&MusicListWidget::addSong);
+
     connect(list,&MusicListWidget::selectMusic,w,&Play_Widget::_play_list_music);
 
     connect(w,&Play_Widget::big_clicked,this,[=](bool checked){
@@ -39,7 +41,7 @@ Main_Widget::Main_Widget(QWidget *parent) : QWidget(parent)
             {
                 QRegion region1(0, i, w->width(), i);
                 w->setMask(region1);
-                //                QThread::msleep(50);
+                //QThread::msleep(50);
                 update();
             }
         }

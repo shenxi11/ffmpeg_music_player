@@ -18,15 +18,27 @@ LrcAnalyze::LrcAnalyze()
 
 
 //}
-// 使用 uchardet 检测文件编码
+//检测文件编码
 QString LrcAnalyze::detectEncodingWithUchardet(const QString &filePath)
 {
-    QProcess process;
-    process.start("uchardet", QStringList() << filePath);
-    process.waitForFinished();
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        qWarning() << "Cannot open file:" << file.errorString();
+        return QString();
+    }
 
-    QString encoding = process.readAllStandardOutput().trimmed();
-    return encoding;
+    QByteArray fileData = file.readAll();
+    file.close();
+
+    // 尝试不同的编码
+    QList<QByteArray> codecs = QTextCodec::availableCodecs();
+    for (const QByteArray &codecName : codecs) {
+        QTextCodec *codec = QTextCodec::codecForName(codecName);
+        if (codec && codec->canEncode(fileData)) {
+            return QString(codecName);
+        }
+    }
+    return "";
 }
 
 // 根据指定的编码格式读取文件
@@ -113,23 +125,25 @@ void LrcAnalyze::take_lrc(QString Path)
             qDebug() << "文件已经是 UTF-8 编码，不需要转换";
         }
 
-        emit Begin_send(lrcFile);
-
+        emit Begin_send(QString::fromStdString(lrcFile));
+        //qDebug()<<QString::fromStdString(lrcFile);
     }
     else
     {
-
+        qDebug()<<"无法检测编码";
     }
 
 
 
-    //    // 打印解析后的歌词
-    //    for (const auto& [time, text] : lyrics) {
-    //         qDebug() << "Time:" << time << "ms," << "Lyrics:" << QString::fromStdString(text);
-    //    }
+       // 打印解析后的歌词
+       for (const auto& [time, text] : lyrics) {
+            qDebug() << "Time:" << time << "ms," << "Lyrics:" << QString::fromStdString(text);
+       }
 }
-void LrcAnalyze::begin_send(std::string lrcFile)
+void LrcAnalyze::begin_send(QString lrcFile)
 {
+    qDebug()<<lrcFile;
+
     lyrics.clear();
 
     //removeEmptyLinesWithTimestamps(lrcFile);
@@ -138,7 +152,11 @@ void LrcAnalyze::begin_send(std::string lrcFile)
 
    // clearEmptyLines(lyrics);
 
+
+
     emit send_lrc(lyrics);
+
+
 }
 // 函数用于检查字符串是否为空或仅包含空白字符
 bool LrcAnalyze::isBlank(const std::string &str)
@@ -171,33 +189,34 @@ int LrcAnalyze::timeToMilliseconds(const std::string& timeStr)
     return (minutes * 60 + seconds) * 1000 + milliseconds;
 }
 
-std::map<int, std::string> LrcAnalyze::parseLrcFile(const std::string& lrcFile)
+std::map<int, std::string> LrcAnalyze::parseLrcFile(const QString& lrcFile)
 {
-    std::ifstream file(lrcFile);
+    QFile file(lrcFile);
     std::map<int, std::string> lyrics;
 
-    if (!file.is_open())
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
     {
-        throw std::runtime_error("Could not open file: " + lrcFile);
+        throw std::runtime_error("Could not open file: " + lrcFile.toStdString());
     }
 
-    std::string line;
-    std::regex regexPattern(R"(\[(\d{2}:\d{2}\.\d{2})\](.*))");  // 正则匹配 [mm:ss.xx] 和歌词内容
-    std::smatch match;
+    QTextStream in(&file);
+    in.setCodec("UTF-8");
+    QString line;
+    QRegularExpression regexPattern(R"(\[(\d{2}:\d{2}\.\d{2})\](.*))");  // 正则匹配 [mm:ss.xx] 和歌词内容
 
-    while (std::getline(file, line))
+    while (in.readLineInto(&line))
     {
-        if (std::regex_match(line, match, regexPattern))
+        QRegularExpressionMatch match = regexPattern.match(line);
+        if (match.hasMatch())
         {
-            std::string timeStr = match[1];  // 获取时间戳
-            std::string lyricText = match[2];  // 获取歌词文本
+            QString timeStr = match.captured(1);  // 获取时间戳
+            QString lyricText = match.captured(2);  // 获取歌词文本
 
             // 检查歌词内容是否为空
-            if (!lyricText.empty() && lyricText.find_first_not_of(" \t\r\n") != std::string::npos)
+            if (!lyricText.trimmed().isEmpty())
             {
-                int timeInMs = timeToMilliseconds(timeStr);  // 将时间戳转换为毫秒
-                lyrics[timeInMs] = lyricText;  // 存储时间和歌词
-
+                int timeInMs = timeToMilliseconds(timeStr.toStdString());  // 转换为 std::string
+                lyrics[timeInMs] = lyricText.toStdString();  // 转换为 std::string 并存储
             }
         }
     }

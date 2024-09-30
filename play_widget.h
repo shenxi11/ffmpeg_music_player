@@ -50,6 +50,8 @@ signals:
     void big_clicked(bool checked);
 
     void list_show(bool flag);
+
+    void add_song(const QString fileName,const QString path);
 private:
 
     void init_TextEdit();
@@ -82,6 +84,10 @@ private:
     QPushButton *music;
 
     QPushButton *mlist;
+
+    QPushButton *last;
+
+    QPushButton *next;
 
     QSlider *Slider;
 
