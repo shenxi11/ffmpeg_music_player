@@ -1,6 +1,7 @@
 #ifndef TEST_WIDGET_H
 #define TEST_WIDGET_H
 #include"play_widget.h"
+#include "music_list_widget.h"
 #include <QWidget>
 
 class Main_Widget : public QWidget
@@ -14,7 +15,7 @@ signals:
 
 private:
     Play_Widget*w;
-
+    MusicListWidget*list;
 };
 
 #endif // TEST_WIDGET_H

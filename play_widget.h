@@ -28,6 +28,8 @@ public slots:
 
     void _begin_take_lrc(QString str);
 
+    void _play_list_music(QString path);
+
 private slots:
 
     void openfile();
@@ -46,6 +48,7 @@ signals:
     void process_Change(qint64 newPosition);
 
     void big_clicked(bool checked);
+
 private:
 
 

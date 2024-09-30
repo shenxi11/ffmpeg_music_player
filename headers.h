@@ -11,6 +11,7 @@ extern "C" {
 #include <libavdevice/avdevice.h>
 #include <libswresample/swresample.h>
 }
+#include<locale.h>
 #include<QMediaPlayer>
 #include<QPushButton>
 #include <QAudioFormat>

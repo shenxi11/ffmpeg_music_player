@@ -19,9 +19,7 @@ int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
 
-    //    int fontSize = 20;
-    //    int lineHeight = getLineHeight(fontSize);
-    //    qDebug() << "Font Size:" << fontSize << "Line Height:" << lineHeight;
+    setlocale(LC_ALL, "chs");
 
     qInstallMessageHandler(customLogHandler);
     qRegisterMetaType<std::map<int, std::string>>("std::map<int, std::string>");

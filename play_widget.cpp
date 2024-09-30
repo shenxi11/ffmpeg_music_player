@@ -47,19 +47,19 @@ Play_Widget::Play_Widget(QWidget *parent)
 
     dir->setStyleSheet(
                 "QPushButton {"
-                "    border-image: url(:/new/prefix1/icon/上传存盘.png);"
+                "    border-image: url(:/new/prefix1/icon/upload.png);"
                 "}"
                 );
 
     video->setStyleSheet(
                 "QPushButton {"
-                "    border-image: url(:/new/prefix1/icon/音量.png);"
+                "    border-image: url(:/new/prefix1/icon/volume.png);"
                 "}"
                 );
 
     play->setStyleSheet(
                 "QPushButton {"
-                "    border-image: url(:/new/prefix1/icon/播放.png);"
+                "    border-image: url(:/new/prefix1/icon/play.png);"
                 "}"
                 );
 
@@ -75,7 +75,7 @@ Play_Widget::Play_Widget(QWidget *parent)
 
     Loop->setStyleSheet(
                 "QPushButton {"
-                "    border-image: url(:/new/prefix1/icon/随机播放.png);"
+                "    border-image: url(:/new/prefix1/icon/random_play.png);"
                 "}"
                 );
 
@@ -244,7 +244,7 @@ Play_Widget::Play_Widget(QWidget *parent)
 
         play->setStyleSheet(
                     "QPushButton {"
-                    "    border-image: url(:/new/prefix1/icon/播放.png);"
+                    "    border-image: url(:/new/prefix1/icon/play.png);"
                     "}"
                     );
     });
@@ -252,7 +252,7 @@ Play_Widget::Play_Widget(QWidget *parent)
 
         play->setStyleSheet(
                     "QPushButton {"
-                    "    border-image: url(:/new/prefix1/icon/暂停.png);"
+                    "    border-image: url(:/new/prefix1/icon/pause.png);"
                     "}"
                     );
     });
@@ -261,13 +261,13 @@ Play_Widget::Play_Widget(QWidget *parent)
         if(this->loop){
             Loop->setStyleSheet(
                         "QPushButton {"
-                        "    border-image: url(:/new/prefix1/icon/随机播放.png);"
+                        "    border-image: url(:/new/prefix1/icon/random_play.png);"
                         "}"
                         );
         }else{
             Loop->setStyleSheet(
                         "QPushButton {"
-                        "    border-image: url(:/new/prefix1/icon/循环播放.png);"
+                        "    border-image: url(:/new/prefix1/icon/loop.png);"
                         "}"
                         );
         }
@@ -318,6 +318,11 @@ Play_Widget::Play_Widget(QWidget *parent)
 
     connect(this,&Play_Widget::process_Change,take_pcm.get(),&Take_pcm::seekToPosition);
 
+}
+
+void Play_Widget::_play_list_music(QString path)
+{
+    emit filepath(path);
 }
 
 void Play_Widget::rePlay(QString path){

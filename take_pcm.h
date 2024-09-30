@@ -38,6 +38,13 @@ private:
 
     void decode();
 
+    // 手动计算 AVRational 的 double 值
+    double rationalToDouble(AVRational r) {
+        return (r.num == 0 || r.den == 0) ? 0 : static_cast<double>(r.num) / static_cast<double>(r.den);
+    }
+
+
+
     AVFormatContext *ifmt_ctx;
 
     AVCodecContext*codec_ctx ;

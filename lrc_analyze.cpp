@@ -96,13 +96,13 @@ void LrcAnalyze::take_lrc(QString Path){
                 qWarning() << "无法读取文件内容";
             }
         } else {
-            qDebug() << "文件已经是 UTF-8 编码，不需要转换";
+            //qDebug() << "文件已经是 UTF-8 编码，不需要转换";
         }
 
         emit Begin_send(lrcFile);
 
     } else {
-        qWarning() << "无法检测文件编码";
+
     }
 
 
