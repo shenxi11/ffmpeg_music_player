@@ -239,24 +239,14 @@ Play_Widget::Play_Widget(QWidget *parent)
 
 
     connect(work.get(),&Worker::send_lrc,this,[=](int line){
-        // qDebug()<<"textEdit->currentLine"<<textEdit->currentLine<<str;
-        //        QTextDocument *document = textEdit->document();
-
-        //        // 获取指定行的文本块
-        //        QTextBlock block = document->findBlockByLineNumber(textEdit->currentLine);
-        //        QString lineText;
-        //        // 检查是否找到有效的块
-        //        if (block.isValid()) {
-        //            lineText =  block.text();  // 获取该行的文本
-        //        }
-        if(line!=textEdit->currentLine)
+        if(line != textEdit->currentLine)
         {
 
             textEdit->highlightLine(line);
 
             textEdit->scrollLines(line-textEdit->currentLine);
 
-            qDebug()<<"line:"<<line<<"textEdit->currentLine:"<<textEdit->currentLine;
+            //qDebug()<<"line:"<<line<<"textEdit->currentLine:"<<textEdit->currentLine;
 
             textEdit->currentLine = line;
 

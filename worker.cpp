@@ -14,7 +14,8 @@ Worker::Worker(QTimer*timer):
 }
 void Worker::init()
 {
-    QAudioFormat format;
+
+
     format.setSampleRate(RATE);
     format.setChannelCount(CHANNELS);
     format.setSampleSize(SAMPLE_SIZE);
@@ -24,9 +25,6 @@ void Worker::init()
 
 
 
-    audioOutput = new QAudioOutput(format, this);
-
-    audioOutput->setBufferSize(AUDIO_BUFFER_SIZE);
 }
 
 Worker::~Worker()
@@ -239,51 +237,53 @@ void Worker::reset_play()
 void Worker::onTimeOut()
 {
 
-        std::lock_guard<std::mutex> lock(mtx);
+    std::lock_guard<std::mutex> lock(mtx);
 
-        qint64 currentTimeMS;
-
-
-        if (audioBuffer.isEmpty())
-        {
-            timer->stop();
-            emit Stop();
-            emit rePlay();
-            return;  // 如果缓冲区为空，退出
-        }
-
-        QByteArray pcmData = audioBuffer.front();
-
-        // 检查 audioDevice 的可用空间
-        qint64 bytesFree = audioOutput->bytesFree();
-        //qDebug() << "Audio buffer size:" << pcmData.size() << "audioBytesFree:" << bytesFree<<" number:"<<audioBuffer.size();
-
-        if ( bytesFree<2*pcmData.size())
-        {
-            //qDebug() << "Not enough space in audio output buffer. PCM data size:" << pcmData.size() << "bytesFree:" << bytesFree;
-            //audioBuffer.enqueue(pcmData);  // 将数据重新放回缓冲区
-            return;  // 等待下一次调用
-        }
-
-        qint64 bytesWritten = audioDevice->write(pcmData);  // 写入音频设备
-
-        currentTimeMS = mp[pcmData];
+    qint64 currentTimeMS;
 
 
+    if (audioBuffer.isEmpty())
+    {
+        timer->stop();
+        emit Stop();
+        emit rePlay();
+        return;  // 如果缓冲区为空，退出
+    }
 
-        mp.erase(pcmData);
-        audioBuffer.pop_front();
-        if (bytesWritten < 0)
-        {
-            qDebug() << "Error writing audio data:" << audioDevice->errorString();
-            timer->stop();  // 停止定时器
-            return;
-        }
+    QByteArray pcmData = audioBuffer.front();
+
+    // 检查 audioDevice 的可用空间
+    qint64 bytesFree = audioOutput->bytesFree();
+    //qDebug() << "Audio buffer size:" << pcmData.size() << "audioBytesFree:" << bytesFree<<" number:"<<audioBuffer.size();
+
+    if ( bytesFree<2*pcmData.size())
+    {
+        //qDebug() << "Not enough space in audio output buffer. PCM data size:" << pcmData.size() << "bytesFree:" << bytesFree;
+        //audioBuffer.enqueue(pcmData);  // 将数据重新放回缓冲区
+        return;  // 等待下一次调用
+    }
+
+    qint64 bytesWritten = audioDevice->write(pcmData);  // 写入音频设备
+
+    currentTimeMS = mp[pcmData];
+
+
+
+    mp.erase(pcmData);
+    audioBuffer.pop_front();
+    if (bytesWritten < 0)
+    {
+        qDebug() << "Error writing audio data:" << audioDevice->errorString();
+        timer->stop();  // 停止定时器
+        return;
+    }
 
 
 
     emit durations(currentTimeMS);  // 通知其他组件同步显示时间
+
     int index=0;
+
     for (auto it = lyrics.begin(); it != lyrics.end(); ++it,++index)
     {
 
@@ -293,7 +293,9 @@ void Worker::onTimeOut()
         if (nextIt != lyrics.end())
         {
 
-            if ((it->first <= static_cast<int>(currentTimeMS)&& nextIt->first>static_cast<int>(currentTimeMS))||(it==lyrics.begin()&&it->first>=static_cast<int>(currentTimeMS)))
+            if ((it->first <= static_cast<int>(currentTimeMS)
+                 && nextIt->first>static_cast<int>(currentTimeMS))
+                    ||(it==lyrics.begin()&&it->first>=static_cast<int>(currentTimeMS)))
             {
                 emit send_lrc(index+5);
 
@@ -354,7 +356,14 @@ void Worker::play_pcm()
         audioDevice = audioOutput->start();
     }
 
+    else
+    {
+        audioOutput = new QAudioOutput(this->format, this);
 
+        audioOutput->setBufferSize(AUDIO_BUFFER_SIZE);
+
+        audioDevice = audioOutput->start();
+    }
 
 
 
