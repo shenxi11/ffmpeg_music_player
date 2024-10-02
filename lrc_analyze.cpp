@@ -135,10 +135,10 @@ void LrcAnalyze::take_lrc(QString Path)
 
 
 
-       // 打印解析后的歌词
-       for (const auto& [time, text] : lyrics) {
-            qDebug() << "Time:" << time << "ms," << "Lyrics:" << QString::fromStdString(text);
-       }
+//       // 打印解析后的歌词
+//       for (const auto& [time, text] : lyrics) {
+//            qDebug() << "Time:" << time << "ms," << "Lyrics:" << QString::fromStdString(text);
+//       }
 }
 void LrcAnalyze::begin_send(QString lrcFile)
 {
@@ -157,28 +157,6 @@ void LrcAnalyze::begin_send(QString lrcFile)
     emit send_lrc(lyrics);
 
 
-}
-// 函数用于检查字符串是否为空或仅包含空白字符
-bool LrcAnalyze::isBlank(const std::string &str)
-{
-    return std::all_of(str.begin(), str.end(), ::isspace);
-}
-
-// 函数用于清除歌词中的空行
-void LrcAnalyze::clearEmptyLines(std::map<int, std::string> &lyrics)
-{
-    // 使用标准库算法从 map 中移除空行
-    for (auto it = lyrics.begin(); it != lyrics.end(); )
-    {
-        if (isBlank(it->second))
-        {
-            it = lyrics.erase(it); // 移除空行
-        }
-        else
-        {
-            ++it; // 继续遍历
-        }
-    }
 }
 // 将时间戳 [mm:ss.xx] 转换为毫秒
 int LrcAnalyze::timeToMilliseconds(const std::string& timeStr)
@@ -224,46 +202,6 @@ std::map<int, std::string> LrcAnalyze::parseLrcFile(const QString& lrcFile)
     file.close();
     return lyrics;
 }
-bool LrcAnalyze::hasTimestamp(const std::string& line)
-{
-    return line.size() > 1 && line[0] == '[' && line[1] >= '0' && line[1] <= '9';
-}
 
-// 函数用于清除歌词文件中的空行
-void LrcAnalyze::removeEmptyLinesWithTimestamps(const std::string& filename)
-{
-    std::ifstream fileIn(filename);
-    if (!fileIn.is_open())
-    {
-        std::cerr << "Error opening file for reading: " << filename << std::endl;
-        return;
-    }
 
-    std::vector<std::string> lines;
-    std::string line;
-
-    // 读取文件内容到内存中
-    while (std::getline(fileIn, line))
-    {
-        if (!(hasTimestamp(line) && line.find_first_not_of(" \t\r\n") == line.size()))
-        {
-            lines.push_back(line); // 只保留需要的行
-        }
-    }
-    fileIn.close();
-
-    std::ofstream fileOut(filename);
-    if (!fileOut.is_open())
-    {
-        std::cerr << "Error opening file for writing: " << filename << std::endl;
-        return;
-    }
-
-    // 将处理后的内容写回到文件中
-    for (const auto& l : lines)
-    {
-        fileOut << l << '\n';
-    }
-    fileOut.close();
-}
 
