@@ -6,6 +6,7 @@
 #include <QListWidget>
 #include <QMouseEvent>
 #include "headers.h"
+#include "music_item.h"
 class MusicListWidget : public QListWidget
 {
     Q_OBJECT
@@ -18,7 +19,7 @@ public:
 signals:
     void selectMusic(QString path);
 private:
-    std::map<QString,QString>pathMap;
+    std::map<QString,MusicItem*>pathMap;
 protected:
     void mouseDoubleClickEvent(QMouseEvent *event);
 };

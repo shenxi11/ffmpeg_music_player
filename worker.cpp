@@ -10,12 +10,6 @@ Worker::Worker(QTimer*timer):
 
     connect(timer, &QTimer::timeout, this,&Worker::onTimeOut);
 
-
-}
-void Worker::init()
-{
-
-
     format.setSampleRate(RATE);
     format.setChannelCount(CHANNELS);
     format.setSampleSize(SAMPLE_SIZE);
@@ -23,9 +17,8 @@ void Worker::init()
     format.setByteOrder(QAudioFormat::LittleEndian);
     format.setSampleType(QAudioFormat::SignedInt);
 
-
-
 }
+
 
 Worker::~Worker()
 {
@@ -353,7 +346,6 @@ void Worker::play_pcm()
         }
         disconnect(this, &Worker::stopPlay, this, nullptr);
 
-        audioDevice = audioOutput->start();
     }
 
     else
@@ -362,10 +354,10 @@ void Worker::play_pcm()
 
         audioOutput->setBufferSize(AUDIO_BUFFER_SIZE);
 
-        audioDevice = audioOutput->start();
+
     }
 
-
+    audioDevice = audioOutput->start();
 
 
 
@@ -380,13 +372,9 @@ void Worker::play_pcm()
 
 
 
-
-
     connect(this, &Worker::stopPlay, this, &Worker::Pause);
 
     emit Begin();
-
-
 
 }
 

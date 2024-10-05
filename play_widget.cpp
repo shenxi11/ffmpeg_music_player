@@ -126,7 +126,6 @@ Play_Widget::Play_Widget(QWidget *parent)
 
     take_pcm->moveToThread(a);
 
-    connect(c,&QThread::started,work.get(),&Worker::init);
     connect(c,&QThread::finished,work.get(),&Worker::stop);
     a->start();
     b->start();
@@ -228,7 +227,14 @@ Play_Widget::Play_Widget(QWidget *parent)
         QTextBlockFormat blockFormat;
         blockFormat.setAlignment(Qt::AlignCenter); // 设置对齐方式为居中
 
-        // 应用格式到选中的文本
+        // 应用格式到选中的文本void Worker::init()
+        {
+
+
+
+
+
+        }
         cursor.mergeBlockFormat(blockFormat);
 
         // 更新 QTextEdit 的光标位置

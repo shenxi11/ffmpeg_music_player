@@ -20,6 +20,7 @@ SOURCES += \
     lyrictextedit.cpp \
     main.cpp \
     main_widget.cpp \
+    music_item.cpp \
     music_list_widget.cpp \
     play_widget.cpp \
     take_pcm.cpp \
@@ -30,6 +31,7 @@ HEADERS += \
     lrc_analyze.h \
     lyrictextedit.h \
     main_widget.h \
+    music_item.h \
     music_list_widget.h \
     play_widget.h \
     take_pcm.h \
@@ -57,3 +59,5 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 
 RESOURCES += \
     pic.qrc
+
+DISTFILES +=
