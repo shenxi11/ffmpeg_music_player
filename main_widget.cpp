@@ -1,16 +1,19 @@
 #include "main_widget.h"
 
 Main_Widget::Main_Widget(QWidget *parent) : QWidget(parent)
-    ,w(nullptr)
-    ,list(nullptr)
+  ,w(nullptr)
+  ,list(nullptr)
 {
     resize(1000,600);
 
-    w = new Play_Widget(this);
-    w->setFixedSize(800,500);
-    QRegion region(0, 350, w->width(), 350);
-    w->setMask(region);
-    w->move((this->width()-w->width())/2,this->height()-w->height());
+
+
+
+    main_list = new MusicListWidget(this);
+    main_list->setFixedSize(800,350);
+    main_list->move((this->width()-800)/2,this->height()- 500);
+    main_list->clear();
+    main_list->show();
 
 
     list = new MusicListWidget(this);
@@ -18,6 +21,13 @@ Main_Widget::Main_Widget(QWidget *parent) : QWidget(parent)
     list->move(this->width()-200,0);
     list->clear();
     list->close();
+
+
+    w = new Play_Widget(this);
+    w->setFixedSize(800,500);
+    QRegion region(0, 350, w->width(), 350);
+    w->setMask(region);
+    w->move((this->width()-w->width())/2,this->height()-w->height());
 
     connect(w,&Play_Widget::list_show,[=](bool flag){
         if(flag)
@@ -31,25 +41,40 @@ Main_Widget::Main_Widget(QWidget *parent) : QWidget(parent)
     });
 
     connect(w,&Play_Widget::add_song,list,&MusicListWidget::addSong);
+    connect(w,&Play_Widget::add_song,main_list,&MusicListWidget::addSong);
+    connect(w, &Play_Widget::play_button_click,list,&MusicListWidget::receive_song_op);
+    connect(w, &Play_Widget::play_button_click,main_list,&MusicListWidget::receive_song_op);
 
     connect(list,&MusicListWidget::selectMusic,w,&Play_Widget::_play_list_music);
+    connect(main_list,&MusicListWidget::selectMusic,w,&Play_Widget::_play_list_music);
 
     connect(w,&Play_Widget::big_clicked,this,[=](bool checked){
         if(checked)
         {
+            w->raise();
             for(int i = 350; i >= 0;i -= 10)
             {
                 QRegion region1(0, i, w->width(), i);
                 w->setMask(region1);
                 //QThread::msleep(50);
+
                 update();
             }
+
         }
         else
         {
+            w->lower();
             QRegion region1(0, 350, w->width(), 350);
             w->setMask(region1);
+
         }
     });
+}
+
+void Main_Widget::Update_paint()
+{
+    main_list->update();
+    list->update();
 }
 

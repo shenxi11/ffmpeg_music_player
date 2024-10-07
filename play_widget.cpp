@@ -267,6 +267,8 @@ Play_Widget::Play_Widget(QWidget *parent)
             "    border-image: url(:/new/prefix1/icon/play.png);"
             "}"
             );
+        emit play_button_click(false, fileName);
+
     });
     connect(work.get(),&Worker::Begin,this,[=](){
 
@@ -275,6 +277,7 @@ Play_Widget::Play_Widget(QWidget *parent)
             "    border-image: url(:/new/prefix1/icon/pause.png);"
             "}"
             );
+        emit play_button_click(true, fileName);
     });
 
     connect(Loop,&QPushButton::clicked,this,[=](){
@@ -432,7 +435,7 @@ void Play_Widget::openfile()
         emit filepath(filePath);
 
         QFileInfo fileInfo(filePath);
-        QString fileName = fileInfo.fileName();
+        fileName = fileInfo.fileName();
         emit add_song(fileName,filePath);
 
         qDebug() << "Selected file:" << filePath;

@@ -5,11 +5,13 @@ MusicItem::MusicItem(const QString& name, const QString& path, const QString& pi
     , path(path)
     , picPath(picPath)
 {
+    setAutoFillBackground(true);
+
     setFixedSize(size);
 
     label = new QLabel(this);
 
-    pic = new QPushButton(this);
+    pic = new QLabel(this);
 
     play = new QPushButton(this);
     remove = new QPushButton(this);
@@ -20,7 +22,7 @@ MusicItem::MusicItem(const QString& name, const QString& path, const QString& pi
     play->setFixedSize(size.height(),size.height());
     remove->setFixedSize(size.height(),size.height());
 
-    label->move(size.height(),0);
+    label->move(size.height()*2,0);
 
     pic->move(0,0);
     play->move(size.width()/2,0);
@@ -40,12 +42,36 @@ MusicItem::MusicItem(const QString& name, const QString& path, const QString& pi
     if(picPath=="")
     {
         pic->setStyleSheet(
-                    "QPushButton {"
+                    "QLabel {"
                     "    border-image: url(:/new/prefix1/icon/Music.png);"
                     "}"
                     );
     }
 
+    play->hide();
+    remove->hide();
+
+
+
+}
+void MusicItem::button_op(bool flag)
+{
+    if(flag)
+    {
+        play->setStyleSheet(
+                    "QPushButton {"
+                    "    border-image: url(:/new/prefix1/icon/pause.png);"
+                    "}"
+                    );
+    }
+    else
+    {
+        play->setStyleSheet(
+                    "QPushButton {"
+                    "    border-image: url(:/new/prefix1/icon/play.png);"
+                    "}"
+                    );
+    }
 }
 QString MusicItem::getName()
 {

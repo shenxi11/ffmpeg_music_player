@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
 
     Main_Widget w;
     w.show();
-
+    w.Update_paint();
 
     qDebug()<<"启动";
     return a.exec();
