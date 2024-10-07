@@ -76,7 +76,7 @@ private:
 
     QWaitCondition *cond;
 
-    QAudioOutput *audioOutput;
+    QAudioOutput *audioOutput = nullptr ;
 
     qint64 totalAudioDurationInMS;
 

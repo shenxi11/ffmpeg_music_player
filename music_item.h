@@ -14,6 +14,8 @@ public:
     QString getName();
 
     QString getPath();
+
+    void button_op(bool flag);
 signals:
 
 private:
@@ -27,13 +29,60 @@ private:
 
     QLabel* label;
 
-    QPushButton* pic;
+    QLabel* pic;
 
     QPushButton* play;
 
     QPushButton* remove;
 
+    bool hover = false;
 
+protected:
+
+    void enterEvent(QEvent *event) override
+    {
+        Q_UNUSED(event);
+        hover = true;
+
+        play->show();
+        remove->show();
+
+        update();
+    }
+
+    void leaveEvent(QEvent *event) override
+    {
+        Q_UNUSED(event);
+        hover = false;
+
+        play->hide();
+        remove->hide();
+
+
+        update();
+    }
+
+
+    void paintEvent(QPaintEvent *event) override
+    {
+        Q_UNUSED(event);
+
+        QPainter painter(this);
+
+
+        if (hover) {
+            painter.setBrush(QColor(169, 169, 169));
+        } else {
+            painter.setBrush(QColor(248, 248, 255));
+        }
+
+        QPen pen;
+        pen.setColor(Qt::black);
+        pen.setWidth(2);
+        painter.setPen(pen);
+
+        painter.drawRect(this->rect());
+    }
 
 };
 

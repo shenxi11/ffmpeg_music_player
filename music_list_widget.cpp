@@ -13,6 +13,8 @@ void MusicListWidget::addSong(const QString songName, const QString path)
 
     QListWidgetItem *item = new QListWidgetItem(this);
 
+    pathMap[songName] = itemWidget;
+
     setItemWidget(item,itemWidget);
 }
 void MusicListWidget::mouseDoubleClickEvent(QMouseEvent *event)
@@ -25,4 +27,8 @@ void MusicListWidget::mouseDoubleClickEvent(QMouseEvent *event)
     }
 
     QListWidget::mouseDoubleClickEvent(event);
+}
+void MusicListWidget::receive_song_op(bool flag, QString fileName)
+{
+    pathMap[fileName]->button_op(flag);
 }

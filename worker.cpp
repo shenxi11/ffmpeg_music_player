@@ -17,6 +17,7 @@ Worker::Worker(QTimer*timer):
     format.setByteOrder(QAudioFormat::LittleEndian);
     format.setSampleType(QAudioFormat::SignedInt);
 
+
 }
 
 
