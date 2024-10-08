@@ -4,13 +4,13 @@
 Take_pcm::Take_pcm():drag(false) ,
     ifmt_ctx(nullptr)
 
-    ,codec_ctx(nullptr)
+  ,codec_ctx(nullptr)
 
-    ,swr_ctx(nullptr)
+  ,swr_ctx(nullptr)
 
-    ,frame(nullptr)
+  ,frame(nullptr)
 
-    ,pkt(nullptr)
+  ,pkt(nullptr)
 
 {
     connect(this,&Take_pcm::begin_to_decode,this,&Take_pcm::decode);
@@ -237,11 +237,11 @@ void Take_pcm::decode()
                 {
                     // 计算目标缓冲区大小
                     int dst_nb_samples = av_rescale_rnd(
-                        swr_get_delay(swr_ctx, codec_ctx->sample_rate) + frame->nb_samples,
-                        44100,
-                        codec_ctx->sample_rate,
-                        AV_ROUND_UP
-                        );
+                                swr_get_delay(swr_ctx, codec_ctx->sample_rate) + frame->nb_samples,
+                                44100,
+                                codec_ctx->sample_rate,
+                                AV_ROUND_UP
+                                );
                     int buffer_size = av_samples_get_buffer_size(nullptr, 2, dst_nb_samples, AV_SAMPLE_FMT_S16, 1);
 
                     // 确保 buffer_size 不小于0
@@ -258,8 +258,14 @@ void Take_pcm::decode()
                     buffer = (uint8_t*)malloc(buffer_size);
 
 
-                    int converted_samples = swr_convert(swr_ctx, &buffer, dst_nb_samples, (const uint8_t**)frame->data, frame->nb_samples);
-                    int converted_buffer_size = av_samples_get_buffer_size(nullptr, 2, converted_samples, AV_SAMPLE_FMT_S16, 1);
+                    int converted_samples = swr_convert(swr_ctx, &buffer
+                                                        , dst_nb_samples
+                                                        , (const uint8_t**)frame->data
+                                                        , frame->nb_samples);
+
+                    int converted_buffer_size = av_samples_get_buffer_size(nullptr, 2
+                                                                           , converted_samples
+                                                                           , AV_SAMPLE_FMT_S16, 1);
 
 
                     // 获取时间戳（以毫秒为单位）

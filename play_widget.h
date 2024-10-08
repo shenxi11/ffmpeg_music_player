@@ -52,6 +52,8 @@ signals:
     void list_show(bool flag);
 
     void add_song(const QString fileName,const QString path);
+
+    void play_button_click(bool flag, QString fileName);
 private:
 
     void init_TextEdit();
@@ -68,6 +70,7 @@ private:
     std::map<int, std::string> lyrics;
 
     QString filePath;
+    QString fileName;
 
     LyricTextEdit *textEdit;
 

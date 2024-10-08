@@ -126,7 +126,6 @@ Play_Widget::Play_Widget(QWidget *parent)
 
     take_pcm->moveToThread(a);
 
-    connect(c,&QThread::started,work.get(),&Worker::init);
     connect(c,&QThread::finished,work.get(),&Worker::stop);
     a->start();
     b->start();
@@ -228,7 +227,14 @@ Play_Widget::Play_Widget(QWidget *parent)
         QTextBlockFormat blockFormat;
         blockFormat.setAlignment(Qt::AlignCenter); // 设置对齐方式为居中
 
-        // 应用格式到选中的文本
+        // 应用格式到选中的文本void Worker::init()
+        {
+
+
+
+
+
+        }
         cursor.mergeBlockFormat(blockFormat);
 
         // 更新 QTextEdit 的光标位置
@@ -239,24 +245,14 @@ Play_Widget::Play_Widget(QWidget *parent)
 
 
     connect(work.get(),&Worker::send_lrc,this,[=](int line){
-        // qDebug()<<"textEdit->currentLine"<<textEdit->currentLine<<str;
-        //        QTextDocument *document = textEdit->document();
-
-        //        // 获取指定行的文本块
-        //        QTextBlock block = document->findBlockByLineNumber(textEdit->currentLine);
-        //        QString lineText;
-        //        // 检查是否找到有效的块
-        //        if (block.isValid()) {
-        //            lineText =  block.text();  // 获取该行的文本
-        //        }
-        if(line!=textEdit->currentLine)
+        if(line != textEdit->currentLine)
         {
 
             textEdit->highlightLine(line);
 
             textEdit->scrollLines(line-textEdit->currentLine);
 
-            qDebug()<<"line:"<<line<<"textEdit->currentLine:"<<textEdit->currentLine;
+            //qDebug()<<"line:"<<line<<"textEdit->currentLine:"<<textEdit->currentLine;
 
             textEdit->currentLine = line;
 
@@ -271,6 +267,8 @@ Play_Widget::Play_Widget(QWidget *parent)
             "    border-image: url(:/new/prefix1/icon/play.png);"
             "}"
             );
+        emit play_button_click(false, fileName);
+
     });
     connect(work.get(),&Worker::Begin,this,[=](){
 
@@ -279,6 +277,7 @@ Play_Widget::Play_Widget(QWidget *parent)
             "    border-image: url(:/new/prefix1/icon/pause.png);"
             "}"
             );
+        emit play_button_click(true, fileName);
     });
 
     connect(Loop,&QPushButton::clicked,this,[=](){
@@ -436,7 +435,7 @@ void Play_Widget::openfile()
         emit filepath(filePath);
 
         QFileInfo fileInfo(filePath);
-        QString fileName = fileInfo.fileName();
+        fileName = fileInfo.fileName();
         emit add_song(fileName,filePath);
 
         qDebug() << "Selected file:" << filePath;
