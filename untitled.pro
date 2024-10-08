@@ -40,8 +40,8 @@ FORMS +=
 TRANSLATIONS += \
     untitled_zh_CN.ts
 
-INCLUDEPATH += /opt/ffmpeg-4.4/include
-LIBS += -L/opt/ffmpeg-4.4/lib \
+INCLUDEPATH += ../../ffmpeg4.4/include
+LIBS += -L../../ffmpeg4.4/lib \
         -lavcodec \
         -lavformat \
         -lavutil \
@@ -49,11 +49,6 @@ LIBS += -L/opt/ffmpeg-4.4/lib \
         -lswscale \
         -lswresample
 
-
-# Default rules for deployment.
-qnx: target.path = /tmp/$${TARGET}/bin
-else: unix:!android: target.path = /opt/$${TARGET}/bin
-!isEmpty(target.path): INSTALLS += target
 
 RESOURCES += \
     pic.qrc
