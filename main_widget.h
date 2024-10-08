@@ -17,6 +17,9 @@ private:
     Play_Widget* w;
     MusicListWidget* list;
     MusicListWidget* main_list;
+
+    QPushButton* play;
+    QPushButton* add;
 protected:
     void paintEvent(QPaintEvent *event) override
     {

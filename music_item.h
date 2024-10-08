@@ -16,8 +16,14 @@ public:
     QString getPath();
 
     void button_op(bool flag);
-signals:
 
+    void _play_click();
+
+    void _remove_click();
+signals:
+    void play_click(QString songName);
+
+    void remove_click(QString songName);
 private:
     const QString name;
 

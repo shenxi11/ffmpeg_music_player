@@ -10,41 +10,37 @@ Play_Widget::Play_Widget(QWidget *parent)
     play  = new QPushButton(this);
     video = new QPushButton(this);
     Loop  = new QPushButton(this);
-    dir   = new QPushButton(this);
     music = new QPushButton(this);
     mlist = new QPushButton(this);
     last  = new QPushButton(this);
     next  = new QPushButton(this);
 
     Slider = new QSlider(Qt::Horizontal,this);
-    // Slider->setMinimum(0);
-    // Slider->setMaximum(0);
+    Slider->setMinimum(0);
+    Slider->setMaximum(0);
 
     int space = (800-8*50)/9;
 
     Loop->setFixedSize(50,50);
     Loop->move(space,400);
 
-    dir->setFixedSize(50,50);
-    dir->move(space*2+50,400);
-
     music->setFixedSize(50,50);
-    music->move(2*50+3*space,400);
+    music->move(50+2*space,400);
 
     last->setFixedSize(50,50);
-    last->move(3*50+4*space,400);
+    last->move(2*50+3*space,400);
 
     play->setFixedSize(50,50);
-    play->move(50*4+5*space,400);
+    play->move(50*3+4*space,400);
 
     next->setFixedSize(50,50);
-    next->move(5*50+6*space,400);
+    next->move(4*50+5*space,400);
 
     video->setFixedSize(50,50);
-    video->move(6*50+7*space,400);
+    video->move(5*50+6*space,400);
 
     mlist->setFixedSize(50,50);
-    mlist->move(7*50+8*space,400);
+    mlist->move(6*50+7*space,400);
 
     Slider->setFixedSize(800,20);
     Slider->move((800-Slider->width())/2,350);
@@ -53,12 +49,6 @@ Play_Widget::Play_Widget(QWidget *parent)
     video->setCheckable(true);
     music->setCheckable(true);   
     mlist->setCheckable(true);
-
-    dir->setStyleSheet(
-        "QPushButton {"
-        "    border-image: url(:/new/prefix1/icon/upload.png);"
-        "}"
-        );
 
     video->setStyleSheet(
         "QPushButton {"
@@ -108,7 +98,7 @@ Play_Widget::Play_Widget(QWidget *parent)
     b = new QThread(this);
     c = new QThread(this);
 
-    Slider->setRange(0,10000);
+
 
 
 
@@ -136,10 +126,6 @@ Play_Widget::Play_Widget(QWidget *parent)
 
     qDebug()<<"MainWindow"<<QThread::currentThreadId();
 
-    //    connect(this,&MainWindow::play_changed,[=](bool flag){
-
-    //    });
-
 
     connect(music,&QPushButton::toggled,this,[=](bool checked) {
         emit big_clicked(checked);
@@ -147,7 +133,6 @@ Play_Widget::Play_Widget(QWidget *parent)
 
 
 
-    connect(dir,&QPushButton::clicked,this,&Play_Widget::openfile);
 
     connect(this,&Play_Widget::filepath,take_pcm.get(),&Take_pcm::make_pcm);
     connect(this,&Play_Widget::filepath,work.get(),&Worker::play_pcm);
@@ -432,11 +417,13 @@ void Play_Widget::openfile()
     if (!filePath.isEmpty())
     {
         this->filePath = filePath;
-        emit filepath(filePath);
+        // emit filepath(filePath);
 
         QFileInfo fileInfo(filePath);
         fileName = fileInfo.fileName();
         emit add_song(fileName,filePath);
+
+        Slider->setRange(0,10000);
 
         qDebug() << "Selected file:" << filePath;
     }
@@ -447,11 +434,18 @@ void Play_Widget::openfile()
 
 
 }
-QPushButton*Play_Widget::get_dir()
-{
-    return this->dir;
-}
 
+void Play_Widget::_play_click(QString songName)
+{
+    if(songName != this->fileName)
+    {
+        emit filepath(filePath);
+    }
+    else
+    {
+        this->play->click();
+    }
+}
 Play_Widget::~Play_Widget()
 {
 

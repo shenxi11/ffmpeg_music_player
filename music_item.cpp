@@ -36,7 +36,7 @@ MusicItem::MusicItem(const QString& name, const QString& path, const QString& pi
                 );
     remove->setStyleSheet(
                 "QPushButton {"
-                "    border-image: url(:/new/prefix1/icon/upload.png);"
+                "    border-image: url(:/new/prefix1/icon/delete.png);"
                 "}"
                 );
     if(picPath=="")
@@ -51,8 +51,8 @@ MusicItem::MusicItem(const QString& name, const QString& path, const QString& pi
     play->hide();
     remove->hide();
 
-
-
+    connect(play, &QPushButton::clicked, this, &MusicItem::_play_click);
+    connect(remove, &QPushButton::clicked, this, &MusicItem::_remove_click);
 }
 void MusicItem::button_op(bool flag)
 {
@@ -72,6 +72,14 @@ void MusicItem::button_op(bool flag)
                     "}"
                     );
     }
+}
+void MusicItem::_remove_click()
+{
+    emit remove_click(this->name);
+}
+void MusicItem::_play_click()
+{
+    emit play_click(this->name);
 }
 QString MusicItem::getName()
 {
