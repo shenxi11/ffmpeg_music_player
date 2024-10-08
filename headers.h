@@ -44,6 +44,7 @@ extern "C"
 #include <QVBoxLayout>
 #include <QPainter>
 #include <QRegion>
+#include <QLabel>
 
 
 

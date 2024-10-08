@@ -37,7 +37,6 @@ public slots:
 
     void reset_play();
 
-    void init();
 
 private slots:
     void onTimeOut();
@@ -77,7 +76,7 @@ private:
 
     QWaitCondition *cond;
 
-    QAudioOutput *audioOutput;
+    QAudioOutput *audioOutput = nullptr ;
 
     qint64 totalAudioDurationInMS;
 
