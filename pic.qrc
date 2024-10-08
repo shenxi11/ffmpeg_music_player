@@ -14,5 +14,6 @@
         <file>icon/max_volume.png</file>
         <file>icon/bg.png</file>
         <file>icon/Music.png</file>
+        <file>icon/delete.png</file>
     </qresource>
 </RCC>

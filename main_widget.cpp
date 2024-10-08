@@ -6,8 +6,14 @@ Main_Widget::Main_Widget(QWidget *parent) : QWidget(parent)
 {
     resize(1000,600);
 
-
-
+    add = new QPushButton(this);
+    add->setFixedSize(100, 50);
+    add->move((this->width()-800)/2, 50);
+    add->setText("添加");
+    add->setStyleSheet(
+        "QPushButton "
+        "{ border-radius: 15px; border: 2px solid black; }"
+        );
 
     main_list = new MusicListWidget(this);
     main_list->setFixedSize(800,350);
@@ -29,6 +35,8 @@ Main_Widget::Main_Widget(QWidget *parent) : QWidget(parent)
     w->setMask(region);
     w->move((this->width()-w->width())/2,this->height()-w->height());
 
+    connect(add, &QPushButton::clicked, w, &Play_Widget::openfile);
+
     connect(w,&Play_Widget::list_show,[=](bool flag){
         if(flag)
         {
@@ -48,6 +56,9 @@ Main_Widget::Main_Widget(QWidget *parent) : QWidget(parent)
     connect(list,&MusicListWidget::selectMusic,w,&Play_Widget::_play_list_music);
     connect(main_list,&MusicListWidget::selectMusic,w,&Play_Widget::_play_list_music);
 
+    connect(list, &MusicListWidget::play_click, w, &Play_Widget::_play_click);
+    connect(main_list, &MusicListWidget::play_click, w, &Play_Widget::_play_click);
+
     connect(w,&Play_Widget::big_clicked,this,[=](bool checked){
         if(checked)
         {
@@ -56,7 +67,6 @@ Main_Widget::Main_Widget(QWidget *parent) : QWidget(parent)
             {
                 QRegion region1(0, i, w->width(), i);
                 w->setMask(region1);
-                //QThread::msleep(50);
 
                 update();
             }

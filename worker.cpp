@@ -7,16 +7,7 @@ Worker::Worker(QTimer*timer):
   ,timer(timer)
 {
 
-
     connect(timer, &QTimer::timeout, this,&Worker::onTimeOut);
-
-    format.setSampleRate(RATE);
-    format.setChannelCount(CHANNELS);
-    format.setSampleSize(SAMPLE_SIZE);
-    format.setCodec("audio/pcm");
-    format.setByteOrder(QAudioFormat::LittleEndian);
-    format.setSampleType(QAudioFormat::SignedInt);
-
 
 }
 
@@ -351,17 +342,22 @@ void Worker::play_pcm()
 
     else
     {
-        audioOutput = new QAudioOutput(this->format, this);
+        QAudioFormat format;
+
+        format.setSampleRate(RATE);
+        format.setChannelCount(CHANNELS);
+        format.setSampleSize(SAMPLE_SIZE);
+        format.setCodec("audio/pcm");
+        format.setByteOrder(QAudioFormat::LittleEndian);
+        format.setSampleType(QAudioFormat::SignedInt);
+
+        audioOutput = new QAudioOutput(format, this);
 
         audioOutput->setBufferSize(AUDIO_BUFFER_SIZE);
-
 
     }
 
     audioDevice = audioOutput->start();
-
-
-
 
     audioOutput->setVolume(75/ 100.0);
 

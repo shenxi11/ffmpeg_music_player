@@ -20,8 +20,6 @@ public:
     Play_Widget(QWidget *parent = nullptr);
     ~Play_Widget();
 
-    QPushButton*get_dir();
-
 public slots:
 
     void _begin_to_play(QString path);
@@ -30,12 +28,12 @@ public slots:
 
     void _play_list_music(QString path);
 
-private slots:
+    void _play_click(QString songName);
 
     void openfile();
 
 signals:
-    void filepath(QString filepath);
+    void filepath(QString filePath);
 
     void begin_to_play(QString path);
 
@@ -81,8 +79,6 @@ private:
     QPushButton *play;
 
     QPushButton *Loop;
-
-    QPushButton *dir;
 
     QPushButton *music;
 

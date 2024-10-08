@@ -91,8 +91,6 @@ private:
 
     std::map<QByteArray,qint64> mp;
 
-    QAudioFormat format;
-
     int currentLyricIndex = 0;
 };
 

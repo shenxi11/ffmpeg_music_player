@@ -18,9 +18,15 @@ public:
 public slots:
     void receive_song_op(bool flag, QString fileName);
 
+    void _play_click(QString songName);
+
+    void _remove_click(QString songName);
 signals:
     void selectMusic(QString path);
 
+    void play_click(QString songName);
+
+    void remove_click(QString songName);
 private:
     std::map<QString,MusicItem*>pathMap;
 
