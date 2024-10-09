@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
     w.show();
     w.Update_paint();
 
-    qDebug()<<"启动";
+    //qDebug()<<"启动";
     return a.exec();
 }
 

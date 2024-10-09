@@ -55,6 +55,11 @@ Play_Widget::Play_Widget(QWidget *parent)
         "    border-image: url(:/new/prefix1/icon/volume.png);"
         "}"
         );
+    music->setStyleSheet(
+        "QPushButton {"
+        "    border-image: url(:/new/prefix1/icon/up.png);"
+        "}"
+        );
 
     play->setStyleSheet(
         "QPushButton {"
@@ -124,19 +129,26 @@ Play_Widget::Play_Widget(QWidget *parent)
     this->textEdit->setCursor(Qt::ArrowCursor);
 
 
-    qDebug()<<"MainWindow"<<QThread::currentThreadId();
+    //qDebug()<<"MainWindow"<<QThread::currentThreadId();
 
 
     connect(music,&QPushButton::toggled,this,[=](bool checked) {
         emit big_clicked(checked);
     });
 
+    connect(next, &QPushButton::clicked, this, [=](){
+        emit Next(this->fileName);
+    });
+    connect(last, &QPushButton::clicked, this, [=](){
+        emit Last(this->fileName);
+    });
 
+    connect(take_pcm.get(), &Take_pcm::begin_take_lrc, work.get(), &Worker::setPATH);
 
 
     connect(this,&Play_Widget::filepath,take_pcm.get(),&Take_pcm::make_pcm);
-    connect(this,&Play_Widget::filepath,work.get(),&Worker::play_pcm);
-    //connect(take_pcm.get(),&Take_pcm::begin_to_play,work.get(),&Worker::play_pcm);
+    //connect(this,&Play_Widget::filepath,work.get(),&Worker::play_pcm);
+    connect(take_pcm.get(),&Take_pcm::begin_to_play,work.get(),&Worker::play_pcm);
     connect(take_pcm.get(),&Take_pcm::data,work.get(),&Worker::receive_data);
     connect(take_pcm.get(),&Take_pcm::Position_Change,work.get(),&Worker::reset_play);
 
@@ -166,21 +178,26 @@ Play_Widget::Play_Widget(QWidget *parent)
         if(!this->loop&&filePath.size()>0&&played)
         {
             rePlay(this->filePath);
-            qDebug()<<"rePlay"<<this->filePath;
+            //qDebug()<<"rePlay"<<this->filePath;
         }
     });
     //    connect(take_pcm.get(),&Take_pcm::begin_take_lrc,this,&MainWindow::_begin_take_lrc);
     //    connect(this,&MainWindow::begin_take_lrc,lrc.get(),&lrc_analyze::begin_take_lrc);
 
 
-    connect(take_pcm.get(),&Take_pcm::begin_take_lrc,this,&Play_Widget::_begin_take_lrc);
+//    connect(take_pcm.get(),&Take_pcm::begin_take_lrc,this,&Play_Widget::_begin_take_lrc);
+//    connect(this,&Play_Widget::begin_take_lrc,lrc.get(),&LrcAnalyze::begin_take_lrc);
+    connect(this, &Play_Widget::filepath, this, &Play_Widget::_begin_take_lrc);
     connect(this,&Play_Widget::begin_take_lrc,lrc.get(),&LrcAnalyze::begin_take_lrc);
+
+    //connect(take_pcm.get(),&Take_pcm::begin_take_lrc,lrc.get(),&LrcAnalyze::begin_take_lrc);
+
 
     connect(lrc.get(),&LrcAnalyze::send_lrc,work.get(),&Worker::receive_lrc);
     connect(lrc.get(),&LrcAnalyze::send_lrc,this,[=](const std::map<int, std::string> lyrics){
 
 
-        this->textEdit->clear();
+
         this->textEdit->currentLine = 4;
         this->lyrics.clear();
         for(int i = 0;i<5;i++)
@@ -284,14 +301,14 @@ Play_Widget::Play_Widget(QWidget *parent)
         }
         this->loop = !this->loop;
 
-        qDebug()<<"Loop state"<<this->loop;
+        //qDebug()<<"Loop state"<<this->loop;
     });
 
 
     connect(video,&QPushButton::toggled,this,[=](bool checked){
         if(checked)
         {
-            qDebug()<<"被选中";
+            //qDebug()<<"被选中";
 
             slider->show();
         }
@@ -308,7 +325,7 @@ Play_Widget::Play_Widget(QWidget *parent)
         if(checked)
         {
             emit list_show(true);
-            qDebug()<<"show";
+            //qDebug()<<"show";
         }
         else
         {
@@ -347,13 +364,31 @@ Play_Widget::Play_Widget(QWidget *parent)
 
 }
 
-void Play_Widget::_play_list_music(QString path)
-{
-    emit filepath(path);
-}
+//void Play_Widget::_play_list_music(QString path)
+//{
+
+//    if(path != this->filePath)
+//    {
+//        this->filePath = path;
+
+//        QFileInfo fileInfo(path);
+//        fileName = fileInfo.fileName();
+
+//        emit filepath(path);
+
+
+//    }
+//    else
+//    {
+//        this->play->click();
+//    }
+//}
 
 void Play_Widget::rePlay(QString path)
 {
+    Slider->setMinimum(0);
+    Slider->setMaximum(0);
+
     emit filepath(path);
     {
         std::lock_guard<std::mutex>lock(mtx);
@@ -361,10 +396,10 @@ void Play_Widget::rePlay(QString path)
     }
 
 }
-void Play_Widget::_begin_to_play(QString Path)
-{
-    emit begin_to_play(Path);
-}
+//void Play_Widget::_begin_to_play(QString Path)
+//{
+//    emit begin_to_play(Path);
+//}
 
 void Play_Widget::init_TextEdit()
 {
@@ -380,12 +415,15 @@ void Play_Widget::init_TextEdit()
     this->textEdit->setFont(font);       // 应用新字体
     this->textEdit->setStyleSheet("QTextEdit { background: transparent; border: none; }");
     this->textEdit->move(400, 0);
+
 }
 
 
 
 void Play_Widget::_begin_take_lrc(QString str)
 {
+    Slider->setRange(0,10000);
+
     this->textEdit->clear();
 
     emit begin_take_lrc(str);
@@ -406,7 +444,7 @@ void Play_Widget::openfile()
     QWidget dummyWidget;
 
     // 打开文件对话框
-    QString filePath = QFileDialog::getOpenFileName(
+    QString filePath_ = QFileDialog::getOpenFileName(
         &dummyWidget,                   // 父窗口（可以是 nullptr）
         "Open File",                    // 对话框标题
         QDir::homePath(),               // 起始目录（可以是任意路径）
@@ -414,32 +452,39 @@ void Play_Widget::openfile()
         );
 
     // 打印选中的文件路径
-    if (!filePath.isEmpty())
+    if (!filePath_.isEmpty())
     {
-        this->filePath = filePath;
-        // emit filepath(filePath);
+        QFileInfo fileInfo(filePath_);
+        QString filename = fileInfo.fileName();
+        emit add_song(filename,filePath_);
 
-        QFileInfo fileInfo(filePath);
-        fileName = fileInfo.fileName();
-        emit add_song(fileName,filePath);
 
-        Slider->setRange(0,10000);
 
-        qDebug() << "Selected file:" << filePath;
+        //qDebug() << "Selected file:" << filePath;
     }
     else
     {
-        qDebug() << "No file selected.";
+        //qDebug() << "No file selected.";
     }
 
 
 }
 
-void Play_Widget::_play_click(QString songName)
+void Play_Widget::_play_click(QString songPath)
 {
-    if(songName != this->fileName)
+    if(songPath != this->filePath)
     {
-        emit filepath(filePath);
+        this->filePath = songPath;
+
+        QFileInfo fileInfo(songPath);
+        fileName = fileInfo.fileName();
+
+        Slider->setMinimum(0);
+        Slider->setMaximum(0);
+
+        emit filepath(songPath);
+
+
     }
     else
     {
