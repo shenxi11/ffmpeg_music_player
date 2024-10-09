@@ -48,13 +48,16 @@ Main_Widget::Main_Widget(QWidget *parent) : QWidget(parent)
         }
     });
 
+    connect(w, &Play_Widget::Next, list, &MusicListWidget::Next_click);
+    connect(w, &Play_Widget::Last, list, &MusicListWidget::Last_click);
+
     connect(w,&Play_Widget::add_song,list,&MusicListWidget::addSong);
     connect(w,&Play_Widget::add_song,main_list,&MusicListWidget::addSong);
     connect(w, &Play_Widget::play_button_click,list,&MusicListWidget::receive_song_op);
     connect(w, &Play_Widget::play_button_click,main_list,&MusicListWidget::receive_song_op);
 
-    connect(list,&MusicListWidget::selectMusic,w,&Play_Widget::_play_list_music);
-    connect(main_list,&MusicListWidget::selectMusic,w,&Play_Widget::_play_list_music);
+//    connect(list,&MusicListWidget::selectMusic,w,&Play_Widget::_play_list_music);
+//    connect(main_list,&MusicListWidget::selectMusic,w,&Play_Widget::_play_list_music);
 
     connect(list, &MusicListWidget::play_click, w, &Play_Widget::_play_click);
     connect(main_list, &MusicListWidget::play_click, w, &Play_Widget::_play_click);

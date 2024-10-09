@@ -116,5 +116,5 @@ void LyricTextEdit::scrollLines(int lines)
 
 LyricTextEdit::~LyricTextEdit()
 {
-    qDebug()<<"Destruct LyricTextEdit";
+    //qDebug()<<"Destruct LyricTextEdit";
 }

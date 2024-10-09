@@ -37,7 +37,7 @@ public slots:
 
     void reset_play();
 
-
+    void setPATH(QString Path);
 private slots:
     void onTimeOut();
 
@@ -91,7 +91,7 @@ private:
 
     std::map<QByteArray,qint64> mp;
 
-    int currentLyricIndex = 0;
+   QString PATH;
 };
 
 #endif // WORKER_H

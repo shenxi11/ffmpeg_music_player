@@ -14,7 +14,7 @@ Worker::Worker(QTimer*timer):
 
 Worker::~Worker()
 {
-    qDebug()<<"desruct Worker";
+    //qDebug()<<"desruct Worker";
 }
 
 void Worker::stop()
@@ -57,23 +57,23 @@ void Worker::Pause()
 
     if (!isPaused||this->sliderMove)
     {
-        qDebug() << "暂停";
+        //qDebug() << "暂停";
         audioOutput->suspend();
         timer->stop();
 
         isPaused = true;
-        qDebug() << "Playback paused CC:";
+        //qDebug() << "Playback paused CC:";
         emit Stop();
     }
     else if (isPaused)
     {
-        qDebug() << "恢复";
+        //qDebug() << "恢复";
         audioOutput->resume();
         isPaused = false;
         timer->start();
 
         emit Begin();
-        qDebug() << "Playback resumed.";
+        //qDebug() << "Playback resumed.";
     }
 }
 //void Worker::play_pcm(QString pcmFilePath ){
@@ -210,25 +210,23 @@ void Worker::Pause()
 //}
 void Worker::reset_play()
 {
-    std::lock_guard<std::mutex>lock(mtx);
+//    std::lock_guard<std::mutex>lock(mtx);
     this->mp.clear();
     this->audioBuffer.clear();
     this->audioOutput->reset();
     audioDevice=this->audioOutput->start();
-
 
 }
 
 void Worker::onTimeOut()
 {
 
-    std::lock_guard<std::mutex> lock(mtx);
-
-    qint64 currentTimeMS;
+//    std::lock_guard<std::mutex> lock(mtx);
 
 
     if (audioBuffer.isEmpty())
     {
+        qDebug()<<"Empty";
         timer->stop();
         emit Stop();
         emit rePlay();
@@ -250,7 +248,7 @@ void Worker::onTimeOut()
 
     qint64 bytesWritten = audioDevice->write(pcmData);  // 写入音频设备
 
-    currentTimeMS = mp[pcmData];
+    qint64 currentTimeMS = mp[pcmData];
 
 
 
@@ -313,29 +311,30 @@ void Worker::onTimeOut()
 
 void Worker::receive_data(const QByteArray &data,qint64 timeMap)
 {
-    std::lock_guard<std::mutex>lock(mtx);
+//    std::lock_guard<std::mutex>lock(mtx);
     this->audioBuffer.enqueue(data);
     this->mp[data]=timeMap;
 
 }
+void Worker::setPATH(QString Path)
+{
+    this->PATH = Path;
 
+}
 void Worker::play_pcm()
 {
-
-    qDebug() << "Worker" << QThread::currentThreadId();
 
 
 
     if (audioOutput)
     {
+        timer->stop();
+
         audioOutput->stop();
         audioOutput->reset();
 
-        timer->stop();
-        {
-            std::lock_guard<std::mutex>lock(mtx);
-            this->audioBuffer.clear();
-        }
+        this->audioBuffer.clear();
+
         disconnect(this, &Worker::stopPlay, this, nullptr);
 
     }
@@ -362,11 +361,8 @@ void Worker::play_pcm()
     audioOutput->setVolume(75/ 100.0);
 
 
-    this->currentLyricIndex=0;
-
-    timer->setInterval(2);
+    timer->setInterval(5);
     timer->start();
-
 
 
     connect(this, &Worker::stopPlay, this, &Worker::Pause);

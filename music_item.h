@@ -20,6 +20,8 @@ public:
     void _play_click();
 
     void _remove_click();
+
+    void play_to_click();
 signals:
     void play_click(QString songName);
 
@@ -77,9 +79,9 @@ protected:
 
 
         if (hover) {
-            painter.setBrush(QColor(169, 169, 169));
+            painter.setBrush(QColor(44, 210, 126));
         } else {
-            painter.setBrush(QColor(248, 248, 255));
+            painter.setBrush(QColor(246, 246, 246));
         }
 
         QPen pen;
