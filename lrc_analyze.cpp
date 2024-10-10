@@ -9,7 +9,7 @@ LrcAnalyze::LrcAnalyze()
 
  LrcAnalyze::~LrcAnalyze()
 {
-    qDebug()<<"Destruct lrc_analyze";
+    //qDebug()<<"Destruct lrc_analyze";
 }
 
 //void lrc_analyze::run()
@@ -102,7 +102,7 @@ void LrcAnalyze::take_lrc(QString Path)
 
     if (!encoding.isEmpty())
     {
-        qDebug() << "检测到的编码为:" << encoding;
+        //qDebug() << "检测到的编码为:" << encoding;
 
         // 如果编码不是 UTF-8，读取并转换为 UTF-8
         if (encoding != "UTF-8")
@@ -113,7 +113,7 @@ void LrcAnalyze::take_lrc(QString Path)
             {
                 // 覆盖原文件并保存为 UTF-8 编码
                 saveFileAsUtf8(content, QString::fromStdString(lrcFile));
-                qDebug() << "文件已成功转换为 UTF-8 并覆盖原文件";
+                //qDebug() << "文件已成功转换为 UTF-8 并覆盖原文件";
             }
             else
             {
@@ -122,7 +122,7 @@ void LrcAnalyze::take_lrc(QString Path)
         }
         else
         {
-            qDebug() << "文件已经是 UTF-8 编码，不需要转换";
+            //qDebug() << "文件已经是 UTF-8 编码，不需要转换";
         }
 
         emit Begin_send(QString::fromStdString(lrcFile));
@@ -130,7 +130,7 @@ void LrcAnalyze::take_lrc(QString Path)
     }
     else
     {
-        qDebug()<<"无法检测编码";
+        //qDebug()<<"无法检测编码";
     }
 
 
@@ -142,7 +142,7 @@ void LrcAnalyze::take_lrc(QString Path)
 }
 void LrcAnalyze::begin_send(QString lrcFile)
 {
-    qDebug()<<lrcFile;
+    //qDebug()<<lrcFile;
 
     lyrics.clear();
 

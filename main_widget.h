@@ -27,7 +27,7 @@ protected:
 
         QPainter painter(this);
 
-        painter.setBrush(QColor(248, 248, 255));
+        painter.setBrush(QColor(246, 246, 246));
 
         painter.drawRect(this->rect());
     }

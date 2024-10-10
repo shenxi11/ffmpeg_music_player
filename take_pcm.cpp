@@ -28,7 +28,7 @@ Take_pcm::~Take_pcm()
         avformat_close_input(&ifmt_ctx);
     if(swr_ctx)
         swr_free(&swr_ctx);
-    qDebug()<<"Destruct Take_pcm";
+    //qDebug()<<"Destruct Take_pcm";
 }
 void Take_pcm::seekToPosition(int newPosition)
 {
@@ -39,7 +39,7 @@ void Take_pcm::seekToPosition(int newPosition)
 
     //qDebug()<<targetTimestamp;
 
-    int ret=av_seek_frame(ifmt_ctx, -1, targetTimestamp, AVSEEK_FLAG_BACKWARD);
+    av_seek_frame(ifmt_ctx, -1, targetTimestamp, AVSEEK_FLAG_BACKWARD);
 
     //qDebug()<<ret;
 
@@ -53,10 +53,20 @@ void Take_pcm::seekToPosition(int newPosition)
 
 }
 
-//将音频文件转化为pcm文件
 void Take_pcm::make_pcm(QString Path)
 {
-    qDebug()<<"Take_pcm"<<QThread::currentThreadId();
+    if(frame)
+        av_frame_free(&frame);
+    if(pkt)
+        av_packet_free(&pkt);
+    if(codec_ctx)
+        avcodec_free_context(&codec_ctx);
+    if(ifmt_ctx)
+        avformat_close_input(&ifmt_ctx);
+    if(swr_ctx)
+        swr_free(&swr_ctx);
+
+    //qDebug()<<"Take_pcm"<<QThread::currentThreadId();
     avformat_network_init();
 
 
@@ -198,18 +208,10 @@ void Take_pcm::make_pcm(QString Path)
         return;
     }
 
-
-    QFileInfo info(inputUrl);
-    QString path = QDir::currentPath() + "/" + info.baseName() + ".pcm";
-
-
-
     emit begin_take_lrc(Path);
 
+    //qDebug()<<"path is "<<Path;
 
-    // PTS-PCM 位置映射表
-    std::vector<std::pair<qint64, qint64>> pcmTimeMap;
-    qint64 currentPcmPosition = 0;  // 当前 PCM 文件的字节位置
 
     //获取音频文件的总时长
 
@@ -227,6 +229,7 @@ void Take_pcm::make_pcm(QString Path)
 
 void Take_pcm::decode()
 {
+
     while (av_read_frame(ifmt_ctx, pkt) >= 0)
     {
         if (pkt->stream_index == audioStreamIndex)

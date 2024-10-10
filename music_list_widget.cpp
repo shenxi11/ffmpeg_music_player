@@ -8,7 +8,7 @@ MusicListWidget::MusicListWidget(QWidget *parent)
 }
 void MusicListWidget::addSong(const QString songName, const QString path)
 {
-    QSize size(width(), 50);
+    QSize size(width(), 30);
     MusicItem* itemWidget = new MusicItem(songName,path,"",size);
 
     QListWidgetItem *item = new QListWidgetItem(this);
@@ -20,17 +20,19 @@ void MusicListWidget::addSong(const QString songName, const QString path)
     connect(itemWidget, &MusicItem::remove_click, this, &MusicListWidget::_remove_click);
     setItemWidget(item,itemWidget);
 }
-void MusicListWidget::mouseDoubleClickEvent(QMouseEvent *event)
-{
-    MusicItem* item = dynamic_cast<MusicItem*>(itemAt(event->pos()));
+//void MusicListWidget::mouseDoubleClickEvent(QMouseEvent *event)
+//{
+//    QListWidgetItem* listItem = itemAt(event->pos());
+//    MusicItem* item = dynamic_cast<MusicItem*>(itemWidget(listItem));
 
-    if(item)
-    {
-        emit selectMusic(item->getPath());
-    }
+//    if(item)
+//    {
+//        emit selectMusic(item->getPath());
+//        qDebug()<<"PATH:"<<item->getPath();
+//    }
 
-    QListWidget::mouseDoubleClickEvent(event);
-}
+//    QListWidget::mouseDoubleClickEvent(event);
+//}
 void MusicListWidget::receive_song_op(bool flag, QString fileName)
 {
     pathMap[fileName]->button_op(flag);
@@ -46,12 +48,15 @@ void MusicListWidget::receive_song_op(bool flag, QString fileName)
         }
     }
 }
-void MusicListWidget::_play_click(QString songName)
+void MusicListWidget::_play_click(QString songPath)
 {
-    emit play_click(songName);
+    emit play_click(songPath);
 }
-void MusicListWidget::_remove_click(QString songName)
+void MusicListWidget::_remove_click(QString songPath)
 {
+    QFileInfo fileInfo(songPath);
+    QString songName = fileInfo.fileName();
+
     MusicItem* musicItem = pathMap[songName];
 
 
@@ -64,6 +69,71 @@ void MusicListWidget::_remove_click(QString songName)
             delete this->takeItem(i);
             pathMap.erase(songName);
             delete musicItem;
+            break;
+        }
+    }
+}
+void MusicListWidget::Next_click(QString songName)
+{
+    if(this->count() <= 1)
+    {
+        return;
+    }
+
+    MusicItem* musicItem = pathMap[songName];
+
+
+    for(int i = 0; i < this->count(); i++)
+    {
+        QListWidgetItem* item = this->item(i);
+
+        if(item->data(Qt::UserRole).toString() == songName)
+        {
+            if(i != this->count() - 1)
+            {
+                QListWidgetItem* item1 = this->item(i + 1);
+                MusicItem* musicItem1 = pathMap[item1->data(Qt::UserRole).toString()];
+                musicItem1->play_to_click();
+            }
+            else
+            {
+                QListWidgetItem* item1 = this->item(0);
+                MusicItem* musicItem1 = pathMap[item1->data(Qt::UserRole).toString()];
+                musicItem1->play_to_click();
+            }
+            break;
+        }
+    }
+}
+void MusicListWidget::Last_click(QString songName)
+{
+    qDebug()<<"Last";
+    if(this->count() <= 1)
+    {
+        return;
+    }
+
+    MusicItem* musicItem = pathMap[songName];
+
+
+    for(int i = 0; i < this->count(); i++)
+    {
+        QListWidgetItem* item = this->item(i);
+
+        if(item->data(Qt::UserRole).toString() == songName)
+        {
+            if(i != 0)
+            {
+                QListWidgetItem* item1 = this->item(i - 1);
+                MusicItem* musicItem1 = pathMap[item1->data(Qt::UserRole).toString()];
+                musicItem1->play_to_click();
+            }
+            else
+            {
+                QListWidgetItem* item1 = this->item(this->count() - 1);
+                MusicItem* musicItem1 = pathMap[item1->data(Qt::UserRole).toString()];
+                musicItem1->play_to_click();
+            }
             break;
         }
     }
