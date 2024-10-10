@@ -354,7 +354,7 @@ void Worker::play_pcm()
 
     audioDevice = audioOutput->start();
 
-    audioOutput->setVolume(75/ 100.0);
+    audioOutput->setVolume(75 / 100.0);
 
 
     timer->setInterval(5);
