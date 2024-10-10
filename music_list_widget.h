@@ -18,9 +18,13 @@ public:
 public slots:
     void receive_song_op(bool flag, QString fileName);
 
-    void _play_click(QString songName);
+    void _play_click(QString songPath);
 
-    void _remove_click(QString songName);
+    void _remove_click(QString songPath);
+
+    void Last_click(QString songName);
+
+    void Next_click(QString songName);
 signals:
     void selectMusic(QString path);
 
@@ -31,12 +35,12 @@ private:
     std::map<QString,MusicItem*>pathMap;
 
 protected:
-    void mouseDoubleClickEvent(QMouseEvent *event);
+//    void mouseDoubleClickEvent(QMouseEvent *event);
 
     void paintEvent(QPaintEvent *event) override
         {
             QPainter painter(viewport());
-            painter.fillRect(rect(), QColor(248, 248, 255));  // 使用背景颜色填充整个窗口
+            painter.fillRect(rect(), QColor(246, 246, 246));  // 使用背景颜色填充整个窗口
 
             // 调用父类的 paintEvent 以确保绘制子项等内容
             QListWidget::paintEvent(event);

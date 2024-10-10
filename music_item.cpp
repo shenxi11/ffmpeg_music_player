@@ -73,13 +73,17 @@ void MusicItem::button_op(bool flag)
                     );
     }
 }
+void MusicItem::play_to_click()
+{
+    emit play_click(this->path);
+}
 void MusicItem::_remove_click()
 {
-    emit remove_click(this->name);
+    emit remove_click(this->path);
 }
 void MusicItem::_play_click()
 {
-    emit play_click(this->name);
+    emit play_click(this->path);
 }
 QString MusicItem::getName()
 {

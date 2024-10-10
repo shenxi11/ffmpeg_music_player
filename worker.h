@@ -10,7 +10,7 @@ class Worker :public QObject
 {
     Q_OBJECT
 public:
-    explicit Worker(QTimer*timer);
+    explicit Worker();
 
     ~Worker();
 
@@ -25,8 +25,6 @@ public slots:
 
     void Set_Volume(int value);
 
-    void stop();
-
     void set_SliderMove(bool flag);
 
     void receive_totalDuration(qint64 total);
@@ -37,7 +35,7 @@ public slots:
 
     void reset_play();
 
-
+    void setPATH(QString Path);
 private slots:
     void onTimeOut();
 
@@ -91,7 +89,7 @@ private:
 
     std::map<QByteArray,qint64> mp;
 
-    int currentLyricIndex = 0;
+   QString PATH;
 };
 
 #endif // WORKER_H

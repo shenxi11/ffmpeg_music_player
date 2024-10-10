@@ -22,11 +22,11 @@ public:
 
 public slots:
 
-    void _begin_to_play(QString path);
+//    void _begin_to_play(QString path);
 
     void _begin_take_lrc(QString str);
 
-    void _play_list_music(QString path);
+//    void _play_list_music(QString path);
 
     void _play_click(QString songName);
 
@@ -52,6 +52,10 @@ signals:
     void add_song(const QString fileName,const QString path);
 
     void play_button_click(bool flag, QString fileName);
+
+    void Next(QString songName);
+
+    void Last(QString songName);
 private:
 
     void init_TextEdit();
