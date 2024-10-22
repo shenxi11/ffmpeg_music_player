@@ -80,9 +80,6 @@ void MusicListWidget::Next_click(QString songName)
         return;
     }
 
-    MusicItem* musicItem = pathMap[songName];
-
-
     for(int i = 0; i < this->count(); i++)
     {
         QListWidgetItem* item = this->item(i);
@@ -107,13 +104,10 @@ void MusicListWidget::Next_click(QString songName)
 }
 void MusicListWidget::Last_click(QString songName)
 {
-    qDebug()<<"Last";
     if(this->count() <= 1)
     {
         return;
     }
-
-    MusicItem* musicItem = pathMap[songName];
 
 
     for(int i = 0; i < this->count(); i++)
