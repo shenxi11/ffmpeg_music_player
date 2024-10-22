@@ -206,7 +206,7 @@ void Worker::reset_play()
     this->mp.clear();
     this->audioBuffer.clear();
     this->audioOutput->reset();
-    audioDevice=this->audioOutput->start();
+    audioDevice = this->audioOutput->start();
 
 }
 
@@ -231,7 +231,7 @@ void Worker::onTimeOut()
     qint64 bytesFree = audioOutput->bytesFree();
     //qDebug() << "Audio buffer size:" << pcmData.size() << "audioBytesFree:" << bytesFree<<" number:"<<audioBuffer.size();
 
-    if ( bytesFree<2*pcmData.size())
+    if ( bytesFree < 2 * pcmData.size())
     {
         //qDebug() << "Not enough space in audio output buffer. PCM data size:" << pcmData.size() << "bytesFree:" << bytesFree;
         //audioBuffer.enqueue(pcmData);  // 将数据重新放回缓冲区
@@ -269,8 +269,8 @@ void Worker::onTimeOut()
         {
 
             if ((it->first <= static_cast<int>(currentTimeMS)
-                 && nextIt->first>static_cast<int>(currentTimeMS))
-                    ||(it==lyrics.begin()&&it->first>=static_cast<int>(currentTimeMS)))
+                 && nextIt->first > static_cast<int>(currentTimeMS))
+                    ||(it == lyrics.begin()&&it->first >= static_cast<int>(currentTimeMS)))
             {
                 emit send_lrc(index+5);
 

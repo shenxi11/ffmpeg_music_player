@@ -16,5 +16,7 @@
         <file>icon/Music.png</file>
         <file>icon/delete.png</file>
         <file>icon/up.png</file>
+        <file>icon/netease.ico</file>
+        <file>icon/netease.png</file>
     </qresource>
 </RCC>

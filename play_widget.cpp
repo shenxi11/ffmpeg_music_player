@@ -104,10 +104,6 @@ Play_Widget::Play_Widget(QWidget *parent)
     c = new QThread(this);
 
 
-
-
-
-
     work = std::make_unique<Worker>();
     work->moveToThread(c);
 

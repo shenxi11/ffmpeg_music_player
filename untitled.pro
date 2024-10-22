@@ -39,11 +39,12 @@ HEADERS += \
 
 FORMS +=
 
+
 TRANSLATIONS += \
     untitled_zh_CN.ts
 
-INCLUDEPATH += ../../ffmpeg4.4/include
-LIBS += -L../../ffmpeg4.4/lib \
+INCLUDEPATH += /opt/ffmpeg-4.4/include
+LIBS += -L/opt/ffmpeg-4.4/lib \
         -lavcodec \
         -lavformat \
         -lavutil \

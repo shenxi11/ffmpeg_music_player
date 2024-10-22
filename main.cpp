@@ -1,6 +1,7 @@
 #include "play_widget.h"
 #include <QFontMetrics>
 #include <QDebug>
+#include <QIcon>
 #include <QApplication>
 
 #include"main_widget.h"
@@ -20,14 +21,17 @@ int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
 
+    a.setWindowIcon(QIcon("qrc:/new/prefix1/icon/netease.png"));
+
     setlocale(LC_ALL, "chs");
 
     qInstallMessageHandler(customLogHandler);
     qRegisterMetaType<std::map<int, std::string>>("std::map<int, std::string>");
     QLoggingCategory::setFilterRules("qt.audio.debug=false");
-    qRegisterMetaType<std::vector<std::pair<qint64,qint64> >>("std::vector<std::pair<qint64,qint64> >");
+    qRegisterMetaType<std::vector<std::pair<qint64,qint64>>>("std::vector<std::pair<qint64,qint64> >");
 
     Main_Widget w;
+
     w.show();
     w.Update_paint();
 
