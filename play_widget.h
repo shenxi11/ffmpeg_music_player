@@ -30,6 +30,8 @@ public slots:
 
     void _play_click(QString songName);
 
+    void _remove_click(QString songName);
+
     void openfile();
 
 signals:
@@ -56,6 +58,8 @@ signals:
     void Next(QString songName);
 
     void Last(QString songName);
+
+    void remove_click();
 private:
 
     void init_TextEdit();

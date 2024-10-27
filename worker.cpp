@@ -367,3 +367,13 @@ void Worker::play_pcm()
 
 }
 
+void Worker::reset_status()
+{
+    timer->stop();
+    this->mp.clear();
+    this->audioBuffer.clear();
+    audioOutput->stop();
+    audioOutput->reset();
+
+    emit Stop();
+}

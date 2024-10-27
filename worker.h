@@ -36,6 +36,8 @@ public slots:
     void reset_play();
 
     void setPATH(QString Path);
+
+    void reset_status();
 private slots:
     void onTimeOut();
 
