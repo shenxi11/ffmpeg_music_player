@@ -47,40 +47,40 @@ Play_Widget::Play_Widget(QWidget *parent)
 
 
     video->setCheckable(true);
-    music->setCheckable(true);   
+    music->setCheckable(true);
     mlist->setCheckable(true);
 
     video->setStyleSheet(
-        "QPushButton {"
-        "    border-image: url(:/new/prefix1/icon/volume.png);"
-        "}"
-        );
+                "QPushButton {"
+                "    border-image: url(:/new/prefix1/icon/volume.png);"
+                "}"
+                );
     music->setStyleSheet(
-        "QPushButton {"
-        "    border-image: url(:/new/prefix1/icon/up.png);"
-        "}"
-        );
+                "QPushButton {"
+                "    border-image: url(:/new/prefix1/icon/up.png);"
+                "}"
+                );
 
     play->setStyleSheet(
-        "QPushButton {"
-        "    border-image: url(:/new/prefix1/icon/play.png);"
-        "}"
-        );
+                "QPushButton {"
+                "    border-image: url(:/new/prefix1/icon/play.png);"
+                "}"
+                );
     mlist->setStyleSheet(
-        "QPushButton {"
-        "    border-image: url(:/new/prefix1/icon/playlist.png);"
-        "}"
-        );
+                "QPushButton {"
+                "    border-image: url(:/new/prefix1/icon/playlist.png);"
+                "}"
+                );
     last->setStyleSheet(
-        "QPushButton {"
-        "    border-image: url(:/new/prefix1/icon/last_song.png);"
-        "}"
-        );
+                "QPushButton {"
+                "    border-image: url(:/new/prefix1/icon/last_song.png);"
+                "}"
+                );
     next->setStyleSheet(
-        "QPushButton {"
-        "    border-image: url(:/new/prefix1/icon/next_song.png);"
-        "}"
-        );
+                "QPushButton {"
+                "    border-image: url(:/new/prefix1/icon/next_song.png);"
+                "}"
+                );
 
     slider = new QSlider(Qt::Vertical, this);
     slider->close();
@@ -93,10 +93,10 @@ Play_Widget::Play_Widget(QWidget *parent)
 
 
     Loop->setStyleSheet(
-        "QPushButton {"
-        "    border-image: url(:/new/prefix1/icon/random_play.png);"
-        "}"
-        );
+                "QPushButton {"
+                "    border-image: url(:/new/prefix1/icon/random_play.png);"
+                "}"
+                );
 
 
     a = new QThread(this);
@@ -152,6 +152,7 @@ Play_Widget::Play_Widget(QWidget *parent)
 
     connect(take_pcm.get(),&Take_pcm::send_totalDuration,work.get(),&Worker::receive_totalDuration);
 
+    connect(this, &Play_Widget::remove_click, work.get(), &Worker::reset_status);
     connect(work.get(),&Worker::rePlay,this,[=](){
         {
             std::lock_guard<std::mutex>lock(mtx);
@@ -175,8 +176,8 @@ Play_Widget::Play_Widget(QWidget *parent)
     //    connect(this,&MainWindow::begin_take_lrc,lrc.get(),&lrc_analyze::begin_take_lrc);
 
 
-//    connect(take_pcm.get(),&Take_pcm::begin_take_lrc,this,&Play_Widget::_begin_take_lrc);
-//    connect(this,&Play_Widget::begin_take_lrc,lrc.get(),&LrcAnalyze::begin_take_lrc);
+    //    connect(take_pcm.get(),&Take_pcm::begin_take_lrc,this,&Play_Widget::_begin_take_lrc);
+    //    connect(this,&Play_Widget::begin_take_lrc,lrc.get(),&LrcAnalyze::begin_take_lrc);
     connect(this, &Play_Widget::filepath, this, &Play_Widget::_begin_take_lrc);
     connect(this,&Play_Widget::begin_take_lrc,lrc.get(),&LrcAnalyze::begin_take_lrc);
 
@@ -255,20 +256,21 @@ Play_Widget::Play_Widget(QWidget *parent)
     connect(work.get(),&Worker::Stop,this,[=](){
 
         play->setStyleSheet(
-            "QPushButton {"
-            "    border-image: url(:/new/prefix1/icon/play.png);"
-            "}"
-            );
-        emit play_button_click(false, fileName);
+                    "QPushButton {"
+                    "    border-image: url(:/new/prefix1/icon/play.png);"
+                    "}"
+                    );
+        if(fileName.size())
+            emit play_button_click(false, fileName);
 
     });
     connect(work.get(),&Worker::Begin,this,[=](){
 
         play->setStyleSheet(
-            "QPushButton {"
-            "    border-image: url(:/new/prefix1/icon/pause.png);"
-            "}"
-            );
+                    "QPushButton {"
+                    "    border-image: url(:/new/prefix1/icon/pause.png);"
+                    "}"
+                    );
         emit play_button_click(true, fileName);
     });
 
@@ -276,18 +278,18 @@ Play_Widget::Play_Widget(QWidget *parent)
         if(this->loop)
         {
             Loop->setStyleSheet(
-                "QPushButton {"
-                "    border-image: url(:/new/prefix1/icon/random_play.png);"
-                "}"
-                );
+                        "QPushButton {"
+                        "    border-image: url(:/new/prefix1/icon/random_play.png);"
+                        "}"
+                        );
         }
         else
         {
             Loop->setStyleSheet(
-                "QPushButton {"
-                "    border-image: url(:/new/prefix1/icon/loop.png);"
-                "}"
-                );
+                        "QPushButton {"
+                        "    border-image: url(:/new/prefix1/icon/loop.png);"
+                        "}"
+                        );
         }
         this->loop = !this->loop;
 
@@ -435,11 +437,11 @@ void Play_Widget::openfile()
 
     // 打开文件对话框
     QString filePath_ = QFileDialog::getOpenFileName(
-        &dummyWidget,                   // 父窗口（可以是 nullptr）
-        "Open File",                    // 对话框标题
-        QDir::homePath(),               // 起始目录（可以是任意路径）
-        "Audio Files (*.mp3 *.wav *.flac *.ogg);;All Files (*)"  // 文件过滤器
-        );
+                &dummyWidget,                   // 父窗口（可以是 nullptr）
+                "Open File",                    // 对话框标题
+                QDir::homePath(),               // 起始目录（可以是任意路径）
+                "Audio Files (*.mp3 *.wav *.flac *.ogg);;All Files (*)"  // 文件过滤器
+                );
 
     // 打印选中的文件路径
     if (!filePath_.isEmpty())
@@ -479,6 +481,19 @@ void Play_Widget::_play_click(QString songPath)
     else
     {
         this->play->click();
+    }
+}
+void Play_Widget::_remove_click(QString songName)
+{
+    if(songName == this->fileName)
+    {
+        Slider->setMinimum(0);
+        Slider->setMaximum(0);
+
+        this->fileName.clear();
+        this->filePath.clear();
+
+        emit remove_click();
     }
 }
 Play_Widget::~Play_Widget()

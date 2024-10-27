@@ -69,6 +69,7 @@ void MusicListWidget::_remove_click(QString songPath)
             delete this->takeItem(i);
             pathMap.erase(songName);
             delete musicItem;
+            emit remove_click(songName);
             break;
         }
     }

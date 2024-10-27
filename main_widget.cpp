@@ -62,6 +62,9 @@ Main_Widget::Main_Widget(QWidget *parent) : QWidget(parent)
     connect(list, &MusicListWidget::play_click, w, &Play_Widget::_play_click);
     connect(main_list, &MusicListWidget::play_click, w, &Play_Widget::_play_click);
 
+    connect(list, &MusicListWidget::remove_click, w, &Play_Widget::_remove_click);
+    connect(main_list, &MusicListWidget::remove_click, w, &Play_Widget::_remove_click);
+
     connect(w,&Play_Widget::big_clicked,this,[=](bool checked){
         if(checked)
         {
