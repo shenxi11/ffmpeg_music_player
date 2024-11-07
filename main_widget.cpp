@@ -14,6 +14,19 @@ Main_Widget::Main_Widget(QWidget *parent) : QWidget(parent)
         "QPushButton "
         "{ border-radius: 15px; border: 2px solid black; }"
         );
+    Login = new QPushButton(this);
+    Login->setFixedSize(100,50);
+    Login->move(add->x() + add->width(), 50);
+    Login->setText("登陆");
+    Login->setStyleSheet(
+                "QPushButton "
+                "{ border-radius: 15px; border: 2px solid black; }"
+                );
+
+    loginWidget = new LoginWidget();
+    loginWidget->setWindowTitle("登陆");
+    loginWidget->setWindowFlags(loginWidget->windowFlags() | Qt::WindowStaysOnTopHint);
+    loginWidget->close();
 
     main_list = new MusicListWidget(this);
     main_list->setFixedSize(800,350);
@@ -34,6 +47,12 @@ Main_Widget::Main_Widget(QWidget *parent) : QWidget(parent)
     QRegion region(0, 350, w->width(), 350);
     w->setMask(region);
     w->move((this->width()-w->width())/2,this->height()-w->height());
+
+
+    connect(Login, &QPushButton::clicked, this, [=](){
+        loginWidget->isVisible = !loginWidget->isVisible;
+        this->loginWidget->setVisible(loginWidget->isVisible);
+    });
 
     connect(add, &QPushButton::clicked, w, &Play_Widget::openfile);
 
