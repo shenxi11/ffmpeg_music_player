@@ -220,14 +220,6 @@ Play_Widget::Play_Widget(QWidget *parent)
         QTextBlockFormat blockFormat;
         blockFormat.setAlignment(Qt::AlignCenter); // 设置对齐方式为居中
 
-        // 应用格式到选中的文本void Worker::init()
-        {
-
-
-
-
-
-        }
         cursor.mergeBlockFormat(blockFormat);
 
         // 更新 QTextEdit 的光标位置
@@ -356,25 +348,6 @@ Play_Widget::Play_Widget(QWidget *parent)
 
 }
 
-//void Play_Widget::_play_list_music(QString path)
-//{
-
-//    if(path != this->filePath)
-//    {
-//        this->filePath = path;
-
-//        QFileInfo fileInfo(path);
-//        fileName = fileInfo.fileName();
-
-//        emit filepath(path);
-
-
-//    }
-//    else
-//    {
-//        this->play->click();
-//    }
-//}
 
 void Play_Widget::rePlay(QString path)
 {
@@ -388,10 +361,7 @@ void Play_Widget::rePlay(QString path)
     }
 
 }
-//void Play_Widget::_begin_to_play(QString Path)
-//{
-//    emit begin_to_play(Path);
-//}
+
 
 void Play_Widget::init_TextEdit()
 {
@@ -402,9 +372,9 @@ void Play_Widget::init_TextEdit()
 
     this->textEdit->viewport()->setCursor(Qt::ArrowCursor);
 
-    QFont font = this->textEdit->font(); // 获取当前字体
-    font.setPointSize(16);     // 设置字号为 16
-    this->textEdit->setFont(font);       // 应用新字体
+    QFont font = this->textEdit->font();
+    font.setPointSize(16);
+    this->textEdit->setFont(font);
     this->textEdit->setStyleSheet("QTextEdit { background: transparent; border: none; }");
     this->textEdit->move(400, 0);
 
@@ -415,18 +385,12 @@ void Play_Widget::init_TextEdit()
 void Play_Widget::_begin_take_lrc(QString str)
 {
     Slider->setRange(0,10000);
-
     this->textEdit->clear();
 
     emit begin_take_lrc(str);
 
     QTextCursor cursor = textEdit->textCursor();
-
-    // 将光标移动到文档的开始
     cursor.movePosition(QTextCursor::Start);
-
-    //cursor.movePosition(QTextCursor::Down, QTextCursor::MoveAnchor, 5);
-
     textEdit->setTextCursor(cursor);
 }
 void Play_Widget::openfile()

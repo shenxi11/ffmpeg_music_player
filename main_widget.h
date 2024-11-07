@@ -2,6 +2,7 @@
 #define TEST_WIDGET_H
 #include"play_widget.h"
 #include "music_list_widget.h"
+#include "loginwidget.h"
 #include <QWidget>
 
 class Main_Widget : public QWidget
@@ -17,9 +18,11 @@ private:
     Play_Widget* w;
     MusicListWidget* list;
     MusicListWidget* main_list;
+    LoginWidget* loginWidget;
 
     QPushButton* play;
     QPushButton* add;
+    QPushButton* Login;
 protected:
     void paintEvent(QPaintEvent *event) override
     {
