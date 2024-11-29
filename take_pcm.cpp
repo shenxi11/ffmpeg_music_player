@@ -1,5 +1,16 @@
 #include "take_pcm.h"
 
+QWaitCondition dataAvailable;
+QMutex bufferMutex;
+bool endOfStream = false;
+QQueue<QByteArray> dataQueue;
+
+static void receiveData(QByteArray newData);
+static void finishStream();
+static int readPacket(void* opaque, uint8_t* buf, int buf_size);
+
+
+
 
 Take_pcm::Take_pcm():drag(false) ,
     ifmt_ctx(nullptr)
@@ -224,7 +235,202 @@ void Take_pcm::make_pcm(QString Path)
 
     emit begin_to_decode();
 
+}
 
+void Take_pcm::decodeFromStream()
+{
+    if (frame)
+        av_frame_free(&frame);
+    if (pkt)
+        av_packet_free(&pkt);
+    if (codec_ctx)
+        avcodec_free_context(&codec_ctx);
+    if (ifmt_ctx)
+        avformat_close_input(&ifmt_ctx);
+    if (swr_ctx)
+        swr_free(&swr_ctx);
+
+    avformat_network_init(); // 初始化网络协议支持
+    ifmt_ctx = avformat_alloc_context(); // 创建 AVFormatContext
+    if (!ifmt_ctx) {
+        qDebug() << "Failed to allocate AVFormatContext.";
+        return;
+    }
+
+    // 为 AVPacket 分配内存
+    pkt = av_packet_alloc();
+    if (!pkt) {
+        qDebug() << "Failed to allocate AVPacket.";
+        avformat_free_context(ifmt_ctx);
+        return;
+    }
+
+    // 创建 AVIOContext，传入 readPacket 回调
+    AVIOContext *avio_ctx = nullptr;
+    uint8_t *buffer = static_cast<uint8_t*>(av_malloc(BUFFER_SIZE)); // 分配缓冲区
+    if (!buffer) {
+        qDebug() << "Failed to allocate buffer.";
+        av_packet_free(&pkt);
+        avformat_free_context(ifmt_ctx);
+        return;
+    }
+
+    avio_ctx = avio_alloc_context(buffer, 4096, 0, nullptr, readPacket, nullptr, nullptr);
+    if (!avio_ctx) {
+        qDebug() << "Failed to allocate AVIOContext.";
+        if (buffer)
+            av_free(buffer);
+        av_packet_free(&pkt);
+        avformat_free_context(ifmt_ctx);
+        return;
+    }
+
+    ifmt_ctx->pb = avio_ctx;
+    ifmt_ctx->flags = AVFMT_FLAG_CUSTOM_IO;
+
+    // 打开输入流，这里是从 QByteArray 或网络流读取
+    if (avformat_open_input(&ifmt_ctx, nullptr, nullptr, nullptr) < 0) {
+        qDebug() << "Failed to open input.";
+        avio_context_free(&avio_ctx);
+        av_free(buffer);
+        av_packet_free(&pkt);
+        avformat_free_context(ifmt_ctx);
+        return;
+    }
+
+    // 获取流信息
+    if (avformat_find_stream_info(ifmt_ctx, nullptr) < 0) {
+        qDebug() << "Failed to find stream info.";
+        avformat_close_input(&ifmt_ctx);
+        return;
+    }
+
+    // 获取音频流索引
+    audioStreamIndex = -1;
+    AVCodecParameters* codec_params = nullptr;
+    for (int i = 0; i < ifmt_ctx->nb_streams; i++) {
+        codec_params = ifmt_ctx->streams[i]->codecpar;
+        if (codec_params->codec_type == AVMEDIA_TYPE_AUDIO) {
+            audioStreamIndex = i;
+            break;
+        }
+    }
+
+    if (audioStreamIndex == -1) {
+        qDebug() << "Audio stream not found.";
+        avformat_close_input(&ifmt_ctx);
+        return;
+    }
+
+    // 查找解码器
+    AVCodec* codec = avcodec_find_decoder(codec_params->codec_id);
+    if (!codec) {
+        qDebug() << "Audio codec not found.";
+        avformat_close_input(&ifmt_ctx);
+        return;
+    }
+
+    // 创建解码器上下文
+    codec_ctx = avcodec_alloc_context3(codec);
+    if (!codec_ctx) {
+        qDebug() << "Failed to allocate codec context.";
+        avformat_close_input(&ifmt_ctx);
+        return;
+    }
+
+    // 将流参数复制到解码器上下文
+    if (avcodec_parameters_to_context(codec_ctx, codec_params) < 0) {
+        qDebug() << "Failed to copy codec parameters to codec context.";
+        avcodec_free_context(&codec_ctx);
+        avformat_close_input(&ifmt_ctx);
+        return;
+    }
+
+    // 打开解码器
+    if (avcodec_open2(codec_ctx, codec, nullptr) < 0) {
+        qDebug() << "Failed to open codec.";
+        avcodec_free_context(&codec_ctx);
+        avformat_close_input(&ifmt_ctx);
+        return;
+    }
+
+    // 打印音频流的参数
+    qDebug() << "Input Sample Rate:" << codec_ctx->sample_rate;
+    qDebug() << "Input Channel Layout:" << codec_ctx->channel_layout;
+    qDebug() << "Input Sample Format:" << codec_ctx->sample_fmt;
+
+    // 检查解码器参数是否有效
+    if (codec_ctx->sample_rate <= 0 || codec_ctx->channel_layout == 0 || codec_ctx->sample_fmt == AV_SAMPLE_FMT_NONE) {
+        qDebug() << "Invalid codec context parameters!";
+        avcodec_free_context(&codec_ctx);
+        avformat_close_input(&ifmt_ctx);
+        return;
+    }
+
+    // 为解码帧分配内存
+    frame = av_frame_alloc();
+    if (!frame) {
+        qDebug() << "Failed to allocate frame.";
+        avcodec_free_context(&codec_ctx);
+        avformat_close_input(&ifmt_ctx);
+        return;
+    }
+
+    // 为音频转换分配 SwrContext
+    swr_ctx = swr_alloc();
+    if (!swr_ctx) {
+        qDebug() << "Failed to allocate SwrContext.";
+        av_frame_free(&frame);
+        avcodec_free_context(&codec_ctx);
+        avformat_close_input(&ifmt_ctx);
+        return;
+    }
+
+    int output_sample_rate = RATE;  // 目标采样率（可以根据需要调整）
+    int64_t output_channel_layout = AV_CH_LAYOUT_STEREO;  // 目标通道布局（例如立体声）
+    enum AVSampleFormat output_sample_fmt = AV_SAMPLE_FMT_S16;  // 目标样本格式（例如 16-bit）
+
+    // 检查并设置 SwrContext 参数
+    if (av_opt_set_int(swr_ctx, "in_channel_layout", codec_ctx->channel_layout, 0) < 0) {
+        qDebug() << "Failed to set input channel layout.";
+    }
+    if (av_opt_set_int(swr_ctx, "out_channel_layout", output_channel_layout, 0) < 0) {
+        qDebug() << "Failed to set output channel layout.";
+    }
+    if (av_opt_set_int(swr_ctx, "in_sample_rate", codec_ctx->sample_rate, 0) < 0) {
+        qDebug() << "Failed to set input sample rate.";
+    }
+    if (av_opt_set_int(swr_ctx, "out_sample_rate", output_sample_rate, 0) < 0) {
+        qDebug() << "Failed to set output sample rate.";
+    }
+    if (av_opt_set_sample_fmt(swr_ctx, "in_sample_fmt", codec_ctx->sample_fmt, 0) < 0) {
+        qDebug() << "Failed to set input sample format.";
+    }
+    if (av_opt_set_sample_fmt(swr_ctx, "out_sample_fmt", output_sample_fmt, 0) < 0) {
+        qDebug() << "Failed to set output sample format.";
+    }
+
+    // 初始化音频重采样器
+    int ret = swr_init(swr_ctx);
+    if (ret < 0) {
+        qDebug() << "Could not initialize resampler:";
+        swr_free(&swr_ctx);
+        av_packet_free(&pkt);
+        av_frame_free(&frame);
+        avcodec_free_context(&codec_ctx);
+        avformat_close_input(&ifmt_ctx);
+        return;
+    }
+
+    qint64 totalAudioDurationInMS = ifmt_ctx->duration * av_q2d(AV_TIME_BASE_Q) * 1000;
+
+
+    emit send_totalDuration(totalAudioDurationInMS);
+
+    qInfo()<<__FUNCTION__<<totalAudioDurationInMS;
+
+    emit begin_to_play();
+    emit begin_to_decode();
 }
 
 void Take_pcm::decode()
@@ -260,7 +466,11 @@ void Take_pcm::decode()
                     uint8_t* buffer = nullptr;
                     buffer = (uint8_t*)malloc(buffer_size);
 
-
+                    if(!buffer)
+                    {
+                        qDebug()<<"Failed to allocate memory for buffer.";
+                        return;
+                    }
                     int converted_samples = swr_convert(swr_ctx, &buffer
                                                         , dst_nb_samples
                                                         , (const uint8_t**)frame->data
@@ -301,4 +511,49 @@ void Take_pcm::send_data(uint8_t *buffer, int bufferSize,qint64 timeMap)
     emit data(byteArray,timeMap);
 
 
+}
+
+
+int readPacket(void* opaque, uint8_t* buf, int buf_size) {
+    QMutexLocker locker(&bufferMutex);
+
+    // 等待数据可用
+    while (dataQueue.isEmpty() && !endOfStream) {
+        dataAvailable.wait(&bufferMutex);
+    }
+
+    // 如果流结束且没有数据，返回 EOF
+    if (dataQueue.isEmpty() && endOfStream) {
+        return AVERROR_EOF;
+    }
+
+    // 从队列中取出数据
+    QByteArray chunk = dataQueue.dequeue();
+    int toCopy = qMin(buf_size, chunk.size());
+    memcpy(buf, chunk.data(), toCopy);
+
+    // 如果还有剩余数据，将剩余部分放回队列
+    if (toCopy < chunk.size()) {
+        dataQueue.enqueue(chunk.mid(toCopy));
+    }
+
+    return toCopy;
+}
+void Take_pcm::Receivedata(QByteArray chunk)
+{
+    QMutexLocker locker(&bufferMutex);
+    receiveData(chunk);
+}
+
+void receiveData(QByteArray newData) {
+
+    // 将新数据添加到队列
+    dataQueue.enqueue(newData);
+    dataAvailable.wakeOne(); // 通知等待的读取线程有新数据可用
+}
+
+void finishStream() {
+    QMutexLocker locker(&bufferMutex);
+    endOfStream = true;
+    dataAvailable.wakeAll(); // 通知所有等待线程，流已经结束
 }

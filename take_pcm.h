@@ -17,6 +17,10 @@ public slots:
 
     void seekToPosition(int newPosition);
 
+    void decodeFromStream();
+
+    void Receivedata(QByteArray chunk);
+
 signals:
     void begin_take_lrc(QString Path);
 
@@ -38,6 +42,7 @@ private:
 
     void decode();
 
+
     AVFormatContext *ifmt_ctx;
 
     AVCodecContext *codec_ctx ;
@@ -51,6 +56,7 @@ private:
     int audioStreamIndex;
 
     bool drag;
+
 };
 
 #endif // TAKE_PCM_H

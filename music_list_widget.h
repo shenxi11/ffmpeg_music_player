@@ -40,7 +40,10 @@ protected:
     void paintEvent(QPaintEvent *event) override
         {
             QPainter painter(viewport());
-            painter.fillRect(rect(), QColor(246, 246, 246));  // 使用背景颜色填充整个窗口
+            painter.setRenderHint(QPainter::Antialiasing);
+
+            QColor backgroundColor("#F7F9FC");
+            painter.fillRect(this->rect(), backgroundColor);
 
             // 调用父类的 paintEvent 以确保绘制子项等内容
             QListWidget::paintEvent(event);

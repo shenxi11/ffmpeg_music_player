@@ -25,6 +25,7 @@ SOURCES += \
     music_item.cpp \
     music_list_widget.cpp \
     play_widget.cpp \
+    searchbox.cpp \
     take_pcm.cpp \
     worker.cpp
 
@@ -38,6 +39,7 @@ HEADERS += \
     music_item.h \
     music_list_widget.h \
     play_widget.h \
+    searchbox.h \
     take_pcm.h \
     worker.h
 

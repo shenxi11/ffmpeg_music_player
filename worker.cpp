@@ -202,7 +202,7 @@ void Worker::Pause()
 //}
 void Worker::reset_play()
 {
-//    std::lock_guard<std::mutex>lock(mtx);
+   //std::lock_guard<std::mutex>lock(mtx);
     this->mp.clear();
     this->audioBuffer.clear();
     this->audioOutput->reset();
@@ -213,7 +213,7 @@ void Worker::reset_play()
 void Worker::onTimeOut()
 {
 
-//    std::lock_guard<std::mutex> lock(mtx);
+   //std::lock_guard<std::mutex> lock(mtx);
 
 
     if (audioBuffer.isEmpty())
@@ -303,9 +303,10 @@ void Worker::onTimeOut()
 
 void Worker::receive_data(const QByteArray &data,qint64 timeMap)
 {
-//    std::lock_guard<std::mutex>lock(mtx);
+    //std::lock_guard<std::mutex>lock(mtx);
     this->audioBuffer.enqueue(data);
     this->mp[data]=timeMap;
+    qDebug()<<__FUNCTION__<<this->audioBuffer.size();
 
 }
 void Worker::setPATH(QString Path)

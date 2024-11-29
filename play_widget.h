@@ -1,16 +1,16 @@
 #ifndef PLAY_WIDGET_H
 #define PLAY_WIDGET_H
 
-#include<QWidget>
-#include<QSlider>
-#include<QScrollBar>
-#include<QTextBlock>
-#include"headers.h"
-#include"worker.h"
-#include"lrc_analyze.h"
-#include"take_pcm.h"
-#include"lyrictextedit.h"
-
+#include <QWidget>
+#include <QSlider>
+#include <QScrollBar>
+#include <QTextBlock>
+#include "headers.h"
+#include "worker.h"
+#include "lrc_analyze.h"
+#include "take_pcm.h"
+#include "lyrictextedit.h"
+#include "httprequest.h"
 
 class Play_Widget : public QWidget
 {
@@ -22,11 +22,11 @@ public:
 
 public slots:
 
-//    void _begin_to_play(QString path);
+    //    void _begin_to_play(QString path);
 
     void _begin_take_lrc(QString str);
 
-//    void _play_list_music(QString path);
+    //    void _play_list_music(QString path);
 
     void _play_click(QString songName);
 
@@ -75,6 +75,8 @@ private:
 
     std::map<int, std::string> lyrics;
 
+    HttpRequest* request;
+
     QString filePath;
     QString fileName;
 
@@ -98,6 +100,7 @@ private:
 
     QSlider *Slider;
 
+    QPushButton* net;
 
     qint64 duration = 0;
 
@@ -109,29 +112,27 @@ private:
     QThread *c;
 
     bool played;
-
     bool loop;
 
 protected:
-//    void resizeEvent(QResizeEvent *event) override {
-//            // Update the mask when the window is resized
-//            QRegion region(0, 350, width(), 350);
-//            setMask(region);
-
-//            QWidget::resizeEvent(event);
-//        }
 
     void paintEvent(QPaintEvent *event) override {
-            QWidget::paintEvent(event);
+        QWidget::paintEvent(event);
 
-            // 创建画笔对象，用于在窗口上绘图
-            QPainter painter(this);
+        // 创建画笔对象，用于在窗口上绘图
+        QPainter painter(this);
 
-            // 加载背景图片
-            QPixmap background(":/new/prefix1/icon/bg.png");
+        QLinearGradient gradient(0, 0, width(), height());
 
-            // 按窗口大小缩放背景图片
-            painter.drawPixmap(0, 0, width(), height(), background);
-        }
+        // 设置渐变的起始和结束颜色
+        gradient.setColorAt(0, QColor("#101D29"));  // 起始颜色
+        gradient.setColorAt(1, QColor("#24435E"));  // 结束颜色
+
+        // 设置渐变为填充色
+        painter.setBrush(gradient);
+
+        // 绘制渐变背景
+        painter.drawRect(0, 0, width(), height());
+    }
 };
 #endif // MAINWINDOW_H

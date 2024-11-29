@@ -18,6 +18,7 @@ void MusicListWidget::addSong(const QString songName, const QString path)
 
     connect(itemWidget, &MusicItem::play_click, this, &MusicListWidget::_play_click);
     connect(itemWidget, &MusicItem::remove_click, this, &MusicListWidget::_remove_click);
+    qDebug()<<__FUNCTION__<<songName<<path;
     setItemWidget(item,itemWidget);
 }
 //void MusicListWidget::mouseDoubleClickEvent(QMouseEvent *event)
