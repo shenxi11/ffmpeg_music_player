@@ -15,40 +15,41 @@ Play_Widget::Play_Widget(QWidget *parent)
     last  = new QPushButton(this);
     next  = new QPushButton(this);
 
+    Loop->setFixedSize(30,30);
+    music->setFixedSize(30,30);
+    last->setFixedSize(30,30);
+    play->setFixedSize(30,30);
+    next->setFixedSize(30,30);
+    video->setFixedSize(30,30);
+    mlist->setFixedSize(30,30);
+
     Slider = new QSlider(Qt::Horizontal,this);
     Slider->setMinimum(0);
     Slider->setMaximum(0);
 
-    int space = (800-8*50)/9;
+    QHBoxLayout* hlayout = new QHBoxLayout(this);
+    hlayout->addWidget(Loop);
+    hlayout->addWidget(music);
+    hlayout->addWidget(last);
+    hlayout->addWidget(play);
+    hlayout->addWidget(next);
+    hlayout->addWidget(video);
+    hlayout->addWidget(mlist);
 
-    Loop->setFixedSize(50,50);
-    Loop->move(space,400);
+    QWidget* button_widget = new QWidget(this);
+    button_widget->setFixedSize(1000, 100);
+    button_widget->setLayout(hlayout);
+    button_widget->move(0, 520);
+    button_widget->setLayout(hlayout);
 
-    music->setFixedSize(50,50);
-    music->move(50+2*space,400);
-
-    last->setFixedSize(50,50);
-    last->move(2*50+3*space,400);
-
-    play->setFixedSize(50,50);
-    play->move(50*3+4*space,400);
-
-    next->setFixedSize(50,50);
-    next->move(4*50+5*space,400);
-
-    video->setFixedSize(50,50);
-    video->move(5*50+6*space,400);
-
-    mlist->setFixedSize(50,50);
-    mlist->move(6*50+7*space,400);
-
-    Slider->setFixedSize(800,20);
-    Slider->move((800-Slider->width())/2,350);
+    Slider->setFixedSize(1000,20);
+    Slider->move((1000-Slider->width())/2, 500);
 
 
     video->setCheckable(true);
     music->setCheckable(true);
     mlist->setCheckable(true);
+
 
     video->setStyleSheet(
                 "QPushButton {"
@@ -83,13 +84,14 @@ Play_Widget::Play_Widget(QWidget *parent)
                 );
 
     slider = new QSlider(Qt::Vertical, this);
-    slider->close();
+    slider->hide();
     slider->setMinimum(0);
     slider->setMaximum(100);
     slider->setValue(50);
     slider->setTickPosition(QSlider::TicksRight);  // 在滑条右侧显示刻度
     slider->setTickInterval(10);
-    slider->setGeometry(video->pos().x(),video->pos().y()-video->height()*3,video->width(),video->height()*3);
+    qDebug()<<video->pos();
+
 
 
     Loop->setStyleSheet(
@@ -112,6 +114,8 @@ Play_Widget::Play_Widget(QWidget *parent)
     take_pcm = std::make_unique<Take_pcm>();
     take_pcm->moveToThread(a);
 
+    request = new HttpRequest(this);
+
     a->start();
     b->start();
     c->start();
@@ -121,6 +125,7 @@ Play_Widget::Play_Widget(QWidget *parent)
 
     //qDebug()<<"MainWindow"<<QThread::currentThreadId();
 
+    connect(request, &HttpRequest::send_Packet, take_pcm.get(), &Take_pcm::Receivedata);
 
     connect(music,&QPushButton::toggled,this,[=](bool checked) {
         emit big_clicked(checked);
@@ -172,22 +177,12 @@ Play_Widget::Play_Widget(QWidget *parent)
             //qDebug()<<"rePlay"<<this->filePath;
         }
     });
-    //    connect(take_pcm.get(),&Take_pcm::begin_take_lrc,this,&MainWindow::_begin_take_lrc);
-    //    connect(this,&MainWindow::begin_take_lrc,lrc.get(),&lrc_analyze::begin_take_lrc);
 
-
-    //    connect(take_pcm.get(),&Take_pcm::begin_take_lrc,this,&Play_Widget::_begin_take_lrc);
-    //    connect(this,&Play_Widget::begin_take_lrc,lrc.get(),&LrcAnalyze::begin_take_lrc);
     connect(this, &Play_Widget::filepath, this, &Play_Widget::_begin_take_lrc);
     connect(this,&Play_Widget::begin_take_lrc,lrc.get(),&LrcAnalyze::begin_take_lrc);
 
-    //connect(take_pcm.get(),&Take_pcm::begin_take_lrc,lrc.get(),&LrcAnalyze::begin_take_lrc);
-
-
     connect(lrc.get(),&LrcAnalyze::send_lrc,work.get(),&Worker::receive_lrc);
     connect(lrc.get(),&LrcAnalyze::send_lrc,this,[=](const std::map<int, std::string> lyrics){
-
-
 
         this->textEdit->currentLine = 4;
         this->lyrics.clear();
@@ -200,7 +195,6 @@ Play_Widget::Play_Widget(QWidget *parent)
             for (const auto& [time, text] : lyrics)
             {
                 textEdit->append(QString::fromStdString(text));
-                //qDebug()<<QString::fromStdString(text);
             }
             this->lyrics = lyrics;
         }
@@ -209,20 +203,15 @@ Play_Widget::Play_Widget(QWidget *parent)
             textEdit->append("    ");
         }
 
-
-        // 获取 QTextEdit 的光标
         QTextCursor cursor = textEdit->textCursor();
 
-        // 选择整个文档的文本
         cursor.select(QTextCursor::Document);
 
-        // 创建一个 QTextBlockFormat 对象
         QTextBlockFormat blockFormat;
-        blockFormat.setAlignment(Qt::AlignCenter); // 设置对齐方式为居中
+        blockFormat.setAlignment(Qt::AlignCenter);
 
         cursor.mergeBlockFormat(blockFormat);
 
-        // 更新 QTextEdit 的光标位置
         textEdit->setTextCursor(cursor);
 
 
@@ -292,9 +281,11 @@ Play_Widget::Play_Widget(QWidget *parent)
     connect(video,&QPushButton::toggled,this,[=](bool checked){
         if(checked)
         {
-            //qDebug()<<"被选中";
-
+            qDebug()<<"被选中";
+            auto Position = button_widget->mapToParent(video->pos());
+            slider->setGeometry(Position.x(), Position.y()-video->height()*3,video->width(),video->height()*3);
             slider->show();
+            slider->raise();
         }
         else
         {
@@ -324,7 +315,6 @@ Play_Widget::Play_Widget(QWidget *parent)
     });
     connect(work.get(),&Worker::durations,[=](qint64 value){
         Slider->setValue((value*10000000)/this->duration);
-        // qDebug()<<Slider->value()*this->duration/10000000;
     });
     connect(this,&Play_Widget::set_SliderMove,work.get(),&Worker::set_SliderMove);
 
@@ -368,7 +358,7 @@ void Play_Widget::init_TextEdit()
     this->textEdit = new LyricTextEdit(this);
     this->textEdit->setTextInteractionFlags(Qt::NoTextInteraction);//禁用交互
     this->textEdit->disableScrollBar();
-    this->textEdit->setFixedSize(450,300);
+    this->textEdit->setFixedSize(450,400);
 
     this->textEdit->viewport()->setCursor(Qt::ArrowCursor);
 
@@ -414,7 +404,7 @@ void Play_Widget::openfile()
         QString filename = fileInfo.fileName();
         emit add_song(filename,filePath_);
 
-
+        //request->Upload(filePath_);
 
         //qDebug() << "Selected file:" << filePath;
     }

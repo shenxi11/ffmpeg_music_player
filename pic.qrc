@@ -18,5 +18,10 @@
         <file>icon/up.png</file>
         <file>icon/netease.ico</file>
         <file>icon/netease.png</file>
+        <file>icon/search.png</file>
+        <file>icon/方形未选中.png</file>
+        <file>icon/关闭1.png</file>
+        <file>icon/减号.png</file>
+        <file>icon/denglu.png</file>
     </qresource>
 </RCC>

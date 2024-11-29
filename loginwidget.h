@@ -22,6 +22,11 @@ public:
     bool isVisible = false;
 signals:
 
+protected:
+    void closeEvent(QCloseEvent *event) override
+    {
+        this->isVisible = false;
+    };
 private:
     QLineEdit* account;
     QLineEdit* password;

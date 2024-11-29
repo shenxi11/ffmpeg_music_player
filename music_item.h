@@ -11,6 +11,8 @@ class MusicItem :  public QWidget
 public:
     explicit MusicItem(const QString& name, const QString& path, const QString& picPath, QSize size);
 
+    void setNetMusic(bool flag){this->isNetMusic = flag;}
+
     QString getName();
 
     QString getPath();
@@ -44,6 +46,8 @@ private:
     QPushButton* remove;
 
     bool hover = false;
+
+    bool isNetMusic = false;
 
 protected:
 
