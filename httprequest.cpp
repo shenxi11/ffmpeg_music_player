@@ -24,11 +24,22 @@ bool HttpRequest::Login(const QString& account, const QString& password)
     connect(reply, &QNetworkReply::finished, [this, reply]() {
         if (reply->error() == QNetworkReply::NoError) {
             QByteArray response_data = reply->readAll();
-            qDebug() << "Response:" << response_data;
-            emit Loginflag(true);
+
+            emit signal_Loginflag(true);
+            QJsonDocument jsonDoc = QJsonDocument::fromJson(response_data);
+
+            QJsonObject jsonObject = jsonDoc.object();
+
+            if (jsonObject.contains("success")) {
+                QJsonValue successValue = jsonObject.value("success");
+                qDebug() << "Response:" << response_data;
+
+                emit signal_getusername(successValue.toString());
+            }
+
         } else {
             qDebug() << "Error:" << reply->errorString();
-            emit Loginflag(false);
+            emit signal_Loginflag(false);
         }
         reply->deleteLater();
     });
@@ -54,10 +65,10 @@ bool HttpRequest:: Register(const QString& account, const QString& password, con
         if (reply->error() == QNetworkReply::NoError) {
             QByteArray response_data = reply->readAll();
             qDebug() << "Response:" << response_data;
-            emit Registerflag(true);
+            emit signal_Registerflag(true);
         } else {
             qDebug() << "Error:" << reply->errorString();
-            emit Registerflag(false);
+            emit signal_Registerflag(false);
         }
         reply->deleteLater();
     });
@@ -178,7 +189,7 @@ bool HttpRequest::getAllFiles()
                 qDebug() << "Files received from server:";
                 for (const QJsonValue& value : filesArray) {
                     //qDebug() << value.toString();
-                    emit addSong(value.toString(), value.toString());
+                    emit signal_addSong(value.toString(), value.toString());
                 }
 
 
@@ -216,12 +227,12 @@ void HttpRequest::sendRequestAndForwardData() {
 
     // 连接 readyRead 信号来持续接收数据
     connect(reply, &QNetworkReply::readyRead, [this, reply]() {
-           // 逐块读取数据
-           while (reply->bytesAvailable()) {
-               QByteArray chunk = reply->read(4096);
-               emit send_Packet(chunk);
-           }
-       });
+        // 逐块读取数据
+        while (reply->bytesAvailable()) {
+            QByteArray chunk = reply->read(4096);
+            emit signal_send_Packet(chunk);
+        }
+    });
 
     // 连接finished信号来处理响应的结束
     connect(reply, &QNetworkReply::finished, [reply]() {
@@ -275,7 +286,7 @@ bool HttpRequest::getMusic(const QString& name) {
                 qDebug() << "Music files received from server:";
                 for (const QJsonValue& value : filesArray) {
                     qDebug() << value.toString();
-                    emit addSong(value.toString(), value.toString());
+                    emit signal_addSong(value.toString(), value.toString());
                 }
             } else {
                 qWarning() << "Failed to parse JSON array.";

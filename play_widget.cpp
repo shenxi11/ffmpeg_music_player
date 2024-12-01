@@ -6,17 +6,22 @@ Play_Widget::Play_Widget(QWidget *parent)
     ,loop(false)
 
 {
+    QWidget* bottom = new QWidget(this);
+    bottom->setFixedSize(1000, 100);
+    bottom->move(0, 500);
 
-    play  = new QPushButton(this);
-    video = new QPushButton(this);
-    Loop  = new QPushButton(this);
-    music = new QPushButton(this);
-    mlist = new QPushButton(this);
-    last  = new QPushButton(this);
-    next  = new QPushButton(this);
+    button_widget = new QWidget(bottom);
+
+    play  = new QPushButton(button_widget);
+    video = new QPushButton(button_widget);
+    Loop  = new QPushButton(button_widget);
+
+    mlist = new QPushButton(button_widget);
+    last  = new QPushButton(button_widget);
+    next  = new QPushButton(button_widget);
 
     Loop->setFixedSize(30,30);
-    music->setFixedSize(30,30);
+
     last->setFixedSize(30,30);
     play->setFixedSize(30,30);
     next->setFixedSize(30,30);
@@ -27,38 +32,77 @@ Play_Widget::Play_Widget(QWidget *parent)
     Slider->setMinimum(0);
     Slider->setMaximum(0);
 
+
     QHBoxLayout* hlayout = new QHBoxLayout(this);
     hlayout->addWidget(Loop);
-    hlayout->addWidget(music);
+    //hlayout->addWidget(music);
     hlayout->addWidget(last);
     hlayout->addWidget(play);
     hlayout->addWidget(next);
     hlayout->addWidget(video);
     hlayout->addWidget(mlist);
 
-    QWidget* button_widget = new QWidget(this);
-    button_widget->setFixedSize(1000, 100);
+
+    //button_widget->setFixedSize(1000, 100);
     button_widget->setLayout(hlayout);
-    button_widget->move(0, 520);
+//    button_widget->move(0, 520);
     button_widget->setLayout(hlayout);
+    //button_widget->setStyleSheet("background: transparent;");
+
+    pianWidget = new PianWidget(bottom);
+    connect(pianWidget, &PianWidget::signal_up_click, this, [=](bool flag){
+        emit signal_big_clicked(flag);
+        setPianWidgetEnable(true);
+    });
+
+    QHBoxLayout* hlayout__ = new QHBoxLayout(this);
+    hlayout__->addWidget(pianWidget);
+    hlayout__->addWidget(button_widget);
+
+    bottom->setLayout(hlayout__);
+
+
 
     Slider->setFixedSize(1000,20);
     Slider->move((1000-Slider->width())/2, 500);
 
+    Slider->setStyleSheet(
+        "QSlider {"
+        "    background: transparent;"
+        "    border: none;"
+        "}"
+        "QSlider::handle:horizontal {"
+        "    background: #3f8b6d;"
+        "    border: 1px solid #5c5c5c;"
+        "    width: 15px;"
+        "    height: 15px;"
+        "    border-radius: 5px;"
+        "    margin: -10px 0px;"
+        "}"
+        "QSlider::groove:horizontal {"
+        "    background: #f0f0f0;"
+        "    height: 4px;"
+        "    border: none;"
+        "    margin: 0px;"
+        "}"
+        "QSlider::add-page:horizontal {"
+        "    background: transparent;"
+        "}"
+        "QSlider::sub-page:horizontal {"
+        "    background: #3f8b6d;"
+        "}"
+    );
+
+
 
     video->setCheckable(true);
-    music->setCheckable(true);
+
     mlist->setCheckable(true);
 
 
     video->setStyleSheet(
                 "QPushButton {"
                 "    border-image: url(:/new/prefix1/icon/volume.png);"
-                "}"
-                );
-    music->setStyleSheet(
-                "QPushButton {"
-                "    border-image: url(:/new/prefix1/icon/up.png);"
                 "}"
                 );
 
@@ -90,7 +134,6 @@ Play_Widget::Play_Widget(QWidget *parent)
     slider->setValue(50);
     slider->setTickPosition(QSlider::TicksRight);  // 在滑条右侧显示刻度
     slider->setTickInterval(10);
-    qDebug()<<video->pos();
 
 
 
@@ -100,6 +143,21 @@ Play_Widget::Play_Widget(QWidget *parent)
                 "}"
                 );
 
+    music = new QPushButton(this);
+    music->setFixedSize(30,30);
+    music->setStyleSheet(
+                "QPushButton {"
+                "    border-image: url(:/new/prefix1/icon/up.png);"
+                "}"
+                );
+    connect(music,&QPushButton::clicked,this,[=]() {
+        emit signal_big_clicked(false);
+
+    });
+    music->move(10, 10);
+
+
+    //music->setCheckable(true);
 
     a = new QThread(this);
     b = new QThread(this);
@@ -120,28 +178,34 @@ Play_Widget::Play_Widget(QWidget *parent)
     b->start();
     c->start();
     init_TextEdit();
-    this->textEdit->setCursor(Qt::ArrowCursor);
 
+
+
+
+
+    //this->textEdit->setCursor(Qt::ArrowCursor);
+
+    RotatingCircleImage* rotate = new RotatingCircleImage(this);
+    rotate->move(100, 100);
+    rotate->resize(300, 300);
+    connect(this, &Play_Widget::signal_stop_rotate, rotate, &RotatingCircleImage::on_signal_stop_rotate);
 
     //qDebug()<<"MainWindow"<<QThread::currentThreadId();
 
-    connect(request, &HttpRequest::send_Packet, take_pcm.get(), &Take_pcm::Receivedata);
+    connect(request, &HttpRequest::signal_send_Packet, take_pcm.get(), &Take_pcm::Receivedata);
 
-    connect(music,&QPushButton::toggled,this,[=](bool checked) {
-        emit big_clicked(checked);
-    });
 
     connect(next, &QPushButton::clicked, this, [=](){
-        emit Next(this->fileName);
+        emit signal_Next(this->fileName);
     });
     connect(last, &QPushButton::clicked, this, [=](){
-        emit Last(this->fileName);
+        emit signal_Last(this->fileName);
     });
 
     connect(take_pcm.get(), &Take_pcm::begin_take_lrc, work.get(), &Worker::setPATH);
 
 
-    connect(this,&Play_Widget::filepath,take_pcm.get(),&Take_pcm::make_pcm);
+    connect(this,&Play_Widget::signal_filepath,take_pcm.get(),&Take_pcm::make_pcm);
     //connect(this,&Play_Widget::filepath,work.get(),&Worker::play_pcm);
     connect(take_pcm.get(),&Take_pcm::begin_to_play,work.get(),&Worker::play_pcm);
     connect(take_pcm.get(),&Take_pcm::data,work.get(),&Worker::receive_data);
@@ -157,7 +221,7 @@ Play_Widget::Play_Widget(QWidget *parent)
 
     connect(take_pcm.get(),&Take_pcm::send_totalDuration,work.get(),&Worker::receive_totalDuration);
 
-    connect(this, &Play_Widget::remove_click, work.get(), &Worker::reset_status);
+    connect(this, &Play_Widget::signal_remove_click, work.get(), &Worker::reset_status);
     connect(work.get(),&Worker::rePlay,this,[=](){
         {
             std::lock_guard<std::mutex>lock(mtx);
@@ -178,8 +242,8 @@ Play_Widget::Play_Widget(QWidget *parent)
         }
     });
 
-    connect(this, &Play_Widget::filepath, this, &Play_Widget::_begin_take_lrc);
-    connect(this,&Play_Widget::begin_take_lrc,lrc.get(),&LrcAnalyze::begin_take_lrc);
+    connect(this, &Play_Widget::signal_filepath, this, &Play_Widget::_begin_take_lrc);
+    connect(this,&Play_Widget::signal_begin_take_lrc,lrc.get(),&LrcAnalyze::begin_take_lrc);
 
     connect(lrc.get(),&LrcAnalyze::send_lrc,work.get(),&Worker::receive_lrc);
     connect(lrc.get(),&LrcAnalyze::send_lrc,this,[=](const std::map<int, std::string> lyrics){
@@ -198,7 +262,7 @@ Play_Widget::Play_Widget(QWidget *parent)
             }
             this->lyrics = lyrics;
         }
-        for(int i = 0;i<5;i++)
+        for(int i = 0;i < 9;i++)
         {
             textEdit->append("    ");
         }
@@ -234,6 +298,13 @@ Play_Widget::Play_Widget(QWidget *parent)
         }
     });
 
+    QLabel* nameLabel = new QLabel(this);
+    nameLabel->move(400, 50);
+    nameLabel->setStyleSheet("QLabel { color: white; font-size: 28px; }");
+    nameLabel->setWordWrap(true);
+    nameLabel->setFixedSize(550, 30);
+    nameLabel->setAlignment(Qt::AlignCenter);
+
     connect(work.get(),&Worker::Stop,this,[=](){
 
         play->setStyleSheet(
@@ -242,8 +313,12 @@ Play_Widget::Play_Widget(QWidget *parent)
                     "}"
                     );
         if(fileName.size())
-            emit play_button_click(false, fileName);
-
+        {
+            emit signal_stop_rotate(false);
+            emit signal_play_button_click(false, fileName);
+            pianWidget->setName(QFileInfo(fileName).baseName());
+            nameLabel->setText(QFileInfo(fileName).baseName());
+        }
     });
     connect(work.get(),&Worker::Begin,this,[=](){
 
@@ -252,7 +327,10 @@ Play_Widget::Play_Widget(QWidget *parent)
                     "    border-image: url(:/new/prefix1/icon/pause.png);"
                     "}"
                     );
-        emit play_button_click(true, fileName);
+        emit signal_stop_rotate(true);
+        emit signal_play_button_click(true, fileName);
+        pianWidget->setName(QFileInfo(fileName).baseName());
+        nameLabel->setText(QFileInfo(fileName).baseName());
     });
 
     connect(Loop,&QPushButton::clicked,this,[=](){
@@ -296,15 +374,15 @@ Play_Widget::Play_Widget(QWidget *parent)
         }
     });
 
-    connect(mlist,&QPushButton::toggled,this,[=](bool checked){
+    connect(mlist,&QPushButton::toggled, this, [=](bool checked){
         if(checked)
         {
-            emit list_show(true);
+            emit signal_list_show(true);
             //qDebug()<<"show";
         }
         else
         {
-            emit list_show(false);
+            emit signal_list_show(false);
         }
     });
     connect(slider,&QSlider::valueChanged,work.get(),&Worker::Set_Volume);
@@ -316,10 +394,10 @@ Play_Widget::Play_Widget(QWidget *parent)
     connect(work.get(),&Worker::durations,[=](qint64 value){
         Slider->setValue((value*10000000)/this->duration);
     });
-    connect(this,&Play_Widget::set_SliderMove,work.get(),&Worker::set_SliderMove);
+    connect(this,&Play_Widget::signal_set_SliderMove,work.get(),&Worker::set_SliderMove);
 
     connect(Slider,&QSlider::sliderPressed,[=](){
-        emit set_SliderMove(true);
+        emit signal_set_SliderMove(true);
 
     });
 
@@ -328,13 +406,13 @@ Play_Widget::Play_Widget(QWidget *parent)
 
         int newPosition = Slider->value()*this->duration/10000000;
 
-        emit process_Change(newPosition);
-        emit set_SliderMove(false);
+        emit signal_process_Change(newPosition);
+        emit signal_set_SliderMove(false);
 
         Slider->setValue((newPosition*10000)/this->duration);
     });
 
-    connect(this,&Play_Widget::process_Change,take_pcm.get(),&Take_pcm::seekToPosition);
+    connect(this,&Play_Widget::signal_process_Change,take_pcm.get(),&Take_pcm::seekToPosition);
 
 }
 
@@ -344,7 +422,7 @@ void Play_Widget::rePlay(QString path)
     Slider->setMinimum(0);
     Slider->setMaximum(0);
 
-    emit filepath(path);
+    emit signal_filepath(path);
     {
         std::lock_guard<std::mutex>lock(mtx);
         this->played = false;
@@ -355,19 +433,26 @@ void Play_Widget::rePlay(QString path)
 
 void Play_Widget::init_TextEdit()
 {
-    this->textEdit = new LyricTextEdit(this);
-    this->textEdit->setTextInteractionFlags(Qt::NoTextInteraction);//禁用交互
-    this->textEdit->disableScrollBar();
-    this->textEdit->setFixedSize(450,400);
+    textEdit = new LyricTextEdit(this);
+    textEdit->disableScrollBar();
+    textEdit->resize(550, 350);
+    textEdit->setReadOnly(true);
+    textEdit->setFocusPolicy(Qt::NoFocus);
+    textEdit->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    textEdit->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    textEdit->setTextInteractionFlags(Qt::NoTextInteraction);
+    textEdit->viewport()->setCursor(Qt::ArrowCursor);
 
-    this->textEdit->viewport()->setCursor(Qt::ArrowCursor);
-
-    QFont font = this->textEdit->font();
+    QFont font = textEdit->font();
     font.setPointSize(16);
-    this->textEdit->setFont(font);
-    this->textEdit->setStyleSheet("QTextEdit { background: transparent; border: none; }");
-    this->textEdit->move(400, 0);
 
+    textEdit->setFont(font);
+    textEdit->setStyleSheet("QTextEdit { background: transparent; border: none; }");
+    textEdit->move(400, 100);
+
+    QPalette palette = this->textEdit->palette();
+    palette.setColor(QPalette::Text, QColor("#FAFAFA"));
+    this->textEdit->setPalette(palette);
 }
 
 
@@ -377,7 +462,7 @@ void Play_Widget::_begin_take_lrc(QString str)
     Slider->setRange(0,10000);
     this->textEdit->clear();
 
-    emit begin_take_lrc(str);
+    emit signal_begin_take_lrc(str);
 
     QTextCursor cursor = textEdit->textCursor();
     cursor.movePosition(QTextCursor::Start);
@@ -402,7 +487,7 @@ void Play_Widget::openfile()
     {
         QFileInfo fileInfo(filePath_);
         QString filename = fileInfo.fileName();
-        emit add_song(filename,filePath_);
+        emit signal_add_song(filename,filePath_);
 
         //request->Upload(filePath_);
 
@@ -428,7 +513,7 @@ void Play_Widget::_play_click(QString songPath)
         Slider->setMinimum(0);
         Slider->setMaximum(0);
 
-        emit filepath(songPath);
+        emit signal_filepath(songPath);
 
 
     }
@@ -447,8 +532,15 @@ void Play_Widget::_remove_click(QString songName)
         this->fileName.clear();
         this->filePath.clear();
 
-        emit remove_click();
+        emit signal_remove_click();
     }
+}
+void Play_Widget::setPianWidgetEnable(bool flag)
+{
+    if(flag)
+        this->pianWidget->hide();
+    else
+        this->pianWidget->show();
 }
 Play_Widget::~Play_Widget()
 {

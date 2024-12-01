@@ -43,12 +43,11 @@ public:
 
     bool getMusic(const QString& name);
 signals:
-    void Loginflag(bool flag);
-    void Registerflag(bool flag);
-
-    void send_Packet(QByteArray chunk);
-
-    void addSong(const QString songName,const QString songPath);
+    void signal_Loginflag(bool flag);
+    void signal_Registerflag(bool flag);
+    void signal_getusername(QString username);
+    void signal_send_Packet(QByteArray chunk);
+    void signal_addSong(const QString songName,const QString songPath);
 private:
 
     const QString localUrl = "http://localhost:5000/";

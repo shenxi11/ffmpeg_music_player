@@ -21,9 +21,8 @@ public:
 
     void highlightLine(int lineNumber);
 
-    void updateScrollBar();
 
-    int currentLine=4;  // 当前的歌词行
+    int currentLine = 4;  // 当前的歌词行
 
     void disableScrollBar();
 signals:
@@ -41,6 +40,23 @@ private:
     int getLineHeight(int fontSize);
 
     int getLineSpacing(int fontSize);
+
+protected:
+    void mousePressEvent(QMouseEvent *event) override
+    {
+        event->ignore();
+    }
+
+    void mouseMoveEvent(QMouseEvent *event) override
+    {
+        event->ignore();
+    }
+
+    void mouseReleaseEvent(QMouseEvent *event) override
+    {
+        event->ignore();
+    }
+
 
 };
 

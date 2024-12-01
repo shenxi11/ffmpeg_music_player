@@ -23,5 +23,7 @@
         <file>icon/关闭1.png</file>
         <file>icon/减号.png</file>
         <file>icon/denglu.png</file>
+        <file>icon/maxresdefault.jpg</file>
+        <file>icon/pian.png</file>
     </qresource>
 </RCC>
