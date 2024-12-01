@@ -1,4 +1,4 @@
-QT       += core gui multimedia network
+QT       += core gui multimedia network concurrent
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -24,7 +24,9 @@ SOURCES += \
     main_widget.cpp \
     music_item.cpp \
     music_list_widget.cpp \
+    pianwidget.cpp \
     play_widget.cpp \
+    rotatingcircleimage.cpp \
     searchbox.cpp \
     take_pcm.cpp \
     worker.cpp
@@ -38,7 +40,9 @@ HEADERS += \
     main_widget.h \
     music_item.h \
     music_list_widget.h \
+    pianwidget.h \
     play_widget.h \
+    rotatingcircleimage.h \
     searchbox.h \
     take_pcm.h \
     worker.h

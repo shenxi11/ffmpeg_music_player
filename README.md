@@ -7,4 +7,5 @@
   - Qt 5.14.2
   - ffmpeg4.4
 - **构建脚本**: 使用qMake配置
-![Example image](test_img.png)
+![Example image](main.png)
+![Example image](plays.png)

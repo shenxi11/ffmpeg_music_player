@@ -21,12 +21,15 @@ public:
 
     bool isVisible = false;
 signals:
-
+    void login_(QString username);
 protected:
     void closeEvent(QCloseEvent *event) override
     {
         this->isVisible = false;
     };
+    void mouseMoveEvent(QMouseEvent *event) override;
+    void mousePressEvent(QMouseEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
 private:
     QLineEdit* account;
     QLineEdit* password;
@@ -36,6 +39,11 @@ private:
 
     HttpRequest* request;
     bool isLogin = true;
+
+    bool mousePressed = false;
+
+    QPoint mouseStartPoint = QPoint(0, 0);
+    QPoint windowStartPoint = QPoint(0, 0);
 };
 
 #endif // LOGINWIDGET_H

@@ -10,13 +10,13 @@ Main_Widget::Main_Widget(QWidget *parent) : QWidget(parent)
     QWidget* topWidget = new QWidget(this);
     QPushButton* minimizeButton = new QPushButton(topWidget);
     minimizeButton->setStyleSheet("QPushButton {"
-                                  "    border-image: url(:/new/prefix1/icon/减号.png);"
+                                  "    border-image: url(:/new/prefix1/icon/方形未选中.png);"
                                   "}");
     minimizeButton->setFixedSize(30, 30);
 
     QPushButton* maximizeButton = new QPushButton(topWidget);
     maximizeButton->setStyleSheet("QPushButton {"
-                                  "    border-image: url(:/new/prefix1/icon/方形未选中.png);"
+                                  "    border-image: url(:/new/prefix1/icon/减号.png);"
                                   "}");
     maximizeButton->setFixedSize(30, 30);
 
@@ -62,8 +62,8 @@ Main_Widget::Main_Widget(QWidget *parent) : QWidget(parent)
     QHBoxLayout* widget_op_layout = new QHBoxLayout(this);
     widget_op_layout->addWidget(searchBox);
     widget_op_layout->addWidget(lWidget);
-    widget_op_layout->addWidget(minimizeButton);
     widget_op_layout->addWidget(maximizeButton);
+    widget_op_layout->addWidget(minimizeButton);
     widget_op_layout->addWidget(closeButton);
 
 
@@ -94,7 +94,7 @@ Main_Widget::Main_Widget(QWidget *parent) : QWidget(parent)
 
     list = new MusicListWidget(this);
     list->setFixedSize(200,300);
-    list->move(this->width()-200,0);
+    list->move(this->width() - 200,0);
     list->clear();
     list->close();
 
@@ -128,6 +128,28 @@ Main_Widget::Main_Widget(QWidget *parent) : QWidget(parent)
     leftButtons->addButton(NetList);
     leftButtons->setExclusive(true);
 
+    QWidget* textWidget = new QWidget(leftWidget);
+
+    QLabel* icolabel = new QLabel(textWidget);
+    icolabel->setPixmap(QPixmap(":/new/prefix1/icon/netease.ico"));
+    icolabel->setScaledContents(true);
+    icolabel->setFixedSize(40, 40);
+
+    QLabel *textLabel = new QLabel("网易云音乐", textWidget);
+    QFont font;
+    font.setFamily("Brush Script MT");
+    font.setPointSize(20);
+    textLabel->setFont(font);
+
+    //textLabel->setStyleSheet("color: #000000; text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.5);");
+    textLabel->adjustSize();
+
+    QHBoxLayout* layout_text = new QHBoxLayout(textWidget);
+    layout_text->addWidget(icolabel);
+    layout_text->addWidget(textLabel);
+
+    textWidget->setLayout(layout_text);
+    textWidget->move(5, 10);
 
     connect(localList, &QPushButton::toggled, this, [=](bool checked) {
         if (checked) {
@@ -174,7 +196,6 @@ Main_Widget::Main_Widget(QWidget *parent) : QWidget(parent)
     w = new Play_Widget(this);
     w->setFixedSize(1000,600);
     QRegion region(0, 500, w->width(), 500);
-    w->setStyleSheet("background-color: #FAFAFA;");
     w->setMask(region);
     w->move(0, this->height()-w->height());
 
@@ -186,8 +207,8 @@ Main_Widget::Main_Widget(QWidget *parent) : QWidget(parent)
 
     connect(searchBox, &SearchBox::search, request, &HttpRequest::getMusic);
     connect(searchBox, &SearchBox::searchAll, request, &HttpRequest::getAllFiles);
-    connect(request, &HttpRequest::addSong, netlist, &MusicListWidget::addSong);
-    connect(request, &HttpRequest::addSong, this, [=](){NetList->setChecked(true);});
+    connect(request, &HttpRequest::signal_addSong, netlist, &MusicListWidget::addSong);
+    connect(request, &HttpRequest::signal_addSong, this, [=](){NetList->setChecked(true);});
 
     connect(Login, &QPushButton::clicked, this, [=](){
         loginWidget->isVisible = !loginWidget->isVisible;
@@ -206,10 +227,14 @@ Main_Widget::Main_Widget(QWidget *parent) : QWidget(parent)
 
     });
 
+    connect(loginWidget, &LoginWidget::login_, this, [=](QString username){
+        Login->setText(username);
+        loginWidget->close();
+    });
 
     connect(add, &QPushButton::clicked, w, &Play_Widget::openfile);
 
-    connect(w,&Play_Widget::list_show,[=](bool flag){
+    connect(w,&Play_Widget::signal_list_show,[=](bool flag){
         if(flag)
         {
             list->show();
@@ -220,13 +245,13 @@ Main_Widget::Main_Widget(QWidget *parent) : QWidget(parent)
         }
     });
 
-    connect(w, &Play_Widget::Next, list, &MusicListWidget::Next_click);
-    connect(w, &Play_Widget::Last, list, &MusicListWidget::Last_click);
+    connect(w, &Play_Widget::signal_Next, list, &MusicListWidget::Next_click);
+    connect(w, &Play_Widget::signal_Last, list, &MusicListWidget::Last_click);
 
-    connect(w,&Play_Widget::add_song,list,&MusicListWidget::addSong);
-    connect(w,&Play_Widget::add_song,main_list,&MusicListWidget::addSong);
-    connect(w, &Play_Widget::play_button_click,list,&MusicListWidget::receive_song_op);
-    connect(w, &Play_Widget::play_button_click,main_list,&MusicListWidget::receive_song_op);
+    connect(w,&Play_Widget::signal_add_song,list,&MusicListWidget::addSong);
+    connect(w,&Play_Widget::signal_add_song,main_list,&MusicListWidget::addSong);
+    connect(w, &Play_Widget::signal_play_button_click,list,&MusicListWidget::receive_song_op);
+    connect(w, &Play_Widget::signal_play_button_click,main_list,&MusicListWidget::receive_song_op);
 
     //    connect(list,&MusicListWidget::selectMusic,w,&Play_Widget::_play_list_music);
     //    connect(main_list,&MusicListWidget::selectMusic,w,&Play_Widget::_play_list_music);
@@ -237,29 +262,22 @@ Main_Widget::Main_Widget(QWidget *parent) : QWidget(parent)
     connect(list, &MusicListWidget::remove_click, w, &Play_Widget::_remove_click);
     connect(main_list, &MusicListWidget::remove_click, w, &Play_Widget::_remove_click);
 
-    connect(w,&Play_Widget::big_clicked,this,[=](bool checked){
+    connect(w,&Play_Widget::signal_big_clicked,this,[=](bool checked){
         if(checked)
         {
             w->raise();
-            for(int i = 500; i >= 0;i -= 10)
-            {
-                QRegion region1(0, i, w->width(), i);
-                w->setMask(region1);
-                update();
-
-            }
-            w->setStyleSheet("background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, "
-                             "stop: 0 #101D29, stop: 1 #24435E);");
-
+            w->clearMask();
+            w->isUp = true;
             update();
         }
         else
         {
             w->lower();
             QRegion region1(0, 500, w->width(), 500);
-            w->setStyleSheet("background-color: #FAFAFA;");
             w->setMask(region1);
+            w->isUp = false;
             update();
+            w->setPianWidgetEnable(false);
         }
     });
 }

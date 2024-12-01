@@ -306,7 +306,6 @@ void Worker::receive_data(const QByteArray &data,qint64 timeMap)
     //std::lock_guard<std::mutex>lock(mtx);
     this->audioBuffer.enqueue(data);
     this->mp[data]=timeMap;
-    qDebug()<<__FUNCTION__<<this->audioBuffer.size();
 
 }
 void Worker::setPATH(QString Path)
