@@ -3,7 +3,7 @@
 PianWidget::PianWidget(QWidget *parent) : QWidget(parent)
 {
 
-    QLabel *picLabel = new QLabel(this);
+    picLabel = new QLabel(this);
     QPixmap image = QPixmap(":/new/prefix1/icon/pian.png");
     picLabel->setPixmap(image);
     picLabel->setFixedSize(100, 100);
@@ -26,4 +26,9 @@ void PianWidget::setName(const QString name)
 void PianWidget::mousePressEvent(QMouseEvent *event)
 {
     emit signal_up_click(true);
+}
+void PianWidget::on_signal_set_pic_path(QString picPath)
+{
+    QPixmap image = QPixmap(picPath);
+    picLabel->setPixmap(image);
 }

@@ -25,5 +25,6 @@
         <file>icon/denglu.png</file>
         <file>icon/maxresdefault.jpg</file>
         <file>icon/pian.png</file>
+        <file>icon/下载.png</file>
     </qresource>
 </RCC>

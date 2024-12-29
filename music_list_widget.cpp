@@ -3,40 +3,35 @@
 MusicListWidget::MusicListWidget(QWidget *parent)
     :QListWidget(parent)
 {
-    setSpacing(10);
-
+    setSpacing(5);
 }
-void MusicListWidget::addSong(const QString songName, const QString path)
+void MusicListWidget::on_signal_add_song(const QString songName, const QString path, bool isNetMusic)
 {
+    if(pathMap[songName])
+    {
+        return;
+    }
     QSize size(width(), 30);
     MusicItem* itemWidget = new MusicItem(songName,path,"",size);
+    itemWidget->set_netflag(isNetMusic);
 
     QListWidgetItem *item = new QListWidgetItem(this);
     item->setData(Qt::UserRole, songName);
 
     pathMap[songName] = itemWidget;
 
-    connect(itemWidget, &MusicItem::play_click, this, &MusicListWidget::_play_click);
-    connect(itemWidget, &MusicItem::remove_click, this, &MusicListWidget::_remove_click);
-    qDebug()<<__FUNCTION__<<songName<<path;
+    connect(itemWidget, &MusicItem::signal_play_click, this, &MusicListWidget::_play_click);
+    connect(itemWidget, &MusicItem::signal_remove_click, this, &MusicListWidget::_remove_click);
+    connect(itemWidget, &MusicItem::signal_download_click, this, &MusicListWidget::signal_download_click);
+
     setItemWidget(item,itemWidget);
 }
-//void MusicListWidget::mouseDoubleClickEvent(QMouseEvent *event)
-//{
-//    QListWidgetItem* listItem = itemAt(event->pos());
-//    MusicItem* item = dynamic_cast<MusicItem*>(itemWidget(listItem));
 
-//    if(item)
-//    {
-//        emit selectMusic(item->getPath());
-//        qDebug()<<"PATH:"<<item->getPath();
-//    }
-
-//    QListWidget::mouseDoubleClickEvent(event);
-//}
 void MusicListWidget::receive_song_op(bool flag, QString fileName)
 {
-    pathMap[fileName]->button_op(flag);
+    //qInfo()<<__FUNCTION__<<fileName<<pathMap[fileName];
+    if(pathMap[fileName])
+        pathMap[fileName]->button_op(flag);
 
     if(flag)
     {
@@ -133,4 +128,16 @@ void MusicListWidget::Last_click(QString songName)
             break;
         }
     }
+}
+void MusicListWidget::on_signal_add_songlist(const QStringList filename_list, const QList<double> duration)
+{
+    clear();
+    for(auto i: filename_list)
+    {
+        on_signal_add_song(i, i, true);
+    }
+}
+void MusicListWidget::remove_all()
+{
+    clear();
 }

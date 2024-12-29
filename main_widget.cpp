@@ -1,6 +1,6 @@
 #include "main_widget.h"
 
-Main_Widget::Main_Widget(QWidget *parent) : QWidget(parent)
+MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
   ,w(nullptr)
   ,list(nullptr)
 {
@@ -32,8 +32,8 @@ Main_Widget::Main_Widget(QWidget *parent) : QWidget(parent)
         else
             showMaximized();
     });
-    connect(maximizeButton, &QPushButton::clicked, this, &Main_Widget::showMinimized);
-    connect(closeButton, &QPushButton::clicked, this, &Main_Widget::close);
+    connect(maximizeButton, &QPushButton::clicked, this, &MainWidget::showMinimized);
+    connect(closeButton, &QPushButton::clicked, this, &MainWidget::close);
 
     SearchBox* searchBox = new SearchBox(this);
     searchBox->setFixedSize(200,30);
@@ -70,26 +70,16 @@ Main_Widget::Main_Widget(QWidget *parent) : QWidget(parent)
     topWidget->setLayout(widget_op_layout);
     topWidget->move(1000 - 440, 0);
 
-    add = new QPushButton(this);
-    add->setFixedSize(100, 50);
-    add->move((this->width()-800), 50);
-    add->setText("添加");
-    add->setStyleSheet(
-                "QPushButton "
-                "{ border-radius: 15px; border: 2px solid black; }"
-                );
-
-
     loginWidget = new LoginWidget();
     loginWidget->setWindowTitle("登陆");
     loginWidget->setWindowFlags(loginWidget->windowFlags() | Qt::WindowStaysOnTopHint);
     loginWidget->close();
 
-    main_list = new MusicListWidget(this);
+    main_list = new MusicListWidgetLocal(this);
     main_list->setFixedSize(800,400);
     main_list->move((this->width()-800),this->height()- 500);
-    main_list->clear();
     main_list->show();
+    main_list->setObjectName("local");
 
 
     list = new MusicListWidget(this);
@@ -98,11 +88,11 @@ Main_Widget::Main_Widget(QWidget *parent) : QWidget(parent)
     list->clear();
     list->close();
 
-    auto netlist = new MusicListWidget(this);
-    netlist->setFixedSize(main_list->size());
-    netlist->move(main_list->pos());
-    netlist->clear();
-    netlist->hide();
+    net_list = new MusicListWidgetNet(this);
+    net_list->setFixedSize(800, 400);
+    net_list->move(main_list->pos());
+    net_list->hide();
+    net_list->setObjectName("net");
 
     QWidget* leftWidget = new QWidget(this);
     leftWidget->setFixedSize(200, this->height() - 100);
@@ -140,8 +130,6 @@ Main_Widget::Main_Widget(QWidget *parent) : QWidget(parent)
     font.setFamily("Brush Script MT");
     font.setPointSize(20);
     textLabel->setFont(font);
-
-    //textLabel->setStyleSheet("color: #000000; text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.5);");
     textLabel->adjustSize();
 
     QHBoxLayout* layout_text = new QHBoxLayout(textWidget);
@@ -154,7 +142,7 @@ Main_Widget::Main_Widget(QWidget *parent) : QWidget(parent)
     connect(localList, &QPushButton::toggled, this, [=](bool checked) {
         if (checked) {
             main_list->show();
-            netlist->hide();
+            net_list->hide();
             localList->setStyleSheet(
                         "background-color: rgba(44, 210, 126, 0.8);"
                         "color: white;"
@@ -172,7 +160,7 @@ Main_Widget::Main_Widget(QWidget *parent) : QWidget(parent)
     connect(NetList, &QPushButton::toggled, this, [=](bool checked){
         if(checked)
         {
-            netlist->show();
+            net_list->show();
             main_list->hide();
             NetList->setStyleSheet(
                         "background-color: rgba(44, 210, 126, 0.8);"
@@ -193,22 +181,19 @@ Main_Widget::Main_Widget(QWidget *parent) : QWidget(parent)
 
 
 
-    w = new Play_Widget(this);
+    w = new PlayWidget(this);
     w->setFixedSize(1000,600);
     QRegion region(0, 500, w->width(), 500);
     w->setMask(region);
     w->move(0, this->height()-w->height());
 
-    a = new QThread(this);
-    request = new HttpRequest(this);
-    request->moveToThread(a);
-    a->start();
+    auto request = HttpRequest::getInstance();
 
 
     connect(searchBox, &SearchBox::search, request, &HttpRequest::getMusic);
     connect(searchBox, &SearchBox::searchAll, request, &HttpRequest::getAllFiles);
-    connect(request, &HttpRequest::signal_addSong, netlist, &MusicListWidget::addSong);
-    connect(request, &HttpRequest::signal_addSong, this, [=](){NetList->setChecked(true);});
+    connect(request, &HttpRequest::signal_addSong_list, net_list, &MusicListWidgetNet::signal_add_songlist);
+    connect(request, &HttpRequest::signal_addSong_list, this, [=](){NetList->setChecked(true);});
 
     connect(Login, &QPushButton::clicked, this, [=](){
         loginWidget->isVisible = !loginWidget->isVisible;
@@ -231,38 +216,33 @@ Main_Widget::Main_Widget(QWidget *parent) : QWidget(parent)
         Login->setText(username);
         loginWidget->close();
     });
+    connect(main_list, &MusicListWidgetLocal::signal_add_button_clicked, w, &PlayWidget::openfile);
 
-    connect(add, &QPushButton::clicked, w, &Play_Widget::openfile);
 
-    connect(w,&Play_Widget::signal_list_show,[=](bool flag){
-        if(flag)
-        {
-            list->show();
-        }
-        else
-        {
-            list->close();
-        }
+    connect(w, &PlayWidget::signal_Last, main_list, &MusicListWidgetLocal::signal_last);
+    connect(w, &PlayWidget::signal_Next, main_list, &MusicListWidgetLocal::signal_next);
+
+    connect(w, &PlayWidget::signal_Last, net_list, &MusicListWidgetNet::signal_last);
+    connect(w, &PlayWidget::signal_Next, net_list, &MusicListWidgetNet::signal_next);
+
+    connect(w,&PlayWidget::signal_add_song,main_list,&MusicListWidgetLocal::on_signal_add_song);
+    connect(w, &PlayWidget::signal_play_button_click,main_list,&MusicListWidgetLocal::on_signal_play_button_click);
+    connect(w, &PlayWidget::signal_play_button_click, net_list, &MusicListWidgetNet::on_signal_play_button_click);
+
+    connect(main_list, &MusicListWidgetLocal::signal_play_click, w, [=](const QString name, bool flag){
+        w->set_play_net(flag);
+        w->_play_click(name);
+
     });
+    connect(main_list, &MusicListWidgetLocal::signal_remove_click, w, &PlayWidget::_remove_click);
 
-    connect(w, &Play_Widget::signal_Next, list, &MusicListWidget::Next_click);
-    connect(w, &Play_Widget::signal_Last, list, &MusicListWidget::Last_click);
+    connect(net_list, &MusicListWidgetNet::signal_play_click, w, [=](const QString name, bool flag){
+        w->set_play_net(flag);
+        w->_play_click(name);
+    });
+    connect(net_list, &MusicListWidgetNet::signal_choose_download_dir, this, &MainWidget::on_signal_choose_download_dir);
 
-    connect(w,&Play_Widget::signal_add_song,list,&MusicListWidget::addSong);
-    connect(w,&Play_Widget::signal_add_song,main_list,&MusicListWidget::addSong);
-    connect(w, &Play_Widget::signal_play_button_click,list,&MusicListWidget::receive_song_op);
-    connect(w, &Play_Widget::signal_play_button_click,main_list,&MusicListWidget::receive_song_op);
-
-    //    connect(list,&MusicListWidget::selectMusic,w,&Play_Widget::_play_list_music);
-    //    connect(main_list,&MusicListWidget::selectMusic,w,&Play_Widget::_play_list_music);
-
-    connect(list, &MusicListWidget::play_click, w, &Play_Widget::_play_click);
-    connect(main_list, &MusicListWidget::play_click, w, &Play_Widget::_play_click);
-
-    connect(list, &MusicListWidget::remove_click, w, &Play_Widget::_remove_click);
-    connect(main_list, &MusicListWidget::remove_click, w, &Play_Widget::_remove_click);
-
-    connect(w,&Play_Widget::signal_big_clicked,this,[=](bool checked){
+    connect(w,&PlayWidget::signal_big_clicked,this,[=](bool checked){
         if(checked)
         {
             w->raise();
@@ -281,13 +261,20 @@ Main_Widget::Main_Widget(QWidget *parent) : QWidget(parent)
         }
     });
 }
-
-void Main_Widget::Update_paint()
+void MainWidget::on_signal_choose_download_dir()
+{
+    QString folderPath = QFileDialog::getExistingDirectory(this, "选择文件夹", QString(),
+                                                            QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
+    if(folderPath.size() > 0)
+    {
+        net_list->on_signal_set_down_dir(folderPath);
+    }
+}
+void MainWidget::Update_paint()
 {
     main_list->update();
-    list->update();
 }
-void Main_Widget::mousePressEvent(QMouseEvent *event)
+void MainWidget::mousePressEvent(QMouseEvent *event)
 {
     if(event->button() & Qt::LeftButton)
     {
@@ -296,7 +283,7 @@ void Main_Widget::mousePressEvent(QMouseEvent *event)
         event->accept();
     }
 }
-void Main_Widget::mouseMoveEvent(QMouseEvent *event)
+void MainWidget::mouseMoveEvent(QMouseEvent *event)
 {
     if(event->buttons() & Qt::LeftButton && dragging)
     {
@@ -305,7 +292,7 @@ void Main_Widget::mouseMoveEvent(QMouseEvent *event)
         event->accept();
     }
 }
-void Main_Widget::mouseReleaseEvent(QMouseEvent *event)
+void MainWidget::mouseReleaseEvent(QMouseEvent *event)
 {
     if(event->button() & Qt::LeftButton)
     {
@@ -313,10 +300,8 @@ void Main_Widget::mouseReleaseEvent(QMouseEvent *event)
         event->accept();
     }
 }
-Main_Widget::~Main_Widget()
+MainWidget::~MainWidget()
 {
-    a->quit();
-    a->wait();
 
 }
 

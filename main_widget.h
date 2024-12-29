@@ -2,6 +2,8 @@
 #define TEST_WIDGET_H
 #include"play_widget.h"
 #include "music_list_widget.h"
+#include "music_list_widget_local.h"
+#include "music_list_widget_net.h"
 #include "loginwidget.h"
 #include "searchbox.h"
 #include <QWidget>
@@ -9,27 +11,25 @@
 #include <QScreen>
 #include <QGuiApplication>
 
-class Main_Widget : public QWidget
+class MainWidget : public QWidget
 {
     Q_OBJECT
 public:
-    explicit Main_Widget(QWidget *parent = nullptr);
-    ~Main_Widget();
+    explicit MainWidget(QWidget *parent = nullptr);
+    ~MainWidget();
     void Update_paint();
+public slots:
+    void on_signal_choose_download_dir();
 signals:
-
 private:
-    Play_Widget* w;
+    PlayWidget* w;
     MusicListWidget* list;
-    MusicListWidget* main_list;
+    MusicListWidgetLocal* main_list;
+    MusicListWidgetNet* net_list;
     LoginWidget* loginWidget;
 
-    QPushButton* play;
-    QPushButton* add;
     QPushButton* Login;
-    HttpRequest* request;
 
-    QThread* a;
     QPoint pos_ = QPoint(0, 0);
     bool dragging = false;
 protected:
@@ -38,10 +38,6 @@ protected:
         Q_UNUSED(event);
 
         QPainter painter(this);
-
-//        painter.setBrush(QColor(246, 246, 246));
-
-//        painter.drawRect(this->rect());
 
         painter.setRenderHint(QPainter::Antialiasing);
 

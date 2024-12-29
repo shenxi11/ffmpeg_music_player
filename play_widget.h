@@ -14,20 +14,20 @@
 #include "rotatingcircleimage.h"
 #include "pianwidget.h"
 
-class Play_Widget : public QWidget
+class PlayWidget : public QWidget
 {
     Q_OBJECT
 
 public:
-    Play_Widget(QWidget *parent = nullptr);
-    ~Play_Widget();
+    PlayWidget(QWidget *parent = nullptr);
+    ~PlayWidget();
 
     QWidget* getButtonWidget(){return button_widget;};
     QSlider* getSlider(){return Slider;};
 
 
     bool isUp = false;
-
+    bool get_net_flag(){return play_net;};
 public slots:
 
     void _begin_take_lrc(QString str);
@@ -36,6 +36,7 @@ public slots:
     void openfile();
     void setPianWidgetEnable(bool flag);
 
+    void set_play_net(bool flag){play_net = flag;};
 signals:
     void signal_filepath(QString filePath);
     void signal_begin_to_play(QString path);
@@ -51,17 +52,17 @@ signals:
     void signal_Last(QString songName);
     void signal_remove_click();
     void signal_stop_rotate(bool flag);
+    void signal_begin_net_decode();
 private:
 
     void init_TextEdit();
     void rePlay(QString path);
 
-    std::unique_ptr<Worker> work;//音频转化为pcm的线程
-    std::unique_ptr<LrcAnalyze> lrc;//解析歌词的线程
-    std::unique_ptr<Take_pcm> take_pcm;//播放pcm的线程
+    std::shared_ptr<Worker> work;//音频转化为pcm的线程
+    std::shared_ptr<LrcAnalyze> lrc;//解析歌词的线程
+    std::shared_ptr<TakePcm> take_pcm;//播放pcm的线程
     std::map<int, std::string> lyrics;
 
-    HttpRequest* request;
     QString filePath;
     QString fileName;
     LyricTextEdit *textEdit;
@@ -86,6 +87,7 @@ private:
     bool played;
     bool loop;
 
+    bool play_net = false;
 protected:
 
     void paintEvent(QPaintEvent *event) override {

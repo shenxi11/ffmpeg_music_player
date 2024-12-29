@@ -15,16 +15,12 @@ private slots:
 
 private:
     void take_lrc(QString Path);
-
     int timeToMilliseconds(const std::string& timeStr);
-
     std::map<int, std::string> parseLrcFile(const QString& lrcFile);
-
     QString detectEncodingWithUchardet(const QString& filePath);
-
     void saveFileAsUtf8(const QString& content, const QString& outputFilePath);
-
     QString readFileWithEncoding(const QString& filePath, const QByteArray& encoding);
+    void parseLrcFileFromUrl(const QString& urlString);
 
 //    void run() override;
 

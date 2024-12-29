@@ -1,8 +1,42 @@
 #include "httprequest.h"
 
+HttpRequest* HttpRequest::instance = nullptr;
+QMutex HttpRequest::mutex;
+User* User::instance = nullptr;
+QMutex User::mutex;
 HttpRequest::HttpRequest(QObject *parent)
 {
     manager = new QNetworkAccessManager(this);
+}
+bool HttpRequest::AddMusic(const QString music_path)
+{
+    QUrl url = localUrl + "users/add_music";
+    QNetworkRequest request(url);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+
+    auto user = User::getInstance();
+    QJsonObject json;
+    json["username"] = user->get_username();
+    json["music_path"] = music_path;
+    QJsonDocument jsonDoc(json);
+    QByteArray jsonData = jsonDoc.toJson();
+
+    QNetworkReply *reply = manager->post(request, jsonData);
+    connect(reply, &QNetworkReply::finished, [this, reply](){
+        if (reply->error() == QNetworkReply::NoError) {
+            QByteArray response_data = reply->readAll();
+            QJsonDocument jsonDoc = QJsonDocument::fromJson(response_data);
+            QJsonObject jsonObject = jsonDoc.object();
+            if (jsonObject.contains("success")){
+                qDebug()<<"success"<<response_data;
+            }
+        }
+        else
+        {
+            qDebug() << "Error:" << reply->errorString();
+        }
+        reply->deleteLater();
+    });
 }
 bool HttpRequest::Login(const QString& account, const QString& password)
 {
@@ -21,7 +55,7 @@ bool HttpRequest::Login(const QString& account, const QString& password)
     QNetworkReply *reply = manager->post(request, jsonData);
 
 
-    connect(reply, &QNetworkReply::finished, [this, reply]() {
+    connect(reply, &QNetworkReply::finished, [this, reply, account, password]() {
         if (reply->error() == QNetworkReply::NoError) {
             QByteArray response_data = reply->readAll();
 
@@ -29,12 +63,28 @@ bool HttpRequest::Login(const QString& account, const QString& password)
             QJsonDocument jsonDoc = QJsonDocument::fromJson(response_data);
 
             QJsonObject jsonObject = jsonDoc.object();
-
+            auto user = User::getInstance();
             if (jsonObject.contains("success")) {
                 QJsonValue successValue = jsonObject.value("success");
                 qDebug() << "Response:" << response_data;
 
+                user->set_account(account);
+                user->set_password(password);
+                user->set_username(successValue.toString());
+
                 emit signal_getusername(successValue.toString());
+            }
+            if(jsonObject.contains("song_path_list"))
+            {
+                QJsonArray successValue = jsonObject.value("song_path_list").toArray();
+                QStringList musics;
+                for(auto i: successValue)
+                {
+                    musics<<i.toString();
+                }
+                user->set_music_path(musics);
+                emit signal_add_songs();
+                qDebug()<<__FUNCTION__<<successValue;
             }
 
         } else {
@@ -116,34 +166,60 @@ bool HttpRequest::Upload(const QString &path)
 
     return true;
 }
-
-bool HttpRequest::Download(const QString& filename)
+bool HttpRequest::get_file(const QString url)
 {
-    // 创建请求并设置目标URL
+    QNetworkRequest request(url + "/lrc");
+    QNetworkReply* reply = manager->get(request);
+
+    QObject::connect(reply, &QNetworkReply::finished, [this, reply]() {
+        if (reply->error() == QNetworkReply::NoError) {
+            QByteArray responseData = reply->readAll();
+
+            QJsonDocument jsonDoc = QJsonDocument::fromJson(responseData);
+            if(jsonDoc.isArray())
+            {
+                QStringList lines;
+                auto filesObject = jsonDoc.array();
+                for (auto it = filesObject.begin(); it != filesObject.end(); ++it)
+                {
+                    lines<<it->toString();
+                }
+                emit signal_lrc(lines);
+            }
+
+        } else {
+            qWarning() << "Request failed:" << reply->errorString();
+        }
+
+        reply->deleteLater();
+    });
+
+    return true;
+}
+
+
+bool HttpRequest::Download(const QString& filename, const QString download_folder)
+{
     QUrl url(localUrl + "download");
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
 
-    // 创建 JSON 请求体
     QJsonObject jsonObject;
     jsonObject["filename"] = filename;
     QJsonDocument jsonDoc(jsonObject);
     QByteArray requestData = jsonDoc.toJson();
 
-    // 发送 POST 请求
     QNetworkReply* reply = manager->post(request, requestData);
 
-    // 等待请求完成
-    QObject::connect(reply, &QNetworkReply::finished, [reply, filename]() {
+    QObject::connect(reply, &QNetworkReply::finished, [reply, filename, download_folder]() {
         if (reply->error() == QNetworkReply::NoError) {
-            // 读取响应数据
+
             QByteArray responseData = reply->readAll();
 
-            // 设定文件保存路径到 download 文件夹
-            QString downloadFolder = "./download";  // 确保该文件夹存在
+            QString downloadFolder = download_folder;
             QDir dir(downloadFolder);
             if (!dir.exists()) {
-                dir.mkpath(".");  // 如果 download 文件夹不存在，创建它
+                dir.mkpath(".");
             }
 
             QFile file(downloadFolder + "/" + filename);
@@ -158,111 +234,118 @@ bool HttpRequest::Download(const QString& filename)
             qWarning() << "Download failed:" << reply->errorString();
         }
 
-        // 清理
         reply->deleteLater();
     });
 }
 
-bool HttpRequest::getAllFiles()
-{
+bool HttpRequest::getAllFiles() {
     QUrl url = localUrl + "files";
     QNetworkRequest request(url);
 
-    // 发送 GET 请求并接收 QNetworkReply
     QNetworkReply* reply = manager->get(request);
 
-    // 等待请求完成
     QObject::connect(reply, &QNetworkReply::finished, [this, reply]() {
-        // 检查请求是否成功
+
         if (reply->error() == QNetworkReply::NoError) {
             QByteArray responseData = reply->readAll();
 
-            // 打印原始响应数据，确保它符合预期
             qDebug() << "Response data from server:" << responseData;
 
-            // 解析 JSON 响应数据
             QJsonDocument jsonDoc = QJsonDocument::fromJson(responseData);
-            if (jsonDoc.isArray()) {
-                QJsonArray filesArray = jsonDoc.array();
+            if (jsonDoc.isObject()) {
+                QJsonObject filesObject = jsonDoc.object();
 
-                // 输出所有文件名
-                qDebug() << "Files received from server:";
-                for (const QJsonValue& value : filesArray) {
-                    //qDebug() << value.toString();
-                    emit signal_addSong(value.toString(), value.toString());
+                qDebug() << "Files and durations received from server:";
+                QStringList songList;
+                QList<double> durations;
+                for (auto it = filesObject.begin(); it != filesObject.end(); ++it) {
+                    QString fileName = it.key();
+                    QString duration = it.value().toString();
+
+                    qDebug() << "File Name:" << fileName << ", Duration:" << duration;
+
+                    songList<<fileName;
+                    durations<<it.value().toDouble();
                 }
-
-
+                emit signal_addSong_list(songList, durations);
             } else {
-                qWarning() << "Failed to parse JSON array.";
+                qWarning() << "Failed to parse JSON object.";
             }
         } else {
             qWarning() << "Request failed:" << reply->errorString();
         }
 
-        // 清理回复对象
         reply->deleteLater();
     });
 
-
+    return true;
 }
 
-void HttpRequest::sendRequestAndForwardData() {
-    const QString &fileName = "周杰伦 - 七里香_EM.flac";
 
-    // 创建请求数据
+void HttpRequest::get_music_data(const QString &fileName) {
+    //emit signal_clear();
+
+    // 构建 JSON 请求体
     QJsonObject json;
     json["filename"] = fileName;
     QJsonDocument doc(json);
     QByteArray requestData = doc.toJson();
 
-    // 创建请求
+    // 设置请求 URL 和头部
     QUrl url(localUrl + "stream");
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     request.setRawHeader("Connection", "keep-alive");
 
-    // 发送 POST 请求
     QNetworkReply *reply = manager->post(request, requestData);
 
-    // 连接 readyRead 信号来持续接收数据
     connect(reply, &QNetworkReply::readyRead, [this, reply]() {
-        // 逐块读取数据
-        while (reply->bytesAvailable()) {
-            QByteArray chunk = reply->read(4096);
-            emit signal_send_Packet(chunk);
+
+        QByteArray responseData = reply->readAll();
+
+        QJsonDocument jsonResponse = QJsonDocument::fromJson(responseData);
+        if (jsonResponse.isObject()) {
+            QJsonObject responseObject = jsonResponse.object();
+            if (responseObject.contains("stream_url")) {
+                QString streamUrl = responseObject["stream_url"].toString();
+                qDebug() << "RTMP stream URL:" << streamUrl;
+                emit signal_streamurl(true, streamUrl);
+            } else {
+                qDebug() << "Error: 'stream_url' not found in response.";
+            }
+        } else {
+            qDebug() << "Error: Invalid JSON response.";
         }
     });
 
-    // 连接finished信号来处理响应的结束
     connect(reply, &QNetworkReply::finished, [reply]() {
         if (reply->error() == QNetworkReply::NoError) {
             qDebug() << "Request finished successfully.";
         } else {
             qDebug() << "Request failed: " << reply->errorString();
         }
-        reply->deleteLater();  // 清理回复对象
+        reply->deleteLater();
     });
 }
 
 
+
 void HttpRequest::sendAcknowledgment() {
     QJsonObject ackJson;
-    ackJson["ack"] = "ACK";  // 表示确认接收当前数据块
+    ackJson["ack"] = "ACK";
     QJsonDocument ackDoc(ackJson);
     QByteArray ackData = ackDoc.toJson();
 
-    QUrl ackUrl(localUrl + "ack");  // 假设服务端有一个处理 ACK 的路由
+    QUrl ackUrl(localUrl + "ack");
     QNetworkRequest ackRequest(ackUrl);
     ackRequest.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
 
-    // 发送确认请求
     manager->post(ackRequest, ackData);
     qDebug()<<"ack";
 }
 
 bool HttpRequest::getMusic(const QString& name) {
-    QUrl url (localUrl + "file"); // 拼接 URL
+    QUrl url(localUrl + "file");
     QNetworkRequest request(url);
 
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
@@ -280,16 +363,25 @@ bool HttpRequest::getMusic(const QString& name) {
             qDebug() << "Response data from server:" << responseData;
 
             QJsonDocument jsonDoc = QJsonDocument::fromJson(responseData);
-            if (jsonDoc.isArray()) {
-                QJsonArray filesArray = jsonDoc.array();
+            if (jsonDoc.isObject()) {
+                QJsonObject filesObject = jsonDoc.object();
 
-                qDebug() << "Music files received from server:";
-                for (const QJsonValue& value : filesArray) {
-                    qDebug() << value.toString();
-                    emit signal_addSong(value.toString(), value.toString());
+                qDebug() << "Music files and durations received from server:";
+                QStringList songList;
+                QList<double> durations;
+                for (auto it = filesObject.begin(); it != filesObject.end(); ++it) {
+                    QString fileName = it.key();
+                    QString duration = it.value().toString();
+
+                    qDebug() << "File Name:" << fileName << ", Duration:" << duration;
+
+                    // Emit signal with file name and duration
+                    songList << fileName;
+                    durations << it.value().toDouble();
                 }
+                emit signal_addSong_list(songList, durations);
             } else {
-                qWarning() << "Failed to parse JSON array.";
+                qWarning() << "Failed to parse JSON object.";
             }
         } else {
             qWarning() << "Request failed:" << reply->errorString();

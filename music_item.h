@@ -10,43 +10,32 @@ class MusicItem :  public QWidget
     Q_OBJECT
 public:
     explicit MusicItem(const QString& name, const QString& path, const QString& picPath, QSize size);
-
-    void setNetMusic(bool flag){this->isNetMusic = flag;}
+    ~MusicItem(){qInfo()<<__FUNCTION__<<"destruct";};
 
     QString getName();
-
     QString getPath();
-
     void button_op(bool flag);
-
     void _play_click();
-
     void _remove_click();
-
     void play_to_click();
+    void on_signal_download_clicked();
+    void set_netflag(bool flag);
 signals:
-    void play_click(QString songName);
-
-    void remove_click(QString songName);
+    void signal_play_click(QString songName);
+    void signal_remove_click(QString songName);
+    void signal_download_click(QString songName);
 private:
     const QString name;
-
     const QString path;
-
     const QString picPath;
-
     const QSize size;
-
     QLabel* label;
-
     QLabel* pic;
-
-    QPushButton* play;
-
-    QPushButton* remove;
+    QPushButton* play= nullptr;
+    QPushButton* remove = nullptr;
+    QPushButton* download = nullptr;
 
     bool hover = false;
-
     bool isNetMusic = false;
 
 protected:
@@ -57,7 +46,10 @@ protected:
         hover = true;
 
         play->show();
-        remove->show();
+        if(remove)
+            remove->show();
+        if(download)
+            download->show();
 
         update();
     }
@@ -68,8 +60,10 @@ protected:
         hover = false;
 
         play->hide();
-        remove->hide();
-
+        if(remove)
+            remove->hide();
+        if(download)
+            download->hide();
 
         update();
     }

@@ -55,7 +55,6 @@ extern "C"
 #define SAMPLE_SIZE 16
 #define MAX_BUFFER_SIZE 100
 #include <QLoggingCategory>
-
-
+class Music;
 
 #endif // HEADERS_H

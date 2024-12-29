@@ -14,9 +14,6 @@ public:
 
     ~Worker();
 
-    bool getAudioFileInfo(const QString& filePath, int& sampleRate, int& channelCount, int& sampleSize, QAudioFormat::SampleType& sampleType);
-
-
 public slots:
 
     void stop_play();
@@ -56,13 +53,9 @@ signals:
 
     void rePlay();
 
-    void updatePlaybackTime(qint64 newPlaybackTime);
-
     void pause();
 private:
     std::map<int, std::string> lyrics;
-
-    std::unique_ptr<QFile> file;
 
     std::vector<std::pair<qint64, qint64>> pcmTimeMap;
 
@@ -74,8 +67,6 @@ private:
 
     QMutex mutex;
 
-    QWaitCondition *cond;
-
     QAudioOutput *audioOutput = nullptr ;
 
     qint64 totalAudioDurationInMS;
@@ -85,10 +76,6 @@ private:
     bool sliderMove;
 
     std::mutex mtx;
-    std::mutex mtx1;
-
-    std::unique_ptr<char[]> buffer;
-
     std::map<QByteArray,qint64> mp;
 
    QString PATH;

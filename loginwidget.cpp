@@ -5,6 +5,7 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QMouseEvent>
+#include <QMessageBox>
 #include <QDebug>
 
 LoginWidget::LoginWidget(QWidget *parent) : QWidget(parent)
@@ -14,7 +15,7 @@ LoginWidget::LoginWidget(QWidget *parent) : QWidget(parent)
     this->setAttribute(Qt::WA_TranslucentBackground); // 设置背景透明
     isLogin = true; // 默认是登录模式
 
-    request = new HttpRequest(this);
+    auto request = HttpRequest::getInstance();
 
     // 自定义标题栏
     QWidget *titleBar = new QWidget(this);
@@ -111,8 +112,18 @@ LoginWidget::LoginWidget(QWidget *parent) : QWidget(parent)
     });
 
     connect(request, &HttpRequest::signal_getusername, this, [=](QString username) {
-        emit login_(username);
-        qDebug() << "登录成功，用户名:" << username;
+        if(username.size() > 0)
+        {
+            emit login_(username);
+            qDebug() << "登录成功，用户名:" << username;
+        }
+        else
+        {
+            QMessageBox::critical(nullptr,
+                                      "错误",
+                                      "账号或密码错误",
+                                      QMessageBox::Ok);
+        }
     });
 
     connect(request, &HttpRequest::signal_Registerflag, this, [=](bool success) {

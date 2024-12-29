@@ -14,6 +14,7 @@ public:
     explicit PianWidget(QWidget *parent = nullptr);
 
     void setName(const QString name);
+    void on_signal_set_pic_path(QString picPath);
 signals:
     void signal_up_click(bool flag);
 protected:
@@ -21,6 +22,7 @@ protected:
 private:
 
     QLabel *nameLabel;
+    QLabel *picLabel;
 };
 
 #endif // PIANWIDGET_H

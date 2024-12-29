@@ -37,7 +37,6 @@ private:
     QPushButton* login;
     QLabel* Register;
 
-    HttpRequest* request;
     bool isLogin = true;
 
     bool mousePressed = false;

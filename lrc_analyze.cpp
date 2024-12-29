@@ -1,5 +1,5 @@
 #include "lrc_analyze.h"
-
+#include "httprequest.h"
 LrcAnalyze::LrcAnalyze()
 {
     connect(this, &LrcAnalyze::begin_take_lrc, this, &LrcAnalyze::take_lrc);
@@ -7,7 +7,7 @@ LrcAnalyze::LrcAnalyze()
     connect(this, &LrcAnalyze::Begin_send, this, &LrcAnalyze::begin_send);
 }
 
- LrcAnalyze::~LrcAnalyze()
+LrcAnalyze::~LrcAnalyze()
 {
     //qDebug()<<"Destruct lrc_analyze";
 }
@@ -95,68 +95,41 @@ void LrcAnalyze::take_lrc(QString Path)
     int len = lrcFile.size();
 
     std::reverse(lrcFile.begin(), lrcFile.end());
-
     lrcFile = lrcFile.substr(0,len-pos)+"lrc";
 
     QString encoding = detectEncodingWithUchardet(QString::fromStdString(lrcFile));
 
     if (!encoding.isEmpty())
     {
-        //qDebug() << "检测到的编码为:" << encoding;
-
-        // 如果编码不是 UTF-8，读取并转换为 UTF-8
         if (encoding != "UTF-8")
         {
             QString content = readFileWithEncoding(QString::fromStdString(lrcFile), encoding.toUtf8());
 
             if (!content.isEmpty())
             {
-                // 覆盖原文件并保存为 UTF-8 编码
                 saveFileAsUtf8(content, QString::fromStdString(lrcFile));
-                //qDebug() << "文件已成功转换为 UTF-8 并覆盖原文件";
             }
             else
             {
                 qWarning() << "无法读取文件内容";
             }
         }
-        else
-        {
-            //qDebug() << "文件已经是 UTF-8 编码，不需要转换";
-        }
-
-        emit Begin_send(QString::fromStdString(lrcFile));
-        //qDebug()<<QString::fromStdString(lrcFile);
     }
-    else
-    {
-        //qDebug()<<"无法检测编码";
-    }
-
-
-
-//       // 打印解析后的歌词
-//       for (const auto& [time, text] : lyrics) {
-//            qDebug() << "Time:" << time << "ms," << "Lyrics:" << QString::fromStdString(text);
-//       }
+    emit Begin_send(QString::fromStdString(lrcFile));
 }
 void LrcAnalyze::begin_send(QString lrcFile)
 {
-    //qDebug()<<lrcFile;
 
     lyrics.clear();
-
-    //removeEmptyLinesWithTimestamps(lrcFile);
-
-    lyrics = parseLrcFile(lrcFile);  // 解析歌词文件
-
-   // clearEmptyLines(lyrics);
-
-
-
-    emit send_lrc(lyrics);
-
-
+    if(!lrcFile.contains("http"))
+    {
+        lyrics = parseLrcFile(lrcFile);  // 解析歌词文件
+        emit send_lrc(lyrics);
+    }
+    else
+    {
+        parseLrcFileFromUrl(lrcFile);
+    }
 }
 // 将时间戳 [mm:ss.xx] 转换为毫秒
 int LrcAnalyze::timeToMilliseconds(const std::string& timeStr)
@@ -201,6 +174,39 @@ std::map<int, std::string> LrcAnalyze::parseLrcFile(const QString& lrcFile)
 
     file.close();
     return lyrics;
+}
+void LrcAnalyze::parseLrcFileFromUrl(const QString& urlString)
+{
+    auto request = HttpRequest::getInstance();
+    request->get_file(urlString);
+
+    connect(request, &HttpRequest::signal_lrc, this, [=](QStringList arg){
+
+        std::map<int, std::string> lyrics;
+        QRegularExpression regexPattern(R"(\[(\d{2}:\d{2}\.\d{2})\](.*))");  // 正则匹配 [mm:ss.xx] 和歌词内容
+        QStringList lines = arg;
+
+        for (const QString& line : lines)
+        {
+            QRegularExpressionMatch match = regexPattern.match(line);
+            if (match.hasMatch())
+            {
+                QString timeStr = match.captured(1);  // 获取时间戳
+                QString lyricText = match.captured(2);  // 获取歌词文本
+
+                // 检查歌词内容是否为空
+                if (!lyricText.trimmed().isEmpty())
+                {
+                    int timeInMs = timeToMilliseconds(timeStr.toStdString());  // 转换为 std::string
+                    lyrics[timeInMs] = lyricText.toStdString();  // 转换为 std::string 并存储
+                }
+            }
+        }
+        this->lyrics = lyrics;
+        emit this->send_lrc(this->lyrics);
+        disconnect(request, &HttpRequest::signal_lrc, nullptr, nullptr);
+    });
+
 }
 
 

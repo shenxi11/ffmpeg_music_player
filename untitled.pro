@@ -24,6 +24,8 @@ SOURCES += \
     main_widget.cpp \
     music_item.cpp \
     music_list_widget.cpp \
+    music_list_widget_local.cpp \
+    music_list_widget_net.cpp \
     pianwidget.cpp \
     play_widget.cpp \
     rotatingcircleimage.cpp \
@@ -38,8 +40,11 @@ HEADERS += \
     lrc_analyze.h \
     lyrictextedit.h \
     main_widget.h \
+    music.h \
     music_item.h \
     music_list_widget.h \
+    music_list_widget_local.h \
+    music_list_widget_net.h \
     pianwidget.h \
     play_widget.h \
     rotatingcircleimage.h \

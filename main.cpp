@@ -3,8 +3,9 @@
 #include <QDebug>
 #include <QIcon>
 #include <QApplication>
-
-#include"main_widget.h"
+#include <QThread>
+#include "main_widget.h"
+#include "headers.h"
 // 自定义日志处理函数
 void customLogHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg)
 {
@@ -30,7 +31,11 @@ int main(int argc, char *argv[])
     QLoggingCategory::setFilterRules("qt.audio.debug=false");
     qRegisterMetaType<std::vector<std::pair<qint64,qint64>>>("std::vector<std::pair<qint64,qint64> >");
 
-    Main_Widget w;
+
+    auto request = HttpRequest::getInstance();
+    auto user = User::getInstance();
+
+    MainWidget w;
 
     w.show();
     w.Update_paint();

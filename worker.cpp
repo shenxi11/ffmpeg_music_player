@@ -65,7 +65,7 @@ void Worker::Pause()
         timer->start();
 
         emit Begin();
-        //qDebug() << "Playback resumed.";
+        qDebug() << "Playback resumed.";
     }
 }
 //void Worker::play_pcm(QString pcmFilePath ){
@@ -202,18 +202,21 @@ void Worker::Pause()
 //}
 void Worker::reset_play()
 {
-   //std::lock_guard<std::mutex>lock(mtx);
+    std::lock_guard<std::mutex>lock(mtx);
+
     this->mp.clear();
     this->audioBuffer.clear();
-    this->audioOutput->reset();
-    audioDevice = this->audioOutput->start();
-
+    if(audioOutput)
+    {
+        this->audioOutput->reset();
+        audioDevice = this->audioOutput->start();
+    }
 }
 
 void Worker::onTimeOut()
 {
 
-   //std::lock_guard<std::mutex> lock(mtx);
+    //std::lock_guard<std::mutex> lock(mtx);
 
 
     if (audioBuffer.isEmpty())
@@ -287,17 +290,6 @@ void Worker::onTimeOut()
     }
 
 
-    //    if (!lyrics.empty() && currentLyricIndex < (int)lyrics.size()) {
-    //        auto it = std::next(lyrics.begin(), currentLyricIndex);
-    //        if (currentTimeMS >= it->first) {
-    //            if (!it->second.empty())
-    //                emit send_lrc(QString::fromStdString(it->second));
-    //                qDebug()<<QString::fromStdString(it->second);
-    //            currentLyricIndex++;
-    //        }
-    //    }
-
-
 }
 
 
@@ -316,12 +308,10 @@ void Worker::setPATH(QString Path)
 void Worker::play_pcm()
 {
 
-
-
     if (audioOutput)
     {
         timer->stop();
-
+        qInfo()<<__FUNCTION__;
         audioOutput->stop();
         audioOutput->reset();
 
@@ -369,11 +359,14 @@ void Worker::play_pcm()
 
 void Worker::reset_status()
 {
-    timer->stop();
-    this->mp.clear();
-    this->audioBuffer.clear();
-    audioOutput->stop();
-    audioOutput->reset();
-
-    emit Stop();
+    if(timer && audioOutput)
+    {
+        qInfo()<<__FUNCTION__;
+        timer->stop();
+        this->mp.clear();
+        this->audioBuffer.clear();
+        audioOutput->stop();
+        audioOutput->reset();
+        emit Stop();
+    }
 }
