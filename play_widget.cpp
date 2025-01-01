@@ -189,6 +189,7 @@ PlayWidget::PlayWidget(QWidget *parent)
     RotatingCircleImage* rotate = new RotatingCircleImage(rotate_widget);
     rotate_widget->move(100, 100);
     rotate_widget->resize(300, 300);
+    //rotate->move(100, 100);
     rotate->resize(300, 300);
     connect(this, &PlayWidget::signal_stop_rotate, rotate, &RotatingCircleImage::on_signal_stop_rotate);
 

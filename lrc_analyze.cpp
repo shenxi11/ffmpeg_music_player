@@ -201,7 +201,6 @@ void LrcAnalyze::parseLrcFileFromUrl(const QString& urlString)
                 }
             }
         }
-        qDebug()<<__FUNCTION__<<lyrics;
         this->lyrics = lyrics;
         emit this->send_lrc(this->lyrics);
         disconnect(request, &HttpRequest::signal_lrc, nullptr, nullptr);
