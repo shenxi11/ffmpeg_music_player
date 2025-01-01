@@ -60,16 +60,16 @@ void TakePcm::seekToPosition(int newPosition)
 }
 void TakePcm::take_album()
 {
-    AVDictionary* metadata = ifmt_ctx->metadata;
-       if (metadata) {
-           // 打印元数据
-           AVDictionaryEntry* tag = nullptr;
-           while ((tag = av_dict_get(metadata, "", tag, AV_DICT_IGNORE_SUFFIX))) {
-               qDebug() << tag->key << ": " << tag->value;
-           }
-       } else {
-           qDebug() << "No metadata found in the file.";
-       }
+//    AVDictionary* metadata = ifmt_ctx->metadata;
+//       if (metadata) {
+//           // 打印元数据
+//           AVDictionaryEntry* tag = nullptr;
+//           while ((tag = av_dict_get(metadata, "", tag, AV_DICT_IGNORE_SUFFIX))) {
+//               qDebug() << tag->key << ": " << tag->value;
+//           }
+//       } else {
+//           qDebug() << "No metadata found in the file.";
+//       }
 }
 
 void TakePcm::make_pcm(QString Path)

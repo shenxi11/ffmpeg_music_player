@@ -1,5 +1,5 @@
 #include "httprequest.h"
-
+#include "music.h"
 HttpRequest* HttpRequest::instance = nullptr;
 QMutex HttpRequest::mutex;
 User* User::instance = nullptr;
@@ -283,15 +283,12 @@ bool HttpRequest::getAllFiles() {
 
 
 void HttpRequest::get_music_data(const QString &fileName) {
-    //emit signal_clear();
 
-    // 构建 JSON 请求体
     QJsonObject json;
     json["filename"] = fileName;
     QJsonDocument doc(json);
     QByteArray requestData = doc.toJson();
 
-    // 设置请求 URL 和头部
     QUrl url(localUrl + "stream");
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
@@ -308,7 +305,13 @@ void HttpRequest::get_music_data(const QString &fileName) {
             QJsonObject responseObject = jsonResponse.object();
             if (responseObject.contains("stream_url")) {
                 QString streamUrl = responseObject["stream_url"].toString();
-                qDebug() << "RTMP stream URL:" << streamUrl;
+                QString musicId = responseObject["ID"].toString();
+                std::shared_ptr<Music> music = std::make_shared<Music>();
+                music->setSongPath(streamUrl);
+                music->setMusicID(musicId);
+                music->setDuration(responseObject["duration"].toInt());
+                music->setPicPath(responseObject["album_cover_url"].toString());
+
                 emit signal_streamurl(true, streamUrl);
             } else {
                 qDebug() << "Error: 'stream_url' not found in response.";

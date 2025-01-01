@@ -3,8 +3,6 @@
 #include <QSpacerItem>
 MusicListWidgetLocal::MusicListWidgetLocal(QWidget *parent) : QWidget(parent)
 {
-
-
     QWidget* parameterWidget = new QWidget(this);
     parameterWidget->resize(width(), 30);
 

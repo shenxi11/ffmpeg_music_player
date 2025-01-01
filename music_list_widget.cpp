@@ -29,7 +29,6 @@ void MusicListWidget::on_signal_add_song(const QString songName, const QString p
 
 void MusicListWidget::receive_song_op(bool flag, QString fileName)
 {
-    //qInfo()<<__FUNCTION__<<fileName<<pathMap[fileName];
     if(pathMap[fileName])
         pathMap[fileName]->button_op(flag);
 

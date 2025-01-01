@@ -1,14 +1,16 @@
 #include "music_item.h"
 
 MusicItem::MusicItem(const QString& name, const QString& path, const QString& picPath, QSize size)
-    : name(name)
-    , path(path)
-    , picPath(picPath)
-    , size(size)
+    :size(size)
 {
     setAutoFillBackground(true);
 
     setFixedSize(size);
+
+    music = std::make_shared<Music>();
+    music->setPicPath(picPath);
+    music->setSongPath(path);
+    music->setPicPath(picPath);
 
     label = new QLabel(this);
     label->setText(name);
@@ -60,15 +62,15 @@ void MusicItem::button_op(bool flag)
 }
 void MusicItem::play_to_click()
 {
-    emit signal_play_click(this->path);
+    emit signal_play_click(music->getSongPath());
 }
 void MusicItem::_remove_click()
 {
-    emit signal_remove_click(this->path);
+    emit signal_remove_click(music->getSongPath());
 }
 void MusicItem::_play_click()
 {
-    emit signal_play_click(this->path);
+    emit signal_play_click(music->getSongPath());
 }
 void MusicItem::set_netflag(bool flag)
 {
@@ -109,13 +111,5 @@ void MusicItem::set_netflag(bool flag)
 }
 void MusicItem::on_signal_download_clicked()
 {
-    emit signal_download_click(this->name);
-}
-QString MusicItem::getName()
-{
-    return this->name;
-}
-QString MusicItem::getPath()
-{
-    return this->path;
+    emit signal_download_click(music->getSongName());
 }

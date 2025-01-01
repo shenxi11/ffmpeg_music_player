@@ -31,9 +31,7 @@ signals:
     void signal_download_click(QString songName);
 private:
     std::map<QString,MusicItem*>pathMap;
-
 protected:
-//    void mouseDoubleClickEvent(QMouseEvent *event);
 
     void paintEvent(QPaintEvent *event) override
         {
@@ -43,7 +41,6 @@ protected:
             QColor backgroundColor("#F7F9FC");
             painter.fillRect(this->rect(), backgroundColor);
 
-            // 调用父类的 paintEvent 以确保绘制子项等内容
             QListWidget::paintEvent(event);
         }
 };

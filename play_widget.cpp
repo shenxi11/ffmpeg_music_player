@@ -185,8 +185,10 @@ PlayWidget::PlayWidget(QWidget *parent)
 
     //this->textEdit->setCursor(Qt::ArrowCursor);
 
-    RotatingCircleImage* rotate = new RotatingCircleImage(this);
-    rotate->move(100, 100);
+    QWidget* rotate_widget = new QWidget(this);
+    RotatingCircleImage* rotate = new RotatingCircleImage(rotate_widget);
+    rotate_widget->move(100, 100);
+    rotate_widget->resize(300, 300);
     rotate->resize(300, 300);
     connect(this, &PlayWidget::signal_stop_rotate, rotate, &RotatingCircleImage::on_signal_stop_rotate);
 
@@ -254,7 +256,7 @@ PlayWidget::PlayWidget(QWidget *parent)
 
     connect(lrc.get(),&LrcAnalyze::send_lrc,work.get(),&Worker::receive_lrc);
     connect(lrc.get(),&LrcAnalyze::send_lrc,this,[=](const std::map<int, std::string> lyrics){
-
+        qDebug()<<__FUNCTION__<<"lyrics"<<lyrics.size();
         this->textEdit->currentLine = 4;
         this->lyrics.clear();
         for(int i = 0;i<5;i++)

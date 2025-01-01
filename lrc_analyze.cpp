@@ -185,7 +185,6 @@ void LrcAnalyze::parseLrcFileFromUrl(const QString& urlString)
         std::map<int, std::string> lyrics;
         QRegularExpression regexPattern(R"(\[(\d{2}:\d{2}\.\d{2})\](.*))");  // 正则匹配 [mm:ss.xx] 和歌词内容
         QStringList lines = arg;
-
         for (const QString& line : lines)
         {
             QRegularExpressionMatch match = regexPattern.match(line);
@@ -202,6 +201,7 @@ void LrcAnalyze::parseLrcFileFromUrl(const QString& urlString)
                 }
             }
         }
+        qDebug()<<__FUNCTION__<<lyrics;
         this->lyrics = lyrics;
         emit this->send_lrc(this->lyrics);
         disconnect(request, &HttpRequest::signal_lrc, nullptr, nullptr);

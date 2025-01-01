@@ -4,16 +4,15 @@
 #include <QObject>
 #include <QListWidgetItem>
 #include "headers.h"
-
+#include "music.h"
 class MusicItem :  public QWidget
 {
     Q_OBJECT
 public:
     explicit MusicItem(const QString& name, const QString& path, const QString& picPath, QSize size);
-    ~MusicItem(){qInfo()<<__FUNCTION__<<"destruct";};
+    ~MusicItem(){};
 
-    QString getName();
-    QString getPath();
+    std::shared_ptr<Music> getMusic(){return this->music;};
     void button_op(bool flag);
     void _play_click();
     void _remove_click();
@@ -25,15 +24,14 @@ signals:
     void signal_remove_click(QString songName);
     void signal_download_click(QString songName);
 private:
-    const QString name;
-    const QString path;
-    const QString picPath;
     const QSize size;
     QLabel* label;
     QLabel* pic;
     QPushButton* play= nullptr;
     QPushButton* remove = nullptr;
     QPushButton* download = nullptr;
+
+    std::shared_ptr<Music> music;
 
     bool hover = false;
     bool isNetMusic = false;
