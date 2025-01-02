@@ -191,6 +191,7 @@ PlayWidget::PlayWidget(QWidget *parent)
     rotate_widget->resize(300, 300);
     //rotate->move(100, 100);
     rotate->resize(300, 300);
+    rotate->moveToThread(c);
     connect(this, &PlayWidget::signal_stop_rotate, rotate, &RotatingCircleImage::on_signal_stop_rotate);
 
     //qDebug()<<"MainWindow"<<QThread::currentThreadId();
