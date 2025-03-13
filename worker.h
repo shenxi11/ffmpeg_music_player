@@ -35,6 +35,11 @@ public slots:
     void setPATH(QString Path);
 
     void reset_status();
+
+    void onDataReceived(QByteArray data);
+
+    void stopPlayback();
+    void stopPlayBack();
 private slots:
     void onTimeOut();
 
@@ -79,6 +84,12 @@ private:
     std::map<QByteArray,qint64> mp;
 
    QString PATH;
+
+   std::condition_variable cv;
+   std::atomic<bool> m_stopFlag = true;
+   std::atomic<bool> m_breakFlag = false;
+
+   std::thread thread_;
 };
 
 #endif // WORKER_H

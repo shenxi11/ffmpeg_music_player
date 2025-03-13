@@ -132,6 +132,7 @@ LoginWidget::LoginWidget(QWidget *parent) : QWidget(parent)
             isLogin = true;
             login->setText("登录");
             Register->setText("<a href=\"#\">注册</a>");
+            username->setVisible(false);
             username->clear();  // 注册成功后清空用户名输入框
         } else if (!success) {
             qDebug() << "注册失败！";

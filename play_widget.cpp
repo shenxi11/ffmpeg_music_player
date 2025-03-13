@@ -191,7 +191,6 @@ PlayWidget::PlayWidget(QWidget *parent)
     rotate_widget->resize(300, 300);
     //rotate->move(100, 100);
     rotate->resize(300, 300);
-    rotate->moveToThread(c);
     connect(this, &PlayWidget::signal_stop_rotate, rotate, &RotatingCircleImage::on_signal_stop_rotate);
 
     //qDebug()<<"MainWindow"<<QThread::currentThreadId();
@@ -219,7 +218,7 @@ PlayWidget::PlayWidget(QWidget *parent)
     connect(this, &PlayWidget::signal_filepath, [=](QString path) {
         emit take_pcm->signal_begin_make_pcm(path);
     });
-    //connect(this,&Play_Widget::signal_filepath,work.get(),&Worker::reset_play);
+//    connect(this,&PlayWidget::signal_filepath,work.get(),&Worker::reset_play);
 
 
     //    connect(take_pcm.get(),&Take_pcm::begin_to_play,this,&MainWindow::_begin_to_play);
