@@ -105,7 +105,7 @@ private:
     HttpRequest& operator=(const HttpRequest&) = delete;
 
     const QString localUrl = "http://localhost:5000/";
-    QNetworkAccessManager* manager;
+    QNetworkAccessManager* manager = nullptr;
     static HttpRequest* instance;
     static QMutex mutex;
 };

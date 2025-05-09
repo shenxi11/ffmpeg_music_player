@@ -33,6 +33,7 @@ int main(int argc, char *argv[])
 
 
     auto request = HttpRequest::getInstance();
+
     auto user = User::getInstance();
 
     MainWidget w;

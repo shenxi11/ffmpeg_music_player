@@ -26,7 +26,7 @@ public:
 
     void disableScrollBar();
 signals:
-
+    void signal_current_lrc(const QString lrc_);
 private:
 
 

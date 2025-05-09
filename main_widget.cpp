@@ -39,7 +39,6 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     searchBox->setFixedSize(200,30);
 
     Login = new QPushButton(this);
-    //Login->setFixedSize(100,50);
     Login->setText("未登录");
     Login->setStyleSheet(
                 "QPushButton "
@@ -247,7 +246,7 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
         {
             w->raise();
             w->clearMask();
-            w->isUp = true;
+            w->set_isUp(true);
             update();
         }
         else
@@ -255,7 +254,7 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
             w->lower();
             QRegion region1(0, 500, w->width(), 500);
             w->setMask(region1);
-            w->isUp = false;
+            w->set_isUp(false);
             update();
             w->setPianWidgetEnable(false);
         }

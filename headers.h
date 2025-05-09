@@ -49,7 +49,7 @@ extern "C"
 
 
 #define BUFFER_SIZE 17640
-#define AUDIO_BUFFER_SIZE 65536
+#define AUDIO_BUFFER_SIZE 65536 * 2
 #define RATE 44100
 #define CHANNELS 2
 #define SAMPLE_SIZE 16

@@ -16,16 +16,12 @@ void TakePcm::initialize() {
     ifmt_ctx->interrupt_callback = cb; // 设置回调
 }
 
-TakePcm::TakePcm():drag(false) ,
-    ifmt_ctx(nullptr)
-
-  ,codec_ctx(nullptr)
-
-  ,swr_ctx(nullptr)
-
-  ,frame(nullptr)
-
-  ,pkt(nullptr)
+TakePcm::TakePcm()
+    :ifmt_ctx(nullptr)
+    ,codec_ctx(nullptr)
+    ,swr_ctx(nullptr)
+    ,frame(nullptr)
+    ,pkt(nullptr)
 
 {
     connect(this,&TakePcm::begin_to_decode,this,&TakePcm::decode);
@@ -44,32 +40,29 @@ TakePcm::~TakePcm()
         avformat_close_input(&ifmt_ctx);
     if(swr_ctx)
         swr_free(&swr_ctx);
-    if(decodeThread.joinable())
-        decodeThread.join();
-    //qDebug()<<"Destruct Take_pcm";
 }
 void TakePcm::seekToPosition(int newPosition)
 {
-
     int64_t targetTimestamp = static_cast<int64_t>(newPosition) * 1000;
+
+    //av_seek_frame(ifmt_ctx, -1, targetTimestamp, AVSEEK_FLAG_BACKWARD);
+    int retries = 3;
+    while (retries--) {
+        int ret = av_seek_frame(ifmt_ctx, -1, targetTimestamp, AVSEEK_FLAG_BACKWARD);
+        if (ret >= 0) {
+            break;
+        }
+        qDebug()<<__FUNCTION__<<"failed"<<retries;
+        QThread::msleep(50);
+    }
     avcodec_flush_buffers(codec_ctx);
-    av_seek_frame(ifmt_ctx, -1, targetTimestamp, AVSEEK_FLAG_BACKWARD);
 
     emit Position_Change();
     emit begin_to_decode();
 }
 void TakePcm::take_album()
 {
-//    AVDictionary* metadata = ifmt_ctx->metadata;
-//       if (metadata) {
-//           // 打印元数据
-//           AVDictionaryEntry* tag = nullptr;
-//           while ((tag = av_dict_get(metadata, "", tag, AV_DICT_IGNORE_SUFFIX))) {
-//               qDebug() << tag->key << ": " << tag->value;
-//           }
-//       } else {
-//           qDebug() << "No metadata found in the file.";
-//       }
+
 }
 
 void TakePcm::make_pcm(QString Path)
@@ -110,7 +103,7 @@ void TakePcm::make_pcm(QString Path)
         avformat_close_input(&ifmt_ctx);
         return;
     }
-    this->run_async();
+    //    this->run_async();
 
     audioStreamIndex = -1;
     for (int i = 0; i <(int)ifmt_ctx->nb_streams; ++i)
@@ -242,8 +235,6 @@ void TakePcm::make_pcm(QString Path)
 
 void TakePcm::decode()
 {
-    qInfo()<<__FUNCTION__<<QThread::currentThreadId();
-
     while(1)
     {
 
@@ -307,8 +298,6 @@ void TakePcm::decode()
         av_packet_unref(pkt);
 
     }
-
-    qInfo()<<__FUNCTION__<<"finish decode";
 }
 
 
@@ -317,7 +306,6 @@ void TakePcm::send_data(uint8_t *buffer, int bufferSize,qint64 timeMap)
 
 
     QByteArray byteArray(reinterpret_cast<const char*>(buffer), bufferSize);
-
     free(buffer);
 
     emit data(byteArray,timeMap);

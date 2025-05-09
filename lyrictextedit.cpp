@@ -32,6 +32,7 @@ void LyricTextEdit::highlightLine(int lineNumber)
         //qDebug()<<cursor.selectedText();
 
         highlightLineFormat(cursor);
+        emit signal_current_lrc(cursor.selectedText());
     }
 
 

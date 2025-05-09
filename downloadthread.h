@@ -2,12 +2,14 @@
 #define DOWNLOADTHREAD_H
 
 #include <QObject>
+#include "headers.h"
 
-class DownloadThread
+class DownloadThread: public QRunnable
 {
-    Q_OBJECT
 public:
     DownloadThread();
+private:
+    int taskId;
 };
 
 #endif // DOWNLOADTHREAD_H

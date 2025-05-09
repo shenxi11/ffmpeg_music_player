@@ -13,6 +13,9 @@
 #include "httprequest.h"
 #include "rotatingcircleimage.h"
 #include "pianwidget.h"
+#include "process_slider.h"
+#include "controlbar.h"
+#include "desk_lrc_widget.h"
 
 class PlayWidget : public QWidget
 {
@@ -22,12 +25,9 @@ public:
     PlayWidget(QWidget *parent = nullptr);
     ~PlayWidget();
 
-    QWidget* getButtonWidget(){return button_widget;};
-    QSlider* getSlider(){return Slider;};
-
-
     bool isUp = false;
     bool get_net_flag(){return play_net;};
+    void set_isUp(bool flag);
 public slots:
 
     void _begin_take_lrc(QString str);
@@ -37,7 +37,13 @@ public slots:
     void setPianWidgetEnable(bool flag);
 
     void set_play_net(bool flag){play_net = flag;};
+    void slot_play_click();
+    void slot_Lrc_send_lrc(const std::map<int, std::string> lyrics);
+    void slot_work_stop();
+    void slot_work_play();
+    void slot_desk_toggled(bool checked);
 signals:
+    void signal_worker_play();
     void signal_filepath(QString filePath);
     void signal_begin_to_play(QString path);
     void signal_begin_take_lrc(QString str);
@@ -53,6 +59,9 @@ signals:
     void signal_remove_click();
     void signal_stop_rotate(bool flag);
     void signal_begin_net_decode();
+    void signal_playState(ControlBar::State state);
+    void signal_isUpChanged(bool flag);
+    void signal_desk_lrc(const QString lrc_);
 private:
 
     void init_TextEdit();
@@ -66,26 +75,19 @@ private:
     QString filePath;
     QString fileName;
     LyricTextEdit *textEdit;
-    QSlider *slider;
-    QWidget* button_widget;
     PianWidget* pianWidget;
-    QPushButton *video;
-    QPushButton *play;
-    QPushButton *Loop;
     QPushButton *music;
-    QPushButton *mlist;
-    QPushButton *last;
-    QPushButton *next;
-    QSlider *Slider;
     QPushButton* net;
     qint64 duration = 0;// 加载图片
     std::mutex mtx;
+    QLabel* nameLabel;
     QThread *a;
     QThread *b;
     QThread *c;
 
-    bool played;
-    bool loop;
+    ProcessSlider* process_slider;
+    ControlBar* controlBar;
+    DeskLrcWidget* desk;
 
     bool play_net = false;
 protected:

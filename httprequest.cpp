@@ -6,10 +6,11 @@ User* User::instance = nullptr;
 QMutex User::mutex;
 HttpRequest::HttpRequest(QObject *parent)
 {
-    manager = new QNetworkAccessManager(this);
+
 }
 bool HttpRequest::AddMusic(const QString music_path)
-{
+{   if(!manager)
+        manager = new QNetworkAccessManager();
     QUrl url = localUrl + "users/add_music";
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
@@ -40,6 +41,8 @@ bool HttpRequest::AddMusic(const QString music_path)
 }
 bool HttpRequest::Login(const QString& account, const QString& password)
 {
+    if(!manager)
+            manager = new QNetworkAccessManager();
     QUrl url = localUrl + "users/login";
 
     QNetworkRequest request(url);
@@ -96,6 +99,8 @@ bool HttpRequest::Login(const QString& account, const QString& password)
 }
 bool HttpRequest:: Register(const QString& account, const QString& password, const QString& username)
 {
+    if(!manager)
+            manager = new QNetworkAccessManager();
     QUrl url = localUrl + "users/register";
 
     QNetworkRequest request(url);
@@ -126,7 +131,8 @@ bool HttpRequest:: Register(const QString& account, const QString& password, con
 
 bool HttpRequest::Upload(const QString &path)
 {
-
+    if(!manager)
+            manager = new QNetworkAccessManager();
     QFile *file = new QFile(path);
     if (!file->open(QIODevice::ReadOnly)) {
         qWarning("Failed to open file");
@@ -168,6 +174,8 @@ bool HttpRequest::Upload(const QString &path)
 }
 bool HttpRequest::get_file(const QString url)
 {
+    if(!manager)
+            manager = new QNetworkAccessManager();
     QNetworkRequest request(url + "/lrc");
     QNetworkReply* reply = manager->get(request);
 
@@ -200,6 +208,8 @@ bool HttpRequest::get_file(const QString url)
 
 bool HttpRequest::Download(const QString& filename, const QString download_folder)
 {
+    if(!manager)
+            manager = new QNetworkAccessManager();
     QUrl url(localUrl + "download");
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
@@ -213,8 +223,9 @@ bool HttpRequest::Download(const QString& filename, const QString download_folde
 
     QObject::connect(reply, &QNetworkReply::finished, [reply, filename, download_folder]() {
         if (reply->error() == QNetworkReply::NoError) {
-
             QByteArray responseData = reply->readAll();
+
+            qDebug()<<__FUNCTION__<<"download"<<responseData.size();
 
             QString downloadFolder = download_folder;
             QDir dir(downloadFolder);
@@ -239,6 +250,8 @@ bool HttpRequest::Download(const QString& filename, const QString download_folde
 }
 
 bool HttpRequest::getAllFiles() {
+    if(!manager)
+            manager = new QNetworkAccessManager();
     QUrl url = localUrl + "files";
     QNetworkRequest request(url);
 
@@ -283,7 +296,8 @@ bool HttpRequest::getAllFiles() {
 
 
 void HttpRequest::get_music_data(const QString &fileName) {
-
+    if(!manager)
+            manager = new QNetworkAccessManager();
     QJsonObject json;
     json["filename"] = fileName;
     QJsonDocument doc(json);
@@ -334,6 +348,8 @@ void HttpRequest::get_music_data(const QString &fileName) {
 
 
 void HttpRequest::sendAcknowledgment() {
+    if(!manager)
+            manager = new QNetworkAccessManager();
     QJsonObject ackJson;
     ackJson["ack"] = "ACK";
     QJsonDocument ackDoc(ackJson);
@@ -348,6 +364,8 @@ void HttpRequest::sendAcknowledgment() {
 }
 
 bool HttpRequest::getMusic(const QString& name) {
+    if(!manager)
+            manager = new QNetworkAccessManager();
     QUrl url(localUrl + "file");
     QNetworkRequest request(url);
 

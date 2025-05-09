@@ -49,12 +49,6 @@ private:
 
     int audioStreamIndex;
 
-    bool drag;
-    std::thread decodeThread;
-    std::thread decodeThread1;
-    std::condition_variable cv;
-    std::mutex mtx;
-
     std::atomic<bool> stop_flag = false;
     std::atomic<bool> end_flag = false;
 };

@@ -5,14 +5,19 @@ Worker::Worker():
     isPaused(false)
   ,sliderMove(false)
 {
-
     thread_ = std::thread(&Worker::onTimeOut, this);
 }
 
-
 Worker::~Worker()
 {
-    //qDebug()<<"desruct Worker";
+    {
+        std::lock_guard<std::mutex>lock(mtx);
+        m_breakFlag = true;
+    }
+    cv.notify_all();
+    if (thread_.joinable()) {
+        thread_.join();
+    }
 }
 
 void Worker::receive_totalDuration(qint64 total)
@@ -24,11 +29,7 @@ void Worker::receive_lrc(std::map<int, std::string> lyrics)
     std::lock_guard<std::mutex>lock(mtx);
     this->lyrics=lyrics;
 }
-//void  Worker::begin_play(QString pcmFilePath){
-//    //qDebug()<<"Worker"<<QThread::currentThreadId();
-//    emit play(pcmFilePath);
 
-//}
 void Worker::stop_play()
 {
     emit stopPlay();
@@ -49,21 +50,16 @@ void Worker::Pause()
 
     if (!isPaused||this->sliderMove)
     {
-        //qDebug() << "暂停";
         audioOutput->suspend();
-//        timer->stop();
         stopPlayback();
         isPaused = true;
-        //qDebug() << "Playback paused CC:";
         emit Stop();
     }
     else if (isPaused)
     {
-        //qDebug() << "恢复";
         audioOutput->resume();
         isPaused = false;
-        timer->start();
-
+        stopPlayback();
         emit Begin();
         qDebug() << "Playback resumed.";
     }
@@ -71,78 +67,61 @@ void Worker::Pause()
 
 void Worker::reset_play()
 {
-    {
-        std::lock_guard<std::mutex> lock(mtx);
-        audioBuffer.clear();
-        mp.clear();
-    }
-    cv.notify_one();
+
     if(audioOutput)
     {
+        {
+            std::lock_guard<std::mutex> lock(mtx);
+            audioBuffer.clear();
+            mp.clear();
+        }
+        cv.notify_one();
         this->audioOutput->reset();
         audioDevice = this->audioOutput->start();
     }
+
 }
 
 void Worker::onTimeOut()
 {
 
-    //std::lock_guard<std::mutex> lock(mtx);
-
     while(true)
     {
         std::unique_lock<std::mutex> lock(mtx);
-        cv.wait(lock,[this]{return !audioBuffer.empty() || !m_stopFlag || m_breakFlag;});
-        qDebug()<<__FUNCTION__<<audioBuffer.size();
-        if (audioBuffer.isEmpty())
-        {
-            qDebug()<<"Empty";
-//            timer->stop();
-//            emit Stop();
-//            emit rePlay();
-//            return;  // 如果缓冲区为空，退出
+        cv.wait(lock,[this]{return (!audioBuffer.empty() && !m_stopFlag) || m_breakFlag;});
+        if(audioBuffer.empty()){
             continue;
         }
         if(m_breakFlag){
-            break;
+            return;
         }
 
         QByteArray pcmData = audioBuffer.front();
 
-        // 检查 audioDevice 的可用空间
         qint64 bytesFree = audioOutput->bytesFree();
-        qDebug() << "Audio buffer size:" << pcmData.size() << "audioBytesFree:" << bytesFree<<" number:"<<audioBuffer.size();
-
-        if ( bytesFree < 2 * pcmData.size())
+        if ( bytesFree <  2 * pcmData.size())
         {
-            qDebug() << "Not enough space in audio output buffer. PCM data size:" << pcmData.size() << "bytesFree:" << bytesFree;
-            audioBuffer.enqueue(pcmData);  // 将数据重新放回缓冲区
-            continue;  // 等待下一次调用
+            continue;
         }
 
-        qint64 bytesWritten = audioDevice->write(pcmData);  // 写入音频设备
-
+        qint64 bytesWritten = audioDevice->write(pcmData);
+        if (bytesWritten < 0)
+        {
+            qDebug() << "Error writing audio data:" << audioDevice->errorString();
+            continue;
+        }
         qint64 currentTimeMS = mp[pcmData];
 
         mp.erase(pcmData);
         audioBuffer.pop_front();
-        if (bytesWritten < 0)
-        {
-            qDebug() << "Error writing audio data:" << audioDevice->errorString();
-            //timer->stop();  // 停止定时器
-            return;
-        }
+        pcmData = QByteArray();
 
-
-
-        emit durations(currentTimeMS);  // 通知其他组件同步显示时间
+        emit durations(currentTimeMS);
 
         int index=0;
 
         for (auto it = lyrics.begin(); it != lyrics.end(); ++it,++index)
         {
-
-            // 访问下一个元素
             auto nextIt = std::next(it);
 
             if (nextIt != lyrics.end())
@@ -189,9 +168,7 @@ void Worker::play_pcm()
 
     if (audioOutput)
     {
-//        timer->stop();
         stopPlayback();
-        qInfo()<<__FUNCTION__;
         audioOutput->stop();
         audioOutput->reset();
 
@@ -208,8 +185,6 @@ void Worker::play_pcm()
     else
     {
         timer = new QTimer(this);
-
-        //connect(timer, &QTimer::timeout, this,&Worker::onTimeOut);
 
         QAudioFormat format;
 
@@ -230,13 +205,7 @@ void Worker::play_pcm()
 
     audioOutput->setVolume(75 / 100.0);
 
-    QThread::msleep(100);
-
-    m_stopFlag = false;
-    cv.notify_all();
-//    timer->setInterval(5);
-//    timer->start();
-
+    stopPlayback();
 
     connect(this, &Worker::stopPlay, this, &Worker::Pause);
 
@@ -249,7 +218,6 @@ void Worker::reset_status()
     if( audioOutput)
     {
         qInfo()<<__FUNCTION__;
-        //timer->stop();
         stopPlayback();
         {
             std::lock_guard<std::mutex> lock(mtx);
@@ -276,9 +244,6 @@ void Worker::stopPlayback()
     {
         std::lock_guard<std::mutex> lock(mtx);
         m_stopFlag= !m_stopFlag;
-//        if (thread_.joinable()) {
-//                thread_.join();
-//            }
     }
     cv.notify_all();
 }
@@ -288,8 +253,8 @@ void Worker::stopPlayBack()
         std::lock_guard<std::mutex> lock(mtx);
         m_breakFlag= true;
         if (thread_.joinable()) {
-                thread_.join();
-            }
+            thread_.join();
+        }
     }
     cv.notify_all();
 }

@@ -47,18 +47,13 @@ private slots:
 
 signals:
     void durations(qint64 value);
-
     void stopPlay();
-
     void send_lrc(int line);
-
     void Stop();
-
     void Begin();
-
     void rePlay();
-
     void pause();
+    void begin_to_decode();
 private:
     std::map<int, std::string> lyrics;
 
