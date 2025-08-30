@@ -41,5 +41,8 @@
         <file>icon/锁定_o.png</file>
         <file>icon/词表权益.png</file>
         <file>icon/解锁.png</file>
+        <file>icon/加.png</file>
+        <file>icon/减.png</file>
+        <file>icon/右右.png</file>
     </qresource>
 </RCC>

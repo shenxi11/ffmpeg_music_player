@@ -15,7 +15,7 @@ LoginWidget::LoginWidget(QWidget *parent) : QWidget(parent)
     this->setAttribute(Qt::WA_TranslucentBackground); // 设置背景透明
     isLogin = true; // 默认是登录模式
 
-    auto request = HttpRequest::getInstance();
+    request = HttpRequestPool::getInstance().getRequest();
 
     // 自定义标题栏
     QWidget *titleBar = new QWidget(this);

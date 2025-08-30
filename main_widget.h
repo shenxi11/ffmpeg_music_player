@@ -10,6 +10,7 @@
 #include <QButtonGroup>
 #include <QScreen>
 #include <QGuiApplication>
+#include "cplaywidget.h"
 
 class MainWidget : public QWidget
 {
@@ -21,6 +22,8 @@ public:
 public slots:
     void on_signal_choose_download_dir();
 signals:
+    void signal_close();
+    void signal_startDecode(QString url);
 private:
     PlayWidget* w;
     MusicListWidget* list;
@@ -30,6 +33,11 @@ private:
 
     QPushButton* Login;
 
+//    CPlayWidget* glwidget;
+//    QPushButton* openGlWidget_btn;
+//    MovieDecoder* decoder;
+
+    std::thread thread_ ;
     QPoint pos_ = QPoint(0, 0);
     bool dragging = false;
 protected:
@@ -45,7 +53,19 @@ protected:
         painter.fillRect(this->rect(), backgroundColor);
 
      }
-
+    void closeEvent(QCloseEvent *event) override{
+        if(w)
+            w->close();
+        if(net_list)
+            net_list->close();
+        if(loginWidget)
+            loginWidget->close();
+        if(main_list)
+            main_list->close();
+        if(list)
+            list->close();
+        emit signal_close();
+    }
     void mouseMoveEvent(QMouseEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;

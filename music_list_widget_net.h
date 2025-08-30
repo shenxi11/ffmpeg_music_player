@@ -6,12 +6,16 @@
 #include <QStringList>
 #include <QMap>
 #include "music_list_widget.h"
+#include "httprequest.h"
 
 class MusicListWidgetNet : public QWidget
 {
     Q_OBJECT
 public:
     explicit MusicListWidgetNet(QWidget *parent = nullptr);
+    ~MusicListWidgetNet(){
+        request->setIsUsing(false);
+    }
     void on_signal_play_click(const QString name);
     void on_signal_remove_click(const QString name);
     void on_signal_play_button_click(bool flag, const QString filename);
@@ -33,7 +37,7 @@ private:
     QLabel* dir_label;
 
     QString down_dir;
-
+    HttpRequest* request;
 };
 
 #endif // MUSICLISTWIDGETNET_H

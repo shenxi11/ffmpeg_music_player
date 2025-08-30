@@ -114,5 +114,9 @@ protected:
 
         painter.drawRect(0, 0, width(), height());
     }
+    void closeEvent(QCloseEvent *event) override{
+        if(desk)
+            desk->close();
+    }
 };
 #endif // MAINWINDOW_H

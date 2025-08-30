@@ -1,4 +1,4 @@
-QT       += core gui multimedia network concurrent
+QT       += core gui multimedia network concurrent opengl
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -17,8 +17,10 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 SOURCES += \
     controlbar.cpp \
+    cplaywidget.cpp \
     desk_lrc_widget.cpp \
     downloadthread.cpp \
+    glwidget.cpp \
     httprequest.cpp \
     loginwidget.cpp \
     lrc_analyze.cpp \
@@ -26,6 +28,7 @@ SOURCES += \
     main.cpp \
     main_widget.cpp \
     mini_controlbar.cpp \
+    movie_decoder.cpp \
     music_item.cpp \
     music_list_widget.cpp \
     music_list_widget_local.cpp \
@@ -35,13 +38,17 @@ SOURCES += \
     process_slider.cpp \
     rotatingcircleimage.cpp \
     searchbox.cpp \
+    setting_widget.cpp \
     take_pcm.cpp \
+    translate_widget.cpp \
     worker.cpp
 
 HEADERS += \
     controlbar.h \
+    cplaywidget.h \
     desk_lrc_widget.h \
     downloadthread.h \
+    glwidget.h \
     headers.h \
     httprequest.h \
     loginwidget.h \
@@ -49,6 +56,7 @@ HEADERS += \
     lyrictextedit.h \
     main_widget.h \
     mini_controlbar.h \
+    movie_decoder.h \
     music.h \
     music_item.h \
     music_list_widget.h \
@@ -59,7 +67,9 @@ HEADERS += \
     process_slider.h \
     rotatingcircleimage.h \
     searchbox.h \
+    setting_widget.h \
     take_pcm.h \
+    translate_widget.h \
     worker.h
 
 FORMS +=
@@ -68,14 +78,16 @@ FORMS +=
 TRANSLATIONS += \
     untitled_zh_CN.ts
 
-INCLUDEPATH += /opt/ffmpeg-4.4/include
+INCLUDEPATH += /opt/ffmpeg-4.4/include \
+                /home/shen/WhissperProject/whisper.cpp/include
 LIBS += -L/opt/ffmpeg-4.4/lib \
         -lavcodec \
         -lavformat \
         -lavutil \
         -lavdevice \
         -lswscale \
-        -lswresample
+        -lswresample \
+        -L/home/shen/WhissperProject/whisper.cpp/build/src -lwhisper
 
 
 RESOURCES += \

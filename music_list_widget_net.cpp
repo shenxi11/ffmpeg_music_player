@@ -5,86 +5,83 @@
 MusicListWidgetNet::MusicListWidgetNet(QWidget *parent) : QWidget(parent)
 {
     QWidget* top_widget = new QWidget(this);
-    download_dir = new QPushButton(top_widget);
-    download_dir->setText("下载路径:");
-    download_dir->setFixedSize(100,30);
-    download_dir->setStyleSheet("QPushButton { background-color: transparent; border: none; }");
+       download_dir = new QPushButton(top_widget);
+       download_dir->setText("下载路径:");
+       download_dir->setFixedSize(100,30);
+       download_dir->setStyleSheet("QPushButton { background-color: transparent; border: none; }");
 
-    dir_label = new QLabel(top_widget);
-    QHBoxLayout* top_layout = new QHBoxLayout(top_widget);
-    top_layout->addWidget(download_dir);
-    top_layout->addWidget(dir_label);
+       dir_label = new QLabel(top_widget);
+       QHBoxLayout* top_layout = new QHBoxLayout(top_widget);
+       top_layout->addWidget(download_dir);
+       top_layout->addWidget(dir_label);
 
-    top_widget->setLayout(top_layout);
+       top_widget->setLayout(top_layout);
 
-    connect(download_dir, &QPushButton::clicked, this, &MusicListWidgetNet::signal_choose_download_dir);
+       connect(download_dir, &QPushButton::clicked, this, &MusicListWidgetNet::signal_choose_download_dir);
 
-    listWidget = new MusicListWidget(this);
-    listWidget->resize(800, height() - 60);
-    listWidget->clear();
-    listWidget->show();
+       listWidget = new MusicListWidget(this);
+       listWidget->resize(800, height() - 60);
+       listWidget->clear();
+       listWidget->show();
 
-    QWidget* parameterWidget = new QWidget(this);
-    parameterWidget->resize(width(), 30);
+       QWidget* parameterWidget = new QWidget(this);
+       parameterWidget->resize(width(), 30);
 
-    QWidget* first_widget = new QWidget(parameterWidget);
-    QLabel* nameLabel = new QLabel("     标题", first_widget);
-    QLabel* numberLabel = new QLabel("#", first_widget);
-    QHBoxLayout* first_layout = new QHBoxLayout(this);
-    first_layout->addWidget(numberLabel);
-    first_layout->addWidget(nameLabel);
-    first_widget->setLayout(first_layout);
+       QWidget* first_widget = new QWidget(parameterWidget);
+       QLabel* nameLabel = new QLabel("     标题", first_widget);
+       QLabel* numberLabel = new QLabel("#", first_widget);
+       QHBoxLayout* first_layout = new QHBoxLayout(this);
+       first_layout->addWidget(numberLabel);
+       first_layout->addWidget(nameLabel);
+       first_widget->setLayout(first_layout);
 
-    QSpacerItem *spacer = new QSpacerItem(300, parameterWidget->height(), QSizePolicy::Expanding, QSizePolicy::Minimum);
+       QSpacerItem *spacer = new QSpacerItem(300, parameterWidget->height(), QSizePolicy::Expanding, QSizePolicy::Minimum);
 
-    //QWidget* second_widget = new QWidget(parameterWidget);
-    QLabel* duration_label = new QLabel("时长", parameterWidget);
+       //QWidget* second_widget = new QWidget(parameterWidget);
+       QLabel* duration_label = new QLabel("时长", parameterWidget);
 
-    QHBoxLayout* parameter_layout = new QHBoxLayout(this);
-    parameter_layout->addWidget(first_widget);
-    parameter_layout->addSpacerItem(spacer);
-    parameter_layout->addWidget(duration_label);
-    parameterWidget->setLayout(parameter_layout);
+       QHBoxLayout* parameter_layout = new QHBoxLayout(this);
+       parameter_layout->addWidget(first_widget);
+       parameter_layout->addSpacerItem(spacer);
+       parameter_layout->addWidget(duration_label);
+       parameterWidget->setLayout(parameter_layout);
 
-    QVBoxLayout* v_layout = new QVBoxLayout(this);
-    v_layout->addWidget(top_widget);
-    v_layout->addWidget(parameterWidget);
-    v_layout->addWidget(listWidget);
+       QVBoxLayout* v_layout = new QVBoxLayout(this);
+       v_layout->addWidget(top_widget);
+       v_layout->addWidget(parameterWidget);
+       v_layout->addWidget(listWidget);
 
-    connect(this, &MusicListWidgetNet::signal_add_songlist, listWidget, &MusicListWidget::on_signal_add_songlist);
-    connect(this, &MusicListWidgetNet::signal_add_songlist, [=](const QStringList songList, const QList<double> duration){
-        for(int i = 0; i < songList.size(); i++)
-        {
-            song_duration[songList.at(i)] = duration.at(i);
-        }
-    });
-    connect(listWidget, &MusicListWidget::play_click, this, &MusicListWidgetNet::on_signal_play_click);
-    connect(listWidget, &MusicListWidget::remove_click, this, &MusicListWidgetNet::on_signal_remove_click);
-    connect(listWidget, &MusicListWidget::signal_download_click, this, &MusicListWidgetNet::on_signal_download_music);
+       connect(this, &MusicListWidgetNet::signal_add_songlist, listWidget, &MusicListWidget::on_signal_add_songlist);
+       connect(this, &MusicListWidgetNet::signal_add_songlist, [=](const QStringList songList, const QList<double> duration){
+           for(int i = 0; i < songList.size(); i++)
+           {
+               song_duration[songList.at(i)] = duration.at(i);
+           }
+       });
+       connect(listWidget, &MusicListWidget::play_click, this, &MusicListWidgetNet::on_signal_play_click);
+       connect(listWidget, &MusicListWidget::remove_click, this, &MusicListWidgetNet::on_signal_remove_click);
+       connect(listWidget, &MusicListWidget::signal_download_click, this, &MusicListWidgetNet::on_signal_download_music);
 
 
-    connect(this, &MusicListWidgetNet::signal_play_button_click, listWidget, &MusicListWidget::receive_song_op);
+       connect(this, &MusicListWidgetNet::signal_play_button_click, listWidget, &MusicListWidget::receive_song_op);
 
-    connect(this, &MusicListWidgetNet::signal_last, listWidget, &MusicListWidget::Last_click);
-    connect(this, &MusicListWidgetNet::signal_next, listWidget, &MusicListWidget::Next_click);
-    auto request = HttpRequest::getInstance();
-    connect(request, &HttpRequest::signal_streamurl, this,[=](bool flag, QString file){
-        //qInfo()<<__FUNCTION__<<file;
-        emit signal_play_click(file, true);
-    });
+       connect(this, &MusicListWidgetNet::signal_last, listWidget, &MusicListWidget::Last_click);
+       connect(this, &MusicListWidgetNet::signal_next, listWidget, &MusicListWidget::Next_click);
+      request = HttpRequestPool::getInstance().getRequest();
+       connect(request, &HttpRequest::signal_streamurl, this,[=](bool flag, QString file){
+           //qInfo()<<__FUNCTION__<<file;
+           emit signal_play_click(file, true);
+       });
 }
 
 void MusicListWidgetNet::on_signal_play_click(const QString name)
 {
     double duration = song_duration[name];
-    auto request = HttpRequest::getInstance();
     request->get_music_data(name);
 }
 void MusicListWidgetNet::on_signal_download_music(QString songName)
 {
-    auto request = HttpRequest::getInstance();
     request->Download(songName, down_dir);
-
 }
 void MusicListWidgetNet::on_signal_remove_click(const QString name)
 {

@@ -52,7 +52,7 @@ MusicListWidgetLocal::MusicListWidgetLocal(QWidget *parent) : QWidget(parent)
     setLayout(v_layout);
 
     connect(this, &MusicListWidgetLocal::signal_add_song,[=](QString filename, QString path){
-        auto request = HttpRequest::getInstance();
+        request = HttpRequestPool::getInstance().getRequest();
         request->AddMusic(path);
         listWidget->on_signal_add_song(filename, path);
     });
@@ -64,7 +64,7 @@ MusicListWidgetLocal::MusicListWidgetLocal(QWidget *parent) : QWidget(parent)
     connect(this, &MusicListWidgetLocal::signal_last, listWidget, &MusicListWidget::Last_click);
     connect(this, &MusicListWidgetLocal::signal_next, listWidget, &MusicListWidget::Next_click);
 
-    auto request = HttpRequest::getInstance();
+    auto request = HttpRequestPool::getInstance().getRequest();
     connect(request, &HttpRequest::signal_add_songs, this,[=](){
         auto user = User::getInstance();
         listWidget->remove_all();

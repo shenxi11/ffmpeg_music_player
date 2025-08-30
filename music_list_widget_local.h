@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QWidget>
 #include "music_list_widget.h"
+#include "httprequest.h"
 
 class MusicListWidgetLocal : public QWidget
 {
@@ -28,6 +29,7 @@ private:
     MusicListWidget* listWidget;
     QPushButton* add;
 
+    HttpRequest* request;
 };
 
 #endif // MUSICLISTWIDGETLOCAL_H

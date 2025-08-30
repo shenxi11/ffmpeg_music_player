@@ -34,6 +34,8 @@ MiniControlBar::MiniControlBar(QWidget* parent)
     close_->setFixedSize(20, 20);
     lock_->setFixedSize(20, 20);
 
+    set_->setCheckable(true);
+
     play_->setStyleSheet("QPushButton {"
                          "    border-image: url(:/new/prefix1/icon/play.png);"
                          "}");
@@ -65,7 +67,7 @@ MiniControlBar::MiniControlBar(QWidget* parent)
     connect(last_, &Button::clicked, this, &MiniControlBar::signal_last_clicked);
     connect(forward_, &Button::clicked, this, &MiniControlBar::signal_forward_clicked);
     connect(backWard_, &Button::clicked, this, &MiniControlBar::signal_backward_clicked);
-
+    connect(set_, &Button::toggled, this, &MiniControlBar::signal_set_toggled);
 }
 void MiniControlBar::slot_playChanged(ControlBar::State state){
     if(state == ControlBar::Play){

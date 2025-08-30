@@ -12,7 +12,7 @@ PlayWidget::PlayWidget(QWidget *parent)
 
     desk = new DeskLrcWidget();
     desk->raise();
-    desk->hide();
+    desk->close();
 
     process_slider = new ProcessSlider(this);
     process_slider->setFixedSize(1000,20);
@@ -118,6 +118,8 @@ PlayWidget::PlayWidget(QWidget *parent)
     connect(desk, &DeskLrcWidget::signal_last_clicked, controlBar, &ControlBar::signal_lastSong);
     connect(desk, &DeskLrcWidget::signal_next_clicked, controlBar, &ControlBar::signal_nextSong);
     connect(desk, &DeskLrcWidget::signal_forward_clicked, this, [=](){
+        if(process_slider->maxValue() == 0 || filePath.size() == 0)
+            return;
         emit signal_set_SliderMove(true);
         process_slider->slot_forward();
         int newPosition = std::min(process_slider->maxValue(), process_slider->value() + 1) * this->duration / (1000 * process_slider->maxValue());
@@ -125,6 +127,8 @@ PlayWidget::PlayWidget(QWidget *parent)
         emit signal_set_SliderMove(false);
     });
     connect(desk, &DeskLrcWidget::signal_backward_clicked, this, [=](){
+        if(process_slider->maxValue() == 0 || filePath.size() == 0)
+            return;
         emit signal_set_SliderMove(true);
         process_slider->slot_backward();
         int newPosition = std::max(0, process_slider->value() - 1) * this->duration / (1000 * process_slider->maxValue());
@@ -170,7 +174,7 @@ void PlayWidget::slot_desk_toggled(bool checked){
     if(checked){
         desk->show();
     }else{
-        desk->hide();
+        desk->close();
     }
 }
 void PlayWidget::set_isUp(bool flag){
@@ -280,7 +284,7 @@ void PlayWidget::openfile()
                 &dummyWidget,                   // 父窗口（可以是 nullptr）
                 "Open File",                    // 对话框标题
                 QDir::homePath(),               // 起始目录（可以是任意路径）
-                "Audio Files (*.mp3 *.wav *.flac *.ogg);;All Files (*)"  // 文件过滤器
+                "Audio Files (*.mp3 *.wav *.flac *.ogg *.mp4);;All Files (*)"  // 文件过滤器
                 );
 
     // 打印选中的文件路径
@@ -323,7 +327,7 @@ void PlayWidget::_remove_click(QString songName)
 void PlayWidget::setPianWidgetEnable(bool flag)
 {
     if(flag)
-        this->pianWidget->hide();
+        this->pianWidget->close();
     else
         this->pianWidget->show();
 }

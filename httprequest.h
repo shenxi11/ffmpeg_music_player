@@ -27,14 +27,7 @@ class User{
 public:
     static User* getInstance()
     {
-        if(instance == nullptr)
-        {
-            QMutexLocker locker(&mutex);
-            if(instance == nullptr)
-            {
-                instance = new User();
-            }
-        }
+        static User* instance = new User();
         return instance;
     }
 
@@ -52,12 +45,12 @@ private:
     User& operator=(const User a) = delete;
     User(const User&) = delete;
 
-    static User* instance;
-    static QMutex mutex;
+
     QString username;
     QString password;
     QString account;
     QStringList music_path;
+
 };
 
 class HttpRequest:public QObject
@@ -65,21 +58,7 @@ class HttpRequest:public QObject
     Q_OBJECT
 public:
 
-
-    static HttpRequest* getInstance()
-    {
-        if(instance == nullptr)
-        {
-            QMutexLocker locker(&mutex);
-            if(instance == nullptr)
-            {
-                instance = new HttpRequest();
-            }
-        }
-        return instance;
-    }
-
-
+    explicit  HttpRequest(QObject *parent = nullptr);
     bool Login(const QString& account, const QString& password);
     bool Register(const QString& account, const QString& password, const QString& username);
     bool Upload(const QString& path);
@@ -90,6 +69,9 @@ public:
     void sendAcknowledgment();
     bool getMusic(const QString& name);
     bool get_file(const QString url);
+
+    void setIsUsing(bool flag_);
+    bool getIsUsing();
 signals:
     void signal_Loginflag(bool flag);
     void signal_Registerflag(bool flag);
@@ -100,15 +82,61 @@ signals:
     void signal_add_songs();
     void signal_lrc(QStringList content);
 private:
-    explicit  HttpRequest(QObject *parent = nullptr);
     HttpRequest(const HttpRequest&) = delete;
     HttpRequest& operator=(const HttpRequest&) = delete;
 
-    const QString localUrl = "http://localhost:5000/";
+    const QString localUrl = "http://localhost:8080/";
     QNetworkAccessManager* manager = nullptr;
-    static HttpRequest* instance;
-    static QMutex mutex;
+
+    bool isUsing = false;
 };
 
+class HttpRequestPool{
+public:
+    static HttpRequestPool& getInstance(){
+        static HttpRequestPool pool(1);
+        return pool;
+    }
+    HttpRequest* getRequest(){
+        for(int i = 0; i < requestList.size(); i++){
+            if(!requestList[i]->getIsUsing()){
+                HttpRequest* request = requestList[i];
+                requestList[i]->setIsUsing(true);
+                return request;
+            }
+        }
+        HttpRequest* request = new HttpRequest();
+        requestList.emplace_back(request);
+        request->setIsUsing(true);
+        request_cnt ++;
+        return request;
+    }
+    void setRequestNum(int n){
+        request_cnt = n;
+    }
+    int getRequestNum(){
+        return request_cnt;
+    }
+    ~HttpRequestPool(){
+        for(int i = 0; i < request_cnt; i++){
+            auto request = requestList.back();
+            requestList.pop_back();
+            delete request;
+            request = nullptr;
+        }
+    }
+private:
+    HttpRequestPool(int cnt = 1):request_cnt(cnt){
+        for(int i = 0; i < request_cnt; i++){
+            HttpRequest *request = new HttpRequest();
+            requestList.emplace_back(request);
+        }
+    };
+    HttpRequestPool(const HttpRequestPool& httpRequestPool) = delete ;
+    HttpRequestPool& operator = (const HttpRequestPool& httpRequestPool) = delete ;
+
+    int request_cnt = 0;
+    std::vector<HttpRequest*> requestList;
+};
 
 #endif // HTTPREQUEST_H

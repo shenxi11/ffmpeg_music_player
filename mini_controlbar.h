@@ -54,10 +54,10 @@ signals:
     void signal_last_clicked();
     void signal_forward_clicked();
     void signal_backward_clicked();
-    void signal_set_clicked();
     void signal_close_clicked();
     void signal_lock_clicked();
     void signal_play_clicked();
+    void signal_set_toggled(bool checked);
 public slots:
     void slot_playChanged(ControlBar::State);
 private:

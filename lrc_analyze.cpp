@@ -1,23 +1,18 @@
 #include "lrc_analyze.h"
-#include "httprequest.h"
 LrcAnalyze::LrcAnalyze()
 {
     connect(this, &LrcAnalyze::begin_take_lrc, this, &LrcAnalyze::take_lrc);
 
     connect(this, &LrcAnalyze::Begin_send, this, &LrcAnalyze::begin_send);
+
+    request = HttpRequestPool::getInstance().getRequest();
 }
 
 LrcAnalyze::~LrcAnalyze()
 {
-    //qDebug()<<"Destruct lrc_analyze";
+    request->setIsUsing(false);
 }
 
-//void lrc_analyze::run()
-//{
-
-
-
-//}
 //检测文件编码
 QString LrcAnalyze::detectEncodingWithUchardet(const QString &filePath)
 {
@@ -147,6 +142,7 @@ std::map<int, std::string> LrcAnalyze::parseLrcFile(const QString& lrcFile)
 
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
     {
+        return {};
         throw std::runtime_error("Could not open file: " + lrcFile.toStdString());
     }
 
@@ -177,7 +173,7 @@ std::map<int, std::string> LrcAnalyze::parseLrcFile(const QString& lrcFile)
 }
 void LrcAnalyze::parseLrcFileFromUrl(const QString& urlString)
 {
-    auto request = HttpRequest::getInstance();
+
     request->get_file(urlString);
 
     connect(request, &HttpRequest::signal_lrc, this, [=](QStringList arg){

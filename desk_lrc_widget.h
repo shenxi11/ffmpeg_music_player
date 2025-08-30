@@ -5,6 +5,7 @@
 #include <QWidget>
 #include "headers.h"
 #include "mini_controlbar.h"
+#include "setting_widget.h"
 
 class DeskLrcWidget : public QWidget
 {
@@ -20,6 +21,10 @@ signals:
     void signal_backward_clicked();
 public slots:
     void slot_receive_lrc(const QString lrc_);
+    void slot_changeColor(QString setting_);
+    void slot_set_toggled(bool checked);
+    void slot_add_fontSize();
+    void slot_desc_fontSize();
 protected:
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
@@ -41,13 +46,18 @@ protected:
             painter.fillRect(rect(), QColor(0, 0, 0, 128));
         }
     }
-
+    void closeEvent(QCloseEvent *event) override{
+        if(settingWidget)
+            settingWidget->close();
+    }
 private:
     QLabel* lrc;
     MiniControlBar* controlBar;
+    SettingWidget* settingWidget;
     QPoint m_dragPosition;
 
     bool hovered = false;
+    int fontSize_ = 20;
 };
 
 #endif // DESKLRCWIDGET_H
