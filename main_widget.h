@@ -6,6 +6,7 @@
 #include "music_list_widget_net.h"
 #include "loginwidget.h"
 #include "searchbox.h"
+#include "translate_widget.h"
 #include <QWidget>
 #include <QButtonGroup>
 #include <QScreen>
@@ -29,6 +30,7 @@ private:
     MusicListWidget* list;
     MusicListWidgetLocal* main_list;
     MusicListWidgetNet* net_list;
+    TranslateWidget* translate_widget;
     LoginWidget* loginWidget;
 
     QPushButton* Login;
@@ -58,6 +60,8 @@ protected:
             w->close();
         if(net_list)
             net_list->close();
+        if(translate_widget)
+            translate_widget->close();
         if(loginWidget)
             loginWidget->close();
         if(main_list)

@@ -100,6 +100,12 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     net_list->hide();
     net_list->setObjectName("net");
 
+    translate_widget = new TranslateWidget(this);
+    translate_widget->setFixedSize(800, 400);
+    translate_widget->move(main_list->pos());
+    translate_widget->hide();
+    translate_widget->setObjectName("translate");
+
     QWidget* leftWidget = new QWidget(this);
     leftWidget->setFixedSize(200, this->height() - 100);
     leftWidget->setStyleSheet("background-color: #F0F3F6;");
@@ -114,6 +120,16 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     NetList->move(0,this->height()- 450);
     NetList->setCheckable(true);
     NetList->setStyleSheet(
+                "background-color: transparent;"
+                "color: black;"
+                "border: none;"
+                );
+
+    QPushButton* translateBtn = new QPushButton("音频转文字", leftWidget);
+    translateBtn->setFixedSize(200,50);
+    translateBtn->move(0,this->height()- 400);
+    translateBtn->setCheckable(true);
+    translateBtn->setStyleSheet(
                 "background-color: transparent;"
                 "color: black;"
                 "border: none;"
@@ -158,7 +174,7 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     QButtonGroup* leftButtons = new QButtonGroup(this);
     leftButtons->addButton(localList);
     leftButtons->addButton(NetList);
-    //leftButtons->addButton(openGlWidget_btn);
+    leftButtons->addButton(translateBtn);
     leftButtons->setExclusive(true);
 
     QWidget* textWidget = new QWidget(leftWidget);
@@ -186,6 +202,7 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
         if (checked) {
             main_list->show();
             net_list->hide();
+            translate_widget->hide();
             localList->setStyleSheet(
                         "background-color: rgba(44, 210, 126, 0.8);"
                         "color: white;"
@@ -205,6 +222,7 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
         {
             net_list->show();
             main_list->hide();
+            translate_widget->hide();
             NetList->setStyleSheet(
                         "background-color: rgba(44, 210, 126, 0.8);"
                         "color: white;"
@@ -214,6 +232,28 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
         else
         {
             NetList->setStyleSheet(
+                        "background-color: transparent;"
+                        "color: black;"
+                        "border: none;"
+                        );
+        }
+    });
+
+    connect(translateBtn, &QPushButton::toggled, this, [=](bool checked){
+        if(checked)
+        {
+            translate_widget->show();
+            main_list->hide();
+            net_list->hide();
+            translateBtn->setStyleSheet(
+                        "background-color: rgba(44, 210, 126, 0.8);"
+                        "color: white;"
+                        "border: none;"
+                        );
+        }
+        else
+        {
+            translateBtn->setStyleSheet(
                         "background-color: transparent;"
                         "color: black;"
                         "border: none;"
