@@ -5,11 +5,7 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
   ,list(nullptr)
 {
     resize(1000,600);
-    setWindowFlags(Qt::FramelessWindowHint | Qt::WindowMinimizeButtonHint);
-    setStyleSheet("QWidget#MainWidget{background-color:#F7F9FC;}"
-                 "QPushButton{border-radius:8px; font-size:15px;}"
-                 "QPushButton:checked{background-color:#1DB954; color:white;}"
-                 "QLabel{color:#222; font-size:15px;}");
+    setWindowFlags(Qt::CustomizeWindowHint);
     qDebug()<<__FUNCTION__<<QThread::currentThreadId();
 
 
@@ -20,15 +16,21 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
 
     QWidget* topWidget = new QWidget(this);
     QPushButton* minimizeButton = new QPushButton(topWidget);
-    minimizeButton->setStyleSheet("QPushButton { border-image: url(:/new/prefix1/icon/方形未选中.png); background:transparent; border:none; } QPushButton:hover{background:#e0e0e0;}");
+    minimizeButton->setStyleSheet("QPushButton {"
+                                  "    border-image: url(:/new/prefix1/icon/方形未选中.png);"
+                                  "}");
     minimizeButton->setFixedSize(30, 30);
 
     QPushButton* maximizeButton = new QPushButton(topWidget);
-    maximizeButton->setStyleSheet("QPushButton { border-image: url(:/new/prefix1/icon/减号.png); background:transparent; border:none; } QPushButton:hover{background:#e0e0e0;}");
+    maximizeButton->setStyleSheet("QPushButton {"
+                                  "    border-image: url(:/new/prefix1/icon/减号.png);"
+                                  "}");
     maximizeButton->setFixedSize(30, 30);
 
     QPushButton* closeButton = new QPushButton(topWidget);
-    closeButton->setStyleSheet("QPushButton { border-image: url(:/new/prefix1/icon/关闭1.png); background:transparent; border:none; } QPushButton:hover{background:#ffeaea;}");
+    closeButton->setStyleSheet("QPushButton {"
+                               "    border-image: url(:/new/prefix1/icon/关闭1.png);"
+                               "}");
     closeButton->setFixedSize(30, 30);
 
     connect(minimizeButton, &QPushButton::clicked, this, [=](){
@@ -46,16 +48,13 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     Login = new QPushButton(this);
     Login->setText("未登录");
     Login->setStyleSheet(
-        "QPushButton{border-radius:15px; border:2px solid #1DB954; background:#fff; color:#1DB954; font-weight:bold;}"
-        "QPushButton:hover{background:#eafff3; border:2px solid #1DB954;}"
-    );
+                "QPushButton "
+                "{ border-radius: 15px; border: 2px solid black; }"
+                );
 
     QLabel* head = new QLabel(this);
     head->setStyleSheet("QLabel {"
                         "    border-image: url(:/new/prefix1/icon/denglu.png);"
-                        "    border-radius: 15px;"
-                        "    background: #fff;"
-                        "    border: 1px solid #e0e0e0;"
                         "}");
     head->setFixedSize(30,30);
 
@@ -103,11 +102,10 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
 
     QWidget* leftWidget = new QWidget(this);
     leftWidget->setFixedSize(200, this->height() - 100);
-    leftWidget->setStyleSheet("background-color: #F0F3F6; border-top-right-radius:18px; border-bottom-right-radius:18px;");
+    leftWidget->setStyleSheet("background-color: #F0F3F6;");
 
     QPushButton* localList = new QPushButton("本地音乐", leftWidget);
     localList->setFixedSize(200,50);
-    localList->setStyleSheet("QPushButton{background:transparent; color:#222; border:none; font-size:16px;} QPushButton:checked{background-color:rgba(44,210,126,0.8); color:white;}");
     localList->move(0,this->height()- 500);
     localList->setCheckable(true);
 
@@ -115,7 +113,11 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     NetList->setFixedSize(200,50);
     NetList->move(0,this->height()- 450);
     NetList->setCheckable(true);
-    NetList->setStyleSheet("QPushButton{background:transparent; color:#222; border:none; font-size:16px;} QPushButton:checked{background-color:rgba(44,210,126,0.8); color:white;}");
+    NetList->setStyleSheet(
+                "background-color: transparent;"
+                "color: black;"
+                "border: none;"
+                );
 //    openGlWidget_btn = new QPushButton("播放视频", leftWidget);
 //    openGlWidget_btn->setFixedSize(200,50);
 //    openGlWidget_btn->move(0,this->height()- 400);

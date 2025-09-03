@@ -79,7 +79,9 @@ TRANSLATIONS += \
     untitled_zh_CN.ts
 
 INCLUDEPATH += /opt/ffmpeg-4.4/include \
-                /home/shen/WhissperProject/whisper.cpp/include
+               /home/shen/WhissperProject/whisper.cpp/include \
+               /home/shen/WhissperProject/whisper.cpp/ggml \
+               /home/shen/WhissperProject/whisper.cpp/ggml/include
 LIBS += -L/opt/ffmpeg-4.4/lib \
         -lavcodec \
         -lavformat \

@@ -25,9 +25,12 @@ private:
     void slot_fontColor_clicked(bool checked);
     void slot_changeColor(QString color);
 private:
+    // 字体大小设置
     QPushButton* font_;
     QPushButton* add_fontSize;
     QPushButton* desc_fontSize;
+
+    // 字体颜色设置
     QPushButton* fontColor_;
     QWidget* fontColor_widget;
     QStringList fontColorList_;

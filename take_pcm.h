@@ -31,7 +31,8 @@ signals:
     void signal_begin_make_pcm(QString path);
     void signal_send_pic_path(QString picPath);
 
-
+    void signal_send_data(uint8_t *buffer, int bufferSize, qint64 timeMap);
+    void signal_decodeEnd();
 private:
     void send_data(uint8_t *buffer, int bufferSize, qint64 timeMap);
     void take_album();

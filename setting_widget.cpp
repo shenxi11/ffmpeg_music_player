@@ -5,53 +5,41 @@ SettingWidget::SettingWidget(QWidget* parent)
 {
 
     setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
-    QWidget* widget = new QWidget(this);
-    font_ = new QPushButton("字体大小", widget);
-    font_->setFixedHeight(50);
-    font_->setFlat(true);
-    font_->setStyleSheet("QPushButton {"
-                         "   text-align: left;"
-                         "   border: 1px solid #808080;"
-                         "   padding-left: 5px;"
-                         "}");
-    QWidget* widget_1 = new QWidget(this);
-    QHBoxLayout* layout_1 = new QHBoxLayout(this);
-    add_fontSize = new QPushButton(widget_1);
-    desc_fontSize = new QPushButton(widget_1);
-    add_fontSize->setStyleSheet(
-                "QPushButton {"
-                " border-image: url(:/new/prefix1/icon/加.png);"
-                "}"
-                );
-    desc_fontSize->setStyleSheet(
-                "QPushButton {"
-                " border-image: url(:/new/prefix1/icon/减.png);"
-                "}"
-                );
-    layout_1->addWidget(add_fontSize);
-    layout_1->addWidget(desc_fontSize);
-    layout_1->setContentsMargins(0, 0, 0, 0);
-    layout_1->setSpacing(0);
-    widget_1->setLayout(layout_1);
-    QHBoxLayout* hlayout = new QHBoxLayout(this);
-    hlayout->addWidget(font_);
-    hlayout->addWidget(widget_1);
-    hlayout->setContentsMargins(0, 0, 0, 0);
-    hlayout->setSpacing(10);
-    widget->setLayout(hlayout);
+    setStyleSheet("QWidget#SettingWidget{background:#fff; border-radius:18px;} QPushButton{border-radius:12px; font-size:15px; background:#f7f9fc; color:#222;} QPushButton:hover{background:#eafff3; color:#1DB954;}");
+    this->setObjectName("SettingWidget");
 
+    // 字体大小设置
+    QWidget* fontGroup = new QWidget(this);
+    QHBoxLayout* fontGroupLayout = new QHBoxLayout(fontGroup);
+    fontGroupLayout->setContentsMargins(18, 18, 18, 0);
+    fontGroupLayout->setSpacing(12);
+    font_ = new QPushButton("字体大小", fontGroup);
+    font_->setFixedHeight(40);
+    font_->setFlat(true);
+    font_->setStyleSheet("QPushButton{background:transparent; text-align:left; font-weight:bold;}");
+    add_fontSize = new QPushButton(fontGroup);
+    desc_fontSize = new QPushButton(fontGroup);
+    add_fontSize->setFixedSize(32,32);
+    desc_fontSize->setFixedSize(32,32);
+    add_fontSize->setStyleSheet("QPushButton{border:none; background:transparent; border-image: url(:/new/prefix1/icon/加.png);}");
+    desc_fontSize->setStyleSheet("QPushButton{border:none; background:transparent; border-image: url(:/new/prefix1/icon/减.png);}");
+    fontGroupLayout->addWidget(font_);
+    fontGroupLayout->addStretch();
+    fontGroupLayout->addWidget(desc_fontSize);
+    fontGroupLayout->addWidget(add_fontSize);
+    fontGroup->setLayout(fontGroupLayout);
+
+    // 字体颜色设置
     fontColor_ = new QPushButton("字体颜色", this);
-    fontColor_->setFixedHeight(50);
+    fontColor_->setFixedHeight(40);
     fontColor_->setCheckable(true);
     fontColor_->setFlat(true);
-    fontColor_->setStyleSheet("QPushButton {"
-                              "   text-align: left;"
-                              "   border: 1px solid #808080;"
-                              "   padding-left: 5px;"
-                              "}");
+    fontColor_->setStyleSheet("QPushButton{background:transparent; text-align:left; font-weight:bold;}");
+
     QVBoxLayout* layout = new QVBoxLayout(this);
-    layout->addWidget(widget);
+    layout->addWidget(fontGroup);
     layout->addWidget(fontColor_);
+    layout->addStretch();
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
     setLayout(layout);
@@ -68,16 +56,18 @@ SettingWidget::SettingWidget(QWidget* parent)
     colorMap[fontColorList_.at(4)] = "color: yellow";
     fontColor_widget = new QWidget();
     fontColor_widget->setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
-    fontColor_widget->setFixedWidth(100);
+    fontColor_widget->setFixedWidth(120);
+    fontColor_widget->setStyleSheet("QWidget{background:#fff; border-radius:12px; border:1px solid #e0e0e0;}");
     QVBoxLayout* fontColor_layout = new QVBoxLayout(fontColor_widget);
+    fontColor_layout->setContentsMargins(0, 0, 0, 0);
+    fontColor_layout->setSpacing(0);
     for(auto string_: fontColorList_){
         QPushButton* button = new QPushButton(string_, fontColor_widget);
+        button->setStyleSheet("QPushButton{border:none; background:transparent; font-size:14px;} QPushButton:hover{background:#eafff3; color:#1DB954;}");
         connect(button, &QPushButton::clicked, this, [=](){
             slot_changeColor(string_);
         });
-        fontColor_layout->setContentsMargins(0, 0, 0, 0);
-        fontColor_layout->setSpacing(0);
-        button->setFixedHeight(40);
+        button->setFixedHeight(36);
         fontColor_layout->addWidget(button);
     }
     fontColor_widget->setLayout(fontColor_layout);

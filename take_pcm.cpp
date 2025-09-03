@@ -199,7 +199,8 @@ void TakePcm::make_pcm(QString Path)
     }
 
     // 配置 SwrContext
-    int output_sample_rate = RATE;  // 目标采样率（可以根据需要调整）
+    //int output_sample_rate = RATE;  // 目标采样率（可以根据需要调整）
+    int output_sample_rate = 16000;
     int64_t output_channel_layout = AV_CH_LAYOUT_STEREO;  // 目标通道布局（例如立体声）
     enum AVSampleFormat output_sample_fmt = AV_SAMPLE_FMT_S16;  // 目标样本格式（例如 16-bit）
 
@@ -289,15 +290,16 @@ void TakePcm::decode()
                         qint64 timestamp_ms = av_rescale_q(pts, time_base, {1, 1000});
                         //qDebug() << "Timestamp (ms):" << timestamp_ms;
 
-                        send_data(buffer, converted_buffer_size, timestamp_ms);
+                        //send_data(buffer, converted_buffer_size, timestamp_ms);
+                        emit signal_send_data(buffer, converted_buffer_size, timestamp_ms);
                     }
 
                 }
             }
         }
         av_packet_unref(pkt);
-
     }
+    emit signal_decodeEnd();
 }
 
 

@@ -6,45 +6,16 @@ ProcessSlider::ProcessSlider(QWidget *parent)
     slider = new QSlider(Qt::Horizontal,this);
     slider->setMinimum(0);
     slider->setMaximum(0);
-    slider->setStyleSheet(
-        "QSlider::groove:horizontal {"
-        "    border: 1px solid #bbb;"
-        "    height: 8px;"
-        "    background: #e0e0e0;"
-        "    border-radius: 4px;"
-        "}"
-        "QSlider::sub-page:horizontal {"
-        "    background: #1DB954;"
-        "    border-radius: 4px;"
-        "}"
-        "QSlider::add-page:horizontal {"
-        "    background: #e0e0e0;"
-        "    border-radius: 4px;"
-        "}"
-        "QSlider::handle:horizontal {"
-        "    background: white;"
-        "    border: 2px solid #1DB954;"
-        "    width: 18px;"
-        "    margin: -5px 0;"
-        "    border-radius: 9px;"
-        "}"
-        "QSlider::handle:horizontal:hover {"
-        "    background: #eafff3;"
-        "    border: 2px solid #1DB954;"
-        "}"
-    );
 
     startTime_label = new QLabel(this);
     startTime_label->setText("00:00");
     startTime_label->setFixedSize(50, 20);
     startTime_label->setAlignment(Qt::AlignCenter);
-    startTime_label->setStyleSheet("color:#1DB954; font-weight:bold; background:transparent;");
 
     endTime_label = new QLabel(this);
     endTime_label->setText("00:00");
     endTime_label->setFixedSize(50, 20);
     endTime_label->setAlignment(Qt::AlignCenter);
-    endTime_label->setStyleSheet("color:#1DB954; font-weight:bold; background:transparent;");
 
     QHBoxLayout* layout = new QHBoxLayout(this);
     layout->addWidget(startTime_label);
