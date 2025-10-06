@@ -1,0 +1,6 @@
+{
+    "name": "audio_converter_plugin",
+    "version": "1.0.0",
+    "description": "Audio format converter plugin",
+    "author": "FFmpeg Music Player Team"
+}

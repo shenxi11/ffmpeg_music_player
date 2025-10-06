@@ -7,23 +7,91 @@ ProcessSlider::ProcessSlider(QWidget *parent)
     slider->setMinimum(0);
     slider->setMaximum(0);
 
+    // 简化的进度条样式
+    slider->setStyleSheet(
+        "QSlider::groove:horizontal {"
+        "    border: none;"
+        "    background: #3d3d3d;"
+        "    height: 6px;"
+        "    border-radius: 3px;"
+        "}"
+        "QSlider::sub-page:horizontal {"
+        "    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, "
+        "                              stop:0 #667eea, stop:1 #764ba2);"
+        "    border: none;"
+        "    height: 6px;"
+        "    border-radius: 3px;"
+        "}"
+        "QSlider::add-page:horizontal {"
+        "    background: #4d4d4d;"
+        "    border: none;"
+        "    height: 6px;"
+        "    border-radius: 3px;"
+        "}"
+        "QSlider::handle:horizontal {"
+        "    background: #ffffff;"
+        "    border: 2px solid #667eea;"
+        "    width: 14px;"
+        "    height: 14px;"
+        "    margin-top: -4px;"
+        "    margin-bottom: -4px;"
+        "    border-radius: 7px;"
+        "}"
+        "QSlider::handle:horizontal:hover {"
+        "    background: #f0f0f0;"
+        "    border: 2px solid #764ba2;"
+        "}"
+        "QSlider::handle:horizontal:pressed {"
+        "    background: #e0e0e0;"
+        "    border: 2px solid #5a67d8;"
+        "}"
+    );
+
     startTime_label = new QLabel(this);
     startTime_label->setText("00:00");
     startTime_label->setFixedSize(50, 20);
     startTime_label->setAlignment(Qt::AlignCenter);
+    startTime_label->setStyleSheet(
+        "QLabel {"
+        "    color: #ffffff;"
+        "    font-family: 'Microsoft YaHei';"
+        "    font-size: 12px;"
+        "    font-weight: bold;"
+        "    background: transparent;"
+        "    border: none;"
+        "}"
+    );
 
     endTime_label = new QLabel(this);
     endTime_label->setText("00:00");
     endTime_label->setFixedSize(50, 20);
     endTime_label->setAlignment(Qt::AlignCenter);
+    endTime_label->setStyleSheet(
+        "QLabel {"
+        "    color: #ffffff;"
+        "    font-family: 'Microsoft YaHei';"
+        "    font-size: 12px;"
+        "    font-weight: bold;"
+        "    background: transparent;"
+        "    border: none;"
+        "}"
+    );
 
     QHBoxLayout* layout = new QHBoxLayout(this);
     layout->addWidget(startTime_label);
     layout->addWidget(slider);
     layout->addWidget(endTime_label);
-    layout->setContentsMargins(0, 0, 0, 0);
-    layout->setSpacing(0);
+    layout->setContentsMargins(10, 5, 10, 5);
+    layout->setSpacing(10);
     setLayout(layout);
+
+    // 设置整体widget样式
+    this->setStyleSheet(
+        "ProcessSlider {"
+        "    background: transparent;"
+        "    border: none;"
+        "}"
+    );
 
     connect(slider, &QSlider::valueChanged, this, &ProcessSlider::slot_valueChanged);
     connect(slider, &QSlider::sliderReleased, this, &ProcessSlider::signal_sliderReleased);
@@ -33,13 +101,33 @@ int ProcessSlider::value(){
     return slider->value();
 }
 void ProcessSlider::slot_isUpChanged(bool flag){
+    QString timeStyle;
     if(flag){
-        startTime_label->setStyleSheet("color: white;");
-        endTime_label->setStyleSheet("color: white;");
-    }else{
-        startTime_label->setStyleSheet("color: black;");
-        endTime_label->setStyleSheet("color: black;");
+        // 浅色主题下的时间标签样式
+        timeStyle = 
+            "QLabel {"
+            "    color: #ffffff;"
+            "    font-family: 'Microsoft YaHei';"
+            "    font-size: 12px;"
+            "    font-weight: bold;"
+            "    background: transparent;"
+            "    border: none;"
+            "}";
+    } else {
+        // 深色主题下的时间标签样式
+        timeStyle = 
+            "QLabel {"
+            "    color: #2d3748;"
+            "    font-family: 'Microsoft YaHei';"
+            "    font-size: 12px;"
+            "    font-weight: bold;"
+            "    background: transparent;"
+            "    border: none;"
+            "}";
     }
+    
+    startTime_label->setStyleSheet(timeStyle);
+    endTime_label->setStyleSheet(timeStyle);
 }
 void ProcessSlider::slot_backward(){
     int value = slider->value();

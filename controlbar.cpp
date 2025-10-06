@@ -77,7 +77,7 @@ ControlBar::ControlBar(QWidget *parent)
                 );
     desk->setStyleSheet(
                 "QPushButton {"
-                "    border-image: url(:/new/prefix1/icon/词表权益.png);"
+                "    border-image: url(:/new/prefix1/icon/vocabulary_rights.png);"
                 "}"
                 );
 

@@ -28,6 +28,7 @@ public:
     bool isUp = false;
     bool get_net_flag(){return play_net;};
     void set_isUp(bool flag);
+    bool checkAndWarnIfPathNotExists(const QString &path);
 public slots:
 
     void _begin_take_lrc(QString str);

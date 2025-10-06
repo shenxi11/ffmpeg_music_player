@@ -4,38 +4,27 @@
 
 void LyricTextEdit::highlightLine(int lineNumber)
 {
-
-    QTextBlock block1 = this->document()->findBlockByNumber(this->currentLine);
-
-    if (block1.isValid())
-    {
-        // 创建一个光标并定位到该行
-        QTextCursor cursor(block1);
-
-        // 选中整行
-        cursor.select(QTextCursor::LineUnderCursor);
-
-        resetLineFormat(cursor);
+    // 先清除之前高亮的行
+    if (lastHighlightedLine >= 0) {
+        QTextBlock block1 = this->document()->findBlockByNumber(lastHighlightedLine);
+        if (block1.isValid()) {
+            QTextCursor cursor(block1);
+            cursor.select(QTextCursor::LineUnderCursor);
+            resetLineFormat(cursor);
+        }
     }
 
-    // 获取指定行的 QTextBlock
+    // 高亮当前行
     QTextBlock block = this->document()->findBlockByNumber(lineNumber);
-
-    if (block.isValid())
-    {
-        // 创建一个光标并定位到该行
+    if (block.isValid()) {
         QTextCursor cursor(block);
-
-        // 选中整行
         cursor.select(QTextCursor::LineUnderCursor);
-
-        //qDebug()<<cursor.selectedText();
-
         highlightLineFormat(cursor);
         emit signal_current_lrc(cursor.selectedText());
+        
+        // 更新记录
+        lastHighlightedLine = lineNumber;
     }
-
-
 }
 
 void LyricTextEdit::resetLineFormat(QTextCursor &cursor)
@@ -83,17 +72,28 @@ int LyricTextEdit::getLineSpacing(int fontSize)
 }
 void LyricTextEdit::scrollLines(int lines)
 {
-    int fontSize = 20;
-
-    int lineSpacing = getLineSpacing(fontSize);
-
+    if (lines == 0) return;
+    
+    // 计算目标行的位置
+    QTextBlock targetBlock = this->document()->findBlockByNumber(lines);
+    if (!targetBlock.isValid()) return;
+    
+    // 获取文本编辑器的视口高度
+    int viewportHeight = this->viewport()->height();
+    
+    // 计算目标行应该在视口中的位置（居中偏上）
+    int targetPosition = viewportHeight / 3;  // 在视口上三分之一处
+    
+    // 获取目标行的坐标
+    QTextCursor cursor(targetBlock);
+    QRect blockRect = this->cursorRect(cursor);
+    
+    // 计算需要滚动的距离
+    int scrollDistance = blockRect.top() - targetPosition;
+    
+    // 执行滚动
     QScrollBar *scrollBar = this->verticalScrollBar();
-    int currentValue = scrollBar->value();
-
-
-    scrollBar->setValue(currentValue + lines * lineSpacing);
-
-
+    scrollBar->setValue(scrollBar->value() + scrollDistance);
 }
 
 LyricTextEdit::~LyricTextEdit()

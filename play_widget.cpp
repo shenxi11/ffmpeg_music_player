@@ -97,7 +97,7 @@ PlayWidget::PlayWidget(QWidget *parent)
         if(line != textEdit->currentLine)
         {
             textEdit->highlightLine(line);
-            textEdit->scrollLines(line-textEdit->currentLine);
+            textEdit->scrollLines(line);  // 直接传递行号，而不是差值
             textEdit->currentLine = line;
             update();
         }
@@ -195,7 +195,7 @@ void PlayWidget::slot_work_play(){
     nameLabel->setText(QFileInfo(fileName).baseName());
 }
 void PlayWidget::slot_Lrc_send_lrc(const std::map<int, std::string> lyrics){
-    this->textEdit->currentLine = 4;
+    this->textEdit->currentLine = 5;  // 初始行设为5，对应第一行歌词
     this->lyrics.clear();
     for(int i = 0;i<5;i++)
     {
@@ -227,6 +227,13 @@ void PlayWidget::slot_play_click(){
     if(!controlBar->getLoopFlag() && process_slider->value() == process_slider->maxValue()){
         rePlay(filePath);
     }else{
+        // 根据当前状态立即更新UI
+        ControlBar::State currentState = controlBar->getState();
+        if(currentState == ControlBar::Pause || currentState == ControlBar::Stop) {
+            emit signal_playState(ControlBar::Play);
+        } else {
+            emit signal_playState(ControlBar::Pause);
+        }
         emit signal_worker_play();
     }
 }
@@ -301,7 +308,8 @@ void PlayWidget::_play_click(QString songPath)
 
         QFileInfo fileInfo(songPath);
         fileName = fileInfo.fileName();
-
+        if(!checkAndWarnIfPathNotExists(songPath))
+            return;
         emit signal_filepath(songPath);
     }
     else
@@ -326,6 +334,24 @@ void PlayWidget::setPianWidgetEnable(bool flag)
         this->pianWidget->hide();
     else
         this->pianWidget->show();
+}
+bool PlayWidget::checkAndWarnIfPathNotExists(const QString &path) {
+
+    if (path.startsWith("http", Qt::CaseInsensitive)) {
+        qDebug() << "检测到网络路径，跳过存在性检查:" << path;
+        return true;
+    }
+
+    QFileInfo fileInfo(path);
+
+    if (fileInfo.exists()) {
+        return true;
+    } else {
+        QMessageBox::warning(nullptr,
+                             QObject::tr("路径不存在"),
+                             QObject::tr("路径不存在或无法访问：\n%1").arg(path));
+        return false;
+    }
 }
 PlayWidget::~PlayWidget()
 {

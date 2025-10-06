@@ -25,39 +25,40 @@ MiniControlBar::MiniControlBar(QWidget* parent)
     layout->setSpacing(0);
     setLayout(layout);
 
-    play_->setFixedSize(20, 20);
-    next_->setFixedSize(20, 20);
-    last_->setFixedSize(20, 20);
-    forward_->setFixedSize(20, 20);
-    backWard_->setFixedSize(20, 20);
-    set_->setFixedSize(20, 20);
-    close_->setFixedSize(20, 20);
-    lock_->setFixedSize(20, 20);
+    play_->setFixedSize(28, 28);
+    next_->setFixedSize(28, 28);
+    last_->setFixedSize(28, 28);
+    forward_->setFixedSize(28, 28);
+    backWard_->setFixedSize(28, 28);
+    set_->setFixedSize(28, 28);
+    close_->setFixedSize(28, 28);
+    lock_->setFixedSize(28, 28);
 
-    play_->setStyleSheet("QPushButton {"
-                         "    border-image: url(:/new/prefix1/icon/play.png);"
-                         "}");
-    last_->setStyleSheet("QPushButton {"
-                         "    border-image: url(:/new/prefix1/icon/last_song.png);"
-                         "}");
-    next_->setStyleSheet("QPushButton {"
-                         "    border-image: url(:/new/prefix1/icon/next_song.png);"
-                         "}");
-    forward_->setStyleSheet("QPushButton {"
-                         "    border-image: url(:/new/prefix1/icon/快进右.png);"
-                         "}");
-    backWard_->setStyleSheet("QPushButton {"
-                         "    border-image: url(:/new/prefix1/icon/快进左.png);"
-                         "}");
-    set_->setStyleSheet("QPushButton {"
-                         "    border-image: url(:/new/prefix1/icon/设置.png);"
-                         "}");
-    close_->setStyleSheet("QPushButton {"
-                         "    border-image: url(:/new/prefix1/icon/关闭.png);"
-                         "}");
-    lock_->setStyleSheet("QPushButton {"
-                         "    border-image: url(:/new/prefix1/icon/锁定_o.png);"
-                         "}");
+    // 现代化按钮样式
+    QString buttonStyle = 
+        "QPushButton {"
+        "    border: none;"
+        "    border-radius: 14px;"
+        "    background: rgba(255, 255, 255, 0.1);"
+        "    padding: 4px;"
+        "}"
+        "QPushButton:hover {"
+        "    background: rgba(102, 126, 234, 0.3);"
+        "    border: 1px solid rgba(102, 126, 234, 0.5);"
+        "}"
+        "QPushButton:pressed {"
+        "    background: rgba(102, 126, 234, 0.5);"
+        "    border: 1px solid rgba(102, 126, 234, 0.8);"
+        "}";
+
+    play_->setStyleSheet(buttonStyle + "QPushButton { border-image: url(:/new/prefix1/icon/play.png); }");
+    last_->setStyleSheet(buttonStyle + "QPushButton { border-image: url(:/new/prefix1/icon/last_song.png); }");
+    next_->setStyleSheet(buttonStyle + "QPushButton { border-image: url(:/new/prefix1/icon/next_song.png); }");
+    forward_->setStyleSheet(buttonStyle + "QPushButton { border-image: url(:/new/prefix1/icon/fast_forward_right.png); }");
+    backWard_->setStyleSheet(buttonStyle + "QPushButton { border-image: url(:/new/prefix1/icon/fast_forward_left.png); }");
+    set_->setStyleSheet(buttonStyle + "QPushButton { border-image: url(:/new/prefix1/icon/settings.png); }");
+    close_->setStyleSheet(buttonStyle + "QPushButton { border-image: url(:/new/prefix1/icon/close.png); }");
+    lock_->setStyleSheet(buttonStyle + "QPushButton { border-image: url(:/new/prefix1/icon/lock_o.png); }");
 
     connect(close_, &Button::clicked, this, &MiniControlBar::signal_close_clicked);
     connect(play_, &Button::clicked, this, &MiniControlBar::signal_play_clicked);
@@ -65,17 +66,29 @@ MiniControlBar::MiniControlBar(QWidget* parent)
     connect(last_, &Button::clicked, this, &MiniControlBar::signal_last_clicked);
     connect(forward_, &Button::clicked, this, &MiniControlBar::signal_forward_clicked);
     connect(backWard_, &Button::clicked, this, &MiniControlBar::signal_backward_clicked);
+    connect(set_, &Button::clicked, this, &MiniControlBar::signal_set_clicked);
 
 }
 void MiniControlBar::slot_playChanged(ControlBar::State state){
-    if(state == ControlBar::Play){
-        play_->setStyleSheet("QPushButton {"
-                             "    border-image: url(:/new/prefix1/icon/pause.png);"
-                             "}");
+    QString buttonStyle = 
+        "QPushButton {"
+        "    border: none;"
+        "    border-radius: 14px;"
+        "    background: rgba(255, 255, 255, 0.1);"
+        "    padding: 4px;"
+        "}"
+        "QPushButton:hover {"
+        "    background: rgba(102, 126, 234, 0.3);"
+        "    border: 1px solid rgba(102, 126, 234, 0.5);"
+        "}"
+        "QPushButton:pressed {"
+        "    background: rgba(102, 126, 234, 0.5);"
+        "    border: 1px solid rgba(102, 126, 234, 0.8);"
+        "}";
 
+    if(state == ControlBar::Play){
+        play_->setStyleSheet(buttonStyle + "QPushButton { border-image: url(:/new/prefix1/icon/pause.png); }");
     }else{
-        play_->setStyleSheet("QPushButton {"
-                             "    border-image: url(:/new/prefix1/icon/play.png);"
-                             "}");
+        play_->setStyleSheet(buttonStyle + "QPushButton { border-image: url(:/new/prefix1/icon/play.png); }");
     }
 }

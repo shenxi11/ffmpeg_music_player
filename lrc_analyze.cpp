@@ -5,6 +5,7 @@ LrcAnalyze::LrcAnalyze()
     connect(this, &LrcAnalyze::begin_take_lrc, this, &LrcAnalyze::take_lrc);
 
     connect(this, &LrcAnalyze::Begin_send, this, &LrcAnalyze::begin_send);
+    request = HttpRequestPool::getInstance().getRequest();
 }
 
 LrcAnalyze::~LrcAnalyze()
@@ -177,7 +178,7 @@ std::map<int, std::string> LrcAnalyze::parseLrcFile(const QString& lrcFile)
 }
 void LrcAnalyze::parseLrcFileFromUrl(const QString& urlString)
 {
-    auto request = HttpRequest::getInstance();
+
     request->get_file(urlString);
 
     connect(request, &HttpRequest::signal_lrc, this, [=](QStringList arg){

@@ -45,7 +45,7 @@ extern "C"
 #include <QPainter>
 #include <QRegion>
 #include <QLabel>
-
+#include <QMessageBox>
 
 
 #define BUFFER_SIZE 17640

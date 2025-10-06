@@ -131,7 +131,7 @@ void Worker::onTimeOut()
                      && nextIt->first > static_cast<int>(currentTimeMS))
                         ||(it == lyrics.begin()&&it->first >= static_cast<int>(currentTimeMS)))
                 {
-                    emit send_lrc(index+5);
+                    emit send_lrc(index + 5);  // 加上前面5行空行的偏移
 
                     break;
                 }
@@ -139,7 +139,7 @@ void Worker::onTimeOut()
             }
             else
             {
-                emit send_lrc(index+5);
+                emit send_lrc(index + 5);  // 加上前面5行空行的偏移
 
                 break;
             }

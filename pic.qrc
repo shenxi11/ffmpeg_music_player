@@ -19,13 +19,13 @@
         <file>icon/netease.ico</file>
         <file>icon/netease.png</file>
         <file>icon/search.png</file>
-        <file>icon/方形未选中.png</file>
-        <file>icon/关闭1.png</file>
-        <file>icon/减号.png</file>
+        <file>icon/square_unselected.png</file>
+        <file>icon/close1.png</file>
+        <file>icon/minus_sign.png</file>
         <file>icon/denglu.png</file>
         <file>icon/maxresdefault.jpg</file>
         <file>icon/pian.png</file>
-        <file>icon/下载.png</file>
+        <file>icon/download.png</file>
         <file>icon/last_song_w.png</file>
         <file>icon/loop_w.png</file>
         <file>icon/next_song_w.png</file>
@@ -34,12 +34,15 @@
         <file>icon/play_w.png</file>
         <file>icon/random_play_w.png</file>
         <file>icon/volume_w.png</file>
-        <file>icon/关闭.png</file>
-        <file>icon/快进右.png</file>
-        <file>icon/快进左.png</file>
-        <file>icon/设置.png</file>
-        <file>icon/锁定_o.png</file>
-        <file>icon/词表权益.png</file>
-        <file>icon/解锁.png</file>
+        <file>icon/close.png</file>
+        <file>icon/fast_forward_right.png</file>
+        <file>icon/fast_forward_left.png</file>
+        <file>icon/settings.png</file>
+        <file>icon/lock_o.png</file>
+        <file>icon/vocabulary_rights.png</file>
+        <file>icon/unlock.png</file>
+        <file>icon/plus.png</file>
+        <file>icon/minus.png</file>
+        <file>icon/right_right.png</file>
     </qresource>
 </RCC>

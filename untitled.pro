@@ -18,12 +18,14 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += \
     controlbar.cpp \
     desk_lrc_widget.cpp \
+    desk_lrc_settings.cpp \
     downloadthread.cpp \
     httprequest.cpp \
     loginwidget.cpp \
     lrc_analyze.cpp \
     lyrictextedit.cpp \
     main.cpp \
+    main_menu.cpp \
     main_widget.cpp \
     mini_controlbar.cpp \
     music_item.cpp \
@@ -32,21 +34,26 @@ SOURCES += \
     music_list_widget_net.cpp \
     pianwidget.cpp \
     play_widget.cpp \
+    plugin_manager.cpp \
     process_slider.cpp \
     rotatingcircleimage.cpp \
     searchbox.cpp \
     take_pcm.cpp \
+    translate_widget.cpp \
+    user_widget.cpp \
     worker.cpp
 
 HEADERS += \
     controlbar.h \
     desk_lrc_widget.h \
+    desk_lrc_settings.h \
     downloadthread.h \
     headers.h \
     httprequest.h \
     loginwidget.h \
     lrc_analyze.h \
     lyrictextedit.h \
+    main_menu.h \
     main_widget.h \
     mini_controlbar.h \
     music.h \
@@ -56,10 +63,14 @@ HEADERS += \
     music_list_widget_net.h \
     pianwidget.h \
     play_widget.h \
+    plugin_interface.h \
+    plugin_manager.h \
     process_slider.h \
     rotatingcircleimage.h \
     searchbox.h \
     take_pcm.h \
+    translate_widget.h \
+    user_widget.h \
     worker.h
 
 FORMS +=
@@ -68,14 +79,19 @@ FORMS +=
 TRANSLATIONS += \
     untitled_zh_CN.ts
 
-INCLUDEPATH += /opt/ffmpeg-4.4/include
-LIBS += -L/opt/ffmpeg-4.4/lib \
+INCLUDEPATH += E:/ffmpeg-4.4/include \
+               E:/whisper.cpp/whisper.cpp-master/whisper.cpp-master \
+               E:/whisper.cpp/whisper.cpp-master/whisper.cpp-master/include \
+               E:/whisper.cpp/whisper.cpp-master/whisper.cpp-master/ggml/include
+LIBS += -LE:/ffmpeg-4.4/lib \
         -lavcodec \
         -lavformat \
         -lavutil \
         -lavdevice \
         -lswscale \
-        -lswresample
+        -lswresample \
+        -LE:/whisper.cpp/whisper.cpp-master/whisper.cpp-master/build/src/Release -lwhisper \
+        -LE:/whisper.cpp/whisper.cpp-master/whisper.cpp-master/build/ggml/src/Release -lggml -lggml-base -lggml-cpu
 
 
 RESOURCES += \

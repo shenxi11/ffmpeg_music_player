@@ -84,7 +84,7 @@ void MusicItem::set_netflag(bool flag)
             download->move(size.width()/2 + size.height(),0);
             download->setStyleSheet(
                         "QPushButton {"
-                        "    border-image: url(:/new/prefix1/icon/下载.png);"
+                        "    border-image: url(:/new/prefix1/icon/download.png);"
                         "}"
                         );
             download->hide();

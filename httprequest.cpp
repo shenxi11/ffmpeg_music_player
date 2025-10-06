@@ -1,7 +1,5 @@
 #include "httprequest.h"
 #include "music.h"
-HttpRequest* HttpRequest::instance = nullptr;
-QMutex HttpRequest::mutex;
 User* User::instance = nullptr;
 QMutex User::mutex;
 HttpRequest::HttpRequest(QObject *parent)
@@ -413,5 +411,10 @@ bool HttpRequest::getMusic(const QString& name) {
 
     return true;
 }
-
+void HttpRequest::setIsUsing(bool flag_){
+    isUsing = flag_;
+}
+bool HttpRequest::getIsUsing(){
+    return isUsing;
+}
 

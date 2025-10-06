@@ -23,7 +23,8 @@
 #include <memory>
 #include <mutex>
 #include "headers.h"
-class User{
+class User:public QObject{
+    Q_OBJECT
 public:
     static User* getInstance()
     {
@@ -41,12 +42,14 @@ public:
     void set_username(QString username){this->username = username;};
     void set_account(QString account){this->account = account;};
     void set_password(QString password){this->password = password;};
-    void set_music_path(QStringList musics){this->music_path = musics;};
+    void set_music_path(QStringList musics){this->music_path = musics; emit signal_add_songs();};
 
     QString get_username(){return username;};
     QString get_account(){return account;};
     QString get_password(){return password;};
     QStringList get_music_path(){return this->music_path;};
+signals:
+    void signal_add_songs();
 private:
     User(QString account = "", QString password = "", QString username = ""){};
     User& operator=(const User a) = delete;
@@ -64,22 +67,7 @@ class HttpRequest:public QObject
 {
     Q_OBJECT
 public:
-
-
-    static HttpRequest* getInstance()
-    {
-        if(instance == nullptr)
-        {
-            QMutexLocker locker(&mutex);
-            if(instance == nullptr)
-            {
-                instance = new HttpRequest();
-            }
-        }
-        return instance;
-    }
-
-
+    explicit  HttpRequest(QObject *parent = nullptr);
     bool Login(const QString& account, const QString& password);
     bool Register(const QString& account, const QString& password, const QString& username);
     bool Upload(const QString& path);
@@ -90,6 +78,9 @@ public:
     void sendAcknowledgment();
     bool getMusic(const QString& name);
     bool get_file(const QString url);
+
+    void setIsUsing(bool flag_);
+    bool getIsUsing();
 signals:
     void signal_Loginflag(bool flag);
     void signal_Registerflag(bool flag);
@@ -100,15 +91,61 @@ signals:
     void signal_add_songs();
     void signal_lrc(QStringList content);
 private:
-    explicit  HttpRequest(QObject *parent = nullptr);
     HttpRequest(const HttpRequest&) = delete;
     HttpRequest& operator=(const HttpRequest&) = delete;
 
-    const QString localUrl = "http://localhost:5000/";
+    const QString localUrl = "http://192.168.1.208:8080/";
     QNetworkAccessManager* manager = nullptr;
-    static HttpRequest* instance;
-    static QMutex mutex;
+
+    bool isUsing = false;
 };
 
+class HttpRequestPool{
+public:
+    static HttpRequestPool& getInstance(){
+        static HttpRequestPool pool(1);
+        return pool;
+    }
+    HttpRequest* getRequest(){
+        for(int i = 0; i < requestList.size(); i++){
+            if(!requestList[i]->getIsUsing()){
+                HttpRequest* request = requestList[i];
+                requestList[i]->setIsUsing(true);
+                return request;
+            }
+        }
+        HttpRequest* request = new HttpRequest();
+        requestList.emplace_back(request);
+        request->setIsUsing(true);
+        request_cnt ++;
+        return request;
+    }
+    void setRequestNum(int n){
+        request_cnt = n;
+    }
+    int getRequestNum(){
+        return request_cnt;
+    }
+    ~HttpRequestPool(){
+        for(int i = 0; i < request_cnt; i++){
+            auto request = requestList.back();
+            requestList.pop_back();
+            delete request;
+            request = nullptr;
+        }
+    }
+private:
+    HttpRequestPool(int cnt = 1):request_cnt(cnt){
+        for(int i = 0; i < request_cnt; i++){
+            HttpRequest *request = new HttpRequest();
+            requestList.emplace_back(request);
+        }
+    };
+    HttpRequestPool(const HttpRequestPool& httpRequestPool) = delete ;
+    HttpRequestPool& operator = (const HttpRequestPool& httpRequestPool) = delete ;
+
+    int request_cnt = 0;
+    std::vector<HttpRequest*> requestList;
+};
 
 #endif // HTTPREQUEST_H

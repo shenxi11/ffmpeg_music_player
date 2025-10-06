@@ -41,6 +41,13 @@ TakePcm::~TakePcm()
     if(swr_ctx)
         swr_free(&swr_ctx);
 }
+QString getSubstringAfterLastDot(const QString &inputStr) {
+    QStringList parts = inputStr.split('.'); // 按点号分割
+    if (parts.isEmpty()) {
+        return "";
+    }
+    return parts.last(); // 返回列表中的最后一个元素
+}
 void TakePcm::seekToPosition(int newPosition)
 {
     int64_t targetTimestamp = static_cast<int64_t>(newPosition) * 1000;
@@ -83,19 +90,29 @@ void TakePcm::make_pcm(QString Path)
         swr_free(&swr_ctx);
 
     qDebug()<<"Take_pcm"<<QThread::currentThreadId();
-    avformat_network_init();
 
-    const char* inputUrl = Path.toUtf8().constData();
+    QByteArray utf8Data = Path.toUtf8();
+    const char* inputUrl = utf8Data.constData();
+    //const char* inputUrl = stdStr.c_str();
 
     ifmt_ctx=nullptr;
     AVDictionary* options = nullptr;
     av_dict_set(&options, "listen_timeout", "5000000", 0);
 
-    if (avformat_open_input(&ifmt_ctx, inputUrl, nullptr, &options) < 0)
+    QString back_ = getSubstringAfterLastDot(inputUrl);
+    //stdStr = back_.toStdString();
+    //AVInputFormat *ifmt = av_find_input_format(stdStr.c_str());
+    qDebug() << __FUNCTION__ << inputUrl << Path;
+    int ret = avformat_open_input(&ifmt_ctx, inputUrl, nullptr, &options);
+    if (ret < 0)
     {
-        qDebug() << "Could not open input fileA";
+        char errbuf[AV_ERROR_MAX_STRING_SIZE] = {0};
+        av_strerror(ret, errbuf, sizeof(errbuf));
+        qDebug() << __FUNCTION__ << inputUrl << Path;
+        qDebug() << "Could not open input file:" << errbuf << "Error code:" << ret;
         return;
     }
+
     av_dict_free(&options);
     if (avformat_find_stream_info(ifmt_ctx, nullptr) < 0)
     {
@@ -103,7 +120,6 @@ void TakePcm::make_pcm(QString Path)
         avformat_close_input(&ifmt_ctx);
         return;
     }
-    //    this->run_async();
 
     audioStreamIndex = -1;
     for (int i = 0; i <(int)ifmt_ctx->nb_streams; ++i)
@@ -122,15 +138,31 @@ void TakePcm::make_pcm(QString Path)
         return;
     }
 
-    AVCodec* codec = avcodec_find_decoder(ifmt_ctx->streams[audioStreamIndex]->codecpar->codec_id);
-    //AVCodec* codec = avcodec_find_decoder_by_name("aac");
-    if (!codec)
-    {
+    //    AVCodec* codec = avcodec_find_decoder(ifmt_ctx->streams[audioStreamIndex]->codecpar->codec_id);
+    //    //AVCodec* codec = avcodec_find_decoder_by_name("aac");
+    //    if (!codec)
+    //    {
+    //        qDebug() << "Codec not found";
+    //        avformat_close_input(&ifmt_ctx);
+    //        return;
+    //    }
+    AVCodec* codec = nullptr;
+    if (ifmt_ctx->streams[audioStreamIndex]->codecpar->codec_id == AV_CODEC_ID_H264) {
+        codec = avcodec_find_decoder_by_name("h264_cuvid"); // 尝试 NVIDIA CUVID 解码器
+        if (!codec) {
+            qDebug() << "Hardware decoder for H.264 not found, fallback to software.";
+        }
+    }
+
+
+    if (!codec) {
+        codec = avcodec_find_decoder(ifmt_ctx->streams[audioStreamIndex]->codecpar->codec_id);
+    }
+    if (!codec) {
         qDebug() << "Codec not found";
         avformat_close_input(&ifmt_ctx);
         return;
     }
-
     // 初始化 AVCodecContext
     codec_ctx = avcodec_alloc_context3(codec);
     if (!codec_ctx)
@@ -250,11 +282,11 @@ void TakePcm::decode()
 
                     // 计算目标缓冲区大小
                     int dst_nb_samples = av_rescale_rnd(
-                                swr_get_delay(swr_ctx, codec_ctx->sample_rate) + frame->nb_samples,
-                                44100,
-                                codec_ctx->sample_rate,
-                                AV_ROUND_UP
-                                );
+                        swr_get_delay(swr_ctx, codec_ctx->sample_rate) + frame->nb_samples,
+                        44100,
+                        codec_ctx->sample_rate,
+                        AV_ROUND_UP
+                        );
                     int buffer_size = av_samples_get_buffer_size(nullptr, 2, dst_nb_samples, AV_SAMPLE_FMT_S16, 1);
 
                     // 确保 buffer_size 不小于0
@@ -288,8 +320,11 @@ void TakePcm::decode()
                         int64_t pts = pkt->pts;
                         qint64 timestamp_ms = av_rescale_q(pts, time_base, {1, 1000});
                         //qDebug() << "Timestamp (ms):" << timestamp_ms;
-
-                        send_data(buffer, converted_buffer_size, timestamp_ms);
+                        if(isTranslate.load()){
+                            emit signal_send_data(buffer, converted_buffer_size, timestamp_ms);
+                        }else{
+                            send_data(buffer, converted_buffer_size, timestamp_ms);
+                        }
                     }
 
                 }
@@ -298,6 +333,7 @@ void TakePcm::decode()
         av_packet_unref(pkt);
 
     }
+    emit signal_decodeEnd();
 }
 
 

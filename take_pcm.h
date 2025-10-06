@@ -13,6 +13,7 @@ public:
     explicit TakePcm();
 
     ~TakePcm();
+    void setTranslate(bool flag){this->isTranslate = flag;};
 public slots:
     void make_pcm(QString Path);
 
@@ -30,8 +31,8 @@ signals:
     void begin_to_decode();
     void signal_begin_make_pcm(QString path);
     void signal_send_pic_path(QString picPath);
-
-
+    void signal_send_data(uint8_t *buffer, int bufferSize, qint64 timeMap);
+    void signal_decodeEnd();
 private:
     void send_data(uint8_t *buffer, int bufferSize, qint64 timeMap);
     void take_album();
@@ -51,6 +52,7 @@ private:
 
     std::atomic<bool> stop_flag = false;
     std::atomic<bool> end_flag = false;
+    std::atomic<bool> isTranslate = false;
 };
 
 #endif // TAKE_PCM_H

@@ -20,7 +20,22 @@ public:
         setAttribute( Qt::WA_Hover,true);
         info_ = new QLabel(text_);
         info_->setWindowFlags(Qt::Tool | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
-        info_->setFixedHeight(20);
+        info_->setFixedHeight(25);
+        
+        // 美化工具提示样式
+        info_->setStyleSheet(
+            "QLabel {"
+            "    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, "
+            "                              stop:0 #4a4a4a, stop:1 #2a2a2a);"
+            "    color: white;"
+            "    border: 1px solid #666;"
+            "    border-radius: 8px;"
+            "    padding: 4px 8px;"
+            "    font-size: 11px;"
+            "    font-weight: bold;"
+            "}"
+        );
+        
         info_->close();
     }
     ~Button(){

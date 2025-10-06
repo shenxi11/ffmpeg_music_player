@@ -22,6 +22,10 @@ int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
 
+    // 设置应用程序信息，用于QSettings
+    a.setOrganizationName("MusicPlayer");
+    a.setApplicationName("FFmpegMusicPlayer");
+
     a.setWindowIcon(QIcon("qrc:/new/prefix1/icon/netease.png"));
 
     setlocale(LC_ALL, "chs");
@@ -31,8 +35,8 @@ int main(int argc, char *argv[])
     QLoggingCategory::setFilterRules("qt.audio.debug=false");
     qRegisterMetaType<std::vector<std::pair<qint64,qint64>>>("std::vector<std::pair<qint64,qint64> >");
 
-
-    auto request = HttpRequest::getInstance();
+    av_register_all();
+    avformat_network_init();
 
     auto user = User::getInstance();
 

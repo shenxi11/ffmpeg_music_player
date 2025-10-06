@@ -36,8 +36,25 @@ MusicListWidgetLocal::MusicListWidgetLocal(QWidget *parent) : QWidget(parent)
                 "{ border-radius: 15px; border: 2px solid black; }"
                 );
 
+    translateBtn = new QPushButton(this);
+    translateBtn->setFixedSize(100, 30);
+    translateBtn->setText("语音转换");
+    translateBtn->setStyleSheet(
+                "QPushButton "
+                "{ border-radius: 15px; border: 2px solid #667eea; "
+                "  background-color: #667eea; color: white; }"
+                );
+
+    QHBoxLayout* buttonLayout = new QHBoxLayout();
+    buttonLayout->addWidget(add);
+    buttonLayout->addWidget(translateBtn);
+    buttonLayout->addStretch();
+
+    QWidget* buttonWidget = new QWidget(this);
+    buttonWidget->setLayout(buttonLayout);
 
     connect(add, &QPushButton::clicked, this, &MusicListWidgetLocal::on_signal_add_button_clicked);
+    connect(translateBtn, &QPushButton::clicked, this, &MusicListWidgetLocal::on_signal_translate_button_clicked);
 
     listWidget = new MusicListWidget(this);
     listWidget->resize(width(), height() - 60);
@@ -45,14 +62,15 @@ MusicListWidgetLocal::MusicListWidgetLocal(QWidget *parent) : QWidget(parent)
     listWidget->show();
 
     QVBoxLayout* v_layout = new QVBoxLayout(this);
-    v_layout->addWidget(add);
+    v_layout->addWidget(buttonWidget);
     v_layout->addWidget(parameterWidget);
     v_layout->addWidget(listWidget);
 
     setLayout(v_layout);
 
+    request = HttpRequestPool::getInstance().getRequest();
+
     connect(this, &MusicListWidgetLocal::signal_add_song,[=](QString filename, QString path){
-        auto request = HttpRequest::getInstance();
         request->AddMusic(path);
         listWidget->on_signal_add_song(filename, path);
     });
@@ -64,9 +82,9 @@ MusicListWidgetLocal::MusicListWidgetLocal(QWidget *parent) : QWidget(parent)
     connect(this, &MusicListWidgetLocal::signal_last, listWidget, &MusicListWidget::Last_click);
     connect(this, &MusicListWidgetLocal::signal_next, listWidget, &MusicListWidget::Next_click);
 
-    auto request = HttpRequest::getInstance();
-    connect(request, &HttpRequest::signal_add_songs, this,[=](){
-        auto user = User::getInstance();
+    auto user = User::getInstance();
+    connect(user, &User::signal_add_songs, this,[=](){
+        qDebug()<<__FUNCTION__<<"login";
         listWidget->remove_all();
         for(auto i: user->get_music_path())
         {
@@ -98,4 +116,9 @@ void MusicListWidgetLocal::on_signal_play_click(const QString songName)
 void MusicListWidgetLocal::on_signal_remove_click(const QString songeName)
 {
     emit signal_remove_click(songeName);
+}
+
+void MusicListWidgetLocal::on_signal_translate_button_clicked()
+{
+    emit signal_translate_button_clicked();
 }

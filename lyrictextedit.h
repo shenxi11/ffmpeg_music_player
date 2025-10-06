@@ -13,7 +13,7 @@ class LyricTextEdit : public QTextEdit
     Q_OBJECT
 public:
     LyricTextEdit(QWidget *parent = nullptr)
-        : QTextEdit(parent), lastHighlightedLine(-1) { }
+        : QTextEdit(parent), lastHighlightedLine(-1), currentLine(5) { }
 
     ~LyricTextEdit();
 
@@ -22,7 +22,7 @@ public:
     void highlightLine(int lineNumber);
 
 
-    int currentLine = 4;  // 当前的歌词行
+    int currentLine = 5;  // 当前的歌词行，对应第一行歌词（前面有5行空行）
 
     void disableScrollBar();
 signals:

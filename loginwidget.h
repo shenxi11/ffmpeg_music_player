@@ -43,6 +43,8 @@ private:
 
     QPoint mouseStartPoint = QPoint(0, 0);
     QPoint windowStartPoint = QPoint(0, 0);
+
+    HttpRequest* request;
 };
 
 #endif // LOGINWIDGET_H

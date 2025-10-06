@@ -10,14 +10,26 @@ MusicListWidgetNet::MusicListWidgetNet(QWidget *parent) : QWidget(parent)
     download_dir->setFixedSize(100,30);
     download_dir->setStyleSheet("QPushButton { background-color: transparent; border: none; }");
 
+    translateBtn = new QPushButton(top_widget);
+    translateBtn->setText("语音转换");
+    translateBtn->setFixedSize(100, 30);
+    translateBtn->setStyleSheet(
+                "QPushButton "
+                "{ border-radius: 15px; border: 2px solid #667eea; "
+                "  background-color: #667eea; color: white; }"
+                );
+
     dir_label = new QLabel(top_widget);
     QHBoxLayout* top_layout = new QHBoxLayout(top_widget);
     top_layout->addWidget(download_dir);
     top_layout->addWidget(dir_label);
+    top_layout->addStretch();
+    top_layout->addWidget(translateBtn);
 
     top_widget->setLayout(top_layout);
 
     connect(download_dir, &QPushButton::clicked, this, &MusicListWidgetNet::signal_choose_download_dir);
+    connect(translateBtn, &QPushButton::clicked, this, &MusicListWidgetNet::on_signal_translate_button_clicked);
 
     listWidget = new MusicListWidget(this);
     listWidget->resize(800, height() - 60);
@@ -67,7 +79,8 @@ MusicListWidgetNet::MusicListWidgetNet(QWidget *parent) : QWidget(parent)
 
     connect(this, &MusicListWidgetNet::signal_last, listWidget, &MusicListWidget::Last_click);
     connect(this, &MusicListWidgetNet::signal_next, listWidget, &MusicListWidget::Next_click);
-    auto request = HttpRequest::getInstance();
+
+    request = HttpRequestPool::getInstance().getRequest();
     connect(request, &HttpRequest::signal_streamurl, this,[=](bool flag, QString file){
         //qInfo()<<__FUNCTION__<<file;
         emit signal_play_click(file, true);
@@ -77,12 +90,10 @@ MusicListWidgetNet::MusicListWidgetNet(QWidget *parent) : QWidget(parent)
 void MusicListWidgetNet::on_signal_play_click(const QString name)
 {
     double duration = song_duration[name];
-    auto request = HttpRequest::getInstance();
     request->get_music_data(name);
 }
 void MusicListWidgetNet::on_signal_download_music(QString songName)
 {
-    auto request = HttpRequest::getInstance();
     request->Download(songName, down_dir);
 
 }
@@ -103,4 +114,9 @@ void MusicListWidgetNet::on_signal_play_button_click(bool flag, const QString fi
 
             emit signal_play_button_click(flag, filename);
     }
+}
+
+void MusicListWidgetNet::on_signal_translate_button_clicked()
+{
+    emit signal_translate_button_clicked();
 }
