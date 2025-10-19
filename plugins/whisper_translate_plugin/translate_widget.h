@@ -92,15 +92,12 @@ public:
     void showTipMessage(const QString &msg);
     void receive_data();
     void addResultItem(const QString &fileName, const QString &filePath);
+    
 protected:
     void paintEvent(QPaintEvent *event) override;
-    void mousePressEvent(QMouseEvent *event) override;
-    void mouseMoveEvent(QMouseEvent *event) override;
-    void mouseReleaseEvent(QMouseEvent *event) override;
 
 
 private:
-    QLabel* titleLabel;
     QLabel* fileLabel;
     QLineEdit* filePathEdit;
     QPushButton* browseButton;
@@ -120,15 +117,6 @@ private:
     QHBoxLayout* modelLayout;
     QHBoxLayout* formatLayout;
     QHBoxLayout* langLayout;
-    QHBoxLayout* titleBarLayout;
-    QWidget* titleBarWidget;
-    QPushButton* minimizeButton;
-    QPushButton* maximizeButton;
-    QPushButton* closeButton;
-
-    bool mousePressed = false;
-    QPoint mouseStartPoint;
-    QPoint windowStartPoint;
 
     QVector<float> pcmf32_;
 

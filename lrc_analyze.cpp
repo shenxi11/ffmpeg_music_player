@@ -1,5 +1,6 @@
 #include "lrc_analyze.h"
 #include "httprequest.h"
+
 LrcAnalyze::LrcAnalyze()
 {
     connect(this, &LrcAnalyze::begin_take_lrc, this, &LrcAnalyze::take_lrc);

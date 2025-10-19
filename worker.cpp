@@ -32,7 +32,9 @@ void Worker::receive_lrc(std::map<int, std::string> lyrics)
 
 void Worker::stop_play()
 {
-    emit stopPlay();
+    //qDebug() << __FUNCTION__ << "播放按钮点击";
+    //emit stopPlay();
+    Pause();
 }
 void Worker::Set_Volume(int value)
 {
@@ -42,18 +44,19 @@ void Worker::Set_Volume(int value)
 void Worker::set_SliderMove(bool flag)
 {
     this->sliderMove=flag;
-
+    qDebug() << __FUNCTION__ << "set slider move" << flag;
     emit stopPlay();
 }
 void Worker::Pause()
 {
-
+    qDebug() << __FUNCTION__ << isPaused;
     if (!isPaused||this->sliderMove)
     {
         audioOutput->suspend();
-        stopPlayback();
         isPaused = true;
+        stopPlayback();
         emit Stop();
+        qDebug() << "Playback suspend.";
     }
     else if (isPaused)
     {
@@ -67,19 +70,15 @@ void Worker::Pause()
 
 void Worker::reset_play()
 {
-
-    if(audioOutput)
+    qDebug() << __FUNCTION__ << "重置播放";
     {
-        {
-            std::lock_guard<std::mutex> lock(mtx);
-            audioBuffer.clear();
-            mp.clear();
-        }
-        cv.notify_one();
-        this->audioOutput->reset();
-        audioDevice = this->audioOutput->start();
+        std::lock_guard<std::mutex> lock(mtx);
+        audioBuffer.clear();  
+        //m_stopFlag = true;  
     }
-
+    cv.notify_one(); 
+    emit signal_reconnect();
+    qDebug() << __FUNCTION__ << "重置播放完成";
 }
 
 void Worker::onTimeOut()
@@ -96,25 +95,25 @@ void Worker::onTimeOut()
             return;
         }
 
-        QByteArray pcmData = audioBuffer.front();
+        PCM pcmData = audioBuffer.front();
 
         qint64 bytesFree = audioOutput->bytesFree();
-        if ( bytesFree <  2 * pcmData.size())
+        if ( bytesFree <  2 * pcmData.data_.size())
         {
             continue;
         }
 
-        qint64 bytesWritten = audioDevice->write(pcmData);
+        audioBuffer.pop_front();
+
+        qint64 bytesWritten = audioDevice->write(pcmData.data_);
         if (bytesWritten < 0)
         {
             qDebug() << "Error writing audio data:" << audioDevice->errorString();
             continue;
         }
-        qint64 currentTimeMS = mp[pcmData];
+        qint64 currentTimeMS = pcmData.timeMp;
 
-        mp.erase(pcmData);
-        audioBuffer.pop_front();
-        pcmData = QByteArray();
+        pcmData.data_ = QByteArray();
 
         emit durations(currentTimeMS);
 
@@ -153,8 +152,10 @@ void Worker::receive_data(const QByteArray &data,qint64 timeMap)
 {
     {
         std::lock_guard<std::mutex>lock(mtx);
-        this->audioBuffer.enqueue(data);
-        this->mp[data]=timeMap;
+        PCM pcm;
+        pcm.data_ = data;
+        pcm.timeMp = timeMap;
+        this->audioBuffer.enqueue(pcm);
     }
     cv.notify_one();
 }
@@ -175,7 +176,6 @@ void Worker::play_pcm()
         {
             std::lock_guard<std::mutex> lock(mtx);
             audioBuffer.clear();
-            mp.clear();
         }
         cv.notify_one();
         disconnect(this, &Worker::stopPlay, this, nullptr);
@@ -197,7 +197,7 @@ void Worker::play_pcm()
 
         audioOutput = new QAudioOutput(format, this);
 
-        audioOutput->setBufferSize(AUDIO_BUFFER_SIZE);
+        audioOutput->setBufferSize(AUDIO_BUFFER_SIZE * 1024);
 
     }
 
@@ -222,7 +222,6 @@ void Worker::reset_status()
         {
             std::lock_guard<std::mutex> lock(mtx);
             audioBuffer.clear();
-            mp.clear();
         }
         cv.notify_one();
         audioOutput->stop();
@@ -234,7 +233,7 @@ void Worker::onDataReceived(QByteArray data)
 {
     {
         std::lock_guard<std::mutex> lock(mtx);
-        audioBuffer.enqueue(data);
+       // audioBuffer.enqueue(data);
     }
     cv.notify_one();
 }
@@ -252,9 +251,9 @@ void Worker::stopPlayBack()
     {
         std::lock_guard<std::mutex> lock(mtx);
         m_breakFlag= true;
-        if (thread_.joinable()) {
+        /*if (thread_.joinable()) {
             thread_.join();
-        }
+        }*/
     }
     cv.notify_all();
 }

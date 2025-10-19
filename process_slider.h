@@ -22,6 +22,9 @@ public:
     void slot_isUpChanged(bool flag);
     void slot_forward();
     void slot_backward();
+    void slot_change_duartion(qint64 value);
+    int getPressPosition() { return press_position; }
+    void setPrintF(bool flag) { printF = flag; };
 signals:
     void signal_sliderPressed();
     void signal_sliderReleased();
@@ -35,6 +38,8 @@ private:
     QLabel* endTime_label;
     QLabel* startTime_label;
 
+    int press_position = 0;
+    bool printF = false;
 };
 
 #endif // PROCESSSLIDER_H

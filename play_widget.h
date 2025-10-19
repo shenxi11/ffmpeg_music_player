@@ -50,7 +50,7 @@ signals:
     void signal_begin_take_lrc(QString str);
     void signal_play_changed(bool flag);
     void signal_set_SliderMove(bool flag);
-    void signal_process_Change(qint64 newPosition);
+    void signal_process_Change(qint64 newPosition, bool back_flag);
     void signal_big_clicked(bool checked);
     void signal_list_show(bool flag);
     void signal_add_song(const QString fileName,const QString path);

@@ -49,12 +49,17 @@ extern "C"
 
 
 #define BUFFER_SIZE 17640
-#define AUDIO_BUFFER_SIZE 65536 * 2
+#define AUDIO_BUFFER_SIZE 1024
 #define RATE 44100
 #define CHANNELS 2
 #define SAMPLE_SIZE 16
 #define MAX_BUFFER_SIZE 100
 #include <QLoggingCategory>
 class Music;
+
+struct PCM {
+	QByteArray data_;
+	qint64 timeMp;
+};
 
 #endif // HEADERS_H

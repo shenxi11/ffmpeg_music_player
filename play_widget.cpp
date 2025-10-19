@@ -4,6 +4,7 @@ PlayWidget::PlayWidget(QWidget *parent)
     : QWidget(parent)
 
 {
+    qDebug() << __FUNCTION__ << QThread::currentThread()->currentThreadId;
     QWidget* bottom = new QWidget(this);
     bottom->setFixedSize(1000, 100);
     bottom->move(0, 500);
@@ -31,7 +32,6 @@ PlayWidget::PlayWidget(QWidget *parent)
 
     bottom->setLayout(hlayout__);
 
-
     music = new QPushButton(this);
     music->setFixedSize(30,30);
     music->setStyleSheet(
@@ -44,21 +44,33 @@ PlayWidget::PlayWidget(QWidget *parent)
     });
     music->move(10, 10);
 
-    a = new QThread(this);
-    b = new QThread(this);
-    c = new QThread(this);
+    // 创建线程（不要传parent，让线程独立管理生命周期）
+    a = new QThread();
+    b = new QThread();
+    c = new QThread();
 
+    // 创建Worker对象并移动到线程
     work = std::make_shared<Worker>();
     work->moveToThread(c);
 
     lrc = std::make_shared<LrcAnalyze>();
 
+    // 创建TakePcm对象并移动到线程
     take_pcm = std::make_shared<TakePcm>();
     take_pcm->moveToThread(a);
 
+    // 启动线程
     a->start();
     b->start();
     c->start();
+    
+    // 验证线程移动是否成功
+    qDebug() << "Main thread ID:" << QThread::currentThreadId();
+    
+    // 通过槽函数验证TakePcm是否在正确线程中运行
+    QMetaObject::invokeMethod(take_pcm.get(), [this]() {
+        qDebug() << "TakePcm actual thread ID:" << QThread::currentThreadId();
+    }, Qt::QueuedConnection);
     init_TextEdit();
 
     QWidget* rotate_widget = new QWidget(this);
@@ -79,12 +91,14 @@ PlayWidget::PlayWidget(QWidget *parent)
         this->duration = static_cast<qint64>(value);
         process_slider->setMaxSeconds(value / 1000000);
     });
-    connect(this,&PlayWidget::signal_process_Change,take_pcm.get(),&TakePcm::seekToPosition);
+    //connect(this,&PlayWidget::signal_process_Change,take_pcm.get(),&TakePcm::seekToPosition);
+    connect(this, &PlayWidget::signal_process_Change, take_pcm.get(), &TakePcm::seekToPosition);
+    connect(this, &PlayWidget::signal_process_Change, work.get(), &Worker::reset_play);
 
     connect(this, &PlayWidget::signal_filepath, [=](QString path) {
         emit take_pcm->signal_begin_make_pcm(path);
     });
-    connect(this, &PlayWidget::signal_worker_play, work.get(), &Worker::stop_play);
+    connect(this, &PlayWidget::signal_worker_play, work.get(), &Worker::Pause);
     connect(this, &PlayWidget::signal_remove_click, work.get(), &Worker::reset_status);
 
     connect(this, &PlayWidget::signal_filepath, this, &PlayWidget::_begin_take_lrc);
@@ -121,14 +135,14 @@ PlayWidget::PlayWidget(QWidget *parent)
         emit signal_set_SliderMove(true);
         process_slider->slot_forward();
         int newPosition = std::min(process_slider->maxValue(), process_slider->value() + 1) * this->duration / (1000 * process_slider->maxValue());
-        emit signal_process_Change(newPosition);
+        emit signal_process_Change(newPosition, false);
         emit signal_set_SliderMove(false);
     });
     connect(desk, &DeskLrcWidget::signal_backward_clicked, this, [=](){
         emit signal_set_SliderMove(true);
         process_slider->slot_backward();
         int newPosition = std::max(0, process_slider->value() - 1) * this->duration / (1000 * process_slider->maxValue());
-        emit signal_process_Change(newPosition);
+        emit signal_process_Change(newPosition, true);
         emit signal_set_SliderMove(false);
     });
     connect(controlBar, &ControlBar::signal_play_clicked, this, &PlayWidget::slot_play_click);
@@ -147,21 +161,43 @@ PlayWidget::PlayWidget(QWidget *parent)
     connect(controlBar, &ControlBar::signal_mlist_toggled, this, &PlayWidget::signal_list_show);
     connect(controlBar, &ControlBar::signal_rePlay, this, [=](){
         rePlay(this->filePath);
-    });
+        //emit process_slider->signal_sliderPressed();
+        //process_slider->setValueOverride(0);
+        //emit process_slider->signal_sliderReleased();
+     });
     connect(controlBar, &ControlBar::signal_desk_toggled, this, &PlayWidget::slot_desk_toggled);
 
-    connect(work.get(),&Worker::durations,[=](qint64 value){
-        process_slider->setValueOverride(value/1000);
-    });
+    //connect(take_pcm.get(), &TakePcm::signal_worker_play, work.get(), &Worker::stopPlayback);
+    //connect(work.get(),&Worker::durations,[=](qint64 value){
+    //    process_slider->setValueOverride(value/1000);
+    //});
+    //connect(work.get(), &Worker::durations, process_slider, &ProcessSlider::slot_change_duartion);
     connect(this,&PlayWidget::signal_set_SliderMove,work.get(),&Worker::set_SliderMove);
     connect(process_slider,&ProcessSlider::signal_sliderPressed,[=](){
-        emit signal_set_SliderMove(true);
+        qDebug() << "拖动进度条";
+        //work->set_SliderMove(true);
+        //emit signal_worker_play();
+        disconnect(work.get(), &Worker::durations, process_slider, &ProcessSlider::slot_change_duartion);
     });
     connect(process_slider,&ProcessSlider::signal_sliderReleased,[=](){
+        int press_position = process_slider->getPressPosition();
         int newPosition = process_slider->value() * this->duration / (1000 * process_slider->maxValue());
-        emit signal_process_Change(newPosition);
-        emit signal_set_SliderMove(false);
+        qDebug() << __FUNCTION__ << newPosition / 1000;
+        //work->reset_play();
+        //work->set_SliderMove(false);
+        
+        bool back_flag = false;
+        if (process_slider->value() >= press_position) {
+            back_flag = true;
+        }
+        emit signal_process_Change(newPosition, back_flag);
+        process_slider->setPrintF(true);
+        connect(work.get(), &Worker::durations, process_slider, &ProcessSlider::slot_change_duartion);
     });
+    connect(work.get(), &Worker::signal_reconnect, this, [=]() {
+        //connect(work.get(), &Worker::durations, process_slider, &ProcessSlider::slot_change_duartion);
+        emit take_pcm->begin_to_decode();
+     });
     connect(process_slider, &ProcessSlider::signal_playFinished, controlBar, &ControlBar::slot_playFinished);
     connect(this, &PlayWidget::signal_isUpChanged, process_slider, &ProcessSlider::slot_isUpChanged);
     connect(this, &PlayWidget::signal_isUpChanged, controlBar, &ControlBar::slot_isUpChanged);
@@ -178,6 +214,7 @@ void PlayWidget::set_isUp(bool flag){
     emit signal_isUpChanged(isUp);
 }
 void PlayWidget::slot_work_stop(){
+    qDebug() << __FUNCTION__ << "暂停";
     emit signal_playState(ControlBar::Pause);
     if(fileName.size())
     {
@@ -193,6 +230,7 @@ void PlayWidget::slot_work_play(){
     emit signal_play_button_click(true, fileName);
     pianWidget->setName(QFileInfo(fileName).baseName());
     nameLabel->setText(QFileInfo(fileName).baseName());
+    connect(work.get(), &Worker::durations, process_slider, &ProcessSlider::slot_change_duartion);
 }
 void PlayWidget::slot_Lrc_send_lrc(const std::map<int, std::string> lyrics){
     this->textEdit->currentLine = 5;  // 初始行设为5，对应第一行歌词
@@ -234,7 +272,9 @@ void PlayWidget::slot_play_click(){
         } else {
             emit signal_playState(ControlBar::Pause);
         }
+        qDebug() << __FUNCTION__ << "播放按钮点击";
         emit signal_worker_play();
+        //work->Pause();
     }
 }
 
@@ -355,21 +395,48 @@ bool PlayWidget::checkAndWarnIfPathNotExists(const QString &path) {
 }
 PlayWidget::~PlayWidget()
 {
-
+    qDebug() << "PlayWidget::~PlayWidget() - Starting cleanup...";
+ 
+    
+    // 2. 等待线程完成当前工作
+    QThread::msleep(200);
+    
+    // 3. 退出并等待所有 QThread
     if(a)
     {
+        qDebug() << "PlayWidget: Stopping thread a...";
         a->quit();
-        a->wait();
+        if(!a->wait(2000)) {  // 等待最多2秒
+            qDebug() << "PlayWidget: Thread a did not finish, terminating...";
+            a->terminate();
+            a->wait();
+        }
     }
     if(b)
     {
+        qDebug() << "PlayWidget: Stopping thread b...";
         b->quit();
-        b->wait();
+        if(!b->wait(2000)) {
+            qDebug() << "PlayWidget: Thread b did not finish, terminating...";
+            b->terminate();
+            b->wait();
+        }
     }
     if(c)
     {
+        qDebug() << "PlayWidget: Stopping thread c...";
         c->quit();
-        c->wait();
+        if(!c->wait(2000)) {
+            qDebug() << "PlayWidget: Thread c did not finish, terminating...";
+            c->terminate();
+            c->wait();
+        }
     }
-
+    
+    // 4. 清理 shared_ptr（会自动调用析构函数）
+    work.reset();
+    lrc.reset();
+    take_pcm.reset();
+    
+    qDebug() << "PlayWidget::~PlayWidget() - Cleanup complete";
 }

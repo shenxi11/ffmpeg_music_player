@@ -1,0 +1,124 @@
+{
+    "version": 3,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 21,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "windows-base",
+            "hidden": true,
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "installDir": "${sourceDir}/install/${presetName}",
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "cl.exe",
+                "CMAKE_CXX_COMPILER": "cl.exe"
+            },
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        },
+        {
+            "name": "x64-debug",
+            "displayName": "x64 Debug",
+            "inherits": "windows-base",
+            "architecture": {
+                "value": "x64",
+                "strategy": "external"
+            },
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
+            "name": "x64-release",
+            "displayName": "x64 Release",
+            "inherits": "windows-base",
+            "architecture": {
+                "value": "x64",
+                "strategy": "external"
+            },
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        },
+        {
+            "name": "vs2022-x64-debug",
+            "displayName": "VS2022 x64 Debug",
+            "generator": "Visual Studio 17 2022",
+            "binaryDir": "${sourceDir}/build/vs2022-x64-debug",
+            "installDir": "${sourceDir}/install/vs2022-x64-debug",
+            "architecture": {
+                "value": "x64",
+                "strategy": "set"
+            },
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            },
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        },
+        {
+            "name": "vs2022-x64-release",
+            "displayName": "VS2022 x64 Release",
+            "generator": "Visual Studio 17 2022",
+            "binaryDir": "${sourceDir}/build/vs2022-x64-release",
+            "installDir": "${sourceDir}/install/vs2022-x64-release",
+            "architecture": {
+                "value": "x64",
+                "strategy": "set"
+            },
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            },
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "x64-debug",
+            "configurePreset": "x64-debug"
+        },
+        {
+            "name": "x64-release",
+            "configurePreset": "x64-release"
+        },
+        {
+            "name": "vs2022-x64-debug",
+            "configurePreset": "vs2022-x64-debug"
+        },
+        {
+            "name": "vs2022-x64-release",
+            "configurePreset": "vs2022-x64-release"
+        }
+    ],
+    "testPresets": [
+        {
+            "name": "x64-debug",
+            "configurePreset": "x64-debug"
+        },
+        {
+            "name": "x64-release",
+            "configurePreset": "x64-release"
+        },
+        {
+            "name": "vs2022-x64-debug",
+            "configurePreset": "vs2022-x64-debug"
+        },
+        {
+            "name": "vs2022-x64-release",
+            "configurePreset": "vs2022-x64-release"
+        }
+    ]
+}

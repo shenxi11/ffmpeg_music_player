@@ -16,10 +16,7 @@ public:
     void setTranslate(bool flag){this->isTranslate = flag;};
 public slots:
     void make_pcm(QString Path);
-
-    void seekToPosition(int newPosition);
-    void initialize();
-    std::atomic<bool>& get_stop_flag(){return stop_flag;}
+    void seekToPosition(int newPosition, bool back_flag);
 signals:
     void begin_take_lrc(QString Path);
     void begin_to_play();
@@ -33,6 +30,9 @@ signals:
     void signal_send_pic_path(QString picPath);
     void signal_send_data(uint8_t *buffer, int bufferSize, qint64 timeMap);
     void signal_decodeEnd();
+    void signal_seetToPosition(int newPosition);
+    void signal_reconnect();
+    void signal_worker_play();
 private:
     void send_data(uint8_t *buffer, int bufferSize, qint64 timeMap);
     void take_album();
@@ -53,6 +53,8 @@ private:
     std::atomic<bool> stop_flag = false;
     std::atomic<bool> end_flag = false;
     std::atomic<bool> isTranslate = false;
+
+    bool printF = true;
 };
 
 #endif // TAKE_PCM_H

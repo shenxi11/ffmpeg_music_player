@@ -94,7 +94,7 @@ private:
     HttpRequest(const HttpRequest&) = delete;
     HttpRequest& operator=(const HttpRequest&) = delete;
 
-    const QString localUrl = "http://192.168.1.208:8080/";
+    const QString localUrl = "http://192.168.110.53:8080/";
     QNetworkAccessManager* manager = nullptr;
 
     bool isUsing = false;

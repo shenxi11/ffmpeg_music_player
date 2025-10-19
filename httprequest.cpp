@@ -36,6 +36,7 @@ bool HttpRequest::AddMusic(const QString music_path)
         }
         reply->deleteLater();
     });
+    return true;
 }
 bool HttpRequest::Login(const QString& account, const QString& password)
 {
@@ -94,6 +95,7 @@ bool HttpRequest::Login(const QString& account, const QString& password)
         }
         reply->deleteLater();
     });
+    return true;
 }
 bool HttpRequest:: Register(const QString& account, const QString& password, const QString& username)
 {
@@ -125,6 +127,7 @@ bool HttpRequest:: Register(const QString& account, const QString& password, con
         }
         reply->deleteLater();
     });
+    return true;
 }
 
 bool HttpRequest::Upload(const QString &path)
@@ -245,6 +248,7 @@ bool HttpRequest::Download(const QString& filename, const QString download_folde
 
         reply->deleteLater();
     });
+    return true;
 }
 
 bool HttpRequest::getAllFiles() {

@@ -6,10 +6,10 @@
 #include "music_list_widget_net.h"
 #include "loginwidget.h"
 #include "searchbox.h"
-#include "translate_widget.h"
 #include "user_widget.h"
 #include "main_menu.h"
 #include "httprequest.h"
+#include "plugin_manager.h"
 #include <QWidget>
 #include <QButtonGroup>
 #include <QScreen>
@@ -31,7 +31,6 @@ private:
     MusicListWidgetLocal* main_list;
     MusicListWidgetNet* net_list;
     LoginWidget* loginWidget;
-    TranslateWidget* translateWidget;
     UserWidget* userWidget;
     QWidget* topWidget;
     MainMenu* mainMenu;

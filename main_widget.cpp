@@ -115,11 +115,6 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     net_list->hide();
     net_list->setObjectName("net");
 
-    translateWidget = new TranslateWidget(this);
-    translateWidget->setFixedSize(800, 400);
-    translateWidget->move(main_list->pos());
-    translateWidget->hide();
-
     QWidget* leftWidget = new QWidget(this);
     leftWidget->setFixedSize(200, this->height() - 100);
     leftWidget->setStyleSheet("background-color: #F0F3F6;");
@@ -139,20 +134,9 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
                 "border: none;"
                 );
 
-    QPushButton* translateBtn = new QPushButton("语音转换", leftWidget);
-    translateBtn->setFixedSize(200,50);
-    translateBtn->move(0,this->height()- 400);
-    translateBtn->setCheckable(true);
-    translateBtn->setStyleSheet(
-                "background-color: transparent;"
-                "color: black;"
-                "border: none;"
-                );
-
     QButtonGroup* leftButtons = new QButtonGroup(this);
     leftButtons->addButton(localList);
     leftButtons->addButton(NetList);
-    leftButtons->addButton(translateBtn);
     leftButtons->setExclusive(true);
 
     QWidget* textWidget = new QWidget(leftWidget);
@@ -180,7 +164,6 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
         if (checked) {
             main_list->show();
             net_list->hide();
-            translateWidget->hide();
             localList->setStyleSheet(
                         "background-color: rgba(44, 210, 126, 0.8);"
                         "color: white;"
@@ -200,7 +183,6 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
         {
             net_list->show();
             main_list->hide();
-            translateWidget->hide();
             NetList->setStyleSheet(
                         "background-color: rgba(44, 210, 126, 0.8);"
                         "color: white;"
@@ -217,27 +199,6 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
         }
     });
 
-    connect(translateBtn, &QPushButton::toggled, this, [=](bool checked){
-        if(checked)
-        {
-            translateWidget->show();
-            main_list->hide();
-            net_list->hide();
-            translateBtn->setStyleSheet(
-                        "background-color: rgba(44, 210, 126, 0.8);"
-                        "color: white;"
-                        "border: none;"
-                        );
-        }
-        else
-        {
-            translateBtn->setStyleSheet(
-                        "background-color: transparent;"
-                        "color: black;"
-                        "border: none;"
-                        );
-        }
-    });
     localList->setChecked(true);
 
 
@@ -255,16 +216,6 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     connect(searchBox, &SearchBox::searchAll, request, &HttpRequest::getAllFiles);
     connect(request, &HttpRequest::signal_addSong_list, net_list, &MusicListWidgetNet::signal_add_songlist);
     connect(request, &HttpRequest::signal_addSong_list, this, [=](){NetList->setChecked(true);});
-
-    // 连接本地音乐列表的翻译按钮
-    connect(main_list, &MusicListWidgetLocal::signal_translate_button_clicked, this, [=](){
-        translateBtn->setChecked(true);
-    });
-
-    // 连接网络音乐列表的翻译按钮
-    connect(net_list, &MusicListWidgetNet::signal_translate_button_clicked, this, [=](){
-        translateBtn->setChecked(true);
-    });
 
     // 连接菜单按钮
     connect(menuButton, &QPushButton::clicked, this, [=](){
@@ -445,6 +396,39 @@ void MainWidget::resizeEvent(QResizeEvent *event)
 
 MainWidget::~MainWidget()
 {
-
+    qDebug() << "MainWidget::~MainWidget() - Starting cleanup...";
+    
+    // 1. 清理播放器窗口（会触发 PlayWidget 的析构，停止所有线程）
+    if(w) {
+        qDebug() << "MainWidget: Deleting PlayWidget...";
+        w->deleteLater();
+        w = nullptr;
+    }
+    
+    // 2. 等待 Qt 事件循环处理 deleteLater
+    QCoreApplication::processEvents();
+    QThread::msleep(100);
+    
+    // 3. 清理其他窗口
+    if(list) {
+        list->deleteLater();
+        list = nullptr;
+    }
+    
+    if(loginWidget) {
+        loginWidget->close();
+        loginWidget->deleteLater();
+        loginWidget = nullptr;
+    }
+    
+    // 4. 等待所有 QThreadPool 任务完成
+    qDebug() << "MainWidget: Waiting for thread pool...";
+    QThreadPool::globalInstance()->waitForDone(3000);  // 等待最多3秒
+    
+    // 5. 卸载所有插件
+    qDebug() << "MainWidget: Unloading plugins...";
+    PluginManager::instance().unloadAllPlugins();
+    
+    qDebug() << "MainWidget::~MainWidget() - Cleanup complete";
 }
 

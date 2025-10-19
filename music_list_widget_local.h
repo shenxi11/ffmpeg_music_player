@@ -4,7 +4,6 @@
 #include <QObject>
 #include <QWidget>
 #include "music_list_widget.h"
-#include "translate_widget.h"
 #include "httprequest.h"
 
 class MusicListWidgetLocal : public QWidget

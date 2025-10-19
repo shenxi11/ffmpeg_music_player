@@ -40,10 +40,11 @@ public slots:
 
     void stopPlayback();
     void stopPlayBack();
+
+    void Pause();
 private slots:
     void onTimeOut();
 
-    void Pause();
 
 signals:
     void durations(qint64 value);
@@ -54,16 +55,15 @@ signals:
     void rePlay();
     void pause();
     void begin_to_decode();
+    void signal_reconnect();
 private:
     std::map<int, std::string> lyrics;
-
-    std::vector<std::pair<qint64, qint64>> pcmTimeMap;
 
     QIODevice* audioDevice = nullptr;
 
     QTimer *timer;
 
-    QQueue<QByteArray> audioBuffer;
+    QQueue<PCM> audioBuffer;
 
     QMutex mutex;
 
@@ -76,7 +76,6 @@ private:
     bool sliderMove;
 
     std::mutex mtx;
-    std::map<QByteArray,qint64> mp;
 
    QString PATH;
 

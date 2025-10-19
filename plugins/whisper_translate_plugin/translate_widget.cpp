@@ -126,54 +126,28 @@ void transformFactory::save(const QString &name, struct whisper_context* ctx, QS
 }
 TranslateWidget::TranslateWidget(QWidget *parent) : QWidget(parent)
 {
+    // 设置为独立窗口（忽略 parent 参数）
+    this->setWindowFlags(Qt::Window | Qt::WindowCloseButtonHint | Qt::WindowMinimizeButtonHint | Qt::WindowMaximizeButtonHint);
+    this->setAttribute(Qt::WA_DeleteOnClose);  // 关闭时自动删除
+    
+    // 设置窗口标题和图标
+    this->setWindowTitle("Whisper 语音转文字");
+    
+    // 设置窗口大小和背景
+    this->resize(600, 500);
+    this->setStyleSheet("QWidget { background-color: white; }");
 
-    this->resize(500, 400);
-    // 当作为内嵌控件时，不设置无边框窗口属性
-    if (!parent) {
-        this->setWindowFlags(Qt::FramelessWindowHint | Qt::WindowMinimizeButtonHint);
-        this->setAttribute(Qt::WA_TranslucentBackground);
-    }
-
-    // 顶部标题栏和窗口控制按钮 - 只在独立窗口时显示
-    if (!parent) {
-        titleBarWidget = new QWidget(this);
-        titleBarWidget->setFixedHeight(40);
-        titleBarWidget->setStyleSheet("background: transparent;");
-
-        titleLabel = new QLabel("音频转文字", titleBarWidget);
-        titleLabel->setStyleSheet("color: #333; font-size: 20px; font-weight: bold;");
-        titleLabel->setAlignment(Qt::AlignVCenter | Qt::AlignLeft);
-
-
-        // 右上角三个按钮使用图片
-        minimizeButton = new QPushButton(titleBarWidget);
-        maximizeButton = new QPushButton(titleBarWidget);
-        closeButton = new QPushButton(titleBarWidget);
-        minimizeButton->setFixedSize(28, 28);
-        maximizeButton->setFixedSize(28, 28);
-        closeButton->setFixedSize(28, 28);
-        minimizeButton->setToolTip("最小化");
-        maximizeButton->setToolTip("最大化/还原");
-        closeButton->setToolTip("关闭");
-        minimizeButton->setText("");
-        maximizeButton->setText("");
-        closeButton->setText("");
-        minimizeButton->setStyleSheet("QPushButton { border-image: url(:/new/prefix1/icon/方形未选中.png); background:transparent; border:none; } QPushButton:hover{background:#e0e0e0;}");
-        maximizeButton->setStyleSheet("QPushButton { border-image: url(:/new/prefix1/icon/减号.png); background:transparent; border:none; } QPushButton:hover{background:#e0e0e0;}");
-        closeButton->setStyleSheet("QPushButton { border-image: url(:/new/prefix1/icon/关闭1.png); background:transparent; border:none; } QPushButton:hover{background:#ffeaea;}");
-
-
-
-        titleBarLayout = new QHBoxLayout(titleBarWidget);
-        titleBarLayout->addWidget(titleLabel);
-        titleBarLayout->addStretch();
-        titleBarLayout->addWidget(maximizeButton);
-        titleBarLayout->addWidget(minimizeButton);
-        titleBarLayout->addWidget(closeButton);
-        titleBarLayout->setContentsMargins(0, 0, 0, 0);
-        titleBarLayout->setSpacing(2);
-    }
-
+    // 顶部标题区域（可选，如果想要自定义标题栏可以保留）
+    QWidget* headerWidget = new QWidget(this);
+    headerWidget->setStyleSheet("background: #f5f5f5; border-bottom: 1px solid #ddd;");
+    headerWidget->setFixedHeight(50);
+    
+    QLabel* headerLabel = new QLabel("音频转文字", headerWidget);
+    headerLabel->setStyleSheet("color: #333; font-size: 18px; font-weight: bold;");
+    
+    QHBoxLayout* headerLayout = new QHBoxLayout(headerWidget);
+    headerLayout->addWidget(headerLabel);
+    headerLayout->setContentsMargins(20, 0, 20, 0);
 
     // 文件选择
     fileLabel = new QLabel("音频文件:", this);
@@ -258,9 +232,7 @@ TranslateWidget::TranslateWidget(QWidget *parent) : QWidget(parent)
 
     // 主布局
     mainLayout = new QVBoxLayout(this);
-    if (!parent && titleBarWidget) {
-        mainLayout->addWidget(titleBarWidget);
-    }
+    mainLayout->addWidget(headerWidget);  // 添加顶部标题区域
     mainLayout->addLayout(fileLayout);
     mainLayout->addLayout(modelLayout);
     mainLayout->addLayout(formatLayout);
@@ -271,7 +243,7 @@ TranslateWidget::TranslateWidget(QWidget *parent) : QWidget(parent)
     mainLayout->addWidget(resultListLabel);
     mainLayout->addWidget(resultList);
     mainLayout->setSpacing(14);
-    mainLayout->setContentsMargins(18, 18, 18, 18);
+    mainLayout->setContentsMargins(0, 0, 0, 18);  // 顶部边距为0，因为 header 已经有边距
     setLayout(mainLayout);
 
     QThread *a = new QThread();
@@ -288,23 +260,7 @@ TranslateWidget::TranslateWidget(QWidget *parent) : QWidget(parent)
         }
     });
 
-    // 只在独立窗口时连接窗口控制按钮
-    if (!parent) {
-        connect(maximizeButton, &QPushButton::clicked, this, [=]() {
-            this->showMinimized();
-        });
-        connect(minimizeButton, &QPushButton::clicked, this, [=]() {
-            if (isMaximized()) {
-                showNormal();
-            } else {
-                showMaximized();
-            }
-        });
-        connect(closeButton, &QPushButton::clicked, this, [=]() {
-            this->close();
-        });
-    }
-
+    // 连接信号槽
     connect(this, &TranslateWidget::signal_begin_tranform, this, &TranslateWidget::on_signal_begin_transform);
     connect(this, &TranslateWidget::signal_erorr, this, &TranslateWidget::showTipMessage);
 
@@ -413,25 +369,6 @@ void TranslateWidget::on_signal_begin_transform(){
     thread->start();
 }
 
-// 鼠标拖动窗口实现 - 只在独立窗口时启用
-void TranslateWidget::mousePressEvent(QMouseEvent *event)
-{
-    if (!parent() && event->button() == Qt::LeftButton && event->pos().y() <= 40) {
-        mousePressed = true;
-        mouseStartPoint = event->globalPos();
-        windowStartPoint = this->frameGeometry().topLeft();
-    }
-    QWidget::mousePressEvent(event);
-}
-
-void TranslateWidget::mouseMoveEvent(QMouseEvent *event)
-{
-    if (!parent() && mousePressed) {
-        QPoint distance = event->globalPos() - mouseStartPoint;
-        this->move(windowStartPoint + distance);
-    }
-    QWidget::mouseMoveEvent(event);
-}
 void TranslateWidget::on_transcribeButton_clicked(){
     if(translating.load())
         return;
@@ -439,48 +376,14 @@ void TranslateWidget::on_transcribeButton_clicked(){
     pcmf32_.clear();
     emit signal_begin_tranform();
 }
-void TranslateWidget::mouseReleaseEvent(QMouseEvent *event)
-{
-    mousePressed = false;
-    QWidget::mouseReleaseEvent(event);
-}
+
 void TranslateWidget::paintEvent(QPaintEvent *event)
 {
     Q_UNUSED(event);
-    QPainter painter(this);
-    painter.setRenderHint(QPainter::Antialiasing);
-
-    // 只在独立窗口时绘制自定义背景
-    if (!parent()) {
-        // 主体背景：明亮白色，带柔和阴影
-        QRect bgRect = rect().adjusted(2, 2, -2, -2);
-        QColor bgColor(255, 255, 255, 250);
-        painter.setBrush(bgColor);
-        painter.setPen(Qt::NoPen);
-        painter.drawRoundedRect(bgRect, 16, 16);
-
-        // 顶部渐变条：淡粉到淡绿，柔和且不突兀
-        QRect gradRect = QRect(bgRect.left(), bgRect.top(), bgRect.width(), 48);
-        QLinearGradient grad(gradRect.topLeft(), gradRect.bottomLeft());
-        grad.setColorAt(0, QColor(255, 71, 102, 80));   // 淡粉
-        grad.setColorAt(1, QColor(29, 185, 84, 40));    // 淡绿
-        painter.setBrush(grad);
-        painter.setPen(Qt::NoPen);
-        painter.drawRoundedRect(gradRect, 16, 16);
-
-        // 四角圆角遮罩，避免渐变溢出
-        QRegion maskRegion(bgRect, QRegion::Ellipse);
-        painter.setClipRegion(QRegion(bgRect, QRegion::Rectangle));
-
-        // 保持子控件样式
-        QStyleOption opt;
-        opt.initFrom(this);
-        style()->drawPrimitive(QStyle::PE_Widget, &opt, &painter, this);
-    } else {
-        // 内嵌模式使用默认背景
-        QWidget::paintEvent(event);
-    }
+    // 使用样式表绘制，不需要自定义绘制
+    QWidget::paintEvent(event);
 }
+
 void saveTXT(struct whisper_context* ctx, QStringList &outputLines){
     int n_segments = whisper_full_n_segments(ctx);
     for (int i = 0; i < n_segments; ++i) {

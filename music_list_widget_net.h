@@ -6,7 +6,6 @@
 #include <QStringList>
 #include <QMap>
 #include "music_list_widget.h"
-#include "translate_widget.h"
 #include "httprequest.h"
 class MusicListWidgetNet : public QWidget
 {

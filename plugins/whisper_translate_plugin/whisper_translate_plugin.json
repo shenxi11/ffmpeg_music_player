@@ -1,0 +1,6 @@
+{
+    "name": "Whisper Translate Plugin",
+    "description": "音频转文字翻译插件，基于 Whisper.cpp",
+    "version": "1.0.0",
+    "author": "FFmpeg Music Player Team"
+}

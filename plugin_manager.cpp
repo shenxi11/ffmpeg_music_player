@@ -34,11 +34,11 @@ int PluginManager::loadPlugins(const QString& pluginDirPath)
     int loadedCount = 0;
     QStringList filters;
 #ifdef Q_OS_WIN
-    filters << "*.dll";
+    filters << "*_plugin.dll";  // 只加载以 _plugin.dll 结尾的文件
 #elif defined(Q_OS_LINUX)
-    filters << "*.so";
+    filters << "*_plugin.so";
 #elif defined(Q_OS_MAC)
-    filters << "*.dylib";
+    filters << "*_plugin.dylib";
 #endif
     
     pluginsDir.setNameFilters(filters);

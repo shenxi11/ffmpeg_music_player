@@ -96,6 +96,17 @@ ProcessSlider::ProcessSlider(QWidget *parent)
     connect(slider, &QSlider::valueChanged, this, &ProcessSlider::slot_valueChanged);
     connect(slider, &QSlider::sliderReleased, this, &ProcessSlider::signal_sliderReleased);
     connect(slider, &QSlider::sliderPressed, this, &ProcessSlider::signal_sliderPressed);
+    connect(slider, &QSlider::sliderPressed, this, [=]() {
+        press_position = slider->value();
+     });
+}
+
+void ProcessSlider::slot_change_duartion(qint64 value) {
+    if (printF) {
+        qDebug() << __FUNCTION__ << "time :" << value / 1000;
+        printF = false;
+    }
+     setValueOverride(value / 1000);
 }
 int ProcessSlider::value(){
     return slider->value();

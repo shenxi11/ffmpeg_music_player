@@ -4,18 +4,6 @@
 QMutex bufferMutex;
 QReadWriteLock readlock;
 
-static int interrupt_callback(void* ctx) {
-    TakePcm* self = static_cast<TakePcm*>(ctx);
-    if (self->get_stop_flag()) {
-        return 1; // 返回非零值中断操作
-    }
-    return 0;
-}
-void TakePcm::initialize() {
-    AVIOInterruptCB cb = {interrupt_callback, this};
-    ifmt_ctx->interrupt_callback = cb; // 设置回调
-}
-
 TakePcm::TakePcm()
     :ifmt_ctx(nullptr)
     ,codec_ctx(nullptr)
@@ -24,10 +12,11 @@ TakePcm::TakePcm()
     ,pkt(nullptr)
 
 {
+    qDebug() << __FUNCTION__ << QThread::currentThread()->currentThreadId;
     connect(this,&TakePcm::begin_to_decode,this,&TakePcm::decode);
     connect(this, &TakePcm::signal_begin_make_pcm, this, &TakePcm::make_pcm);
 }
-TakePcm::~TakePcm()
+TakePcm::~TakePcm() 
 {
 
     if(frame)
@@ -40,7 +29,9 @@ TakePcm::~TakePcm()
         avformat_close_input(&ifmt_ctx);
     if(swr_ctx)
         swr_free(&swr_ctx);
+
 }
+
 QString getSubstringAfterLastDot(const QString &inputStr) {
     QStringList parts = inputStr.split('.'); // 按点号分割
     if (parts.isEmpty()) {
@@ -48,24 +39,20 @@ QString getSubstringAfterLastDot(const QString &inputStr) {
     }
     return parts.last(); // 返回列表中的最后一个元素
 }
-void TakePcm::seekToPosition(int newPosition)
+void TakePcm::seekToPosition(int newPosition, bool back_flag)
 {
+    qDebug() << __FUNCTION__ << back_flag;
+ 
     int64_t targetTimestamp = static_cast<int64_t>(newPosition) * 1000;
-
-    //av_seek_frame(ifmt_ctx, -1, targetTimestamp, AVSEEK_FLAG_BACKWARD);
-    int retries = 3;
-    while (retries--) {
-        int ret = av_seek_frame(ifmt_ctx, -1, targetTimestamp, AVSEEK_FLAG_BACKWARD);
-        if (ret >= 0) {
-            break;
-        }
-        qDebug()<<__FUNCTION__<<"failed"<<retries;
-        QThread::msleep(50);
-    }
+    if(back_flag)
+        av_seek_frame(ifmt_ctx, -1, targetTimestamp, AVSEEK_FLAG_BACKWARD);
+    else
+        av_seek_frame(ifmt_ctx, -1, targetTimestamp, 0);
     avcodec_flush_buffers(codec_ctx);
 
-    emit Position_Change();
-    emit begin_to_decode();
+    printF = true;
+
+   //emit begin_to_decode();
 }
 void TakePcm::take_album()
 {
@@ -74,6 +61,9 @@ void TakePcm::take_album()
 
 void TakePcm::make_pcm(QString Path)
 {
+    // 验证当前执行的线程ID
+    qDebug() << "=== TakePcm::make_pcm SLOT running in thread:" << QThread::currentThreadId() << "===";
+    qDebug() << "This should be different from main thread ID (0x3f4)";
 
     if(frame)
         av_frame_free(&frame);
@@ -89,7 +79,7 @@ void TakePcm::make_pcm(QString Path)
     if(swr_ctx)
         swr_free(&swr_ctx);
 
-    qDebug()<<"Take_pcm"<<QThread::currentThreadId();
+    qDebug()<<"TakePcm make_pcm function finished initialization, thread:"<<QThread::currentThreadId();
 
     QByteArray utf8Data = Path.toUtf8();
     const char* inputUrl = utf8Data.constData();
@@ -100,8 +90,6 @@ void TakePcm::make_pcm(QString Path)
     av_dict_set(&options, "listen_timeout", "5000000", 0);
 
     QString back_ = getSubstringAfterLastDot(inputUrl);
-    //stdStr = back_.toStdString();
-    //AVInputFormat *ifmt = av_find_input_format(stdStr.c_str());
     qDebug() << __FUNCTION__ << inputUrl << Path;
     int ret = avformat_open_input(&ifmt_ctx, inputUrl, nullptr, &options);
     if (ret < 0)
@@ -138,14 +126,6 @@ void TakePcm::make_pcm(QString Path)
         return;
     }
 
-    //    AVCodec* codec = avcodec_find_decoder(ifmt_ctx->streams[audioStreamIndex]->codecpar->codec_id);
-    //    //AVCodec* codec = avcodec_find_decoder_by_name("aac");
-    //    if (!codec)
-    //    {
-    //        qDebug() << "Codec not found";
-    //        avformat_close_input(&ifmt_ctx);
-    //        return;
-    //    }
     AVCodec* codec = nullptr;
     if (ifmt_ctx->streams[audioStreamIndex]->codecpar->codec_id == AV_CODEC_ID_H264) {
         codec = avcodec_find_decoder_by_name("h264_cuvid"); // 尝试 NVIDIA CUVID 解码器
@@ -256,23 +236,24 @@ void TakePcm::make_pcm(QString Path)
     emit begin_take_lrc(Path);
 
 
-    qint64 totalAudioDurationInMS = ifmt_ctx->duration * av_q2d(AV_TIME_BASE_Q) * 1000;
+    qint64 totalAudioDurationInMS = ifmt_ctx->duration * av_q2d(av_make_q(1, AV_TIME_BASE)) * 1000;
 
 
     emit send_totalDuration(totalAudioDurationInMS);
     emit begin_to_play();
     emit begin_to_decode();
-
 }
 
 void TakePcm::decode()
 {
+    qDebug() << "=== TakePcm::decode SLOT running in thread:" << QThread::currentThreadId() << "===";
+    
     while(1)
     {
-
         int ret = av_read_frame(ifmt_ctx, pkt);
-        if(ret < 0)
+        if (ret < 0) {
             break;
+        }
         if (pkt->stream_index == audioStreamIndex)
         {
             if (avcodec_send_packet(codec_ctx, pkt) >= 0)
@@ -331,7 +312,6 @@ void TakePcm::decode()
             }
         }
         av_packet_unref(pkt);
-
     }
     emit signal_decodeEnd();
 }
@@ -339,8 +319,11 @@ void TakePcm::decode()
 
 void TakePcm::send_data(uint8_t *buffer, int bufferSize,qint64 timeMap)
 {
-
-
+    if (printF)
+    {
+        qDebug() << __FUNCTION__ << timeMap / 1000;
+        printF = false;
+    }
     QByteArray byteArray(reinterpret_cast<const char*>(buffer), bufferSize);
     free(buffer);
 
