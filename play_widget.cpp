@@ -93,7 +93,7 @@ PlayWidget::PlayWidget(QWidget *parent)
     });
     //connect(this,&PlayWidget::signal_process_Change,take_pcm.get(),&TakePcm::seekToPosition);
     connect(this, &PlayWidget::signal_process_Change, take_pcm.get(), &TakePcm::seekToPosition);
-    connect(this, &PlayWidget::signal_process_Change, work.get(), &Worker::reset_play);
+    //connect(this, &PlayWidget::signal_process_Change, work.get(), &Worker::reset_play);
 
     connect(this, &PlayWidget::signal_filepath, [=](QString path) {
         emit take_pcm->signal_begin_make_pcm(path);
@@ -161,31 +161,21 @@ PlayWidget::PlayWidget(QWidget *parent)
     connect(controlBar, &ControlBar::signal_mlist_toggled, this, &PlayWidget::signal_list_show);
     connect(controlBar, &ControlBar::signal_rePlay, this, [=](){
         rePlay(this->filePath);
-        //emit process_slider->signal_sliderPressed();
-        //process_slider->setValueOverride(0);
-        //emit process_slider->signal_sliderReleased();
      });
     connect(controlBar, &ControlBar::signal_desk_toggled, this, &PlayWidget::slot_desk_toggled);
 
-    //connect(take_pcm.get(), &TakePcm::signal_worker_play, work.get(), &Worker::stopPlayback);
-    //connect(work.get(),&Worker::durations,[=](qint64 value){
-    //    process_slider->setValueOverride(value/1000);
-    //});
-    //connect(work.get(), &Worker::durations, process_slider, &ProcessSlider::slot_change_duartion);
+    connect(take_pcm.get(), &TakePcm::signal_worker_play, work.get(), &Worker::Pause);
     connect(this,&PlayWidget::signal_set_SliderMove,work.get(),&Worker::set_SliderMove);
     connect(process_slider,&ProcessSlider::signal_sliderPressed,[=](){
         qDebug() << "拖动进度条";
-        //work->set_SliderMove(true);
-        //emit signal_worker_play();
         disconnect(work.get(), &Worker::durations, process_slider, &ProcessSlider::slot_change_duartion);
     });
     connect(process_slider,&ProcessSlider::signal_sliderReleased,[=](){
         int press_position = process_slider->getPressPosition();
         int newPosition = process_slider->value() * this->duration / (1000 * process_slider->maxValue());
         qDebug() << __FUNCTION__ << newPosition / 1000;
-        //work->reset_play();
-        //work->set_SliderMove(false);
-        
+       work->reset_play();
+
         bool back_flag = false;
         if (process_slider->value() >= press_position) {
             back_flag = true;
@@ -194,10 +184,7 @@ PlayWidget::PlayWidget(QWidget *parent)
         process_slider->setPrintF(true);
         connect(work.get(), &Worker::durations, process_slider, &ProcessSlider::slot_change_duartion);
     });
-    connect(work.get(), &Worker::signal_reconnect, this, [=]() {
-        //connect(work.get(), &Worker::durations, process_slider, &ProcessSlider::slot_change_duartion);
-        emit take_pcm->begin_to_decode();
-     });
+
     connect(process_slider, &ProcessSlider::signal_playFinished, controlBar, &ControlBar::slot_playFinished);
     connect(this, &PlayWidget::signal_isUpChanged, process_slider, &ProcessSlider::slot_isUpChanged);
     connect(this, &PlayWidget::signal_isUpChanged, controlBar, &ControlBar::slot_isUpChanged);

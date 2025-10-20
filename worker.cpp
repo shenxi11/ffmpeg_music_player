@@ -5,6 +5,7 @@ Worker::Worker():
     isPaused(false)
   ,sliderMove(false)
 {
+    //qDebug() << __FUNCTION__ << "worker线程" << QThread::currentThreadId();
     thread_ = std::thread(&Worker::onTimeOut, this);
 }
 
@@ -74,7 +75,6 @@ void Worker::reset_play()
     {
         std::lock_guard<std::mutex> lock(mtx);
         audioBuffer.clear();  
-        //m_stopFlag = true;  
     }
     cv.notify_one(); 
     emit signal_reconnect();
@@ -86,61 +86,66 @@ void Worker::onTimeOut()
 
     while(true)
     {
-        std::unique_lock<std::mutex> lock(mtx);
-        cv.wait(lock,[this]{return (!audioBuffer.empty() && !m_stopFlag) || m_breakFlag;});
-        if(audioBuffer.empty()){
-            continue;
-        }
-        if(m_breakFlag){
-            return;
-        }
-
-        PCM pcmData = audioBuffer.front();
-
-        qint64 bytesFree = audioOutput->bytesFree();
-        if ( bytesFree <  2 * pcmData.data_.size())
         {
-            continue;
-        }
+            std::unique_lock<std::mutex> lock(mtx);
+            cv.wait(lock, [this] {return (!audioBuffer.empty() && !m_stopFlag) || m_breakFlag; });
+            if (audioBuffer.empty()) {
+                continue;
+            }
+            if (m_breakFlag) {
+                return;
+            }
+            if (flag_) {
+                qDebug() << __FUNCTION__ << "后台线程" << QThread::currentThreadId();
+                flag_ = false;
+            }
+            PCM pcmData = audioBuffer.front();
 
-        audioBuffer.pop_front();
-
-        qint64 bytesWritten = audioDevice->write(pcmData.data_);
-        if (bytesWritten < 0)
-        {
-            qDebug() << "Error writing audio data:" << audioDevice->errorString();
-            continue;
-        }
-        qint64 currentTimeMS = pcmData.timeMp;
-
-        pcmData.data_ = QByteArray();
-
-        emit durations(currentTimeMS);
-
-        int index=0;
-
-        for (auto it = lyrics.begin(); it != lyrics.end(); ++it,++index)
-        {
-            auto nextIt = std::next(it);
-
-            if (nextIt != lyrics.end())
+            qint64 bytesFree = audioOutput->bytesFree();
+            if (bytesFree < 2 * pcmData.data_.size())
             {
+                continue;
+            }
 
-                if ((it->first <= static_cast<int>(currentTimeMS)
-                     && nextIt->first > static_cast<int>(currentTimeMS))
-                        ||(it == lyrics.begin()&&it->first >= static_cast<int>(currentTimeMS)))
+            audioBuffer.pop_front();
+
+            qint64 bytesWritten = audioDevice->write(pcmData.data_);
+            if (bytesWritten < 0)
+            {
+                qDebug() << "Error writing audio data:" << audioDevice->errorString();
+                continue;
+            }
+            qint64 currentTimeMS = pcmData.timeMp;
+
+            pcmData.data_ = QByteArray();
+
+            emit durations(currentTimeMS);
+
+            int index = 0;
+
+            for (auto it = lyrics.begin(); it != lyrics.end(); ++it, ++index)
+            {
+                auto nextIt = std::next(it);
+
+                if (nextIt != lyrics.end())
+                {
+
+                    if ((it->first <= static_cast<int>(currentTimeMS)
+                        && nextIt->first > static_cast<int>(currentTimeMS))
+                        || (it == lyrics.begin() && it->first >= static_cast<int>(currentTimeMS)))
+                    {
+                        emit send_lrc(index + 5);  // 加上前面5行空行的偏移
+
+                        break;
+                    }
+
+                }
+                else
                 {
                     emit send_lrc(index + 5);  // 加上前面5行空行的偏移
 
                     break;
                 }
-
-            }
-            else
-            {
-                emit send_lrc(index + 5);  // 加上前面5行空行的偏移
-
-                break;
             }
         }
         QThread::msleep(5);
@@ -197,7 +202,7 @@ void Worker::play_pcm()
 
         audioOutput = new QAudioOutput(format, this);
 
-        audioOutput->setBufferSize(AUDIO_BUFFER_SIZE * 1024);
+        audioOutput->setBufferSize(AUDIO_BUFFER_SIZE * 1024 * 1024);
 
     }
 

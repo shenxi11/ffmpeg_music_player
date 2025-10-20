@@ -52,7 +52,8 @@ void TakePcm::seekToPosition(int newPosition, bool back_flag)
 
     printF = true;
 
-   //emit begin_to_decode();
+    //emit Position_Change();
+   emit begin_to_decode();
 }
 void TakePcm::take_album()
 {

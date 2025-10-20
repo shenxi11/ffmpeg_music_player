@@ -82,8 +82,10 @@ private:
    std::condition_variable cv;
    std::atomic<bool> m_stopFlag = true;
    std::atomic<bool> m_breakFlag = false;
+   std::atomic<bool> m_moveFlag = false;
 
    std::thread thread_;
+   bool flag_ = true;
 };
 
 #endif // WORKER_H
