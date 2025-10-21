@@ -33,6 +33,7 @@ signals:
     void signal_seetToPosition(int newPosition);
     void signal_reconnect();
     void signal_worker_play();
+    void signal_move();
 private:
     void send_data(uint8_t *buffer, int bufferSize, qint64 timeMap);
     void take_album();
@@ -50,11 +51,11 @@ private:
 
     int audioStreamIndex;
 
-    std::atomic<bool> stop_flag = false;
-    std::atomic<bool> end_flag = false;
+    std::atomic<bool> move_flag = false;
     std::atomic<bool> isTranslate = false;
 
-    bool printF = true;
+
+    bool printF = false;
 };
 
 #endif // TAKE_PCM_H

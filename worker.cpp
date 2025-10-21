@@ -37,6 +37,13 @@ void Worker::stop_play()
     //emit stopPlay();
     Pause();
 }
+void Worker::slot_setMove() {
+    qDebug() << __FUNCTION__ << "停止";
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+        m_moveFlag = !m_moveFlag;
+    }cv.notify_one();
+}
 void Worker::Set_Volume(int value)
 {
     if(audioOutput)
@@ -88,7 +95,7 @@ void Worker::onTimeOut()
     {
         {
             std::unique_lock<std::mutex> lock(mtx);
-            cv.wait(lock, [this] {return (!audioBuffer.empty() && !m_stopFlag) || m_breakFlag; });
+            cv.wait(lock, [this] {return (!audioBuffer.empty() && !m_stopFlag && !m_moveFlag) || m_breakFlag; });
             if (audioBuffer.empty()) {
                 continue;
             }

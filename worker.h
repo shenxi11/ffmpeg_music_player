@@ -42,6 +42,7 @@ public slots:
     void stopPlayBack();
 
     void Pause();
+    void slot_setMove();
 private slots:
     void onTimeOut();
 

@@ -42,7 +42,7 @@ QString getSubstringAfterLastDot(const QString &inputStr) {
 void TakePcm::seekToPosition(int newPosition, bool back_flag)
 {
     qDebug() << __FUNCTION__ << back_flag;
- 
+    
     int64_t targetTimestamp = static_cast<int64_t>(newPosition) * 1000;
     if(back_flag)
         av_seek_frame(ifmt_ctx, -1, targetTimestamp, AVSEEK_FLAG_BACKWARD);
@@ -320,15 +320,16 @@ void TakePcm::decode()
 
 void TakePcm::send_data(uint8_t *buffer, int bufferSize,qint64 timeMap)
 {
-    if (printF)
-    {
-        qDebug() << __FUNCTION__ << timeMap / 1000;
-        printF = false;
-    }
+    
     QByteArray byteArray(reinterpret_cast<const char*>(buffer), bufferSize);
     free(buffer);
 
     emit data(byteArray,timeMap);
-
+    if (printF)
+    {
+        qDebug() << __FUNCTION__ << timeMap / 1000;
+        printF = false;
+        emit signal_move();
+    }
 }
 

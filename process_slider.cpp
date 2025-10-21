@@ -53,7 +53,7 @@ ProcessSlider::ProcessSlider(QWidget *parent)
     startTime_label->setAlignment(Qt::AlignCenter);
     startTime_label->setStyleSheet(
         "QLabel {"
-        "    color: #ffffff;"
+        "    color: #2d3748;"
         "    font-family: 'Microsoft YaHei';"
         "    font-size: 12px;"
         "    font-weight: bold;"
@@ -68,7 +68,7 @@ ProcessSlider::ProcessSlider(QWidget *parent)
     endTime_label->setAlignment(Qt::AlignCenter);
     endTime_label->setStyleSheet(
         "QLabel {"
-        "    color: #ffffff;"
+        "    color: #2d3748;"
         "    font-family: 'Microsoft YaHei';"
         "    font-size: 12px;"
         "    font-weight: bold;"
