@@ -132,18 +132,28 @@ PlayWidget::PlayWidget(QWidget *parent)
     connect(desk, &DeskLrcWidget::signal_last_clicked, controlBar, &ControlBar::signal_lastSong);
     connect(desk, &DeskLrcWidget::signal_next_clicked, controlBar, &ControlBar::signal_nextSong);
     connect(desk, &DeskLrcWidget::signal_forward_clicked, this, [=](){
-        emit signal_set_SliderMove(true);
+        //emit signal_set_SliderMove(true);
+        disconnect(work.get(), &Worker::durations, process_slider, &ProcessSlider::slot_change_duartion);
+        work->slot_setMove();
+
         process_slider->slot_forward();
         int newPosition = std::min(process_slider->maxValue(), process_slider->value() + 1) * this->duration / (1000 * process_slider->maxValue());
+       
+        work->reset_play();
+        
         emit signal_process_Change(newPosition, false);
-        emit signal_set_SliderMove(false);
+        //emit signal_set_SliderMove(false);
     });
     connect(desk, &DeskLrcWidget::signal_backward_clicked, this, [=](){
-        emit signal_set_SliderMove(true);
+        disconnect(work.get(), &Worker::durations, process_slider, &ProcessSlider::slot_change_duartion);
+        work->slot_setMove();
+
         process_slider->slot_backward();
         int newPosition = std::max(0, process_slider->value() - 1) * this->duration / (1000 * process_slider->maxValue());
+
+        work->reset_play();
+
         emit signal_process_Change(newPosition, true);
-        emit signal_set_SliderMove(false);
     });
     connect(controlBar, &ControlBar::signal_play_clicked, this, &PlayWidget::slot_play_click);
     connect(this, &PlayWidget::signal_playState, controlBar, &ControlBar::slot_playState);

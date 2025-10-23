@@ -13,11 +13,31 @@ TakePcm::TakePcm()
 
 {
     qDebug() << __FUNCTION__ << QThread::currentThread()->currentThreadId;
-    connect(this,&TakePcm::begin_to_decode,this,&TakePcm::decode);
+    connect(this,&TakePcm::begin_to_decode,this,&TakePcm::thread_deocde);
     connect(this, &TakePcm::signal_begin_make_pcm, this, &TakePcm::make_pcm);
+
+    thread_ = std::thread(&TakePcm::decode, this);
+}
+void TakePcm::thread_deocde() {
+    qDebug() << __FUNCTION__ << "恢复";
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+        decode_flag = true;
+        decoding = true;
+    }cv.notify_one();
 }
 TakePcm::~TakePcm() 
 {
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+        decode_flag = false;
+        decoding = false;
+        break_flag = true;
+    }cv.notify_all();
+    if (thread_.joinable()) {
+        thread_.join();
+    }
+    qDebug() << __FUNCTION__ << "takepcm join";
 
     if(frame)
         av_frame_free(&frame);
@@ -29,7 +49,7 @@ TakePcm::~TakePcm()
         avformat_close_input(&ifmt_ctx);
     if(swr_ctx)
         swr_free(&swr_ctx);
-
+   
 }
 
 QString getSubstringAfterLastDot(const QString &inputStr) {
@@ -42,6 +62,11 @@ QString getSubstringAfterLastDot(const QString &inputStr) {
 void TakePcm::seekToPosition(int newPosition, bool back_flag)
 {
     qDebug() << __FUNCTION__ << back_flag;
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+        decode_flag = false;
+        decoding = false;
+    }cv.notify_one();
     
     int64_t targetTimestamp = static_cast<int64_t>(newPosition) * 1000;
     if(back_flag)
@@ -51,7 +76,7 @@ void TakePcm::seekToPosition(int newPosition, bool back_flag)
     avcodec_flush_buffers(codec_ctx);
 
     printF = true;
-
+   
     //emit Position_Change();
    emit begin_to_decode();
 }
@@ -65,7 +90,8 @@ void TakePcm::make_pcm(QString Path)
     // 验证当前执行的线程ID
     qDebug() << "=== TakePcm::make_pcm SLOT running in thread:" << QThread::currentThreadId() << "===";
     qDebug() << "This should be different from main thread ID (0x3f4)";
-
+    {
+        std::lock_guard<std::mutex> lock(mtx);
     if(frame)
         av_frame_free(&frame);
     if(pkt)
@@ -242,79 +268,97 @@ void TakePcm::make_pcm(QString Path)
 
     emit send_totalDuration(totalAudioDurationInMS);
     emit begin_to_play();
-    emit begin_to_decode();
+   //emit begin_to_decode();
+
+        decode_flag = true;
+        decoding = true;
+    }cv.notify_one();
 }
 
 void TakePcm::decode()
 {
     qDebug() << "=== TakePcm::decode SLOT running in thread:" << QThread::currentThreadId() << "===";
-    
-    while(1)
-    {
-        int ret = av_read_frame(ifmt_ctx, pkt);
-        if (ret < 0) {
-            break;
-        }
-        if (pkt->stream_index == audioStreamIndex)
+    while (1) {
         {
-            if (avcodec_send_packet(codec_ctx, pkt) >= 0)
+            std::unique_lock<std::mutex> lock(mtx);
+            cv.wait(lock, [=]() {return decode_flag || break_flag; });
+            if (break_flag.load())
+                return;
+            /*   while (1)
+               {*/
+               //{
+                   //cv.wait(lock, [=]() {return decoding.load(); });
+            int ret = av_read_frame(ifmt_ctx, pkt);
+            if (ret < 0) {
+
+                emit signal_decodeEnd();
+                continue;
+            }
+            if (pkt->stream_index == audioStreamIndex)
             {
-                while (avcodec_receive_frame(codec_ctx, frame) >= 0)
+                if (avcodec_send_packet(codec_ctx, pkt) >= 0)
                 {
+                    while (avcodec_receive_frame(codec_ctx, frame) >= 0)
+                    {
 
-                    // 计算目标缓冲区大小
-                    int dst_nb_samples = av_rescale_rnd(
-                        swr_get_delay(swr_ctx, codec_ctx->sample_rate) + frame->nb_samples,
-                        44100,
-                        codec_ctx->sample_rate,
-                        AV_ROUND_UP
+                        // 计算目标缓冲区大小
+                        int dst_nb_samples = av_rescale_rnd(
+                            swr_get_delay(swr_ctx, codec_ctx->sample_rate) + frame->nb_samples,
+                            44100,
+                            codec_ctx->sample_rate,
+                            AV_ROUND_UP
                         );
-                    int buffer_size = av_samples_get_buffer_size(nullptr, 2, dst_nb_samples, AV_SAMPLE_FMT_S16, 1);
+                        int buffer_size = av_samples_get_buffer_size(nullptr, 2, dst_nb_samples, AV_SAMPLE_FMT_S16, 1);
 
-                    // 确保 buffer_size 不小于0
-                    if (buffer_size <= 0)
-                    {
-                        qDebug() << "Error calculating buffer size:" << buffer_size;
-                        continue;
-                    }
-                    uint8_t* buffer = nullptr;
-                    buffer = (uint8_t*)malloc(buffer_size);
-
-                    if(!buffer)
-                    {
-                        qDebug()<<"Failed to allocate memory for buffer.";
-                        return;
-                    }
-                    int converted_samples = swr_convert(swr_ctx, &buffer
-                                                        , dst_nb_samples
-                                                        , (const uint8_t**)frame->data
-                                                        , frame->nb_samples);
-
-                    int converted_buffer_size = av_samples_get_buffer_size(nullptr, 2
-                                                                           , converted_samples
-                                                                           , AV_SAMPLE_FMT_S16, 1);
-
-
-                    // 获取时间戳（以毫秒为单位）
-                    AVRational time_base = ifmt_ctx->streams[audioStreamIndex]->time_base;
-                    if (pkt->pts != AV_NOPTS_VALUE)
-                    {
-                        int64_t pts = pkt->pts;
-                        qint64 timestamp_ms = av_rescale_q(pts, time_base, {1, 1000});
-                        //qDebug() << "Timestamp (ms):" << timestamp_ms;
-                        if(isTranslate.load()){
-                            emit signal_send_data(buffer, converted_buffer_size, timestamp_ms);
-                        }else{
-                            send_data(buffer, converted_buffer_size, timestamp_ms);
+                        // 确保 buffer_size 不小于0
+                        if (buffer_size <= 0)
+                        {
+                            qDebug() << "Error calculating buffer size:" << buffer_size;
+                            continue;
                         }
-                    }
+                        uint8_t* buffer = nullptr;
+                        buffer = (uint8_t*)malloc(buffer_size);
 
+                        if (!buffer)
+                        {
+                            qDebug() << "Failed to allocate memory for buffer.";
+                            return;
+                        }
+                        int converted_samples = swr_convert(swr_ctx, &buffer
+                            , dst_nb_samples
+                            , (const uint8_t**)frame->data
+                            , frame->nb_samples);
+
+                        int converted_buffer_size = av_samples_get_buffer_size(nullptr, 2
+                            , converted_samples
+                            , AV_SAMPLE_FMT_S16, 1);
+
+
+                        // 获取时间戳（以毫秒为单位）
+                        AVRational time_base = ifmt_ctx->streams[audioStreamIndex]->time_base;
+                        if (pkt->pts != AV_NOPTS_VALUE)
+                        {
+                            int64_t pts = pkt->pts;
+                            qint64 timestamp_ms = av_rescale_q(pts, time_base, { 1, 1000 });
+                            //qDebug() << "Timestamp (ms):" << timestamp_ms;
+                            if (isTranslate.load()) {
+                                emit signal_send_data(buffer, converted_buffer_size, timestamp_ms);
+                            }
+                            else {
+                                send_data(buffer, converted_buffer_size, timestamp_ms);
+                            }
+                        }
+
+                    }
                 }
             }
+            av_packet_unref(pkt);
+            //}
+            //QThread::msleep(2);
+        //}
         }
-        av_packet_unref(pkt);
+        QThread::msleep(2);
     }
-    emit signal_decodeEnd();
 }
 
 

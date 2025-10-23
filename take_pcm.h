@@ -17,6 +17,7 @@ public:
 public slots:
     void make_pcm(QString Path);
     void seekToPosition(int newPosition, bool back_flag);
+    void thread_deocde();
 signals:
     void begin_take_lrc(QString Path);
     void begin_to_play();
@@ -53,9 +54,16 @@ private:
 
     std::atomic<bool> move_flag = false;
     std::atomic<bool> isTranslate = false;
-
+        
 
     bool printF = false;
+
+    std::thread thread_;
+    std::mutex mtx;
+    std::atomic<bool> decode_flag = false;
+    std::atomic<bool> decoding = false;
+    std::atomic<bool> break_flag = false;
+    std::condition_variable cv;
 };
 
 #endif // TAKE_PCM_H
