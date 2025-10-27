@@ -22,6 +22,7 @@ if(NOT DEFINED CMAKE_PREFIX_PATH)
     
     # 常见的 Qt5 安装路径（根据您的系统）
     set(QT5_SEARCH_PATHS
+        "E:/Qt5.15/5.15.2/msvc2019_64"
         "E:/Qt5.14/5.14.2/msvc2017_64"
     )
     
@@ -49,6 +50,9 @@ find_package(Qt5 REQUIRED COMPONENTS
     Network 
     Concurrent
     LinguistTools
+    Quick
+    QuickWidgets
+    Qml
 )
 
 message(STATUS "Qt5 Version: ${Qt5_VERSION}")
@@ -88,6 +92,7 @@ set(PROJECT_SOURCES
     logger.h
     loginwidget.cpp
     loginwidget.h
+    loginwidget_qml.h
     lrc_analyze.cpp
     lrc_analyze.h
     lyrictextedit.cpp
@@ -120,10 +125,12 @@ set(PROJECT_SOURCES
     rotatingcircleimage.h
     searchbox.cpp
     searchbox.h
+    searchbox_qml.h
     take_pcm.cpp
     take_pcm.h
     user_widget.cpp
     user_widget.h
+    userwidget_qml.h
     worker.cpp
     worker.h
 )
@@ -131,6 +138,7 @@ set(PROJECT_SOURCES
 # 资源文件
 set(PROJECT_RESOURCES
     pic.qrc
+    qml.qrc
 )
 
 # 翻译文件
@@ -157,6 +165,9 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     Qt5::Multimedia
     Qt5::Network
     Qt5::Concurrent
+    Qt5::Quick
+    Qt5::QuickWidgets
+    Qt5::Qml
 )
 
 # 链接 FFmpeg 库
@@ -227,8 +238,8 @@ if(WIN32)
                 --no-translations
                 --no-system-d3d-compiler
                 --no-opengl-sw
-                --no-quick-import
                 --no-webkit2
+                --qmldir "${CMAKE_SOURCE_DIR}/qml"
                 --force
                 --verbose 0
                 $<$<CONFIG:Debug>:--debug>

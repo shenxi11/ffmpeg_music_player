@@ -10,6 +10,7 @@
 #include <QMutex>
 #include <QMutexLocker>
 #include <cmath>
+#include <QPainterPath>
 class LambdaRunnable : public QRunnable {
 public:
     explicit LambdaRunnable(std::function<void()> lambda) : lambdaFunc(std::move(lambda)) {}

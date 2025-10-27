@@ -95,7 +95,7 @@ void Worker::onTimeOut()
     {
         {
             std::unique_lock<std::mutex> lock(mtx);
-            cv.wait(lock, [this] {return (!audioBuffer.empty() && !m_stopFlag && !m_moveFlag) || m_breakFlag; });
+            cv.wait(lock, [this] {return (!audioBuffer.empty() && !m_stopFlag) || m_breakFlag; });
             if (audioBuffer.empty()) {
                 continue;
             }
@@ -196,7 +196,6 @@ void Worker::play_pcm()
 
     else
     {
-        timer = new QTimer(this);
 
         QAudioFormat format;
 

@@ -10,26 +10,19 @@ MusicListWidgetNet::MusicListWidgetNet(QWidget *parent) : QWidget(parent)
     download_dir->setFixedSize(100,30);
     download_dir->setStyleSheet("QPushButton { background-color: transparent; border: none; }");
 
-    translateBtn = new QPushButton(top_widget);
-    translateBtn->setText("语音转换");
-    translateBtn->setFixedSize(100, 30);
-    translateBtn->setStyleSheet(
-                "QPushButton "
-                "{ border-radius: 15px; border: 2px solid #667eea; "
-                "  background-color: #667eea; color: white; }"
-                );
+    // translateBtn 已删除：语音转换功能已并入插件系统
 
     dir_label = new QLabel(top_widget);
     QHBoxLayout* top_layout = new QHBoxLayout(top_widget);
     top_layout->addWidget(download_dir);
     top_layout->addWidget(dir_label);
     top_layout->addStretch();
-    top_layout->addWidget(translateBtn);
+    // top_layout->addWidget(translateBtn); // 已删除
 
     top_widget->setLayout(top_layout);
 
     connect(download_dir, &QPushButton::clicked, this, &MusicListWidgetNet::signal_choose_download_dir);
-    connect(translateBtn, &QPushButton::clicked, this, &MusicListWidgetNet::on_signal_translate_button_clicked);
+    // connect(translateBtn, &QPushButton::clicked, this, &MusicListWidgetNet::on_signal_translate_button_clicked); // 已删除
 
     listWidget = new MusicListWidget(this);
     listWidget->resize(800, height() - 60);

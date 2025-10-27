@@ -1,5 +1,6 @@
 #include "main_widget.h"
 #include "plugin_manager.h"
+#include "searchbox_qml.h"  // 使用 QML 版本的 SearchBox
 #include <QCoreApplication>
 
 MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
@@ -43,12 +44,17 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     connect(maximizeButton, &QPushButton::clicked, this, &MainWidget::showMinimized);
     connect(closeButton, &QPushButton::clicked, this, &MainWidget::close);
 
-    SearchBox* searchBox = new SearchBox(this);
-    searchBox->setFixedSize(250, 60); // 进一步增加搜索框高度以完整显示音符
+    // 使用 QML 版本的 SearchBox ⭐
+    SearchBoxQml* searchBox = new SearchBoxQml(this);
+    searchBox->setFixedSize(250, 60);
 
-    // 使用新的用户控件
-    userWidget = new UserWidget(this);
-    userWidget->setFixedSize(110, 50); // 进一步增加用户控件尺寸以完整显示"未登录"
+    // 使用新的用户控件（注释掉旧版本，使用 QML 版本）
+    // userWidget = new UserWidget(this);
+    // userWidget->setFixedSize(110, 50); // 进一步增加用户控件尺寸以完整显示"未登录"
+    
+    // 使用 QML 版本的 UserWidget ⭐
+    userWidgetQml = new UserWidgetQml(this);
+    userWidgetQml->setFixedSize(150, 40);
     
     // 创建主菜单按钮
     menuButton = new QPushButton("☰", this);
@@ -78,7 +84,7 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     
     widget_op_layout->addWidget(searchBox);
     widget_op_layout->addStretch();
-    widget_op_layout->addWidget(userWidget);
+    widget_op_layout->addWidget(userWidgetQml);
     widget_op_layout->addWidget(menuButton);
     widget_op_layout->addWidget(maximizeButton);
     widget_op_layout->addWidget(minimizeButton);
@@ -91,10 +97,8 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     topWidget->setGeometry(0, 0, this->width(), 60);
     topWidget->raise();
 
-    loginWidget = new LoginWidget();
+    loginWidget = new LoginWidgetQml(this);
     loginWidget->setWindowTitle("登陆");
-    loginWidget->setWindowFlags(loginWidget->windowFlags() | Qt::WindowStaysOnTopHint);
-    loginWidget->close();
 
     main_list = new MusicListWidgetLocal(this);
     main_list->setFixedSize(800,400);
@@ -212,8 +216,8 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     request = HttpRequestPool::getInstance().getRequest();
 
 
-    connect(searchBox, &SearchBox::search, request, &HttpRequest::getMusic);
-    connect(searchBox, &SearchBox::searchAll, request, &HttpRequest::getAllFiles);
+    connect(searchBox, &SearchBoxQml::search, request, &HttpRequest::getMusic);
+    connect(searchBox, &SearchBoxQml::searchAll, request, &HttpRequest::getAllFiles);
     connect(request, &HttpRequest::signal_addSong_list, net_list, &MusicListWidgetNet::signal_add_songlist);
     connect(request, &HttpRequest::signal_addSong_list, this, [=](){NetList->setChecked(true);});
 
@@ -268,20 +272,19 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     });
 
     // 连接新的用户控件 - 现在只处理弹出窗口中的登录按钮点击
+    // 旧版本的信号连接（已注释）
+    /*
     connect(userWidget, &UserWidget::loginRequested, this, [=](){
-        // 现在这个信号应该来自弹出窗口中的登录按钮，而不是直接点击头像
+        // 切换登录窗口显示状态
         loginWidget->isVisible = !loginWidget->isVisible;
 
-        this->loginWidget->setVisible(loginWidget->isVisible);
         if(loginWidget->isVisible)
         {
-            QScreen *screen = QGuiApplication::primaryScreen();
-            QRect screenGeometry = screen->geometry();
-
-            int x = (screenGeometry.width() - loginWidget->width()) / 2;
-            int y = (screenGeometry.height() - loginWidget->height()) / 2;
-
-            loginWidget->move(x, y);
+            loginWidget->show();
+        }
+        else
+        {
+            loginWidget->close();
         }
     });
 
@@ -290,12 +293,36 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
         userWidget->setLoginState(false);
         // 这里可以添加清除用户数据的代码
     });
+    */
+    
+    // 连接 QML 版本的 UserWidget ⭐
+    connect(userWidgetQml, &UserWidgetQml::loginRequested, this, [=](){
+        // 切换登录窗口显示状态
+        loginWidget->isVisible = !loginWidget->isVisible;
 
-    connect(loginWidget, &LoginWidget::login_, this, [=](QString username){
-        // 登录成功后更新用户控件
+        if(loginWidget->isVisible)
+        {
+            loginWidget->show();
+        }
+        else
+        {
+            loginWidget->close();
+        }
+    });
+
+    connect(userWidgetQml, &UserWidgetQml::logoutRequested, this, [=](){
+        // 处理退出登录逻辑
+        userWidgetQml->setLoginState(false);
+        // 这里可以添加清除用户数据的代码
+    });
+
+    connect(loginWidget, &LoginWidgetQml::login_, this, [=](QString username){
+        // 登录成功后更新用户控件（仅使用 QML 版本）
         QPixmap userAvatar(":/new/prefix1/icon/denglu.png"); // 可以根据需要设置用户头像
-        userWidget->setUserInfo(username, userAvatar);
-        userWidget->setLoginState(true);
+        // userWidget->setUserInfo(username, userAvatar);  // 已注释：使用 QML 版本
+        // userWidget->setLoginState(true);                 // 已注释：使用 QML 版本
+        userWidgetQml->setUserInfo(username, userAvatar);
+        userWidgetQml->setLoginState(true);
         loginWidget->close();
     });
     connect(main_list, &MusicListWidgetLocal::signal_add_button_clicked, w, &PlayWidget::openfile);
@@ -327,6 +354,10 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     connect(w,&PlayWidget::signal_big_clicked,this,[=](bool checked){
         if(checked)
         {
+            // 歌词页面展开 - 只隐藏 QML 控件（QWidget 会被 PlayWidget 遮罩自然遮住）
+            searchBox->hide();        // 隐藏搜索框 QML 控件
+            userWidgetQml->hide();    // 隐藏用户头像 QML 控件
+            
             w->raise();
             w->clearMask();
             w->set_isUp(true);
@@ -334,6 +365,10 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
         }
         else
         {
+            // 歌词页面关闭 - 显示 QML 控件
+            searchBox->show();        // 显示搜索框 QML 控件
+            userWidgetQml->show();    // 显示用户头像 QML 控件
+            
             w->lower();
             QRegion region1(0, 500, w->width(), 500);
             w->setMask(region1);

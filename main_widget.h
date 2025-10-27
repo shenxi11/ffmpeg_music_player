@@ -4,9 +4,10 @@
 #include "music_list_widget.h"
 #include "music_list_widget_local.h"
 #include "music_list_widget_net.h"
-#include "loginwidget.h"
+#include "loginwidget_qml.h"
 #include "searchbox.h"
 #include "user_widget.h"
+#include "userwidget_qml.h"
 #include "main_menu.h"
 #include "httprequest.h"
 #include "plugin_manager.h"
@@ -30,8 +31,9 @@ private:
     MusicListWidget* list;
     MusicListWidgetLocal* main_list;
     MusicListWidgetNet* net_list;
-    LoginWidget* loginWidget;
+    LoginWidgetQml* loginWidget;
     UserWidget* userWidget;
+    UserWidgetQml* userWidgetQml;
     QWidget* topWidget;
     MainMenu* mainMenu;
     QPushButton* menuButton;

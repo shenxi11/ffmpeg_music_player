@@ -184,7 +184,7 @@ PlayWidget::PlayWidget(QWidget *parent)
         qDebug() << "拖动进度条";
         
         disconnect(work.get(), &Worker::durations, process_slider, &ProcessSlider::slot_change_duartion);
-        work->slot_setMove();
+        //work->slot_setMove();
     });
     connect(process_slider,&ProcessSlider::signal_sliderReleased,[=](){
         int press_position = process_slider->getPressPosition();
@@ -198,7 +198,6 @@ PlayWidget::PlayWidget(QWidget *parent)
             back_flag = true;
         }
         emit signal_process_Change(newPosition, back_flag);
-        //take_pcm->seekToPosition(newPosition, back_flag);
        
         process_slider->setPrintF(true);
     });

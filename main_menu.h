@@ -11,6 +11,7 @@
 #include <QTimer>
 #include <QDebug>
 #include <QVector>
+#include <QPainterPath>
 #include "headers.h"
 #include "plugin_manager.h"
 

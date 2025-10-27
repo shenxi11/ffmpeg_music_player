@@ -30,8 +30,6 @@ TakePcm::~TakePcm()
 {
     {
         std::lock_guard<std::mutex> lock(mtx);
-        decode_flag = false;
-        decoding = false;
         break_flag = true;
     }cv.notify_all();
     if (thread_.joinable()) {
@@ -269,9 +267,7 @@ void TakePcm::make_pcm(QString Path)
     emit send_totalDuration(totalAudioDurationInMS);
     emit begin_to_play();
    //emit begin_to_decode();
-
         decode_flag = true;
-        decoding = true;
     }cv.notify_one();
 }
 
@@ -353,9 +349,6 @@ void TakePcm::decode()
                 }
             }
             av_packet_unref(pkt);
-            //}
-            //QThread::msleep(2);
-        //}
         }
         QThread::msleep(2);
     }

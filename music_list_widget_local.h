@@ -30,7 +30,7 @@ signals:
 private:
     MusicListWidget* listWidget;
     QPushButton* add;
-    QPushButton* translateBtn;
+    // QPushButton* translateBtn; // 已删除：功能已并入插件系统
     HttpRequest* request;
 };
 

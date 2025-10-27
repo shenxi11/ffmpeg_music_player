@@ -32,7 +32,7 @@ private:
 
     QMap<QString, double> song_duration;
     QPushButton* download_dir;
-    QPushButton* translateBtn;
+    // QPushButton* translateBtn; // 已删除：功能已并入插件系统
     QLabel* dir_label;
 
     QString down_dir;
