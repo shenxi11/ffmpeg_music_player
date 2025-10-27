@@ -5,7 +5,7 @@
 #include <QWidget>
 #include <QStringList>
 #include <QMap>
-#include "music_list_widget.h"
+#include "music_list_widget_net_qml.h"
 #include "httprequest.h"
 class MusicListWidgetNet : public QWidget
 {
@@ -28,12 +28,9 @@ signals:
     void signal_translate_button_clicked();
 
 private:
-    MusicListWidget* listWidget;
+    MusicListWidgetNetQml* listWidget;
 
     QMap<QString, double> song_duration;
-    QPushButton* download_dir;
-    // QPushButton* translateBtn; // 已删除：功能已并入插件系统
-    QLabel* dir_label;
 
     QString down_dir;
     HttpRequest* request;

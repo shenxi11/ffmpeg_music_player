@@ -106,6 +106,9 @@ set(PROJECT_SOURCES
     music.h
     music_item.cpp
     music_item.h
+    music_item_qml.h
+    music_list_widget_qml.h
+    music_list_widget_net_qml.h
     music_list_widget.cpp
     music_list_widget.h
     music_list_widget_local.cpp

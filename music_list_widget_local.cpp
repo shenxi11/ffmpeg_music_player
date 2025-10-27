@@ -1,88 +1,51 @@
 #include "music_list_widget_local.h"
 #include "play_widget.h"
-#include <QSpacerItem>
+#include <QVBoxLayout>
+#include "httprequest.h"
+#include <QFileInfo>
+#include <QDebug>
+
 MusicListWidgetLocal::MusicListWidgetLocal(QWidget *parent) : QWidget(parent)
 {
-    QWidget* parameterWidget = new QWidget(this);
-    parameterWidget->resize(width(), 30);
-
-    QWidget* first_widget = new QWidget(parameterWidget);
-    QLabel* nameLabel = new QLabel("     标题", first_widget);
-    QLabel* numberLabel = new QLabel("#", first_widget);
-    QHBoxLayout* first_layout = new QHBoxLayout(this);
-    first_layout->addWidget(numberLabel);
-    first_layout->addWidget(nameLabel);
-    first_widget->setLayout(first_layout);
-
-    QSpacerItem *spacer = new QSpacerItem(300, parameterWidget->height(), QSizePolicy::Expanding, QSizePolicy::Minimum);
-
-    //QWidget* second_widget = new QWidget(parameterWidget);
-    QLabel* duration_label = new QLabel("时长", parameterWidget);
-    QSpacerItem *spacer_1= new QSpacerItem(50, parameterWidget->height(), QSizePolicy::Expanding, QSizePolicy::Minimum);
-    QLabel* size_label = new QLabel("大小", parameterWidget);
-
-    QHBoxLayout* parameter_layout = new QHBoxLayout(this);
-    parameter_layout->addWidget(first_widget);
-    parameter_layout->addSpacerItem(spacer);
-    parameter_layout->addWidget(duration_label);
-    parameter_layout->addWidget(size_label);
-    parameterWidget->setLayout(parameter_layout);
-
-    add = new QPushButton(this);
-    add->setFixedSize(100, 30);
-    add->setText("添加");
-    add->setStyleSheet(
-                "QPushButton "
-                "{ border-radius: 15px; border: 2px solid black; }"
-                );
-
-    // translateBtn 已删除：语音转换功能已并入插件系统
-
-    QHBoxLayout* buttonLayout = new QHBoxLayout();
-    buttonLayout->addWidget(add);
-    // buttonLayout->addWidget(translateBtn); // 已删除
-    buttonLayout->addStretch();
-
-    QWidget* buttonWidget = new QWidget(this);
-    buttonWidget->setLayout(buttonLayout);
-
-    connect(add, &QPushButton::clicked, this, &MusicListWidgetLocal::on_signal_add_button_clicked);
-    // connect(translateBtn, &QPushButton::clicked, this, &MusicListWidgetLocal::on_signal_translate_button_clicked); // 已删除
-
-    listWidget = new MusicListWidget(this);
-    listWidget->resize(width(), height() - 60);
-    listWidget->clear();
-    listWidget->show();
-
+    // 直接使用 QML 版本的音乐列表（带内置的标题栏和添加按钮）
+    listWidget = new MusicListWidgetQml(false, this);  // false 表示本地音乐
+    
     QVBoxLayout* v_layout = new QVBoxLayout(this);
-    v_layout->addWidget(buttonWidget);
-    v_layout->addWidget(parameterWidget);
+    v_layout->setContentsMargins(0, 0, 0, 0);
     v_layout->addWidget(listWidget);
-
     setLayout(v_layout);
 
     request = HttpRequestPool::getInstance().getRequest();
 
-    connect(this, &MusicListWidgetLocal::signal_add_song,[=](QString filename, QString path){
+    // 连接 QML 的信号到外部
+    connect(listWidget, &MusicListWidgetQml::signal_add_song,
+            this, &MusicListWidgetLocal::on_signal_add_button_clicked);
+    connect(listWidget, &MusicListWidgetQml::signal_play_button_click,
+            this, &MusicListWidgetLocal::on_signal_play_click);
+    connect(listWidget, &MusicListWidgetQml::signal_remove_click,
+            this, &MusicListWidgetLocal::on_signal_remove_click);
+
+    // 监听添加歌曲信号
+    connect(this, &MusicListWidgetLocal::signal_add_song, [=](QString filename, QString path){
         request->AddMusic(path);
-        listWidget->on_signal_add_song(filename, path);
+        listWidget->addSong(filename, path, "", "0:00", "", "-");
     });
-    connect(this, &MusicListWidgetLocal::signal_play_button_click, listWidget, &MusicListWidget::receive_song_op);
 
-    connect(listWidget, &MusicListWidget::play_click, this, &MusicListWidgetLocal::on_signal_play_click);
-    connect(listWidget, &MusicListWidget::remove_click, this, &MusicListWidgetLocal::on_signal_remove_click);
+    // 监听播放状态变化
+    connect(this, &MusicListWidgetLocal::signal_play_button_click, [=](bool flag, const QString filename){
+        // 通知 listWidget 更新播放状态
+        listWidget->setPlayingState(filename, flag);
+    });
 
-    connect(this, &MusicListWidgetLocal::signal_last, listWidget, &MusicListWidget::Last_click);
-    connect(this, &MusicListWidgetLocal::signal_next, listWidget, &MusicListWidget::Next_click);
-
+    // 用户登录后加载音乐列表
     auto user = User::getInstance();
-    connect(user, &User::signal_add_songs, this,[=](){
-        qDebug()<<__FUNCTION__<<"login";
-        listWidget->remove_all();
+    connect(user, &User::signal_add_songs, this, [=](){
+        qDebug() << __FUNCTION__ << "login";
+        listWidget->clearAll();
         for(auto i: user->get_music_path())
         {
             QFileInfo info = QFileInfo(i);
-            listWidget->on_signal_add_song(info.fileName(), info.filePath());
+            listWidget->addSong(info.fileName(), info.filePath(), "", "0:00", "", "-");
         }
     });
 }

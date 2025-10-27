@@ -1,81 +1,48 @@
 #include "music_list_widget_net.h"
 #include "httprequest.h"
 #include "play_widget.h"
-#include <QSpacerItem>
+#include "httprequest.h"
+#include <QVBoxLayout>
+#include <QDebug>
+
 MusicListWidgetNet::MusicListWidgetNet(QWidget *parent) : QWidget(parent)
 {
-    QWidget* top_widget = new QWidget(this);
-    download_dir = new QPushButton(top_widget);
-    download_dir->setText("下载路径:");
-    download_dir->setFixedSize(100,30);
-    download_dir->setStyleSheet("QPushButton { background-color: transparent; border: none; }");
-
-    // translateBtn 已删除：语音转换功能已并入插件系统
-
-    dir_label = new QLabel(top_widget);
-    QHBoxLayout* top_layout = new QHBoxLayout(top_widget);
-    top_layout->addWidget(download_dir);
-    top_layout->addWidget(dir_label);
-    top_layout->addStretch();
-    // top_layout->addWidget(translateBtn); // 已删除
-
-    top_widget->setLayout(top_layout);
-
-    connect(download_dir, &QPushButton::clicked, this, &MusicListWidgetNet::signal_choose_download_dir);
-    // connect(translateBtn, &QPushButton::clicked, this, &MusicListWidgetNet::on_signal_translate_button_clicked); // 已删除
-
-    listWidget = new MusicListWidget(this);
-    listWidget->resize(800, height() - 60);
-    listWidget->clear();
-    listWidget->show();
-
-    QWidget* parameterWidget = new QWidget(this);
-    parameterWidget->resize(width(), 30);
-
-    QWidget* first_widget = new QWidget(parameterWidget);
-    QLabel* nameLabel = new QLabel("     标题", first_widget);
-    QLabel* numberLabel = new QLabel("#", first_widget);
-    QHBoxLayout* first_layout = new QHBoxLayout(this);
-    first_layout->addWidget(numberLabel);
-    first_layout->addWidget(nameLabel);
-    first_widget->setLayout(first_layout);
-
-    QSpacerItem *spacer = new QSpacerItem(300, parameterWidget->height(), QSizePolicy::Expanding, QSizePolicy::Minimum);
-
-    //QWidget* second_widget = new QWidget(parameterWidget);
-    QLabel* duration_label = new QLabel("时长", parameterWidget);
-
-    QHBoxLayout* parameter_layout = new QHBoxLayout(this);
-    parameter_layout->addWidget(first_widget);
-    parameter_layout->addSpacerItem(spacer);
-    parameter_layout->addWidget(duration_label);
-    parameterWidget->setLayout(parameter_layout);
-
+    // 直接使用 QML 版本的在线音乐列表
+    listWidget = new MusicListWidgetNetQml(this);
+    
     QVBoxLayout* v_layout = new QVBoxLayout(this);
-    v_layout->addWidget(top_widget);
-    v_layout->addWidget(parameterWidget);
+    v_layout->setContentsMargins(0, 0, 0, 0);
     v_layout->addWidget(listWidget);
+    setLayout(v_layout);
 
-    connect(this, &MusicListWidgetNet::signal_add_songlist, listWidget, &MusicListWidget::on_signal_add_songlist);
+    // 连接 QML 信号到外部
+    connect(listWidget, &MusicListWidgetNetQml::signal_play_click,
+            this, &MusicListWidgetNet::on_signal_play_click);
+    connect(listWidget, &MusicListWidgetNetQml::signal_remove_click,
+            this, &MusicListWidgetNet::on_signal_remove_click);
+    connect(listWidget, &MusicListWidgetNetQml::signal_download_click,
+            this, &MusicListWidgetNet::on_signal_download_music);
+    connect(listWidget, &MusicListWidgetNetQml::signal_choose_download_dir,
+            this, &MusicListWidgetNet::signal_choose_download_dir);
+
+    // 监听添加歌曲列表信号
     connect(this, &MusicListWidgetNet::signal_add_songlist, [=](const QStringList songList, const QList<double> duration){
+        qDebug() << "MusicListWidgetNet: Received" << songList.size() << "songs with durations:" << duration;
+        listWidget->addSongList(songList, duration);
         for(int i = 0; i < songList.size(); i++)
         {
             song_duration[songList.at(i)] = duration.at(i);
         }
     });
-    connect(listWidget, &MusicListWidget::play_click, this, &MusicListWidgetNet::on_signal_play_click);
-    connect(listWidget, &MusicListWidget::remove_click, this, &MusicListWidgetNet::on_signal_remove_click);
-    connect(listWidget, &MusicListWidget::signal_download_click, this, &MusicListWidgetNet::on_signal_download_music);
 
-
-    connect(this, &MusicListWidgetNet::signal_play_button_click, listWidget, &MusicListWidget::receive_song_op);
-
-    connect(this, &MusicListWidgetNet::signal_last, listWidget, &MusicListWidget::Last_click);
-    connect(this, &MusicListWidgetNet::signal_next, listWidget, &MusicListWidget::Next_click);
+    // 监听播放状态变化
+    connect(this, &MusicListWidgetNet::signal_play_button_click, [=](bool flag, const QString filename){
+        // 通知 listWidget 更新播放状态
+        listWidget->setPlayingState(filename, flag);
+    });
 
     request = HttpRequestPool::getInstance().getRequest();
-    connect(request, &HttpRequest::signal_streamurl, this,[=](bool flag, QString file){
-        //qInfo()<<__FUNCTION__<<file;
+    connect(request, &HttpRequest::signal_streamurl, this, [=](bool flag, QString file){
         emit signal_play_click(file, true);
     });
 }
@@ -96,7 +63,7 @@ void MusicListWidgetNet::on_signal_remove_click(const QString name)
 }
 void MusicListWidgetNet::on_signal_set_down_dir(QString down_dir)
 {
-    dir_label->setText(down_dir);
+    listWidget->setDownloadDir(down_dir);
     this->down_dir = down_dir;
 }
 void MusicListWidgetNet::on_signal_play_button_click(bool flag, const QString filename)

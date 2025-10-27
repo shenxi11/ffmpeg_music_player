@@ -7,6 +7,7 @@
 #include <QMouseEvent>
 #include "headers.h"
 #include "music_item.h"
+#include "music_item_qml.h"
 class MusicListWidget : public QListWidget
 {
     Q_OBJECT
@@ -30,7 +31,7 @@ signals:
     void remove_click(QString songName);
     void signal_download_click(QString songName);
 private:
-    std::map<QString,MusicItem*>pathMap;
+    std::map<QString, QWidget*> pathMap;  // 改为 QWidget* 以兼容 MusicItem 和 MusicItemQml
 protected:
 
     void paintEvent(QPaintEvent *event) override

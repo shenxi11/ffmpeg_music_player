@@ -279,8 +279,17 @@ bool HttpRequest::getAllFiles() {
 
                     qDebug() << "File Name:" << fileName << ", Duration:" << duration;
 
-                    songList<<fileName;
-                    durations<<it.value().toDouble();
+                    songList << fileName;
+                    
+                    // 解析时长字符串 "239.49 seconds" -> 239.49
+                    double durationValue = 0.0;
+                    if (duration != "Error") {
+                        QStringList parts = duration.split(" ");
+                        if (!parts.isEmpty()) {
+                            durationValue = parts[0].toDouble();
+                        }
+                    }
+                    durations << durationValue;
                 }
                 emit signal_addSong_list(songList, durations);
             } else {
@@ -400,7 +409,16 @@ bool HttpRequest::getMusic(const QString& name) {
 
                     // Emit signal with file name and duration
                     songList << fileName;
-                    durations << it.value().toDouble();
+                    
+                    // 解析时长字符串 "239.49 seconds" -> 239.49
+                    double durationValue = 0.0;
+                    if (duration != "Error") {
+                        QStringList parts = duration.split(" ");
+                        if (!parts.isEmpty()) {
+                            durationValue = parts[0].toDouble();
+                        }
+                    }
+                    durations << durationValue;
                 }
                 emit signal_addSong_list(songList, durations);
             } else {

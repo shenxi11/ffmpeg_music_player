@@ -1,9 +1,12 @@
 <RCC>
     <qresource prefix="/">
-        <file>qml/components/SearchBox.qml</file>
-        <file>qml/components/LoginWindow.qml</file>
-        <file>qml/components/UserWidget.qml</file>
-        <file>qml/components/UserPopupWindow.qml</file>
-        <file>qml/components/qmldir</file>
+    <file>qml/components/SearchBox.qml</file>
+    <file>qml/components/LoginWindow.qml</file>
+    <file>qml/components/UserWidget.qml</file>
+    <file>qml/components/UserPopupWindow.qml</file>
+    <file>qml/components/MusicItem.qml</file>
+    <file>qml/components/MusicListWidget.qml</file>
+    <file>qml/components/MusicListWidgetNet.qml</file>
+    <file>qml/components/qmldir</file>
     </qresource>
 </RCC>
