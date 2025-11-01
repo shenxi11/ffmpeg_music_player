@@ -380,4 +380,28 @@ Rectangle {
             }
         }
     }
+    function playNext(songName){
+        for (var i = 0; i < musicListModel.count; i++) {
+            var item = musicListModel.get(i)
+            if (item.songName === songName) {
+                item.isPlaying = false;
+                var item_next = musicListModel.get((i + 1) % musicListModel.count);
+                item_next.isPlaying =true;
+                root.playRequested(item_next.filePath)
+                break
+            }
+        }
+    }
+    function playLast(songName){
+        for (var i = 0; i < musicListModel.count; i++) {
+            var item = musicListModel.get(i)
+            if (item.songName === songName) {
+                item.isPlaying = false;
+                var item_last = musicListModel.get((i - 1) < 0 ? musicListModel.count - 1 : i  - 1);
+                item_last.isPlaying =true;
+                root.playRequested(item_last.filePath)
+                break
+            }
+        }
+    }
 }

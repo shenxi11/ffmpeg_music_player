@@ -1,4 +1,6 @@
 #include "rotatingcircleimage.h"
+#include <QUrl>
+
 RotatingCircleImage::RotatingCircleImage(QWidget *parent)
         : QWidget(parent), angle(0), rotatedImage(QPixmap()) {
 
@@ -23,19 +25,25 @@ QPixmap RotatingCircleImage::rotateImageAsync(const QPixmap &source, int rotatio
     clipPath.addEllipse(0, 0, diameter, diameter);
     painter.setClipPath(clipPath);
 
-    // 计算旋转中心为窗口的中心
-    QPointF windowCenter(width() / 2.0, height() / 2.0);
-    QPointF imageCenter(source.width() / 2.0, source.height() / 2.0);
+    // 先将图片缩放到圆形大小，保持纵横比并填充整个圆形
+    QPixmap scaledSource = source.scaled(diameter, diameter, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+    
+    // 如果缩放后的图片大于圆形，裁剪到中心区域
+    int offsetX = (scaledSource.width() - diameter) / 2;
+    int offsetY = (scaledSource.height() - diameter) / 2;
+    if (offsetX > 0 || offsetY > 0) {
+        scaledSource = scaledSource.copy(offsetX, offsetY, diameter, diameter);
+    }
 
-    // 设置变换：将图像中心移动到窗口中心，旋转，再移回
+    // 设置变换：将图像中心移动到窗口中心，旋转
     QTransform transform;
-    transform.translate(diameter / 2.0, diameter / 2.0);  // 将目标圆形的中心对齐
-    transform.rotate(rotationAngle);                     // 旋转
-    transform.translate(-imageCenter.x(), -imageCenter.y());  // 将图像中心复位
+    transform.translate(diameter / 2.0, diameter / 2.0);  // 移动到圆心
+    transform.rotate(rotationAngle);                      // 旋转
+    transform.translate(-diameter / 2.0, -diameter / 2.0);  // 移回原点
 
     // 绘制旋转后的图像
     painter.setTransform(transform);
-    painter.drawPixmap(0, 0, source);
+    painter.drawPixmap(0, 0, scaledSource);
 
     return target;
 }
@@ -86,5 +94,30 @@ void RotatingCircleImage::on_signal_stop_rotate(bool flag) {
         timer->start();
     } else {
         timer->stop();
+    }
+}
+
+void RotatingCircleImage::setImage(const QString &imagePath) {
+    // 如果是 file:/// URL 格式，转换为本地路径
+    QString localPath = imagePath;
+    if (imagePath.startsWith("file:///")) {
+        localPath = QUrl(imagePath).toLocalFile();
+        qDebug() << "RotatingCircleImage: Converted URL to local path:" << localPath;
+    } else if (imagePath.startsWith("qrc:/")) {
+        // QRC 资源路径，去掉 qrc: 前缀
+        localPath = imagePath.mid(3);  // 移除 "qrc"
+        qDebug() << "RotatingCircleImage: Using QRC path:" << localPath;
+    }
+    
+    QPixmap newImage(localPath);
+    if (!newImage.isNull()) {
+        QMutexLocker locker(&mutex);
+        image = newImage;
+        // 立即更新显示
+        update();
+        qDebug() << "RotatingCircleImage: Image loaded successfully, size:" << newImage.size();
+    } else {
+        qDebug() << "Failed to load image for RotatingCircleImage:" << imagePath;
+        qDebug() << "  Tried local path:" << localPath;
     }
 }

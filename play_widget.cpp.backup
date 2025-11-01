@@ -1,8 +1,4 @@
-#include "play_widget.h"
-#include <QTime>
-#include <QGraphicsBlurEffect>
-#include <QPainter>
-#include <QUrl>
+﻿#include "play_widget.h"
 
 PlayWidget::PlayWidget(QWidget *parent)
     : QWidget(parent)
@@ -10,11 +6,7 @@ PlayWidget::PlayWidget(QWidget *parent)
 {
     qDebug() << __FUNCTION__ << QThread::currentThread()->currentThreadId;
     
-    // 创建背景图片标签（仅用于存储 pixmap，不直接显示）
-    backgroundLabel = new QLabel(this);
-    backgroundLabel->hide();  // 永远隐藏，只用于存储数据
-    
-    // 创建组合的进度条和控制栏（所有功能都在一个 QML 中）
+    // 创建组合的进度条和控制栏（所有功能都在一�?QML 中）
     process_slider = new ProcessSliderQml(this);
     process_slider->setFixedSize(1000, 60);
     process_slider->move(0, 500);
@@ -22,10 +14,6 @@ PlayWidget::PlayWidget(QWidget *parent)
     
     // controlBar 现在指向 process_slider（它包含了所有控制功能）
     controlBar = process_slider;
-    
-    qDebug() << "ProcessSliderQml created at position:" << process_slider->pos() 
-             << "size:" << process_slider->size()
-             << "visible:" << process_slider->isVisible();
 
     desk = new DeskLrcWidget();
     desk->raise();
@@ -43,7 +31,7 @@ PlayWidget::PlayWidget(QWidget *parent)
     });
     music->move(10, 10);
 
-    // 创建线程（不要传parent，让线程独立管理生命周期）
+    // 创建线程（不要传parent，让线程独立管理生命周期�?
     a = new QThread();
     b = new QThread();
     c = new QThread();
@@ -73,15 +61,13 @@ PlayWidget::PlayWidget(QWidget *parent)
     init_TextEdit();
 
     QWidget* rotate_widget = new QWidget(this);
-    rotatingCircle = new RotatingCircleImage(rotate_widget);
+    RotatingCircleImage* rotate = new RotatingCircleImage(rotate_widget);
     rotate_widget->move(100, 100);
     rotate_widget->resize(300, 300);
-    rotatingCircle->resize(300, 300);
+    rotate->resize(300, 300);
 
-    connect(this, &PlayWidget::signal_stop_rotate, rotatingCircle, &RotatingCircleImage::on_signal_stop_rotate);
+    connect(this, &PlayWidget::signal_stop_rotate, rotate, &RotatingCircleImage::on_signal_stop_rotate);
     connect(take_pcm.get(), &TakePcm::signal_send_pic_path, process_slider, &ProcessSliderQml::setPicPath);
-    connect(take_pcm.get(), &TakePcm::signal_send_pic_path, this, &PlayWidget::slot_updateBackground);  // 同时更新背景
-    connect(take_pcm.get(), &TakePcm::signal_send_pic_path, rotatingCircle, &RotatingCircleImage::setImage);  // 同时更新旋转唱片
     connect(take_pcm.get(), &TakePcm::begin_take_lrc, work.get(), &Worker::setPATH);
     connect(take_pcm.get(),&TakePcm::begin_to_play,work.get(),&Worker::play_pcm);
     connect(take_pcm.get(),&TakePcm::data,work.get(),&Worker::receive_data);
@@ -90,28 +76,23 @@ PlayWidget::PlayWidget(QWidget *parent)
     connect(take_pcm.get(),&TakePcm::send_totalDuration, work.get(),&Worker::receive_totalDuration);
     connect(take_pcm.get(),&TakePcm::durations,[ = ](qint64 value){
         this->duration = static_cast<qint64>(value);
-        qDebug() << "TakePcm::durations - Total duration:" << value << "microseconds," << (value/1000000) << "seconds";
         process_slider->setMaxSeconds(value / 1000000);
     });
-    // 连接进度跳转信号
-    connect(this, &PlayWidget::signal_process_Change, take_pcm.get(), &TakePcm::seekToPosition);
+    
+    // 连接进度条的 seek 信号
     connect(process_slider, &ProcessSliderQml::signal_Slider_Move, this, [=](int seconds){
-        qDebug() << "Slider moved to:" << seconds << "seconds";
-        // signal_process_Change 需要的是毫秒，seekToPosition 会再乘以 1000 转为微秒
-        qint64 milliseconds = static_cast<qint64>(seconds) * 1000;
-        bool back_flag = false;
-        // 重置播放状态
-        work->reset_play();
-        
-        // 发送跳转信号（单位：毫秒）
-        emit signal_process_Change(milliseconds, true);
+        emit signal_process_Change(static_cast<qint64>(seconds) * 1000000, false);
     });
+    
+    // 连接展开信号
     connect(process_slider, &ProcessSliderQml::signal_up_click, this, [=](){
         emit signal_big_clicked(true);
     });
+    
+    connect(this, &PlayWidget::signal_process_Change, take_pcm.get(), &TakePcm::seekToPosition);
+    //connect(this, &PlayWidget::signal_process_Change, work.get(), &Worker::reset_play);
 
     connect(this, &PlayWidget::signal_filepath, [=](QString path) {
-        //emit take_pcm->begin_to_play();
         emit take_pcm->signal_begin_make_pcm(path);
     });
     connect(this, &PlayWidget::signal_worker_play, work.get(), &Worker::Pause);
@@ -127,7 +108,7 @@ PlayWidget::PlayWidget(QWidget *parent)
         if(line != textEdit->currentLine)
         {
             textEdit->highlightLine(line);
-            textEdit->scrollLines(line);  // 直接传递行号，而不是差值
+            textEdit->scrollLines(line);  // 直接传递行号，而不是差�?
             textEdit->currentLine = line;
             update();
         }
@@ -143,89 +124,58 @@ PlayWidget::PlayWidget(QWidget *parent)
     connect(work.get(),&Worker::Stop,this, &PlayWidget::slot_work_stop);
     connect(work.get(),&Worker::Begin,this, &PlayWidget::slot_work_play);
 
-    connect(desk, &DeskLrcWidget::signal_play_Clicked, this, &PlayWidget::slot_play_click);
-    // 使用新的槽来更新桌面歌词的播放状态，避免信号循环
-    connect(this, &PlayWidget::signal_playState, desk, &DeskLrcWidget::slot_playState_changed);
-    connect(desk, &DeskLrcWidget::signal_last_clicked, this, [=](){
-        emit signal_Last(fileName, get_net_flag());
-    });
-    connect(desk, &DeskLrcWidget::signal_next_clicked, this, [=](){
-        emit signal_Next(fileName,get_net_flag());
-    });
+    connect(desk, &DeskLrcWidget::signal_play_clicked, this, &PlayWidget::slot_play_click);
+    connect(this, &PlayWidget::signal_playState, desk, &DeskLrcWidget::signal_play_Clicked);
+    connect(desk, &DeskLrcWidget::signal_last_clicked, controlBar, &ProcessSliderQml::signal_lastSong);
+    connect(desk, &DeskLrcWidget::signal_next_clicked, controlBar, &ProcessSliderQml::signal_nextSong);
     connect(desk, &DeskLrcWidget::signal_forward_clicked, this, [=](){
-        // 快进5秒 - 直接使用 duration 成员变量
-        int currentSeconds = process_slider->getState() != ProcessSliderQml::Stop ? 
-            static_cast<int>(duration / 1000000) : 0;
-        int maxSeconds = static_cast<int>(duration / 1000000);
-        int newSeconds = std::min(maxSeconds, currentSeconds + 5);
-        emit signal_process_Change(static_cast<qint64>(newSeconds) * 1000000, true);
+        work->slot_setMove();
+        // 快进5�?
+        int currentSeconds = static_cast<int>(duration / 1000000);
+        int newSeconds = std::min(currentSeconds, static_cast<int>(duration / 1000000) + 5);
+        emit signal_process_Change(static_cast<qint64>(newSeconds) * 1000000, false);
     });
     connect(desk, &DeskLrcWidget::signal_backward_clicked, this, [=](){
-        // 快退5秒
-        int currentSeconds = process_slider->getState() != ProcessSliderQml::Stop ? 
-            static_cast<int>(duration / 1000000) : 0;
+        work->slot_setMove();
+        // 快退5�?
+        int currentSeconds = static_cast<int>(duration / 1000000);
         int newSeconds = std::max(0, currentSeconds - 5);
+        work->reset_play();
         emit signal_process_Change(static_cast<qint64>(newSeconds) * 1000000, true);
     });
-    
-    // ProcessSlider QML 控件连接
-    connect(process_slider, &ProcessSliderQml::signal_play_clicked, this, &PlayWidget::slot_play_click);
-    connect(this, &PlayWidget::signal_playState, process_slider, &ProcessSliderQml::setState);
-    connect(process_slider, &ProcessSliderQml::signal_volumeChanged, work.get(), &Worker::Set_Volume);
-    connect(process_slider, &ProcessSliderQml::signal_nextSong, this,[=](){
-        emit signal_Next(fileName,get_net_flag());
+    connect(controlBar, &ProcessSliderQml::signal_play_clicked, this, &PlayWidget::slot_play_click);
+    connect(this, &PlayWidget::signal_playState, controlBar, &ProcessSliderQml::slot_playState);
+    connect(controlBar, &ProcessSliderQml::signal_volumeChanged, work.get(), &Worker::Set_Volume);
+    connect(controlBar, &ProcessSliderQml::signal_nextSong, this,[=](){
+        emit signal_Next(fileName);
     });
-    connect(process_slider, &ProcessSliderQml::signal_lastSong, this,[=](){
-        emit signal_Last(fileName,get_net_flag());
+    connect(controlBar, &ProcessSliderQml::signal_lastSong, this,[=](){
+        emit signal_Last(fileName);
     });
-    connect(process_slider, &ProcessSliderQml::signal_stop, this, [=](){
+    connect(controlBar, &ProcessSliderQml::signal_stop, this, [=](){
         if(fileName.size())
             emit signal_play_button_click(false, fileName);
     });
-    connect(process_slider, &ProcessSliderQml::signal_mlist_toggled, this, &PlayWidget::signal_list_show);
-    connect(process_slider, &ProcessSliderQml::signal_rePlay, this, [=](){
+    connect(controlBar, &ProcessSliderQml::signal_mlist_toggled, this, &PlayWidget::signal_list_show);
+    connect(controlBar, &ProcessSliderQml::signal_rePlay, this, [=](){
         rePlay(this->filePath);
      });
-    connect(process_slider, &ProcessSliderQml::signal_desk_toggled, this, &PlayWidget::slot_desk_toggled);
-    connect(process_slider, &ProcessSliderQml::signal_loop_change, this, [=](bool isLoop){
-        qDebug() << "Loop state changed:" << isLoop;
-        // 可以在这里处理循环状态改变的逻辑
-    });
+    connect(controlBar, &ProcessSliderQml::signal_desk_toggled, this, &PlayWidget::slot_desk_toggled);
 
-    connect(take_pcm.get(), &TakePcm::signal_move, this, [this]() {
-        // seek 完成后重新连接 durations（参考原 ProcessSlider 实现）
-        qDebug() << "TakePcm::signal_move - 重新连接 durations";
-        durationsConnection = connect(work.get(), &Worker::durations, this, [this](qint64 milliseconds){
-            int seconds = static_cast<int>(milliseconds / 1000);
-            process_slider->setCurrentSeconds(seconds);
-        });
+    connect(take_pcm.get(), &TakePcm::signal_move, this, [=]() {
+        // QML 进度条自己处理更�?
         work->slot_setMove();
      });
     connect(take_pcm.get(), &TakePcm::signal_worker_play, work.get(), &Worker::Pause);
     connect(this,&PlayWidget::signal_set_SliderMove,work.get(),&Worker::set_SliderMove);
     
-    // 更新进度条当前时间显示
-    // Worker::durations 发出的单位是毫秒
-    durationsConnection = connect(work.get(), &Worker::durations, this, [this](qint64 milliseconds){
-        int seconds = static_cast<int>(milliseconds / 1000);
+    // 更新进度条当前时间显�?
+    connect(work.get(), &Worker::durations, this, [=](qint64 microseconds){
+        int seconds = static_cast<int>(microseconds / 1000000);
         process_slider->setCurrentSeconds(seconds);
-        work->slot_setMove();
     });
 
-    // 处理滑块按下和松开事件（参考原 ProcessSlider 实现）
-    connect(process_slider, &ProcessSliderQml::signal_sliderPressed, [this](){
-        qDebug() << "拖动进度条 - 断开 durations 连接";
-        // 断开 Worker::durations 连接，避免拖动时进度跳动
-        disconnect(durationsConnection);
-    });
-
-    // 注意：不在 sliderReleased 时重连，而是在 TakePcm::signal_move 时重连
-    // 这样可以避免 seek 期间的时间戳更新干扰
-
-    // 连接播放完成信号
-    connect(process_slider, &ProcessSliderQml::signal_playFinished, process_slider, &ProcessSliderQml::slot_playFinished);
-
-    connect(this, &PlayWidget::signal_isUpChanged, process_slider, &ProcessSliderQml::slot_isUpChanged);
+    connect(this, &PlayWidget::signal_isUpChanged, controlBar, &ProcessSliderQml::slot_isUpChanged);
 }
 void PlayWidget::slot_desk_toggled(bool checked){
     if(checked){
@@ -236,12 +186,6 @@ void PlayWidget::slot_desk_toggled(bool checked){
 }
 void PlayWidget::set_isUp(bool flag){
     isUp = flag;
-    
-    qDebug() << "PlayWidget::set_isUp called with flag:" << flag;
-    
-    // 触发重绘以更新背景
-    update();
-    
     emit signal_isUpChanged(isUp);
 }
 void PlayWidget::slot_work_stop(){
@@ -263,7 +207,7 @@ void PlayWidget::slot_work_play(){
     nameLabel->setText(QFileInfo(fileName).baseName());
 }
 void PlayWidget::slot_Lrc_send_lrc(const std::map<int, std::string> lyrics){
-    this->textEdit->currentLine = 5;  // 初始行设为5，对应第一行歌词
+    this->textEdit->currentLine = 5;  // 初始行设�?，对应第一行歌�?
     this->lyrics.clear();
     for(int i = 0;i<5;i++)
     {
@@ -292,32 +236,15 @@ void PlayWidget::slot_Lrc_send_lrc(const std::map<int, std::string> lyrics){
     textEdit->setTextCursor(cursor_);
 }
 void PlayWidget::slot_play_click(){
-    qDebug() << "[TIMING] slot_play_click START" << QTime::currentTime().toString("hh:mm:ss.zzz");
-    
-    // ProcessSliderQml 内部处理进度，这里只需要处理播放状态
+    // ProcessSliderQml 内部处理进度，这里只需要处理播放状�?
     ProcessSliderQml::State currentState = controlBar->getState();
-    
-    // 检查是否播放完成后首次点击（进度在开头且状态为 Stop）
-    // 如果是，则重新播放
-    QQuickItem* root = controlBar->rootObject();
-    if (root && currentState == ProcessSliderQml::Stop) {
-        QVariant currentTime = root->property("currentTime");
-        if (currentTime.isValid() && currentTime.toInt() == 0) {
-            qDebug() << "播放完成后重新开始，调用 rePlay";
-            rePlay(filePath);
-            return;
-        }
-    }
-    
     if(currentState == ProcessSliderQml::Pause || currentState == ProcessSliderQml::Stop) {
         emit signal_playState(ProcessSliderQml::Play);
     } else {
         emit signal_playState(ProcessSliderQml::Pause);
     }
-    qDebug() << "[TIMING] slot_play_click 发出 signal_worker_play" << QTime::currentTime().toString("hh:mm:ss.zzz");
+    qDebug() << __FUNCTION__ << "播放按钮点击";
     emit signal_worker_play();
-    qDebug() << "[TIMING] slot_play_click END" << QTime::currentTime().toString("hh:mm:ss.zzz");
-    //work->Pause();
 }
 
 void PlayWidget::rePlay(QString path)
@@ -364,15 +291,15 @@ void PlayWidget::openfile()
     // 创建一个临时的 QWidget 实例，用于显示文件对话框
     QWidget dummyWidget;
 
-    // 打开文件对话框
+    // 打开文件对话�?
     QString filePath_ = QFileDialog::getOpenFileName(
-                &dummyWidget,                   // 父窗口（可以是 nullptr）
-                "Open File",                    // 对话框标题
-                QDir::homePath(),               // 起始目录（可以是任意路径）
-                "Audio Files (*.mp3 *.wav *.flac *.ogg);;All Files (*)"  // 文件过滤器
+                &dummyWidget,                   // 父窗口（可以�?nullptr�?
+                "Open File",                    // 对话框标�?
+                QDir::homePath(),               // 起始目录（可以是任意路径�?
+                "Audio Files (*.mp3 *.wav *.flac *.ogg);;All Files (*)"  // 文件过滤�?
                 );
 
-    // 打印选中的文件路径
+    // 打印选中的文件路�?
     if (!filePath_.isEmpty())
     {
         QFileInfo fileInfo(filePath_);
@@ -440,12 +367,12 @@ PlayWidget::~PlayWidget()
     // 2. 等待线程完成当前工作
     QThread::msleep(200);
     
-    // 3. 退出并等待所有 QThread
+    // 3. 退出并等待所�?QThread
     if(a)
     {
         qDebug() << "PlayWidget: Stopping thread a...";
         a->quit();
-        if(!a->wait(2000)) {  // 等待最多2秒
+        if(!a->wait(2000)) {  // 等待最�?�?
             qDebug() << "PlayWidget: Thread a did not finish, terminating...";
             a->terminate();
             a->wait();
@@ -472,67 +399,10 @@ PlayWidget::~PlayWidget()
         }
     }
     
-    // 4. 清理 shared_ptr（会自动调用析构函数）
+    // 4. 清理 shared_ptr（会自动调用析构函数�?
     work.reset();
     lrc.reset();
     take_pcm.reset();
     
     qDebug() << "PlayWidget::~PlayWidget() - Cleanup complete";
-}
-
-void PlayWidget::slot_updateBackground(QString picPath) {
-    qDebug() << "slot_updateBackground called with:" << picPath;
-    
-    // 如果是 file:/// URL 格式，转换为本地路径
-    QString localPath = picPath;
-    if (picPath.startsWith("file:///")) {
-        localPath = QUrl(picPath).toLocalFile();
-        qDebug() << "Converted URL to local path:" << localPath;
-    }
-    
-    // 加载原始图片
-    QPixmap originalPixmap(localPath);
-    if (originalPixmap.isNull()) {
-        qDebug() << "Failed to load album cover for background:" << localPath;
-        return;
-    }
-    
-    qDebug() << "Original pixmap size:" << originalPixmap.size();
-    
-    // 1. 缩放到合适大小（1000x600），保持比例并填充
-    QPixmap scaledPixmap = originalPixmap.scaled(1000, 600, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
-    
-    // 2. 裁剪到中心区域
-    int x = (scaledPixmap.width() - 1000) / 2;
-    int y = (scaledPixmap.height() - 600) / 2;
-    QPixmap croppedPixmap = scaledPixmap.copy(x, y, 1000, 600);
-    
-    qDebug() << "Cropped pixmap size:" << croppedPixmap.size();
-    
-    // 3. 创建强模糊效果的图片 - 多次缩放模拟高斯模糊
-    QImage image = croppedPixmap.toImage();
-    
-    // 使用更小的尺寸实现更强的模糊效果
-    // 第一次模糊：缩小到 100x60
-    QImage smallImage1 = image.scaled(100, 60, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-    // 第二次模糊：放大到 200x120
-    QImage smallImage2 = smallImage1.scaled(200, 120, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-    // 第三次模糊：放大到最终尺寸
-    QImage blurredImage = smallImage2.scaled(1000, 600, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-    
-    // 4. 添加更深的半透明深色遮罩，增强对比度和歌词可读性
-    QPainter maskPainter(&blurredImage);
-    maskPainter.setCompositionMode(QPainter::CompositionMode_SourceOver);
-    maskPainter.fillRect(blurredImage.rect(), QColor(0, 0, 0, 140));  // 增加遮罩透明度从 120 到 140
-    maskPainter.end();
-    
-    // 5. 转换回 QPixmap 并设置
-    QPixmap blurredPixmap = QPixmap::fromImage(blurredImage);
-    backgroundLabel->setPixmap(blurredPixmap);
-    
-    // 触发重绘，让 paintEvent 使用新的背景
-    update();
-    
-    qDebug() << "Background updated successfully, pixmap size:" << blurredPixmap.size();
-    qDebug() << "backgroundLabel visible:" << backgroundLabel->isVisible() << "geometry:" << backgroundLabel->geometry();
 }

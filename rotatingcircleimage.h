@@ -10,6 +10,7 @@
 #include <QMutex>
 #include <QMutexLocker>
 #include <cmath>
+#include <QDebug>
 #include <QPainterPath>
 class LambdaRunnable : public QRunnable {
 public:
@@ -28,6 +29,7 @@ class RotatingCircleImage : public QWidget {
 
 public:
     explicit RotatingCircleImage(QWidget *parent = nullptr);
+    void setImage(const QString &imagePath);  // 设置新的图片
 public slots:
     void on_signal_stop_rotate(bool flag);
 

@@ -1,6 +1,10 @@
 #include "take_pcm.h"
 #include <QReadWriteLock>
 #include <QtConcurrent>
+#include <QStandardPaths>
+#include <QDateTime>
+#include <QFile>
+#include <QUrl>
 QMutex bufferMutex;
 QReadWriteLock readlock;
 
@@ -59,7 +63,7 @@ QString getSubstringAfterLastDot(const QString &inputStr) {
 }
 void TakePcm::seekToPosition(int newPosition, bool back_flag)
 {
-    qDebug() << __FUNCTION__ << back_flag;
+    qDebug() << __FUNCTION__ << "newPosition(ms):" << newPosition << "back_flag:" << back_flag;
     {
         std::lock_guard<std::mutex> lock(mtx);
         decode_flag = false;
@@ -67,6 +71,7 @@ void TakePcm::seekToPosition(int newPosition, bool back_flag)
     }cv.notify_one();
     
     int64_t targetTimestamp = static_cast<int64_t>(newPosition) * 1000;
+    qDebug() << "  targetTimestamp(us):" << targetTimestamp << "=" << (targetTimestamp / 1000000.0) << "seconds";
     if(back_flag)
         av_seek_frame(ifmt_ctx, -1, targetTimestamp, AVSEEK_FLAG_BACKWARD);
     else
@@ -85,6 +90,8 @@ void TakePcm::take_album()
 
 void TakePcm::make_pcm(QString Path)
 {
+
+    emit begin_to_play();
     // 验证当前执行的线程ID
     qDebug() << "=== TakePcm::make_pcm SLOT running in thread:" << QThread::currentThreadId() << "===";
     qDebug() << "This should be different from main thread ID (0x3f4)";
@@ -202,6 +209,47 @@ void TakePcm::make_pcm(QString Path)
 
     emit durations(ifmt_ctx->duration);
 
+    // 提取专辑封面
+    for (unsigned int i = 0; i < ifmt_ctx->nb_streams; i++) {
+        if (ifmt_ctx->streams[i]->disposition & AV_DISPOSITION_ATTACHED_PIC) {
+            AVPacket *pkt = &ifmt_ctx->streams[i]->attached_pic;
+            
+            // 保存专辑封面到临时文件
+            QString tempPath = QStandardPaths::writableLocation(QStandardPaths::TempLocation)
+                             + "/album_cover_" + QString::number(QDateTime::currentMSecsSinceEpoch()) + ".jpg";
+            
+            QFile file(tempPath);
+            if (file.open(QIODevice::WriteOnly)) {
+                file.write((const char*)pkt->data, pkt->size);
+                file.close();
+                
+                // 转换为 file:/// URL 格式供 QML 使用
+                QString fileUrl = QUrl::fromLocalFile(tempPath).toString();
+                
+                qDebug() << "Album cover extracted to:" << tempPath;
+                qDebug() << "File URL for QML:" << fileUrl;
+                emit signal_send_pic_path(fileUrl);
+            } else {
+                qDebug() << "Failed to save album cover to:" << tempPath;
+                // 如果提取失败，使用默认图片
+                emit signal_send_pic_path("qrc:/new/prefix1/icon/maxresdefault.jpg");
+            }
+            break;
+        }
+    }
+    // 如果没有找到封面，使用默认图片
+    bool hasCover = false;
+    for (unsigned int i = 0; i < ifmt_ctx->nb_streams; i++) {
+        if (ifmt_ctx->streams[i]->disposition & AV_DISPOSITION_ATTACHED_PIC) {
+            hasCover = true;
+            break;
+        }
+    }
+    if (!hasCover) {
+        qDebug() << "No album cover found, using default image";
+        emit signal_send_pic_path("qrc:/new/prefix1/icon/maxresdefault.jpg");
+    }
+
 
     // 初始化 AVFrame 和 AVPacket
     frame = av_frame_alloc();
@@ -257,6 +305,8 @@ void TakePcm::make_pcm(QString Path)
         avformat_close_input(&ifmt_ctx);
         return;
     }
+    decode_flag = true;
+    }cv.notify_one();
 
     emit begin_take_lrc(Path);
 
@@ -265,10 +315,6 @@ void TakePcm::make_pcm(QString Path)
 
 
     emit send_totalDuration(totalAudioDurationInMS);
-    emit begin_to_play();
-   //emit begin_to_decode();
-        decode_flag = true;
-    }cv.notify_one();
 }
 
 void TakePcm::decode()
@@ -280,10 +326,6 @@ void TakePcm::decode()
             cv.wait(lock, [=]() {return decode_flag || break_flag; });
             if (break_flag.load())
                 return;
-            /*   while (1)
-               {*/
-               //{
-                   //cv.wait(lock, [=]() {return decoding.load(); });
             int ret = av_read_frame(ifmt_ctx, pkt);
             if (ret < 0) {
 

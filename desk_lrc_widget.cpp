@@ -64,8 +64,13 @@ DeskLrcWidget::DeskLrcWidget(QWidget* parent)
     );
 
     connect(controlBar, &MiniControlBar::signal_close_clicked, this, &DeskLrcWidget::hide);
-    connect(controlBar, &MiniControlBar::signal_play_clicked, this, &DeskLrcWidget::signal_play_clicked);
-    connect(this, &DeskLrcWidget::signal_play_Clicked, controlBar, &MiniControlBar::slot_playChanged);
+    connect(controlBar, &MiniControlBar::signal_play_clicked, this, [=](){
+        // MiniControlBar 的 signal_play_clicked 没有参数，需要转发为带状态参数的信号
+        // 这里简单地发送一个切换信号，让接收方自己判断当前状态
+        emit signal_play_Clicked(ProcessSliderQml::Play);
+    });
+    // 注意：不要连接 signal_play_Clicked → slot_playChanged，这会造成循环
+    // slot_playChanged 应该由外部（PlayWidget）的 signal_playState 触发
     connect(controlBar, &MiniControlBar::signal_next_clicked, this, &DeskLrcWidget::signal_next_clicked);
     connect(controlBar, &MiniControlBar::signal_last_clicked, this, &DeskLrcWidget::signal_last_clicked);
     connect(controlBar, &MiniControlBar::signal_forward_clicked, this, &DeskLrcWidget::signal_forward_clicked);
@@ -137,6 +142,13 @@ void DeskLrcWidget::mouseReleaseEvent(QMouseEvent *event) {
 
 void DeskLrcWidget::slot_receive_lrc(const QString lrc_){
     lrc->setText(lrc_);
+}
+
+void DeskLrcWidget::slot_playState_changed(ProcessSliderQml::State state) {
+    // 更新 MiniControlBar 的按钮图标
+    if (controlBar) {
+        controlBar->slot_playChanged(state);
+    }
 }
 
 void DeskLrcWidget::slot_settings_clicked()

@@ -26,7 +26,7 @@ signals:
     void signal_next(QString songName);
     void signal_choose_download_dir();
     void signal_translate_button_clicked();
-
+    //void signal_netFlag
 private:
     MusicListWidgetNetQml* listWidget;
 

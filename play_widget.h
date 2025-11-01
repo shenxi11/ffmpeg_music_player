@@ -12,9 +12,8 @@
 #include "lyrictextedit.h"
 #include "httprequest.h"
 #include "rotatingcircleimage.h"
-#include "pianwidget.h"
-#include "process_slider.h"
-#include "controlbar.h"
+#include "process_slider_qml.h"
+#include "controlbar_qml.h"
 #include "desk_lrc_widget.h"
 
 class PlayWidget : public QWidget
@@ -37,12 +36,13 @@ public slots:
     void openfile();
     void setPianWidgetEnable(bool flag);
 
-    void set_play_net(bool flag){play_net = flag;};
+    void set_play_net(bool flag){play_net = flag; emit signal_netFlagChanged(flag);};
     void slot_play_click();
     void slot_Lrc_send_lrc(const std::map<int, std::string> lyrics);
     void slot_work_stop();
     void slot_work_play();
     void slot_desk_toggled(bool checked);
+    void slot_updateBackground(QString picPath);  // 更新背景图片（模糊效果）
 signals:
     void signal_worker_play();
     void signal_filepath(QString filePath);
@@ -55,14 +55,15 @@ signals:
     void signal_list_show(bool flag);
     void signal_add_song(const QString fileName,const QString path);
     void signal_play_button_click(bool flag, QString fileName);
-    void signal_Next(QString songName);
-    void signal_Last(QString songName);
+    void signal_Next(QString songName, bool net_flag);
+    void signal_Last(QString songName, bool net_flag);
     void signal_remove_click();
     void signal_stop_rotate(bool flag);
     void signal_begin_net_decode();
-    void signal_playState(ControlBar::State state);
+    void signal_playState(ProcessSliderQml::State state);
     void signal_isUpChanged(bool flag);
     void signal_desk_lrc(const QString lrc_);
+    void signal_netFlagChanged(bool net_flag);
 private:
 
     void init_TextEdit();
@@ -76,18 +77,20 @@ private:
     QString filePath;
     QString fileName;
     LyricTextEdit *textEdit;
-    PianWidget* pianWidget;
     QPushButton *music;
     QPushButton* net;
     qint64 duration = 0;// 加载图片
     std::mutex mtx;
     QLabel* nameLabel;
+    QLabel* backgroundLabel;  // 背景图片标签（用于显示模糊的专辑封面）
+    RotatingCircleImage* rotatingCircle;  // 旋转唱片
     QThread *a;
     QThread *b;
     QThread *c;
+    QMetaObject::Connection durationsConnection; // 保存 Worker::durations 连接句柄
 
-    ProcessSlider* process_slider;
-    ControlBar* controlBar;
+    ProcessSliderQml* process_slider;
+    ProcessSliderQml* controlBar;  // controlBar 现在指向 process_slider
     DeskLrcWidget* desk;
 
     bool play_net = false;
@@ -100,20 +103,25 @@ protected:
 
         if(isUp)
         {
-            QLinearGradient gradient(0, 0, width(), height());
-
-            gradient.setColorAt(0, QColor("#101D29"));
-            gradient.setColorAt(1, QColor("#24435E"));
-
-            painter.setBrush(gradient);
+            // 展开状态：绘制模糊的专辑封面背景
+            if (!backgroundLabel->pixmap() || backgroundLabel->pixmap()->isNull()) {
+                // 如果还没有加载专辑封面，使用渐变色作为后备
+                QLinearGradient gradient(0, 0, width(), height());
+                gradient.setColorAt(0, QColor("#101D29"));
+                gradient.setColorAt(1, QColor("#24435E"));
+                painter.setBrush(gradient);
+                painter.drawRect(0, 0, width(), height());
+            } else {
+                // 绘制模糊的专辑封面
+                painter.drawPixmap(0, 0, *backgroundLabel->pixmap());
+            }
         }
         else
         {
+            // 收起状态：浅色背景
             QColor backgroundColor("#FAFAFA");
             painter.fillRect(rect(), backgroundColor);
         }
-
-        painter.drawRect(0, 0, width(), height());
     }
 };
 #endif // MAINWINDOW_H

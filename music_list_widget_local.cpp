@@ -24,6 +24,8 @@ MusicListWidgetLocal::MusicListWidgetLocal(QWidget *parent) : QWidget(parent)
             this, &MusicListWidgetLocal::on_signal_play_click);
     connect(listWidget, &MusicListWidgetQml::signal_remove_click,
             this, &MusicListWidgetLocal::on_signal_remove_click);
+    connect(this, &MusicListWidgetLocal::signal_next, listWidget, &MusicListWidgetQml::signal_next);
+    connect(this, &MusicListWidgetLocal::signal_last, listWidget, &MusicListWidgetQml::signal_last);
 
     // 监听添加歌曲信号
     connect(this, &MusicListWidgetLocal::signal_add_song, [=](QString filename, QString path){

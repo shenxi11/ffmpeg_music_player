@@ -7,15 +7,16 @@
 #include "headers.h"
 #include "mini_controlbar.h"
 #include "desk_lrc_settings.h"
+#include "process_slider_qml.h"
 
 class DeskLrcWidget : public QWidget
 {
     Q_OBJECT
 public:
-    DeskLrcWidget(QWidget* parent = nullptr);
+    explicit DeskLrcWidget(QWidget *parent = nullptr);
+
 signals:
-    void signal_play_clicked();
-    void signal_play_Clicked(ControlBar::State);
+    void signal_play_Clicked(ProcessSliderQml::State);
     void signal_next_clicked();
     void signal_last_clicked();
     void signal_forward_clicked();
@@ -24,6 +25,7 @@ public slots:
     void slot_receive_lrc(const QString lrc_);
     void slot_settings_clicked();
     void slot_settings_changed(const QColor &color, int fontSize, const QFont &font);
+    void slot_playState_changed(ProcessSliderQml::State state);
 protected:
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;

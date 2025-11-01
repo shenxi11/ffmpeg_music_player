@@ -34,6 +34,9 @@ public:
             connect(root, SIGNAL(addButtonClicked()), 
                     this, SLOT(on_add_button_clicked()));
         }
+        connect(this, &MusicListWidgetQml::signal_next, this, &MusicListWidgetQml::playNext);
+        connect(this, &MusicListWidgetQml::signal_last, this, &MusicListWidgetQml::playLast);
+
     }
 
     // 添加歌曲到列表
@@ -95,13 +98,27 @@ public:
                 Q_ARG(QVariant, playing));
         }
     }
-
+    void playNext(const QString& songName){
+        QQuickItem* root = rootObject();
+        if (root) {
+            QMetaObject::invokeMethod(root, "playNext",
+                                      Q_ARG(QVariant, songName));
+        }
+    }
+    void playLast(const QString& songName){
+        QQuickItem* root = rootObject();
+        if (root) {
+            QMetaObject::invokeMethod(root, "playLast",
+                                      Q_ARG(QVariant, songName));
+        }
+    }
 signals:
     void signal_play_button_click(QString path);
     void signal_remove_click(QString path);
     void signal_download_click(QString path);
     void signal_add_song();
-
+    void signal_next(QString songName);
+    void signal_last(QString songName);
 private slots:
     void on_add_button_clicked()
     {

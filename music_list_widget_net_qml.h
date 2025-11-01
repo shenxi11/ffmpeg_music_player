@@ -31,6 +31,9 @@ public:
             connect(root, SIGNAL(chooseDownloadDir()), 
                     this, SIGNAL(signal_choose_download_dir()));
         }
+        connect(this, &MusicListWidgetNetQml::signal_next, this, &MusicListWidgetNetQml::playNext);
+        connect(this, &MusicListWidgetNetQml::signal_last, this, &MusicListWidgetNetQml::playLast);
+
     }
 
     // 添加歌曲到列表
@@ -128,11 +131,27 @@ public:
         }
     }
 
+    void playNext(const QString& songName){
+        QQuickItem* root = rootObject();
+        if (root) {
+            QMetaObject::invokeMethod(root, "playNext",
+                                      Q_ARG(QVariant, songName));
+        }
+    }
+    void playLast(const QString& songName){
+        QQuickItem* root = rootObject();
+        if (root) {
+            QMetaObject::invokeMethod(root, "playLast",
+                                      Q_ARG(QVariant, songName));
+        }
+    }
 signals:
     void signal_play_click(QString path);
     void signal_remove_click(QString path);
     void signal_download_click(QString path);
     void signal_choose_download_dir();
+    void signal_next(QString songName);
+     void signal_last(QString songName);
 };
 
 #endif // MUSIC_LIST_WIDGET_NET_QML_H

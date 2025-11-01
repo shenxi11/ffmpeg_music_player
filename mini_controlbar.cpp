@@ -69,7 +69,12 @@ MiniControlBar::MiniControlBar(QWidget* parent)
     connect(set_, &Button::clicked, this, &MiniControlBar::signal_set_clicked);
 
 }
-void MiniControlBar::slot_playChanged(ControlBar::State state){
+void MiniControlBar::slot_playChanged(ProcessSliderQml::State state){
+    if (!play_) {
+        qDebug() << "ERROR: play_ button is NULL!";
+        return;
+    }
+    
     QString buttonStyle = 
         "QPushButton {"
         "    border: none;"
@@ -86,7 +91,7 @@ void MiniControlBar::slot_playChanged(ControlBar::State state){
         "    border: 1px solid rgba(102, 126, 234, 0.8);"
         "}";
 
-    if(state == ControlBar::Play){
+    if(state == ProcessSliderQml::Play){
         play_->setStyleSheet(buttonStyle + "QPushButton { border-image: url(:/new/prefix1/icon/pause.png); }");
     }else{
         play_->setStyleSheet(buttonStyle + "QPushButton { border-image: url(:/new/prefix1/icon/play.png); }");

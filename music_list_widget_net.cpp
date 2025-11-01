@@ -24,6 +24,8 @@ MusicListWidgetNet::MusicListWidgetNet(QWidget *parent) : QWidget(parent)
             this, &MusicListWidgetNet::on_signal_download_music);
     connect(listWidget, &MusicListWidgetNetQml::signal_choose_download_dir,
             this, &MusicListWidgetNet::signal_choose_download_dir);
+    connect(this, &MusicListWidgetNet::signal_next, listWidget, &MusicListWidgetNetQml::signal_next);
+    connect(this, &MusicListWidgetNet::signal_last, listWidget, &MusicListWidgetNetQml::signal_last);
 
     // 监听添加歌曲列表信号
     connect(this, &MusicListWidgetNet::signal_add_songlist, [=](const QStringList songList, const QList<double> duration){

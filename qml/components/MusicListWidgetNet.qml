@@ -13,7 +13,7 @@ Rectangle {
     signal removeRequested(string filePath)
     signal downloadRequested(string filePath)
     signal chooseDownloadDir()
-    
+
     // 顶部下载路径栏
     Rectangle {
         id: topBar
@@ -154,7 +154,6 @@ Rectangle {
     ListModel {
         id: musicListModel
     }
-    
     // 音乐项委托（每一行）
     Component {
         id: musicItemDelegate
@@ -305,25 +304,25 @@ Rectangle {
     // 提供给 C++ 调用的方法
     function addSong(songName, filePath, artist, duration, cover) {
         musicListModel.append({
-            "songName": songName,
-            "filePath": filePath,
-            "artist": artist || "",
-            "duration": duration || "0:00",
-            "cover": cover || "",
-            "isPlaying": false
-        })
+                                  "songName": songName,
+                                  "filePath": filePath,
+                                  "artist": artist || "",
+                                  "duration": duration || "0:00",
+                                  "cover": cover || "",
+                                  "isPlaying": false
+                              })
     }
     
     function addSongList(songNames, durations) {
         for (var i = 0; i < songNames.length; i++) {
             musicListModel.append({
-                "songName": songNames[i],
-                "filePath": songNames[i],
-                "artist": "",
-                "duration": durations[i] || "0:00",
-                "cover": "",
-                "isPlaying": false
-            })
+                                      "songName": songNames[i],
+                                      "filePath": songNames[i],
+                                      "artist": "",
+                                      "duration": durations[i] || "0:00",
+                                      "cover": "",
+                                      "isPlaying": false
+                                  })
         }
     }
     
@@ -357,6 +356,31 @@ Rectangle {
             } else if (playing) {
                 // 如果正在播放新歌曲，停止其他歌曲
                 item.isPlaying = false
+            }
+        }
+    }
+
+    function playNext(songName){
+        for(var i = 0; i < musicListModel.count; i++){
+            var item = musicListModel.get(i)
+            if(item.songName === songName){
+                var item_next = musicListModel.get((i + 1) % musicListModel.count);
+                item.isPlaying = false
+                item_next.isPlaying = true
+                root.playRequested(item_next.filePath)
+                break
+            }
+        }
+    }
+    function playLast(songName){
+        for(var i = 0; i < musicListModel.count; i++){
+            var item = musicListModel.get(i);
+            if(item.songName === songName){
+                var item_last = musicListModel.get(i - 1 < 0 ? musicListModel.count - 1 : i  - 1);
+                item.isPlaying = false;
+                item_last.isPlaying = true;
+                root.playRequested(item_last.filePath)
+                break;
             }
         }
     }

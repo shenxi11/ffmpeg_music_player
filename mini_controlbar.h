@@ -8,7 +8,7 @@
 #include <QScreen>
 #include <QApplication>
 
-#include "controlbar.h"
+#include "process_slider_qml.h"
 #include "headers.h"
 class Button : public QPushButton
 {
@@ -74,7 +74,7 @@ signals:
     void signal_lock_clicked();
     void signal_play_clicked();
 public slots:
-    void slot_playChanged(ControlBar::State);
+    void slot_playChanged(ProcessSliderQml::State);
 private:
     Button* play_;
     Button* next_;

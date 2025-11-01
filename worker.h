@@ -87,6 +87,7 @@ private:
 
    std::thread thread_;
    bool flag_ = true;
+   bool first_flag = true;
 };
 
 #endif // WORKER_H

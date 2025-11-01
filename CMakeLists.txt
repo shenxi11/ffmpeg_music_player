@@ -79,6 +79,9 @@ set(PROJECT_SOURCES
     main.cpp
     controlbar.cpp
     controlbar.h
+    controlbar_qml.h
+    pianwidget_qml.h
+    process_slider_qml.h
     desk_lrc_widget.cpp
     desk_lrc_widget.h
     desk_lrc_settings.cpp

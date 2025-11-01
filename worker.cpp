@@ -1,4 +1,5 @@
 #include "worker.h"
+#include <QTime>
 
 Worker::Worker():
 
@@ -6,7 +7,22 @@ Worker::Worker():
   ,sliderMove(false)
 {
     //qDebug() << __FUNCTION__ << "worker线程" << QThread::currentThreadId();
+    QAudioFormat format;
+
+    format.setSampleRate(RATE);
+    format.setChannelCount(CHANNELS);
+    format.setSampleSize(SAMPLE_SIZE);
+    format.setCodec("audio/pcm");
+    format.setByteOrder(QAudioFormat::LittleEndian);
+    format.setSampleType(QAudioFormat::SignedInt);
+
+    audioOutput = new QAudioOutput(format, this);
+    audioOutput->setBufferSize(AUDIO_BUFFER_SIZE  * 1024);
+    audioDevice = audioOutput->start();
+    audioOutput->setVolume(75 / 100.0);
+
     thread_ = std::thread(&Worker::onTimeOut, this);
+
 }
 
 Worker::~Worker()
@@ -38,7 +54,7 @@ void Worker::stop_play()
     Pause();
 }
 void Worker::slot_setMove() {
-    qDebug() << __FUNCTION__ << "停止";
+    //qDebug() << __FUNCTION__ << "停止";
     {
         std::lock_guard<std::mutex> lock(mtx);
         m_moveFlag = !m_moveFlag;
@@ -57,23 +73,20 @@ void Worker::set_SliderMove(bool flag)
 }
 void Worker::Pause()
 {
-    qDebug() << __FUNCTION__ << isPaused;
+    qDebug() << "[TIMING] Worker::Pause START, isPaused=" << isPaused << QTime::currentTime().toString("hh:mm:ss.zzz");
     if (!isPaused||this->sliderMove)
     {
-        audioOutput->suspend();
         isPaused = true;
         stopPlayback();
         emit Stop();
-        qDebug() << "Playback suspend.";
     }
     else if (isPaused)
     {
-        audioOutput->resume();
         isPaused = false;
         stopPlayback();
         emit Begin();
-        qDebug() << "Playback resumed.";
     }
+    qDebug() << "[TIMING] Worker::Pause END" << QTime::currentTime().toString("hh:mm:ss.zzz");
 }
 
 void Worker::reset_play()
@@ -90,6 +103,8 @@ void Worker::reset_play()
 
 void Worker::onTimeOut()
 {
+    qDebug() << "[TIMING] Worker::onTimeOut thread started" << QTime::currentTime().toString("hh:mm:ss.zzz");
+    bool firstAudioWrite = true;
 
     while(true)
     {
@@ -112,6 +127,11 @@ void Worker::onTimeOut()
             if (bytesFree < 2 * pcmData.data_.size())
             {
                 continue;
+            }
+            
+            if (firstAudioWrite) {
+                qDebug() << "[TIMING] Worker::onTimeOut 首次写入音频数据" << QTime::currentTime().toString("hh:mm:ss.zzz");
+                firstAudioWrite = false;
             }
 
             audioBuffer.pop_front();
@@ -155,7 +175,7 @@ void Worker::onTimeOut()
                 }
             }
         }
-        QThread::msleep(5);
+        QThread::msleep(10);
     }
 }
 
@@ -178,13 +198,10 @@ void Worker::setPATH(QString Path)
 }
 void Worker::play_pcm()
 {
-
-    if (audioOutput)
+    qDebug()<<__FUNCTION__<<"准备开始播放1"<<QTime::currentTime().toString("hh:mm:ss.zzz");
+    if (!first_flag)
     {
         stopPlayback();
-        audioOutput->stop();
-        audioOutput->reset();
-
         {
             std::lock_guard<std::mutex> lock(mtx);
             audioBuffer.clear();
@@ -193,34 +210,16 @@ void Worker::play_pcm()
         disconnect(this, &Worker::stopPlay, this, nullptr);
 
     }
-
     else
     {
-
-        QAudioFormat format;
-
-        format.setSampleRate(RATE);
-        format.setChannelCount(CHANNELS);
-        format.setSampleSize(SAMPLE_SIZE);
-        format.setCodec("audio/pcm");
-        format.setByteOrder(QAudioFormat::LittleEndian);
-        format.setSampleType(QAudioFormat::SignedInt);
-
-        audioOutput = new QAudioOutput(format, this);
-
-        audioOutput->setBufferSize(AUDIO_BUFFER_SIZE * 1024 * 1024);
-
+        first_flag = false;
     }
-
-    audioDevice = audioOutput->start();
-
-    audioOutput->setVolume(75 / 100.0);
-
     stopPlayback();
 
     connect(this, &Worker::stopPlay, this, &Worker::Pause);
 
     emit Begin();
+    qDebug()<<__FUNCTION__<<"开始播放"<<QTime::currentTime().toString("hh:mm:ss.zzz");
 
 }
 
@@ -251,11 +250,13 @@ void Worker::onDataReceived(QByteArray data)
 
 void Worker::stopPlayback()
 {
+
     {
         std::lock_guard<std::mutex> lock(mtx);
         m_stopFlag= !m_stopFlag;
     }
-    cv.notify_all();
+    cv.notify_one();
+
 }
 void Worker::stopPlayBack()
 {

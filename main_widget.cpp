@@ -10,6 +10,10 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     resize(1000,600);
     setWindowFlags(Qt::CustomizeWindowHint);
     
+    // 设置深色背景
+    setStyleSheet("QWidget#MainWidget { background-color: #2C2C2C; }");
+    setObjectName("MainWidget");
+    
     // 初始化插件管理器，加载所有插件
     PluginManager& pluginManager = PluginManager::instance();
     QString pluginPath = QCoreApplication::applicationDirPath() + "/plugin";
@@ -328,12 +332,17 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     connect(main_list, &MusicListWidgetLocal::signal_add_button_clicked, w, &PlayWidget::openfile);
 
 
-    connect(w, &PlayWidget::signal_Last, main_list, &MusicListWidgetLocal::signal_last);
-    connect(w, &PlayWidget::signal_Next, main_list, &MusicListWidgetLocal::signal_next);
-
-    connect(w, &PlayWidget::signal_Last, net_list, &MusicListWidgetNet::signal_last);
-    connect(w, &PlayWidget::signal_Next, net_list, &MusicListWidgetNet::signal_next);
-
+    connect(w, &PlayWidget::signal_Last, main_list, [this](QString songName, bool net_flag){
+        if(net_flag) emit net_list->signal_last(songName);
+        else           emit main_list->signal_last(songName);
+    });
+    connect(w, &PlayWidget::signal_Next, main_list, [this](QString songName, bool net_flag){
+        if(net_flag) emit net_list->signal_next(songName);
+        else           emit main_list->signal_next(songName);
+    });
+    connect(w, &PlayWidget::signal_netFlagChanged,[this](bool net_flag){
+        //if(net_flag)
+    });
     connect(w,&PlayWidget::signal_add_song,main_list,&MusicListWidgetLocal::on_signal_add_song);
     connect(w, &PlayWidget::signal_play_button_click,main_list,&MusicListWidgetLocal::on_signal_play_button_click);
     connect(w, &PlayWidget::signal_play_button_click, net_list, &MusicListWidgetNet::on_signal_play_button_click);

@@ -2,6 +2,8 @@
 build/
 cmake-build-*/
 install/
+*-build-*/
+ffmpeg_music_player-build-*/
 
 # Visual Studio
 .vs/
@@ -12,7 +14,12 @@ install/
 
 # Qt
 *.pro.user
+*.pro.user.*
 *.autosave
+*.user
+*.user.*
+CMakeLists.txt.user
+CMakeLists.txt.user.*
 moc_*.cpp
 qrc_*.cpp
 ui_*.h
