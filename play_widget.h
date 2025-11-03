@@ -9,12 +9,12 @@
 #include "worker.h"
 #include "lrc_analyze.h"
 #include "take_pcm.h"
-#include "lyrictextedit.h"
+#include "lyricdisplay_qml.h"
 #include "httprequest.h"
 #include "rotatingcircleimage.h"
 #include "process_slider_qml.h"
 #include "controlbar_qml.h"
-#include "desk_lrc_widget.h"
+#include "desklrc_qml.h"
 
 class PlayWidget : public QWidget
 {
@@ -43,6 +43,10 @@ public slots:
     void slot_work_play();
     void slot_desk_toggled(bool checked);
     void slot_updateBackground(QString picPath);  // 更新背景图片（模糊效果）
+    void slot_lyric_seek(int timeMs);  // 歌词点击跳转
+    void slot_lyric_preview(int timeMs);  // 歌词拖拽预览
+    void slot_lyric_drag_start();  // 歌词拖拽开始
+    void slot_lyric_drag_end();
 signals:
     void signal_worker_play();
     void signal_filepath(QString filePath);
@@ -66,7 +70,7 @@ signals:
     void signal_netFlagChanged(bool net_flag);
 private:
 
-    void init_TextEdit();
+    void init_LyricDisplay();
     void rePlay(QString path);
 
     std::shared_ptr<Worker> work;//音频转化为pcm的线程
@@ -76,7 +80,7 @@ private:
 
     QString filePath;
     QString fileName;
-    LyricTextEdit *textEdit;
+    LyricDisplayQml *lyricDisplay;
     QPushButton *music;
     QPushButton* net;
     qint64 duration = 0;// 加载图片
@@ -84,6 +88,9 @@ private:
     QLabel* nameLabel;
     QLabel* backgroundLabel;  // 背景图片标签（用于显示模糊的专辑封面）
     RotatingCircleImage* rotatingCircle;  // 旋转唱片
+    
+    // 歌词更新信号连接管理
+    QMetaObject::Connection lyricUpdateConnection;
     QThread *a;
     QThread *b;
     QThread *c;
@@ -91,7 +98,7 @@ private:
 
     ProcessSliderQml* process_slider;
     ProcessSliderQml* controlBar;  // controlBar 现在指向 process_slider
-    DeskLrcWidget* desk;
+    DeskLrcQml* desk;
 
     bool play_net = false;
 protected:

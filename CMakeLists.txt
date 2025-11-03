@@ -156,6 +156,8 @@ set(PROJECT_TRANSLATIONS
 add_executable(${PROJECT_NAME}
     ${PROJECT_SOURCES}
     ${PROJECT_RESOURCES}
+    lyricdisplay_qml.h
+    desklrc_qml.h
 )
 
 # Qt5 翻译

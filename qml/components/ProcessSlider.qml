@@ -113,8 +113,8 @@ Item {
     
     Rectangle {
         anchors.fill: parent
-        // 根据展开状态切换背景色：展开时深色，收起时浅色
-        color: root.isUp ? "#2C3E50" : "#FAFAFA"
+        // 设置为完全透明
+        color: "transparent"
         
         Column {
             anchors.fill: parent
@@ -217,8 +217,8 @@ Item {
             Rectangle {
                 width: parent.width
                 height: 40
-                // 添加半透明深色背景，在展开时增强对比度
-                color: root.isUp ? "#80000000" : "transparent"
+                // 设置为完全透明
+                color: "transparent"
                 
                 Row {
                     anchors.verticalCenter: parent.verticalCenter
@@ -525,5 +525,11 @@ Item {
                 }
             }
         }
+    }
+    
+    // 发射跳转信号的方法（用于歌词点击跳转）
+    function emitSeekSignal(seekRatio) {
+        var seekSeconds = Math.floor(seekRatio * totalDuration)
+        root.seekTo(seekSeconds)
     }
 }

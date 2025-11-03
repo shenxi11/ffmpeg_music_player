@@ -24,8 +24,14 @@ public:
         QElapsedTimer timer;
         timer.start();
         
-        // 设置背景为白色而不是透明，以便调试可见性
-        setClearColor(QColor(250, 250, 250));  // #FAFAFA
+        // 设置完全透明背景
+        setClearColor(Qt::transparent);
+        setAttribute(Qt::WA_TranslucentBackground, true);
+        setAttribute(Qt::WA_AlwaysStackOnTop, true);
+        setAttribute(Qt::WA_NoSystemBackground, true);  // 禁用系统背景
+        setAttribute(Qt::WA_OpaquePaintEvent, false);   // 禁用不透明绘制
+        setStyleSheet("background: transparent;");      // 确保样式表也透明
+        setAutoFillBackground(false);                   // 禁用自动填充背景
         
         qDebug() << "ProcessSliderQml: Loading QML from qrc:/qml/components/ProcessSlider.qml";
         setSource(QUrl("qrc:/qml/components/ProcessSlider.qml"));
@@ -137,6 +143,24 @@ public:
             QVariant result;
             QMetaObject::invokeMethod(root, "getLoopState", Q_RETURN_ARG(QVariant, result));
             return result.toBool();
+        }
+        return false;
+    }
+    
+    void setDeskChecked(bool checked) {
+        QQuickItem* root = rootObject();
+        if (root) {
+            root->setProperty("deskChecked", checked);
+            qDebug() << "ProcessSliderQml::setDeskChecked - set to:" << checked;
+        } else {
+            qDebug() << "ProcessSliderQml::setDeskChecked - root is NULL!";
+        }
+    }
+    
+    bool getDeskChecked() {
+        QQuickItem* root = rootObject();
+        if (root) {
+            return root->property("deskChecked").toBool();
         }
         return false;
     }

@@ -8,7 +8,7 @@ PlayWidget::PlayWidget(QWidget *parent)
     : QWidget(parent)
 
 {
-    qDebug() << __FUNCTION__ << QThread::currentThread()->currentThreadId;
+    //qDebug() << __FUNCTION__ << QThread::currentThread()->currentThreadId;
     
     // 创建背景图片标签（仅用于存储 pixmap，不直接显示）
     backgroundLabel = new QLabel(this);
@@ -27,7 +27,7 @@ PlayWidget::PlayWidget(QWidget *parent)
              << "size:" << process_slider->size()
              << "visible:" << process_slider->isVisible();
 
-    desk = new DeskLrcWidget();
+    desk = new DeskLrcQml();
     desk->raise();
     desk->hide();
 
@@ -39,7 +39,7 @@ PlayWidget::PlayWidget(QWidget *parent)
                 "}"
                 );
     connect(music,&QPushButton::clicked,this,[=]() {
-        emit signal_big_clicked(false);
+        emit signal_big_clicked(!isUp);  // 切换状态而不是总是收起
     });
     music->move(10, 10);
 
@@ -70,7 +70,7 @@ PlayWidget::PlayWidget(QWidget *parent)
     QMetaObject::invokeMethod(take_pcm.get(), [this]() {
         qDebug() << "TakePcm actual thread ID:" << QThread::currentThreadId();
     }, Qt::QueuedConnection);
-    init_TextEdit();
+    init_LyricDisplay();
 
     QWidget* rotate_widget = new QWidget(this);
     rotatingCircle = new RotatingCircleImage(rotate_widget);
@@ -107,7 +107,7 @@ PlayWidget::PlayWidget(QWidget *parent)
         emit signal_process_Change(milliseconds, true);
     });
     connect(process_slider, &ProcessSliderQml::signal_up_click, this, [=](){
-        emit signal_big_clicked(true);
+        emit signal_big_clicked(!isUp);  // 切换状态而不是总是展开
     });
 
     connect(this, &PlayWidget::signal_filepath, [=](QString path) {
@@ -121,17 +121,23 @@ PlayWidget::PlayWidget(QWidget *parent)
     connect(this,&PlayWidget::signal_begin_take_lrc,lrc.get(),&LrcAnalyze::begin_take_lrc);
     connect(lrc.get(),&LrcAnalyze::send_lrc,work.get(),&Worker::receive_lrc);
     connect(lrc.get(),&LrcAnalyze::send_lrc,this, &PlayWidget::slot_Lrc_send_lrc);
-    connect(textEdit, &LyricTextEdit::signal_current_lrc, this, &PlayWidget::signal_desk_lrc);
-    connect(this, &PlayWidget::signal_desk_lrc, desk, &DeskLrcWidget::slot_receive_lrc);
-    connect(work.get(),&Worker::send_lrc,this,[=](int line){
-        if(line != textEdit->currentLine)
+    connect(lyricDisplay, &LyricDisplayQml::signal_current_lrc, this, &PlayWidget::signal_desk_lrc);
+    connect(this, &PlayWidget::signal_desk_lrc, desk, &DeskLrcQml::setLyricText);
+    
+    // 保存歌词更新连接，以便在拖拽时断开
+    lyricUpdateConnection = connect(work.get(),&Worker::send_lrc,this,[this](int line){
+        if(line != lyricDisplay->currentLine)
         {
-            textEdit->highlightLine(line);
-            textEdit->scrollLines(line);  // 直接传递行号，而不是差值
-            textEdit->currentLine = line;
+            lyricDisplay->highlightLine(line);
+            lyricDisplay->scrollToLine(line);  // 直接传递行号，而不是差值
+            lyricDisplay->currentLine = line;
             update();
         }
     });
+    
+    // 连接歌词点击跳转信号
+    connect(lyricDisplay, &LyricDisplayQml::signal_lyric_seek, this, &PlayWidget::slot_lyric_seek);
+
 
     nameLabel = new QLabel(this);
     nameLabel->move(400, 50);
@@ -143,16 +149,9 @@ PlayWidget::PlayWidget(QWidget *parent)
     connect(work.get(),&Worker::Stop,this, &PlayWidget::slot_work_stop);
     connect(work.get(),&Worker::Begin,this, &PlayWidget::slot_work_play);
 
-    connect(desk, &DeskLrcWidget::signal_play_Clicked, this, &PlayWidget::slot_play_click);
-    // 使用新的槽来更新桌面歌词的播放状态，避免信号循环
-    connect(this, &PlayWidget::signal_playState, desk, &DeskLrcWidget::slot_playState_changed);
-    connect(desk, &DeskLrcWidget::signal_last_clicked, this, [=](){
-        emit signal_Last(fileName, get_net_flag());
-    });
-    connect(desk, &DeskLrcWidget::signal_next_clicked, this, [=](){
-        emit signal_Next(fileName,get_net_flag());
-    });
-    connect(desk, &DeskLrcWidget::signal_forward_clicked, this, [=](){
+    // 设置桌面歌词的 ProcessSlider 引用，让它直接调用 ControlBar 方法
+    desk->setProcessSlider(process_slider);
+    connect(desk, &DeskLrcQml::signal_forward_clicked, this, [=](){
         // 快进5秒 - 直接使用 duration 成员变量
         int currentSeconds = process_slider->getState() != ProcessSliderQml::Stop ? 
             static_cast<int>(duration / 1000000) : 0;
@@ -160,12 +159,30 @@ PlayWidget::PlayWidget(QWidget *parent)
         int newSeconds = std::min(maxSeconds, currentSeconds + 5);
         emit signal_process_Change(static_cast<qint64>(newSeconds) * 1000000, true);
     });
-    connect(desk, &DeskLrcWidget::signal_backward_clicked, this, [=](){
+    connect(desk, &DeskLrcQml::signal_backward_clicked, this, [=](){
         // 快退5秒
         int currentSeconds = process_slider->getState() != ProcessSliderQml::Stop ? 
             static_cast<int>(duration / 1000000) : 0;
         int newSeconds = std::max(0, currentSeconds - 5);
         emit signal_process_Change(static_cast<qint64>(newSeconds) * 1000000, true);
+    });
+    connect(desk, &DeskLrcQml::signal_close_clicked, this, [=](){
+        desk->hide();
+        // 更新主界面桌面歌词按钮状态为未选中
+        if (process_slider) {
+            process_slider->setDeskChecked(false);
+            qDebug() << "Desktop lyrics closed via X button - updated main interface button state to unchecked";
+        }
+    });
+    // 更新桌面歌词播放状态
+    connect(this, &PlayWidget::signal_playState, this, [=](ProcessSliderQml::State state){
+        desk->setPlayingState(state == ProcessSliderQml::Play);
+        qDebug() << "Desktop lyric playing state updated to:" << (state == ProcessSliderQml::Play);
+    });
+    // 连接桌面歌词设置信号 - 打开设置对话框
+    connect(desk, &DeskLrcQml::signal_settings_clicked, this, [=](){
+        qDebug() << "Desktop lyric settings clicked - opening settings dialog";
+        desk->showSettingsDialog();
     });
     
     // ProcessSlider QML 控件连接
@@ -238,6 +255,20 @@ void PlayWidget::set_isUp(bool flag){
     isUp = flag;
     
     qDebug() << "PlayWidget::set_isUp called with flag:" << flag;
+    qDebug() << "Call stack trace - isUp:" << flag;
+    
+    // 控制歌词显示状态
+    if (lyricDisplay) {
+        if (flag) {
+            qDebug() << "Showing lyric display";
+            lyricDisplay->show();  // 展开时显示歌词
+            lyricDisplay->setIsUp(true);
+        } else {
+            qDebug() << "Hiding lyric display";
+            lyricDisplay->hide();  // 收起时隐藏歌词
+            lyricDisplay->setIsUp(false);
+        }
+    }
     
     // 触发重绘以更新背景
     update();
@@ -263,33 +294,44 @@ void PlayWidget::slot_work_play(){
     nameLabel->setText(QFileInfo(fileName).baseName());
 }
 void PlayWidget::slot_Lrc_send_lrc(const std::map<int, std::string> lyrics){
-    this->textEdit->currentLine = 5;  // 初始行设为5，对应第一行歌词
+    this->lyricDisplay->currentLine = 5;  // 初始行设为5，对应第一行歌词
     this->lyrics.clear();
-    for(int i = 0;i<5;i++)
-    {
-        textEdit->append("    ");
-    }
+    
     {
         std::lock_guard<std::mutex>lock(mtx);
-        for (const auto& [time, text] : lyrics)
-        {
-            textEdit->append(QString::fromStdString(text));
-        }
         this->lyrics = lyrics;
     }
-    for(int i = 0;i < 9;i++)
-    {
-        textEdit->append("    ");
+    
+    // 使用带时间的 std::map 格式设置歌词
+    lyricDisplay->setLyrics(lyrics);
+    
+    // 获取第一句歌词并传给桌面歌词
+    if (!lyrics.empty()) {
+        auto firstLyric = lyrics.begin();
+        QString firstLyricText = QString::fromStdString(firstLyric->second);
+        if (!firstLyricText.isEmpty() && firstLyricText.trimmed() != "") {
+            qDebug() << "Sending first lyric to desktop:" << firstLyricText;
+            desk->setLyricText(firstLyricText);
+        } else {
+            // 如果第一句是空的，找到第一句非空歌词
+            for (const auto& [time, text] : lyrics) {
+                QString lyricText = QString::fromStdString(text);
+                if (!lyricText.isEmpty() && lyricText.trimmed() != "") {
+                    qDebug() << "Sending first non-empty lyric to desktop:" << lyricText;
+                    desk->setLyricText(lyricText);
+                    break;
+                }
+            }
+        }
     }
-    QTextCursor cursor = textEdit->textCursor();
-    cursor.select(QTextCursor::Document);
-    QTextBlockFormat blockFormat;
-    blockFormat.setAlignment(Qt::AlignCenter);
-    cursor.mergeBlockFormat(blockFormat);
-    textEdit->setTextCursor(cursor);
-    QTextCursor cursor_ = textEdit->textCursor();
-    cursor_.movePosition(QTextCursor::Start);
-    textEdit->setTextCursor(cursor_);
+    
+    // 设置歌曲名字到桌面歌词
+    if (!fileName.isEmpty()) {
+        QFileInfo fileInfo(fileName);
+        QString songName = fileInfo.baseName();
+        qDebug() << "Setting desktop song name:" << songName;
+        desk->setSongName(songName);
+    }
 }
 void PlayWidget::slot_play_click(){
     qDebug() << "[TIMING] slot_play_click START" << QTime::currentTime().toString("hh:mm:ss.zzz");
@@ -328,34 +370,22 @@ void PlayWidget::rePlay(QString path)
 }
 
 
-void PlayWidget::init_TextEdit()
+void PlayWidget::init_LyricDisplay()
 {
-    textEdit = new LyricTextEdit(this);
-    textEdit->disableScrollBar();
-    textEdit->resize(550, 350);
-    textEdit->setReadOnly(true);
-    textEdit->setFocusPolicy(Qt::NoFocus);
-    textEdit->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    textEdit->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    textEdit->setTextInteractionFlags(Qt::NoTextInteraction);
-    textEdit->viewport()->setCursor(Qt::ArrowCursor);
-
-    QFont font = textEdit->font();
-    font.setPointSize(16);
-
-    textEdit->setFont(font);
-    textEdit->setStyleSheet("QTextEdit { background: transparent; border: none; }");
-    textEdit->move(400, 100);
-
-    QPalette palette = this->textEdit->palette();
-    palette.setColor(QPalette::Text, QColor("#FAFAFA"));
-    this->textEdit->setPalette(palette);
+    qDebug() << "Initializing LyricDisplay...";
+    lyricDisplay = new LyricDisplayQml(this);
+    lyricDisplay->setClearColor(QColor(Qt::transparent));
+    lyricDisplay->setAttribute(Qt::WA_AlwaysStackOnTop,true);
+    lyricDisplay->resize(550, 350);
+    lyricDisplay->move(400, 100);
+    lyricDisplay->hide();  // 初始时隐藏歌词，只有展开时才显示
+    qDebug() << "LyricDisplay initialized, size:" << lyricDisplay->size() << "position:" << lyricDisplay->pos();
 }
 
 
 void PlayWidget::_begin_take_lrc(QString str)
 {
-    this->textEdit->clear();
+    this->lyricDisplay->clearLyrics();
     lrc->begin_take_lrc(str);
 }
 void PlayWidget::openfile()
@@ -396,7 +426,7 @@ void PlayWidget::_play_click(QString songPath)
     }
     else
     {
-        emit controlBar->signal_play_clicked();
+        slot_play_click();
     }
 
 }
@@ -536,3 +566,79 @@ void PlayWidget::slot_updateBackground(QString picPath) {
     qDebug() << "Background updated successfully, pixmap size:" << blurredPixmap.size();
     qDebug() << "backgroundLabel visible:" << backgroundLabel->isVisible() << "geometry:" << backgroundLabel->geometry();
 }
+
+void PlayWidget::slot_lyric_seek(int timeMs) {
+    qDebug() << "Seeking to time:" << timeMs << "ms";
+    
+    // 直接使用现有的跳转逻辑，就像进度条拖动一样
+    qint64 milliseconds = static_cast<qint64>(timeMs);
+    qDebug() << "Converting to milliseconds:" << milliseconds;
+    
+    // 重置播放状态
+    work->reset_play();
+    
+    // 发送跳转信号（单位：毫秒）
+    emit signal_process_Change(milliseconds, true);
+    
+    // 同步更新进度条显示位置
+    if (process_slider) {
+        QQuickItem* root = process_slider->rootObject();
+        if (root) {
+            QVariant totalDuration = root->property("totalDuration");
+            if (totalDuration.isValid() && totalDuration.toInt() > 0) {
+                double seekRatio = static_cast<double>(timeMs) / (totalDuration.toInt() * 1000);
+                root->setProperty("value", seekRatio);
+                root->setProperty("currentTime", timeMs / 1000);
+            }
+        }
+    }
+}
+
+void PlayWidget::slot_lyric_drag_start() {
+    qDebug() << "Lyric drag started - disconnecting lyric update";
+    
+    // 断开歌词更新信号，避免拖拽时的冲突
+    if (lyricUpdateConnection) {
+        disconnect(lyricUpdateConnection);
+    }
+}
+
+void PlayWidget::slot_lyric_drag_end() {
+    qDebug() << "Lyric drag ended - reconnecting lyric update";
+    
+    // 重新连接歌词更新信号
+    lyricUpdateConnection = connect(work.get(),&Worker::send_lrc,this,[this](int line){
+        if(line != lyricDisplay->currentLine)
+        {
+            lyricDisplay->highlightLine(line);
+            lyricDisplay->scrollToLine(line);
+            lyricDisplay->currentLine = line;
+            update();
+        }
+    });
+}
+
+void PlayWidget::slot_lyric_preview(int timeMs) {
+    // 拖拽预览时显示时间，但不实际跳转
+    int seconds = timeMs / 1000;
+    int minutes = seconds / 60;
+    seconds = seconds % 60;
+    
+    QString timeStr = QString("%1:%2").arg(minutes, 2, 10, QChar('0')).arg(seconds, 2, 10, QChar('0'));
+    qDebug() << "Drag preview time:" << timeStr << "(" << timeMs << "ms)";
+    
+    // 更新进度条的预览位置，但不实际跳转
+    if (process_slider) {
+        QQuickItem* root = process_slider->rootObject();
+        if (root) {
+            QVariant totalDuration = root->property("totalDuration");
+            if (totalDuration.isValid() && totalDuration.toInt() > 0) {
+                double previewRatio = static_cast<double>(timeMs) / totalDuration.toInt();
+                // 只更新视觉位置，不触发跳转
+                root->setProperty("previewValue", previewRatio);
+            }
+        }
+    }
+}
+
+

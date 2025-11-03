@@ -1,16 +1,19 @@
 <RCC>
     <qresource prefix="/">
-    <file>qml/components/SearchBox.qml</file>
-    <file>qml/components/LoginWindow.qml</file>
-    <file>qml/components/UserWidget.qml</file>
-    <file>qml/components/UserPopupWindow.qml</file>
-    <file>qml/components/MusicItem.qml</file>
-    <file>qml/components/MusicListWidget.qml</file>
-    <file>qml/components/MusicListWidgetNet.qml</file>
-    <file>qml/components/ControlBar.qml</file>
-    <file>qml/components/PianWidget.qml</file>
-    <file>qml/components/ProcessSlider.qml</file>
-    <file>qml/components/VolumeSlider.qml</file>
-    <file>qml/components/qmldir</file>
+        <file>qml/components/SearchBox.qml</file>
+        <file>qml/components/LoginWindow.qml</file>
+        <file>qml/components/UserWidget.qml</file>
+        <file>qml/components/UserPopupWindow.qml</file>
+        <file>qml/components/MusicItem.qml</file>
+        <file>qml/components/MusicListWidget.qml</file>
+        <file>qml/components/MusicListWidgetNet.qml</file>
+        <file>qml/components/ControlBar.qml</file>
+        <file>qml/components/PianWidget.qml</file>
+        <file>qml/components/ProcessSlider.qml</file>
+        <file>qml/components/VolumeSlider.qml</file>
+        <file>qml/components/qmldir</file>
+        <file>qml/components/LyricDisplay.qml</file>
+        <file>qml/components/DeskLyric.qml</file>
+        <file>qml/components/DeskLyricSettings.qml</file>
     </qresource>
 </RCC>

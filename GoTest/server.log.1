@@ -1,0 +1,21 @@
+2025/11/03 11:22:28 Redis connected successfully
+Starting Go Music Server with Redis on 0.0.0.0:8080...
+Available endpoints:
+  GET  /                     - Welcome message
+  GET  /uploads/<folder>/<file> - Serve audio files
+  GET  /uploads/<folder>/<file>/lrc - Serve lyric files
+  POST /stream               - Start audio stream
+  GET  /files                - List all audio files (cached)
+  POST /file                 - Search audio files by name
+  POST /upload               - Upload files
+  POST /download             - Download files
+  POST /users/register       - User registration
+  POST /users/login          - User login (cached)
+  POST /users/add_music      - Add music to user library
+  GET  /records              - Get database records (legacy)
+  POST /add                  - Add record (legacy)
+  GET  /health               - Health check
+  GET  /stats                - Redis statistics
+Redis: Connected
+2025/11/03 11:22:28 listen tcp 0.0.0.0:8080: bind: address already in use
+2025/11/03 11:22:30 Cache pre-warmed successfully
