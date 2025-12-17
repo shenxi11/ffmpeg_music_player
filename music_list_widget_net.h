@@ -19,7 +19,7 @@ public:
     void on_signal_download_music(QString songName);
     void on_signal_translate_button_clicked();
 signals:
-    void signal_add_songlist(const QStringList filename_list, const QList<double> duration);
+    void signal_add_songlist(const QStringList filename_list, const QList<double> duration, const QStringList coverUrls = QStringList());
     void signal_play_click(const QString songName, bool net);
     void signal_play_button_click(bool flag, const QString filename);
     void signal_last(QString songName);

@@ -313,14 +313,15 @@ Rectangle {
                               })
     }
     
-    function addSongList(songNames, durations) {
+    function addSongList(songNames, durations, coverUrls) {
+        coverUrls = coverUrls || []
         for (var i = 0; i < songNames.length; i++) {
             musicListModel.append({
                                       "songName": songNames[i],
                                       "filePath": songNames[i],
                                       "artist": "",
                                       "duration": durations[i] || "0:00",
-                                      "cover": "",
+                                      "cover": coverUrls[i] || "",
                                       "isPlaying": false
                                   })
         }
@@ -348,15 +349,46 @@ Rectangle {
     }
     
     function setPlayingState(filePath, playing) {
+        console.log("[PLAY_STATE] MusicListWidgetNet QML setPlayingState 被调用, filePath=", filePath, ", playing=", playing)
+        
+        // 如果 filePath 为空，则清除所有播放状态
+        if (filePath === "") {
+            console.log("[PLAY_STATE] filePath 为空，清除所有播放状态")
+            for (var i = 0; i < musicListModel.count; i++) {
+                musicListModel.get(i).isPlaying = false
+            }
+            return
+        }
+        
+        console.log("[PLAY_STATE] 当前列表有", musicListModel.count, "首歌曲")
+        
+        // 从完整 URL 中提取相对路径（如果是网络路径）
+        var pathToMatch = filePath
+        if (filePath.indexOf("http") === 0) {
+            // 提取 /uploads/ 之后的部分
+            var uploadsIndex = filePath.indexOf("/uploads/")
+            if (uploadsIndex !== -1) {
+                pathToMatch = filePath.substring(uploadsIndex + 9) // 9 是 "/uploads/" 的长度
+                console.log("[PLAY_STATE] 从 URL 提取路径:", pathToMatch)
+            }
+        }
+        
         // 先将所有歌曲设置为非播放状态
+        var found = false
         for (var i = 0; i < musicListModel.count; i++) {
             var item = musicListModel.get(i)
-            if (item.filePath === filePath) {
+            console.log("[PLAY_STATE] 检查项", i, ": filePath=", item.filePath)
+            if (item.filePath === pathToMatch) {
+                console.log("[PLAY_STATE] 找到匹配项，设置 isPlaying=", playing)
                 item.isPlaying = playing
+                found = true
             } else if (playing) {
                 // 如果正在播放新歌曲，停止其他歌曲
                 item.isPlaying = false
             }
+        }
+        if (!found) {
+            console.log("[PLAY_STATE] 警告：没有找到匹配的 filePath!")
         }
     }
 

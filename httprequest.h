@@ -86,7 +86,7 @@ signals:
     void signal_Registerflag(bool flag);
     void signal_getusername(QString username);
     void signal_send_Packet(QByteArray chunk);
-    void signal_addSong_list(const QStringList songName_list, const QList<double> duration);
+    void signal_addSong_list(const QStringList songName_list, const QList<double> duration, const QStringList coverUrls = QStringList());
     void signal_streamurl(bool flag, QString path);
     void signal_add_songs();
     void signal_lrc(QStringList content);

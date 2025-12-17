@@ -61,10 +61,19 @@ void MusicListWidgetLocal::on_signal_add_song(const QString filename, const QStr
 }
 void MusicListWidgetLocal::on_signal_play_button_click(bool flag, const QString filename)
 {
+    qDebug() << "[PLAY_STATE] MusicListWidgetLocal::on_signal_play_button_click 收到信号, flag=" << flag << ", filename=" << filename;
     if(auto sender_ = dynamic_cast<PlayWidget*>(sender()))
     {
+        qDebug() << "[PLAY_STATE] sender 是PlayWidget, net_flag=" << sender_->get_net_flag();
         if(!sender_->get_net_flag())
+        {
+            qDebug() << "[PLAY_STATE] 调用 listWidget->setPlayingState(" << filename << "," << flag << ")";
+            // 更新 QML 列表中的播放状态
+            listWidget->setPlayingState(filename, flag);
             emit signal_play_button_click(flag, filename);
+        }
+    } else {
+        qDebug() << "[PLAY_STATE] sender 不是PlayWidget";
     }
 }
 void MusicListWidgetLocal::on_signal_play_click(const QString songName)

@@ -53,12 +53,13 @@ public:
     }
 
     // 批量添加歌曲列表
-    void addSongList(const QStringList& songNames, const QList<double>& durations)
+    void addSongList(const QStringList& songNames, const QList<double>& durations, const QStringList& coverUrls = QStringList())
     {
         QQuickItem* root = rootObject();
         if (root) {
             QVariantList nameList;
             QVariantList durationList;
+            QVariantList coverList;
             
             for (const QString& name : songNames) {
                 nameList.append(name);
@@ -72,9 +73,15 @@ public:
                 qDebug() << "Adding song with duration:" << duration << "seconds -> formatted:" << formattedDuration;
             }
             
+            for (const QString& cover : coverUrls) {
+                coverList.append(cover);
+                qDebug() << "Adding song with cover URL:" << cover;
+            }
+            
             QMetaObject::invokeMethod(root, "addSongList",
                 Q_ARG(QVariant, nameList),
-                Q_ARG(QVariant, durationList));
+                Q_ARG(QVariant, durationList),
+                Q_ARG(QVariant, coverList));
         }
     }
 

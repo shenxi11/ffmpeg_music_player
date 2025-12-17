@@ -28,9 +28,9 @@ MusicListWidgetNet::MusicListWidgetNet(QWidget *parent) : QWidget(parent)
     connect(this, &MusicListWidgetNet::signal_last, listWidget, &MusicListWidgetNetQml::signal_last);
 
     // 监听添加歌曲列表信号
-    connect(this, &MusicListWidgetNet::signal_add_songlist, [=](const QStringList songList, const QList<double> duration){
-        qDebug() << "MusicListWidgetNet: Received" << songList.size() << "songs with durations:" << duration;
-        listWidget->addSongList(songList, duration);
+    connect(this, &MusicListWidgetNet::signal_add_songlist, [=](const QStringList songList, const QList<double> duration, const QStringList coverUrls){
+        qDebug() << "MusicListWidgetNet: Received" << songList.size() << "songs with durations:" << duration << "and covers:" << coverUrls;
+        listWidget->addSongList(songList, duration, coverUrls);
         for(int i = 0; i < songList.size(); i++)
         {
             song_duration[songList.at(i)] = duration.at(i);
@@ -70,11 +70,18 @@ void MusicListWidgetNet::on_signal_set_down_dir(QString down_dir)
 }
 void MusicListWidgetNet::on_signal_play_button_click(bool flag, const QString filename)
 {
+    qDebug() << "[PLAY_STATE] MusicListWidgetNet::on_signal_play_button_click 收到信号, flag=" << flag << ", filename=" << filename;
     if(auto sender_ = dynamic_cast<PlayWidget*>(sender()))
     {
+        qDebug() << "[PLAY_STATE] sender 是 PlayWidget, net_flag=" << sender_->get_net_flag();
         if(sender_->get_net_flag())
-
+        {
+            qDebug() << "[PLAY_STATE] 调用 listWidget->setPlayingState(" << filename << "," << flag << ")";
+            listWidget->setPlayingState(filename, flag);
             emit signal_play_button_click(flag, filename);
+        }
+    } else {
+        qDebug() << "[PLAY_STATE] sender 不是 PlayWidget";
     }
 }
 

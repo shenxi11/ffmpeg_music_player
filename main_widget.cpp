@@ -348,6 +348,11 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     connect(w, &PlayWidget::signal_play_button_click, net_list, &MusicListWidgetNet::on_signal_play_button_click);
 
     connect(main_list, &MusicListWidgetLocal::signal_play_click, w, [=](const QString name, bool flag){
+        // 如果之前是网络模式，先清除网络列表的播放状态
+        if (w->get_net_flag()) {
+            qDebug() << "[切换播放源] 从网络音乐切换到本地音乐，清除网络列表播放状态";
+            net_list->signal_play_button_click(false, "");
+        }
         w->set_play_net(flag);
         w->_play_click(name);
 
@@ -355,6 +360,11 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     connect(main_list, &MusicListWidgetLocal::signal_remove_click, w, &PlayWidget::_remove_click);
 
     connect(net_list, &MusicListWidgetNet::signal_play_click, w, [=](const QString name, bool flag){
+        // 如果之前是本地模式，先清除本地列表的播放状态
+        if (!w->get_net_flag()) {
+            qDebug() << "[切换播放源] 从本地音乐切换到网络音乐，清除本地列表播放状态";
+            main_list->signal_play_button_click(false, "");
+        }
         w->set_play_net(flag);
         w->_play_click(name);
     });

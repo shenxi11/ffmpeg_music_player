@@ -173,11 +173,25 @@ bool HttpRequest::Upload(const QString &path)
 
     return true;
 }
+QString extractWithQUrl(const QString& fullUrl) {
+    QUrl url(fullUrl);
+    QString path = url.path();                          // 取路径部分（如"/uploads/东风破/东风破.lrc"）
+    int lastSlashPos = path.lastIndexOf('/');
+    QString dirPath = (lastSlashPos == -1) ? path : path.left(lastSlashPos); // 取目录路径
+
+    // 重组完整URL（含协议、主机、端口）
+    return QString("%1://%2%3%4")
+        .arg(url.scheme())          // 协议（http）
+        .arg(url.host())            // 主机（192.168.1.208）
+        .arg(url.port() > 0 ? ":" + QString::number(url.port()) : "") // 端口（:8080）
+        .arg(dirPath);              // 目录路径（/uploads/东风破）
+}
 bool HttpRequest::get_file(const QString url)
 {
     if(!manager)
             manager = new QNetworkAccessManager();
-    QNetworkRequest request(url + "/lrc");
+    qDebug()<<__FUNCTION__<<extractWithQUrl(url);
+    QNetworkRequest request(extractWithQUrl(url) + "/lrc");
     QNetworkReply* reply = manager->get(request);
 
     QObject::connect(reply, &QNetworkReply::finished, [this, reply]() {
@@ -267,33 +281,40 @@ bool HttpRequest::getAllFiles() {
             qDebug() << "Response data from server:" << responseData;
 
             QJsonDocument jsonDoc = QJsonDocument::fromJson(responseData);
-            if (jsonDoc.isObject()) {
-                QJsonObject filesObject = jsonDoc.object();
+            if (jsonDoc.isArray()) {
+                QJsonArray filesArray = jsonDoc.array();
 
                 qDebug() << "Files and durations received from server:";
                 QStringList songList;
                 QList<double> durations;
-                for (auto it = filesObject.begin(); it != filesObject.end(); ++it) {
-                    QString fileName = it.key();
-                    QString duration = it.value().toString();
+                QStringList coverUrls;
+                
+                for (const QJsonValue& value : filesArray) {
+                    if (value.isObject()) {
+                        QJsonObject fileObj = value.toObject();
+                        QString filePath = fileObj["path"].toString();
+                        QString durationStr = fileObj["duration"].toString();
+                        QString coverUrl = fileObj["cover_art_url"].toString();
 
-                    qDebug() << "File Name:" << fileName << ", Duration:" << duration;
+                        qDebug() << "File Path:" << filePath << ", Duration:" << durationStr << ", Cover:" << coverUrl;
 
-                    songList << fileName;
-                    
-                    // 解析时长字符串 "239.49 seconds" -> 239.49
-                    double durationValue = 0.0;
-                    if (duration != "Error") {
-                        QStringList parts = duration.split(" ");
-                        if (!parts.isEmpty()) {
-                            durationValue = parts[0].toDouble();
+                        songList << filePath;
+                        coverUrls << coverUrl;
+                        
+                        // 解析时长字符串 "239.49 seconds" -> 239.49
+                        double durationValue = 0.0;
+                        if (durationStr != "Error") {
+                            QStringList parts = durationStr.split(" ");
+                            if (!parts.isEmpty()) {
+                                durationValue = parts[0].toDouble();
+                            }
                         }
+                        durations << durationValue;
                     }
-                    durations << durationValue;
                 }
-                emit signal_addSong_list(songList, durations);
+                emit signal_addSong_list(songList, durations, coverUrls);
             } else {
-                qWarning() << "Failed to parse JSON object.";
+                qWarning() << "Failed to parse JSON array.";
             }
         } else {
             qWarning() << "Request failed:" << reply->errorString();
@@ -395,34 +416,40 @@ bool HttpRequest::getMusic(const QString& name) {
             qDebug() << "Response data from server:" << responseData;
 
             QJsonDocument jsonDoc = QJsonDocument::fromJson(responseData);
-            if (jsonDoc.isObject()) {
-                QJsonObject filesObject = jsonDoc.object();
+            if (jsonDoc.isArray()) {
+                QJsonArray filesArray = jsonDoc.array();
 
                 qDebug() << "Music files and durations received from server:";
                 QStringList songList;
                 QList<double> durations;
-                for (auto it = filesObject.begin(); it != filesObject.end(); ++it) {
-                    QString fileName = it.key();
-                    QString duration = it.value().toString();
+                QStringList coverUrls;
+                
+                for (const QJsonValue& value : filesArray) {
+                    if (value.isObject()) {
+                        QJsonObject fileObj = value.toObject();
+                        QString filePath = fileObj["path"].toString();
+                        QString durationStr = fileObj["duration"].toString();
+                        QString coverUrl = fileObj["cover_art_url"].toString();
 
-                    qDebug() << "File Name:" << fileName << ", Duration:" << duration;
+                        qDebug() << "File Path:" << filePath << ", Duration:" << durationStr << ", Cover:" << coverUrl;
 
-                    // Emit signal with file name and duration
-                    songList << fileName;
-                    
-                    // 解析时长字符串 "239.49 seconds" -> 239.49
-                    double durationValue = 0.0;
-                    if (duration != "Error") {
-                        QStringList parts = duration.split(" ");
-                        if (!parts.isEmpty()) {
-                            durationValue = parts[0].toDouble();
+                        songList << filePath;
+                        coverUrls << coverUrl;
+                        
+                        // 解析时长字符串 "239.49 seconds" -> 239.49
+                        double durationValue = 0.0;
+                        if (durationStr != "Error") {
+                            QStringList parts = durationStr.split(" ");
+                            if (!parts.isEmpty()) {
+                                durationValue = parts[0].toDouble();
+                            }
                         }
+                        durations << durationValue;
                     }
-                    durations << durationValue;
                 }
-                emit signal_addSong_list(songList, durations);
+                emit signal_addSong_list(songList, durations, coverUrls);
             } else {
-                qWarning() << "Failed to parse JSON object.";
+                qWarning() << "Failed to parse JSON array.";
             }
         } else {
             qWarning() << "Request failed:" << reply->errorString();

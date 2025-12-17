@@ -196,8 +196,8 @@ PlayWidget::PlayWidget(QWidget *parent)
         emit signal_Last(fileName,get_net_flag());
     });
     connect(process_slider, &ProcessSliderQml::signal_stop, this, [=](){
-        if(fileName.size())
-            emit signal_play_button_click(false, fileName);
+        if(filePath.size())
+            emit signal_play_button_click(false, filePath);
     });
     connect(process_slider, &ProcessSliderQml::signal_mlist_toggled, this, &PlayWidget::signal_list_show);
     connect(process_slider, &ProcessSliderQml::signal_rePlay, this, [=](){
@@ -278,10 +278,11 @@ void PlayWidget::set_isUp(bool flag){
 void PlayWidget::slot_work_stop(){
     qDebug() << __FUNCTION__ << "暂停";
     emit signal_playState(ProcessSliderQml::Pause);
-    if(fileName.size())
+    if(filePath.size())
     {
         emit signal_stop_rotate(false);
-        emit signal_play_button_click(false, fileName);
+        qDebug() << "[PLAY_STATE] slot_work_stop 发出 signal_play_button_click(false," << filePath << ")";
+        emit signal_play_button_click(false, filePath);
         process_slider->setSongName(QFileInfo(fileName).baseName());
         nameLabel->setText(QFileInfo(fileName).baseName());
     }
@@ -289,7 +290,8 @@ void PlayWidget::slot_work_stop(){
 void PlayWidget::slot_work_play(){
     emit signal_playState(ProcessSliderQml::Play);
     emit signal_stop_rotate(true);
-    emit signal_play_button_click(true, fileName);
+    qDebug() << "[PLAY_STATE] slot_work_play 发出 signal_play_button_click(true," << filePath << ")";
+    emit signal_play_button_click(true, filePath);
     process_slider->setSongName(QFileInfo(fileName).baseName());
     nameLabel->setText(QFileInfo(fileName).baseName());
 }
@@ -432,7 +434,7 @@ void PlayWidget::_play_click(QString songPath)
 }
 void PlayWidget::_remove_click(QString songName)
 {
-    if(songName == this->fileName)
+    if(songName == this->filePath)
     {
         this->fileName.clear();
         this->filePath.clear();
