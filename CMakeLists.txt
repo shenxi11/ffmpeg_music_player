@@ -54,6 +54,7 @@ find_package(Qt5 REQUIRED COMPONENTS
     QuickWidgets
     Qml
 )
+find_package(Qt5 REQUIRED COMPONENTS Core)
 
 message(STATUS "Qt5 Version: ${Qt5_VERSION}")
 message(STATUS "Qt5 Location: ${Qt5_DIR}")
@@ -82,6 +83,8 @@ set(PROJECT_SOURCES
     controlbar_qml.h
     pianwidget_qml.h
     process_slider_qml.h
+    playlist_history_qml.h
+    playlist_history_qml.cpp
     desk_lrc_widget.cpp
     desk_lrc_widget.h
     desk_lrc_settings.cpp
@@ -137,6 +140,16 @@ set(PROJECT_SOURCES
     user_widget.cpp
     user_widget.h
     userwidget_qml.h
+    video_player_widget.h
+    video_player_widget.cpp
+    video_frame_item.h
+    video_frame_item.cpp
+    video_audio_player.h
+    video_audio_player.cpp
+    video_worker.h
+    video_worker.cpp
+    frame_buffer_queue.h
+    frame_buffer_queue.cpp
     worker.cpp
     worker.h
 )
@@ -158,8 +171,17 @@ add_executable(${PROJECT_NAME}
     ${PROJECT_RESOURCES}
     lyricdisplay_qml.h
     desklrc_qml.h
+    videode_coder.h videode_coder.cpp
+    audio_ringbuffer.h audio_ringbuffer.cpp
+    AudioBuffer.h AudioBuffer.cpp
+    AudioDecoder.h AudioDecoder.cpp
+    AudioPlayer.h AudioPlayer.cpp
+    AudioSession.h AudioSession.cpp
+    AudioService.h AudioService.cpp
 )
 
+
+target_link_libraries(ffmpeg_music_player PRIVATE Qt5::Core)
 # Qt5 翻译
 if(Qt5_LinguistTools_FOUND AND PROJECT_TRANSLATIONS)
     qt5_create_translation(QM_FILES ${CMAKE_SOURCE_DIR} ${PROJECT_TRANSLATIONS})
@@ -241,6 +263,8 @@ if(WIN32)
         # 为 Debug 和 Release 分别部署
         add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E echo "Deploying Qt dependencies..."
+            # 使用 PowerShell 脚本强制清理 Qt 部署文件（忽略错误）
+            COMMAND powershell -ExecutionPolicy Bypass -File "${CMAKE_SOURCE_DIR}/clean_qt_deploy.ps1" -TargetDir "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
             COMMAND ${CMAKE_COMMAND} -E env "PATH=${Qt5_DIR}/../../../bin;$ENV{PATH}" 
                 "${WINDEPLOYQT_EXECUTABLE}"
                 --no-translations

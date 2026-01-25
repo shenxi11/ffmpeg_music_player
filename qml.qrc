@@ -15,5 +15,8 @@
         <file>qml/components/LyricDisplay.qml</file>
         <file>qml/components/DeskLyric.qml</file>
         <file>qml/components/DeskLyricSettings.qml</file>
+        <file>qml/components/VideoPlayerWidget.qml</file>
+        <file>qml/components/PlaylistHistory.qml</file>
+        <file>qml/components/PlayModePopup.qml</file>
     </qresource>
 </RCC>

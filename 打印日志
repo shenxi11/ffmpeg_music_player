@@ -1,0 +1,323 @@
+19:57:10: Starting E:\FFmpeg_whisper\ffmpeg_music_player_build\Debug\ffmpeg_music_player.exe...
+[2026-01-25 19:57:11.932] [DEBUG] Logger initialized. Log file: "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/debug.log"
+
+[2026-01-25 19:57:11.932] [DEBUG] =========================================
+
+[2026-01-25 19:57:11.932] [DEBUG] FFmpeg Music Player Starting...
+
+[2026-01-25 19:57:11.932] [DEBUG] Log file: "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/debug.log"
+
+[2026-01-25 19:57:11.932] [DEBUG] DLL search path (resource): "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/resource"
+
+[2026-01-25 19:57:11.932] [DEBUG] Resource directory exists: true
+
+[2026-01-25 19:57:11.932] [DEBUG] =========================================
+
+Loading plugins from: "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/plugin"
+PluginManager initialized
+Loading plugins from: "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/plugin"
+Found 2 plugin files
+Attempting to load plugin: "audio_converter_plugin.dll"
+AudioConverterPlugin constructor
+Initializing AudioConverterPlugin...
+AudioConverterPlugin initialized successfully
+Plugin loaded successfully: "音频转换器" Version: "1.0.0"
+Attempting to load plugin: "whisper_translate_plugin.dll"
+WhisperTranslatePlugin: Constructor called
+WhisperTranslatePlugin: Initializing...
+WhisperTranslatePlugin: Initialized successfully
+Plugin loaded successfully: "Whisper 翻译" Version: "1.0.0"
+Successfully loaded 2 plugins
+Loaded 2 plugins
+Loading plugins from: "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/plugin"
+Found 2 plugin files
+Attempting to load plugin: "audio_converter_plugin.dll"
+Plugin loaded successfully: "音频转换器" Version: "1.0.0"
+Attempting to load plugin: "whisper_translate_plugin.dll"
+Plugin loaded successfully: "Whisper 翻译" Version: "1.0.0"
+Successfully loaded 2 plugins
+Loaded 2 plugins from "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/plugin"
+SearchBoxQml: Initializing...
+SearchBoxQml: Current QML import paths: ("qrc:/", "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug", "qrc:/qt-project.org/imports", "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/qml")
+SearchBoxQml: Loading QML from qrc:/qml/components/SearchBox.qml
+SearchBoxQml: QML loaded successfully, status = QQuickWidget::Ready
+SearchBoxQml: Root item found, size: 250 x 60
+SearchBoxQml: QML signals connected successfully
+SearchBoxQml: Initialization complete
+UserWidgetQml: Initializing...
+UserWidgetQml: Loading QML from qrc:/qml/components/UserWidget.qml
+UserWidgetQml: QML loaded successfully
+UserWidgetQml: Initializing popup window...
+UserWidgetQml: Popup window loaded
+UserWidgetQml: Popup window signals connected
+UserWidgetQml: Initialization complete
+LoginWidgetQml: Initializing...
+LoginWidgetQml: QML loaded successfully
+LoginWidgetQml: Initialization complete
+VideoPlayerWidget created
+[VIDEO_WORKER] Initializing (thread mode)...
+VideoDecoder created in thread: 0xe50
+[VIDEO_AUDIO] Initializing (thread mode)...
+Decode thread started, ID: 0x62c4
+[VIDEO_AUDIO] QAudioOutput created
+[VIDEO_AUDIO] Playback thread started
+[VIDEO_WORKER] Initialized successfully
+QObject::connect: Incompatible sender/receiver arguments
+        VideoPlayerWidget_QMLTYPE_51::seekRequested(int) --> VideoPlayerWidget::on_signal_seek(qint64)
+[VIDEO_AUDIO] Playback thread started
+[VIDEO_WORKER] Video playback thread started
+AudioService: Pre-warming AudioPlayer singleton...
+AudioPlayer: Audio device OPENED and ready (hot state)
+  Sample Rate: 44100
+  Channels: 2
+  Buffer Size: 65536
+  Device will remain open until destruction
+AudioPlayer created in thread: 0xe50
+AudioPlayer: Playback thread started and ready
+AudioPlayer: Audio device is HOT and ready (no startup delay)
+AudioService: AudioPlayer ready, all songs will have ZERO startup delay
+AudioPlayer: Playback thread started: 0x4d98
+ProcessSliderQml: Loading QML from qrc:/qml/components/ProcessSlider.qml
+  QML source set in 75 ms
+  Resize mode set in 75 ms
+ProcessSliderQml: QML loaded successfully in 75 ms
+ProcessSliderQml: Root object found, connecting signals...
+ProcessSliderQml: All signals connected in 75 ms (total)
+ProcessSliderQml: Constructor completed in 75 ms (total)
+ProcessSliderQml created at position: QPoint(0,490) size: QSize(1000, 70) visible: false
+qrc:/qml/components/DeskLyric.qml:292:17: QML Rectangle: Detected anchors on an item that is managed by a layout. This is undefined behavior; use Layout.alignment instead.
+DeskLyric.qml loaded successfully
+DeskLrcQml: QML signals connected
+PlaylistHistoryQml: Created, root object: true
+PlaylistHistoryQml: Signals connected
+AudioService initialized: AudioService(0x7ff70d51a600)
+Initializing LyricDisplay...
+LyricDisplay.qml loaded successfully
+LyricDisplay initialized, size: QSize(550, 350) position: QPoint(400,100)
+Error: "Error transferring http://slcdut.xyz:8080/users/add_music - server replied: Internal Server Error"
+Loading audio file: "E:/MP3/安静/安静.mp3"
+AudioService: Added to playback history at top, total 1
+AudioDecoder created in thread: 0xe50
+[TIMING] AudioService::play - createSession: 0.2377 ms
+[TIMING]   avformat_open_input: 3.0647 ms
+[TIMING]   avformat_find_stream_info: 3.7145 ms
+Audio stream found at index: 0
+[TIMING] AudioDecoder::openFile: 6.9692 ms
+Decoder setup successfully. Sample rate: 44100 Channels: 2
+[TIMING] AudioDecoder::setupDecoder: 0.1424 ms
+Resampler setup successfully
+[TIMING] AudioDecoder::setupResampler: 0.1943 ms
+Album cover extracted to: "file:///C:/Users/SL/AppData/Local/Temp/album_cover_1769342246565.jpg"
+[TIMING] AudioDecoder::initDecoder TOTAL: 8.298 ms
+AudioDecoder initialized successfully. Duration: 334262 ms
+[TIMING] AudioSession::loadSource (initDecoder): 8.3971 ms
+[TIMING] AudioService::play - loadSource: 8.5165 ms
+AudioPlayer: Volume set to 100
+Playback started, session: "session_1" url: "file:///E:/MP3/安静/安静.mp3"
+Desktop lyric playing state updated to: true
+AudioDecoder: Decode thread launched
+[TIMING] AudioSession::play - startDecode call: 2.0274 ms
+[TIMING] AudioService::play - play() call: 2.177 ms
+[TIMING] AudioService::play - TOTAL: 10.9312 ms
+Audio loaded successfully, session: AudioSession(0x1a01ba559e0)
+AudioDecoder: Decode thread started in std::thread
+AudioDecoder::decode thread started in std::thread
+[mp3float @ 000001a01b870400] Could not update timestamps for skipped samples.
+AudioDecoder: First PTS set to 0 ms
+Sending first lyric to desktop: "欢迎来访爱听音乐网 www.v9v8.com"
+DeskLrcQml::setLyricText called with: "欢迎来访爱听音乐网 www.v9v8.com"
+DeskLyric.qml: setLyricText called with: 欢迎来访爱听音乐网 www.v9v8.com
+Setting desktop song name: "安静"
+DeskLrcQml::setSongName called with: "安静"
+DeskLyric.qml: setSongName called with: 安静
+Current track changed: "" "" 334262
+Album art changed: "file:///C:/Users/SL/AppData/Local/Temp/album_cover_1769342246565.jpg"
+slot_updateBackground called with: "file:///C:/Users/SL/AppData/Local/Temp/album_cover_1769342246565.jpg"
+Converted URL to local path: "C:/Users/SL/AppData/Local/Temp/album_cover_1769342246565.jpg"
+Original pixmap size: QSize(300, 300)
+Cropped pixmap size: QSize(1000, 600)
+Background updated successfully, pixmap size: QSize(1000, 600)
+backgroundLabel visible: false geometry: QRect(0,0 100x30)
+RotatingCircleImage: Converted URL to local path: "C:/Users/SL/AppData/Local/Temp/album_cover_1769342246565.jpg"
+RotatingCircleImage: Image loaded successfully, size: QSize(300, 300)
+PlaylistHistory::addSong - "安静.mp3" "未知艺术家"
+Added to playlist history: "安静.mp3" "未知艺术家"
+[METADATA] MusicListWidgetLocal 收到元数据更新: "E:/MP3/安静/安静.mp3" "file:///C:/Users/SL/AppData/Local/Temp/album_cover_1769342246565.jpg" "5:34"
+Updated metadata for: E:/MP3/安静/安静.mp3 cover: file:///C:/Users/SL/AppData/Local/Temp/album_cover_1769342246565.jpg duration: 5:34
+AudioSession: Decode started
+[PLAY_STATE] MusicListWidgetLocal::on_signal_play_button_click 收到信号, flag= true , filename= "E:/MP3/安静/安静.mp3"
+[PLAY_STATE] sender 是PlayWidget, net_flag= false
+[PLAY_STATE] 调用 listWidget->setPlayingState( "E:/MP3/安静/安静.mp3" , true )
+[PLAY_STATE] MusicListWidgetNet::on_signal_play_button_click 收到信号, flag= true , filename= "E:/MP3/安静/安静.mp3"
+[PLAY_STATE] sender 是 PlayWidget, net_flag= false
+AudioPlayer: Start playback (device already hot, ZERO startup delay)
+AudioPlayer: First audio data write
+AudioSession: Initial playback started, fill level: 25 %
+AudioService: Buffering finished
+Buffering finished
+AudioSession: Buffering finished, fill level: 25 %
+AudioSession: Playback started
+AudioDecoder: Decoded 100 frames, current timestamp: 2586 ms
+AudioPlayer: Received 100 data packets, size: 4608 buffer level: 443580
+AudioSession: Buffer full ( 86 %), pausing decoder
+AudioSession: Decode paused
+AudioDecoder: Paused, waiting for resume signal
+AudioPlayer: Position update: 1084 ms (elapsed: 1084 ms)
+AudioDecoder: Resuming from pause
+AudioSession: Buffer low ( 57 %), resuming decoder
+AudioDecoder: Resumed
+AudioSession: Buffer full ( 86 %), pausing decoder
+AudioSession: Decode paused
+AudioDecoder: Paused, waiting for resume signal
+AudioPlayer: Position update: 2177 ms (elapsed: 2177 ms)
+AudioDecoder: Resuming from pause
+AudioSession: Buffer low ( 59 %), resuming decoder
+AudioDecoder: Resumed
+AudioDecoder: Decoded 200 frames, current timestamp: 5198 ms
+AudioPlayer: Received 200 data packets, size: 4608 buffer level: 400572
+AudioPlayer: Position update: 3277 ms (elapsed: 3277 ms)
+[TIMING] slot_play_click START "19:57:30.210"
+Desktop lyric playing state updated to: false
+[TIMING] slot_play_click 发出 signal_worker_play "19:57:30.211"
+AudioPlayer: Playback paused
+[TIMING] slot_play_click END "19:57:30.211"
+AudioSession: Decode paused
+AudioSession: Playback paused
+Playback paused
+Desktop lyric playing state updated to: false
+[PLAY_STATE] MusicListWidgetLocal::on_signal_play_button_click 收到信号, flag= false , filename= "E:/MP3/安静/安静.mp3"
+[PLAY_STATE] sender 是PlayWidget, net_flag= false
+[PLAY_STATE] 调用 listWidget->setPlayingState( "E:/MP3/安静/安静.mp3" , false )
+[PLAY_STATE] MusicListWidgetNet::on_signal_play_button_click 收到信号, flag= false , filename= "E:/MP3/安静/安静.mp3"
+[PLAY_STATE] sender 是 PlayWidget, net_flag= false
+AudioDecoder: Paused, waiting for resume signal
+Response data from server: "[{\"path\":\"hua_hai/hua_hai.mp3\",\"duration\":\"264.67 seconds\"},{\"path\":\"\xE5\x8D\x83\xE9\x87\x8C\xE4\xB9\x8B\xE5\xA4\x96/\xE5\x8D\x83\xE9\x87\x8C\xE4\xB9\x8B\xE5\xA4\x96.mp3\",\"duration\":\"254.28 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\\u0026\xE8\xB4\xB9\xE7\x8E\x89\xE6\xB8\x85\",\"cover_art_url\":\"http://172.26.214.146:8080/uploads/\xE5\x8D\x83\xE9\x87\x8C\xE4\xB9\x8B\xE5\xA4\x96/\xE5\x8D\x83\xE9\x87\x8C\xE4\xB9\x8B\xE5\xA4\x96_cover.png\"},{\"path\":\"\xE5\xBD\xA9\xE8\x99\xB9/\xE5\xBD\xA9\xE8\x99\xB9.mp3\",\"duration\":\"261.96 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://172.26.214.146:8080/uploads/\xE5\xBD\xA9\xE8\x99\xB9/\xE5\xBD\xA9\xE8\x99\xB9_cover.png\"},{\"path\":\"\xE5\x91\x8A\xE7\x99\xBD\xE6\xB0\x94\xE7\x90\x83/\xE5\x91\x8A\xE7\x99\xBD\xE6\xB0\x94\xE7\x90\x83.mp3\",\"duration\":\"215.64 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://172.26.214.146:8080/uploads/\xE5\x91\x8A\xE7\x99\xBD\xE6\xB0\x94\xE7\x90\x83/\xE5\x91\x8A\xE7\x99\xBD\xE6\xB0\x94\xE7\x90\x83_cover.png\"},{\"path\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6 - \xE4\xB8\x83\xE9\x87\x8C\xE9\xA6\x99_EM/\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6 - \xE4\xB8\x83\xE9\x87\x8C\xE9\xA6\x99_EM.flac\",\"duration\":\"299.20 seconds\",\"cover_art_url\":\"http://172.26.214.146:8080/uploads/\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6 - \xE4\xB8\x83\xE9\x87\x8C\xE9\xA6\x99_EM/\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6 - \xE4\xB8\x83\xE9\x87\x8C\xE9\xA6\x99_EM_cover.png\"},{\"path\":\"\xE6\x9E\xAB/\xE6\x9E\xAB.mp3\",\"duration\":\"277.05 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://172.26.214.146:8080/uploads/\xE6\x9E\xAB/\xE6\x9E\xAB_cover.png\"},{\"path\":\"\xE7\xA8\xBB\xE9\xA6\x99/\xE7\xA8\xBB\xE9\xA6\x99.mp3\",\"duration\":\"223.50 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://172.26.214.146:8080/uploads/\xE7\xA8\xBB\xE9\xA6\x99/\xE7\xA8\xBB\xE9\xA6\x99_cover.png\"},{\"path\":\"\xE8\xB4\xB9\xE7\x8E\x89\xE6\xB8\x85-\xE5\x8D\x83\xE9\x87\x8C\xE4\xB9\x8B\xE5\xA4\x96/\xE8\xB4\xB9\xE7\x8E\x89\xE6\xB8\x85-\xE5\x8D\x83\xE9\x87\x8C\xE4\xB9\x8B\xE5\xA4\x96.mp3\",\"duration\":\"254.28 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\\u0026\xE8\xB4\xB9\xE7\x8E\x89\xE6\xB8\x85\",\"cover_art_url\":\"http://172.26.214.146:8080/uploads/\xE8\xB4\xB9\xE7\x8E\x89\xE6\xB8\x85-\xE5\x8D\x83\xE9\x87\x8C\xE4\xB9\x8B\xE5\xA4\x96/\xE8\xB4\xB9\xE7\x8E\x89\xE6\xB8\x85-\xE5\x8D\x83\xE9\x87\x8C\xE4\xB9\x8B\xE5\xA4\x96_cover.png\"},{\"path\":\"\xE5\x8F\x91\xE5\xA6\x82\xE9\x9B\xAA/\xE5\x8F\x91\xE5\xA6\x82\xE9\x9B\xAA.mp3\",\"duration\":\"299.28 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://172.26.214.146:8080/uploads/\xE5\x8F\x91\xE5\xA6\x82\xE9\x9B\xAA/\xE5\x8F\x91\xE5\xA6\x82\xE9\x9B\xAA_cover.png\"},{\"path\":\"\xE5\xAE\x89\xE9\x9D\x99/\xE5\xAE\x89\xE9\x9D\x99.mp3\",\"duration\":\"334.26 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://172.26.214.146:8080/uploads/\xE5\xAE\x89\xE9\x9D\x99/\xE5\xAE\x89\xE9\x9D\x99_cover.png\"},{\"path\":\"\xE8\x8A\xB1\xE6\xB5\xB7/\xE8\x8A\xB1\xE6\xB5\xB7.mp3\",\"duration\":\"264.65 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://172.26.214.146:8080/uploads/\xE8\x8A\xB1\xE6\xB5\xB7/\xE8\x8A\xB1\xE6\xB5\xB7_cover.png\"},{\"path\":\"\xE6\x9C\xAC\xE8\x8D\x89\xE7\xBA\xB2\xE7\x9B\xAE/\xE6\x9C\xAC\xE8\x8D\x89\xE7\xBA\xB2\xE7\x9B\xAE.mp3\",\"duration\":\"206.89 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://172.26.214.146:8080/uploads/\xE6\x9C\xAC\xE8\x8D\x89\xE7\xBA\xB2\xE7\x9B\xAE/\xE6\x9C\xAC\xE8\x8D\x89\xE7\xBA\xB2\xE7\x9B\xAE_cover.png\"},{\"path\":\"\xE7\x99\xBD\xE8\x89\xB2\xE9\xA3\x8E\xE8\xBD\xA6/\xE7\x99\xBD\xE8\x89\xB2\xE9\xA3\x8E\xE8\xBD\xA6.mp3\",\"duration\":\"270.24 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://172.26.214.146:8080/uploads/\xE7\x99\xBD\xE8\x89\xB2\xE9\xA3\x8E\xE8\xBD\xA6/\xE7\x99\xBD\xE8\x89\xB2\xE9\xA3\x8E\xE8\xBD\xA6_cover.png\"},{\"path\":\"\xE7\xBB\x99\xE6\x88\x91\xE4\xB8\x80\xE9\xA6\x96\xE6\xAD\x8C\xE7\x9A\x84\xE6\x97\xB6\xE9\x97\xB4/\xE7\xBB\x99\xE6\x88\x91\xE4\xB8\x80\xE9\xA6\x96\xE6\xAD\x8C\xE7\x9A\x84\xE6\x97\xB6\xE9\x97\xB4.mp3\",\"duration\":\"253.60 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://172.26.214.146:8080/uploads/\xE7\xBB\x99\xE6\x88\x91\xE4\xB8\x80\xE9\xA6\x96\xE6\xAD\x8C\xE7\x9A\x84\xE6\x97\xB6\xE9\x97\xB4/\xE7\xBB\x99\xE6\x88\x91\xE4\xB8\x80\xE9\xA6\x96\xE6\xAD\x8C\xE7\x9A\x84\xE6\x97\xB6\xE9\x97\xB4_cover.png\"},{\"path\":\"\xE4\xB8\x9C\xE9\xA3\x8E\xE7\xA0\xB4/\xE4\xB8\x9C\xE9\xA3\x8E\xE7\xA0\xB4.mp3\",\"duration\":\"315.45 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://172.26.214.146:8080/uploads/\xE4\xB8\x9C\xE9\xA3\x8E\xE7\xA0\xB4/\xE4\xB8\x9C\xE9\xA3\x8E\xE7\xA0\xB4_cover.png\"},{\"path\":\"\xE6\x90\x81\xE6\xB5\x85/\xE6\x90\x81\xE6\xB5\x85.mp3\",\"duration\":\"238.18 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://172.26.214.146:8080/uploads/\xE6\x90\x81\xE6\xB5\x85/\xE6\x90\x81\xE6\xB5\x85_cover.png\"},{\"path\":\"\xE6\x96\xAD\xE4\xBA\x86\xE7\x9A\x84\xE5\xBC\xA6/\xE6\x96\xAD\xE4\xBA\x86\xE7\x9A\x84\xE5\xBC\xA6.mp3\",\"duration\":\"297.56 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://172.26.214.146:8080/uploads/\xE6\x96\xAD\xE4\xBA\x86\xE7\x9A\x84\xE5\xBC\xA6/\xE6\x96\xAD\xE4\xBA\x86\xE7\x9A\x84\xE5\xBC\xA6_cover.png\"},{\"path\":\"BEYOND - \xE6\xB5\xB7\xE9\x98\x94\xE5\xA4\xA9\xE7\xA9\xBA/BEYOND - \xE6\xB5\xB7\xE9\x98\x94\xE5\xA4\xA9\xE7\xA9\xBA.ogg\",\"duration\":\"239.49 seconds\"},{\"path\":\"Love_Song/Love_Song.mp3\",\"duration\":\"357.41 seconds\",\"artist\":\"\xE6\x96\xB9\xE5\xA4\xA7\xE5\x90\x8C\",\"cover_art_url\":\"http://172.26.214.146:8080/uploads/Love_Song/Love_Song_cover.png\"},{\"path\":\"\xE5\xBA\x8A\xE8\xBE\xB9\xE6\x95\x85\xE4\xBA\x8B/\xE5\xBA\x8A\xE8\xBE\xB9\xE6\x95\x85\xE4\xBA\x8B.mp3\",\"duration\":\"226.25 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://172.26.214.146:8080/uploads/\xE5\xBA\x8A\xE8\xBE\xB9\xE6\x95\x85\xE4\xBA\x8B/\xE5\xBA\x8A\xE8\xBE\xB9\xE6\x95\x85\xE4\xBA\x8B_cover.png\"},{\"path\":\"\xE6\x9A\x97\xE5\x8F\xB7/\xE6\x9A\x97\xE5\x8F\xB7.mp3\",\"duration\":\"271.80 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://172.26.214.146:8080/uploads/\xE6\x9A\x97\xE5\x8F\xB7/\xE6\x9A\x97\xE5\x8F\xB7_cover.png\"},{\"path\":\"\xE7\x88\xB1\xE5\x9C\xA8\xE8\xA5\xBF\xE5\x85\x83\xE5\x89\x8D/\xE7\x88\xB1\xE5\x9C\xA8\xE8\xA5\xBF\xE5\x85\x83\xE5\x89\x8D.mp3\",\"duration\":\"234.29 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://172.26.214.146:8080/uploads/\xE7\x88\xB1\xE5\x9C\xA8\xE8\xA5\xBF\xE5\x85\x83\xE5\x89\x8D/\xE7\x88\xB1\xE5\x9C\xA8\xE8\xA5\xBF\xE5\x85\x83\xE5\x89\x8D_cover.png\"},{\"path\":\"\xE7\xAD\x89\xE4\xBD\xA0\xE4\xB8\x8B\xE8\xAF\xBE (with \xE6\x9D\xA8\xE7\x91\x9E\xE4\xBB\xA3)/\xE7\xAD\x89\xE4\xBD\xA0\xE4\xB8\x8B\xE8\xAF\xBE (with \xE6\x9D\xA8\xE7\x91\x9E\xE4\xBB\xA3).mp3\",\"duration\":\"270.03 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://172.26.214.146:8080/uploads/\xE7\xAD\x89\xE4\xBD\xA0\xE4\xB8\x8B\xE8\xAF\xBE (with \xE6\x9D\xA8\xE7\x91\x9E\xE4\xBB\xA3)/\xE7\xAD\x89\xE4\xBD\xA0\xE4\xB8\x8B\xE8\xAF\xBE (with \xE6\x9D\xA8\xE7\x91\x9E\xE4\xBB\xA3)_cover.png\"},{\"path\":\"yi_lu_xiang_bei/yi_lu_xiang_bei.mp3\",\"duration\":\"293.38 seconds\"},{\"path\":\"\xE5\x8D\x8A\xE5\x85\xBD\xE4\xBA\xBA/\xE5\x8D\x8A\xE5\x85\xBD\xE4\xBA\xBA.mp3\",\"duration\":\"247.43 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://172.26.214.146:8080/uploads/\xE5\x8D\x8A\xE5\x85\xBD\xE4\xBA\xBA/\xE5\x8D\x8A\xE5\x85\xBD\xE4\xBA\xBA_cover.png\"},{\"path\":\"\xE7\x88\xB1\xE6\x83\x85\xE5\xBA\x9F\xE6\x9F\xB4/\xE7\x88\xB1\xE6\x83\x85\xE5\xBA\x9F\xE6\x9F\xB4.mp3\",\"duration\":\"285.65 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://172.26.214.146:8080/uploads/\xE7\x88\xB1\xE6\x83\x85\xE5\xBA\x9F\xE6\x9F\xB4/\xE7\x88\xB1\xE6\x83\x85\xE5\xBA\x9F\xE6\x9F\xB4_cover.png\"},{\"path\":\"\xE7\xBA\xA2\xE5\xB0\x98\xE5\xAE\xA2\xE6\xA0\x88/\xE7\xBA\xA2\xE5\xB0\x98\xE5\xAE\xA2\xE6\xA0\x88.mp3\",\"duration\":\"275.64 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://172.26.214.146:8080/uploads/\xE7\xBA\xA2\xE5\xB0\x98\xE5\xAE\xA2\xE6\xA0\x88/\xE7\xBA\xA2\xE5\xB0\x98\xE5\xAE\xA2\xE6\xA0\x88_cover.png\"},{\"path\":\"qi_li_xiang/qi_li_xiang.ogg\",\"duration\":\"299.20 seconds\"},{\"path\":\"\xE4\xB8\x8D\xE7\x88\xB1\xE6\x88\x91\xE5\xB0\xB1\xE6\x8B\x89\xE5\x80\x92/\xE4\xB8\x8D\xE7\x88\xB1\xE6\x88\x91\xE5\xB0\xB1\xE6\x8B\x89\xE5\x80\x92.mp3\",\"duration\":\"245.89 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://172.26.214.146:8080/uploads/\xE4\xB8\x8D\xE7\x88\xB1\xE6\x88\x91\xE5\xB0\xB1\xE6\x8B\x89\xE5\x80\x92/\xE4\xB8\x8D\xE7\x88\xB1\xE6\x88\x91\xE5\xB0\xB1\xE6\x8B\x89\xE5\x80\x92_cover.png\"},{\"path\":\"\xE8\xBD\xA8\xE8\xBF\xB9/\xE8\xBD\xA8\xE8\xBF\xB9.mp3\",\"duration\":\"326.90 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://172.26.214.146:8080/uploads/\xE8\xBD\xA8\xE8\xBF\xB9/\xE8\xBD\xA8\xE8\xBF\xB9_cover.png\"}]\n"
+Files and durations received from server:
+File Path: "hua_hai/hua_hai.mp3" , Duration: 264.67 , Cover: "" , Artist: "未知艺术家"
+File Path: "千里之外/千里之外.mp3" , Duration: 254.28 , Cover: "http://172.26.214.146:8080/uploads/千里之外/千里之外_cover.png" , Artist: "周杰伦&费玉清"
+File Path: "彩虹/彩虹.mp3" , Duration: 261.96 , Cover: "http://172.26.214.146:8080/uploads/彩虹/彩虹_cover.png" , Artist: "周杰伦"
+File Path: "告白气球/告白气球.mp3" , Duration: 215.64 , Cover: "http://172.26.214.146:8080/uploads/告白气球/告白气球_cover.png" , Artist: "周杰伦"
+File Path: "周杰伦 - 七里香_EM/周杰伦 - 七里香_EM.flac" , Duration: 299.2 , Cover: "http://172.26.214.146:8080/uploads/周杰伦 - 七里香_EM/周杰伦 - 七里香_EM_cover.png" , Artist: "未知艺术家"
+File Path: "枫/枫.mp3" , Duration: 277.05 , Cover: "http://172.26.214.146:8080/uploads/枫/枫_cover.png" , Artist: "周杰伦"
+File Path: "稻香/稻香.mp3" , Duration: 223.5 , Cover: "http://172.26.214.146:8080/uploads/稻香/稻香_cover.png" , Artist: "周杰伦"
+File Path: "费玉清-千里之外/费玉清-千里之外.mp3" , Duration: 254.28 , Cover: "http://172.26.214.146:8080/uploads/费玉清-千里之外/费玉清-千里之外_cover.png" , Artist: "周杰伦&费玉清"
+File Path: "发如雪/发如雪.mp3" , Duration: 299.28 , Cover: "http://172.26.214.146:8080/uploads/发如雪/发如雪_cover.png" , Artist: "周杰伦"
+File Path: "安静/安静.mp3" , Duration: 334.26 , Cover: "http://172.26.214.146:8080/uploads/安静/安静_cover.png" , Artist: "周杰伦"
+File Path: "花海/花海.mp3" , Duration: 264.65 , Cover: "http://172.26.214.146:8080/uploads/花海/花海_cover.png" , Artist: "周杰伦"
+File Path: "本草纲目/本草纲目.mp3" , Duration: 206.89 , Cover: "http://172.26.214.146:8080/uploads/本草纲目/本草纲目_cover.png" , Artist: "周杰伦"
+File Path: "白色风车/白色风车.mp3" , Duration: 270.24 , Cover: "http://172.26.214.146:8080/uploads/白色风车/白色风车_cover.png" , Artist: "周杰伦"
+File Path: "给我一首歌的时间/给我一首歌的时间.mp3" , Duration: 253.6 , Cover: "http://172.26.214.146:8080/uploads/给我一首歌的时间/给我一首歌的时间_cover.png" , Artist: "周杰伦"
+File Path: "东风破/东风破.mp3" , Duration: 315.45 , Cover: "http://172.26.214.146:8080/uploads/东风破/东风破_cover.png" , Artist: "周杰伦"
+File Path: "搁浅/搁浅.mp3" , Duration: 238.18 , Cover: "http://172.26.214.146:8080/uploads/搁浅/搁浅_cover.png" , Artist: "周杰伦"
+File Path: "断了的弦/断了的弦.mp3" , Duration: 297.56 , Cover: "http://172.26.214.146:8080/uploads/断了的弦/断了的弦_cover.png" , Artist: "周杰伦"
+File Path: "BEYOND - 海阔天空/BEYOND - 海阔天空.ogg" , Duration: 239.49 , Cover: "" , Artist: "未知艺术家"
+File Path: "Love_Song/Love_Song.mp3" , Duration: 357.41 , Cover: "http://172.26.214.146:8080/uploads/Love_Song/Love_Song_cover.png" , Artist: "方大同"
+File Path: "床边故事/床边故事.mp3" , Duration: 226.25 , Cover: "http://172.26.214.146:8080/uploads/床边故事/床边故事_cover.png" , Artist: "周杰伦"
+File Path: "暗号/暗号.mp3" , Duration: 271.8 , Cover: "http://172.26.214.146:8080/uploads/暗号/暗号_cover.png" , Artist: "周杰伦"
+File Path: "爱在西元前/爱在西元前.mp3" , Duration: 234.29 , Cover: "http://172.26.214.146:8080/uploads/爱在西元前/爱在西元前_cover.png" , Artist: "周杰伦"
+File Path: "等你下课 (with 杨瑞代)/等你下课 (with 杨瑞代).mp3" , Duration: 270.03 , Cover: "http://172.26.214.146:8080/uploads/等你下课 (with 杨瑞代)/等你下课 (with 杨瑞代)_cover.png" , Artist: "周杰伦"
+File Path: "yi_lu_xiang_bei/yi_lu_xiang_bei.mp3" , Duration: 293.38 , Cover: "" , Artist: "未知艺术家"
+File Path: "半兽人/半兽人.mp3" , Duration: 247.43 , Cover: "http://172.26.214.146:8080/uploads/半兽人/半兽人_cover.png" , Artist: "周杰伦"
+File Path: "爱情废柴/爱情废柴.mp3" , Duration: 285.65 , Cover: "http://172.26.214.146:8080/uploads/爱情废柴/爱情废柴_cover.png" , Artist: "周杰伦"
+File Path: "红尘客栈/红尘客栈.mp3" , Duration: 275.64 , Cover: "http://172.26.214.146:8080/uploads/红尘客栈/红尘客栈_cover.png" , Artist: "周杰伦"
+File Path: "qi_li_xiang/qi_li_xiang.ogg" , Duration: 299.2 , Cover: "" , Artist: "未知艺术家"
+File Path: "不爱我就拉倒/不爱我就拉倒.mp3" , Duration: 245.89 , Cover: "http://172.26.214.146:8080/uploads/不爱我就拉倒/不爱我就拉倒_cover.png" , Artist: "周杰伦"
+File Path: "轨迹/轨迹.mp3" , Duration: 326.9 , Cover: "http://172.26.214.146:8080/uploads/轨迹/轨迹_cover.png" , Artist: "周杰伦"
+MusicListWidgetNet: Received 30 songs
+Adding song with duration: 264 seconds -> formatted: "4:24"
+Adding song with duration: 254 seconds -> formatted: "4:14"
+Adding song with duration: 261 seconds -> formatted: "4:21"
+Adding song with duration: 215 seconds -> formatted: "3:35"
+Adding song with duration: 299 seconds -> formatted: "4:59"
+Adding song with duration: 277 seconds -> formatted: "4:37"
+Adding song with duration: 223 seconds -> formatted: "3:43"
+Adding song with duration: 254 seconds -> formatted: "4:14"
+Adding song with duration: 299 seconds -> formatted: "4:59"
+Adding song with duration: 334 seconds -> formatted: "5:34"
+Adding song with duration: 264 seconds -> formatted: "4:24"
+Adding song with duration: 206 seconds -> formatted: "3:26"
+Adding song with duration: 270 seconds -> formatted: "4:30"
+Adding song with duration: 253 seconds -> formatted: "4:13"
+Adding song with duration: 315 seconds -> formatted: "5:15"
+Adding song with duration: 238 seconds -> formatted: "3:58"
+Adding song with duration: 297 seconds -> formatted: "4:57"
+Adding song with duration: 239 seconds -> formatted: "3:59"
+Adding song with duration: 357 seconds -> formatted: "5:57"
+Adding song with duration: 226 seconds -> formatted: "3:46"
+Adding song with duration: 271 seconds -> formatted: "4:31"
+Adding song with duration: 234 seconds -> formatted: "3:54"
+Adding song with duration: 270 seconds -> formatted: "4:30"
+Adding song with duration: 293 seconds -> formatted: "4:53"
+Adding song with duration: 247 seconds -> formatted: "4:07"
+Adding song with duration: 285 seconds -> formatted: "4:45"
+Adding song with duration: 275 seconds -> formatted: "4:35"
+Adding song with duration: 299 seconds -> formatted: "4:59"
+Adding song with duration: 245 seconds -> formatted: "4:05"
+Adding song with duration: 326 seconds -> formatted: "5:26"
+Adding song with cover URL: ""
+Adding song with cover URL: "http://172.26.214.146:8080/uploads/千里之外/千里之外_cover.png"
+Adding song with cover URL: "http://172.26.214.146:8080/uploads/彩虹/彩虹_cover.png"
+Adding song with cover URL: "http://172.26.214.146:8080/uploads/告白气球/告白气球_cover.png"
+Adding song with cover URL: "http://172.26.214.146:8080/uploads/周杰伦 - 七里香_EM/周杰伦 - 七里香_EM_cover.png"
+Adding song with cover URL: "http://172.26.214.146:8080/uploads/枫/枫_cover.png"
+Adding song with cover URL: "http://172.26.214.146:8080/uploads/稻香/稻香_cover.png"
+Adding song with cover URL: "http://172.26.214.146:8080/uploads/费玉清-千里之外/费玉清-千里之外_cover.png"
+Adding song with cover URL: "http://172.26.214.146:8080/uploads/发如雪/发如雪_cover.png"
+Adding song with cover URL: "http://172.26.214.146:8080/uploads/安静/安静_cover.png"
+Adding song with cover URL: "http://172.26.214.146:8080/uploads/花海/花海_cover.png"
+Adding song with cover URL: "http://172.26.214.146:8080/uploads/本草纲目/本草纲目_cover.png"
+Adding song with cover URL: "http://172.26.214.146:8080/uploads/白色风车/白色风车_cover.png"
+Adding song with cover URL: "http://172.26.214.146:8080/uploads/给我一首歌的时间/给我一首歌的时间_cover.png"
+Adding song with cover URL: "http://172.26.214.146:8080/uploads/东风破/东风破_cover.png"
+Adding song with cover URL: "http://172.26.214.146:8080/uploads/搁浅/搁浅_cover.png"
+Adding song with cover URL: "http://172.26.214.146:8080/uploads/断了的弦/断了的弦_cover.png"
+Adding song with cover URL: ""
+Adding song with cover URL: "http://172.26.214.146:8080/uploads/Love_Song/Love_Song_cover.png"
+Adding song with cover URL: "http://172.26.214.146:8080/uploads/床边故事/床边故事_cover.png"
+Adding song with cover URL: "http://172.26.214.146:8080/uploads/暗号/暗号_cover.png"
+Adding song with cover URL: "http://172.26.214.146:8080/uploads/爱在西元前/爱在西元前_cover.png"
+Adding song with cover URL: "http://172.26.214.146:8080/uploads/等你下课 (with 杨瑞代)/等你下课 (with 杨瑞代)_cover.png"
+Adding song with cover URL: ""
+Adding song with cover URL: "http://172.26.214.146:8080/uploads/半兽人/半兽人_cover.png"
+Adding song with cover URL: "http://172.26.214.146:8080/uploads/爱情废柴/爱情废柴_cover.png"
+Adding song with cover URL: "http://172.26.214.146:8080/uploads/红尘客栈/红尘客栈_cover.png"
+Adding song with cover URL: ""
+Adding song with cover URL: "http://172.26.214.146:8080/uploads/不爱我就拉倒/不爱我就拉倒_cover.png"
+Adding song with cover URL: "http://172.26.214.146:8080/uploads/轨迹/轨迹_cover.png"
+Adding song with artist: "未知艺术家"
+Adding song with artist: "周杰伦&费玉清"
+Adding song with artist: "周杰伦"
+Adding song with artist: "周杰伦"
+Adding song with artist: "未知艺术家"
+Adding song with artist: "周杰伦"
+Adding song with artist: "周杰伦"
+Adding song with artist: "周杰伦&费玉清"
+Adding song with artist: "周杰伦"
+Adding song with artist: "周杰伦"
+Adding song with artist: "周杰伦"
+Adding song with artist: "周杰伦"
+Adding song with artist: "周杰伦"
+Adding song with artist: "周杰伦"
+Adding song with artist: "周杰伦"
+Adding song with artist: "周杰伦"
+Adding song with artist: "周杰伦"
+Adding song with artist: "未知艺术家"
+Adding song with artist: "方大同"
+Adding song with artist: "周杰伦"
+Adding song with artist: "周杰伦"
+Adding song with artist: "周杰伦"
+Adding song with artist: "周杰伦"
+Adding song with artist: "未知艺术家"
+Adding song with artist: "周杰伦"
+Adding song with artist: "周杰伦"
+Adding song with artist: "周杰伦"
+Adding song with artist: "未知艺术家"
+Adding song with artist: "周杰伦"
+Adding song with artist: "周杰伦"
+Music metadata received - Stream: "http://172.26.214.146:8080/uploads/千里之外/千里之外.mp3" Cover: "http://172.26.214.146:8080/uploads/千里之外/千里之外_cover.png" LRC: "http://172.26.214.146:8080/uploads/千里之外/lrc" Artist: "周杰伦&费玉清" Title: "千里之外"
+[切换播放源] 从本地音乐切换到网络音乐，清除本地列表播放状态
+检测到网络路径，跳过存在性检查: "http://172.26.214.146:8080/uploads/千里之外/千里之外.mp3"
+Loading audio file: "http://172.26.214.146:8080/uploads/千里之外/千里之外.mp3"
+AudioService: Added to playback history at top, total 2
+AudioDecoder created in thread: 0xe50
+[TIMING] AudioService::play - createSession: 0.1576 ms

@@ -75,7 +75,7 @@ void TakePcm::seekToPosition(int newPosition, bool back_flag)
     if(back_flag)
         av_seek_frame(ifmt_ctx, -1, targetTimestamp, AVSEEK_FLAG_BACKWARD);
     else
-        av_seek_frame(ifmt_ctx, -1, targetTimestamp, 0);
+
     avcodec_flush_buffers(codec_ctx);
 
     printF = true;

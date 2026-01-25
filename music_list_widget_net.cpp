@@ -28,13 +28,26 @@ MusicListWidgetNet::MusicListWidgetNet(QWidget *parent) : QWidget(parent)
     connect(this, &MusicListWidgetNet::signal_last, listWidget, &MusicListWidgetNetQml::signal_last);
 
     // 监听添加歌曲列表信号
-    connect(this, &MusicListWidgetNet::signal_add_songlist, [=](const QStringList songList, const QList<double> duration, const QStringList coverUrls){
-        qDebug() << "MusicListWidgetNet: Received" << songList.size() << "songs with durations:" << duration << "and covers:" << coverUrls;
-        listWidget->addSongList(songList, duration, coverUrls);
-        for(int i = 0; i < songList.size(); i++)
-        {
-            song_duration[songList.at(i)] = duration.at(i);
+    connect(this, &MusicListWidgetNet::signal_add_songlist, [=](const QList<Music>& musicList){
+        qDebug() << "MusicListWidgetNet: Received" << musicList.size() << "songs";
+        
+        // 提取Music对象中的信息并传递给QML组件
+        QStringList songList;
+        QList<double> durations;
+        QStringList coverUrls;
+        QStringList artists;
+        
+        for(const Music& music : musicList) {
+            songList.append(music.getSongPath());
+            durations.append(static_cast<double>(music.getDuration()));
+            coverUrls.append(music.getPicPath());
+            artists.append(music.getSinger());
+            
+            // 保存到本地映射
+            song_duration[music.getSongPath()] = static_cast<double>(music.getDuration());
         }
+        
+        listWidget->addSongList(songList, durations, coverUrls, artists);
     });
 
     // 监听播放状态变化

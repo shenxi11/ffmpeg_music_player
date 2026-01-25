@@ -1,0 +1,79 @@
+graph LR
+    %% 左侧：游客功能区
+    subgraph GuestZone["游客功能区"]
+        UC1["浏览音乐列表"]
+        UC2["试听音乐片段"]
+    end
+    
+    %% 游客角色
+    Actor1(("游客用户"))
+    
+    %% 普通用户角色
+    Actor2(("普通用户"))
+    
+    %% 管理员角色
+    Actor3(("管理员"))
+    
+    %% 右侧：普通用户功能区
+    subgraph UserZone["普通用户功能区"]
+        UC3["用户注册登录"]
+        UC4["音乐播放"]
+        UC5["MV观看"]
+        UC6["歌词显示"]
+        UC7["播放历史"]
+        UC8["收藏音乐"]
+        UC9["创建歌单"]
+        UC10["Whisper AI<br/>歌词识别"]
+        UC11["个性化推荐"]
+        UC12["插件扩展"]
+    end
+    
+    %% 右侧：管理员功能区
+    subgraph AdminZone["管理员功能区"]
+        UC13["系统公告管理"]
+        UC14["用户管理"]
+        UC15["音乐资源管理"]
+        UC16["MV资源管理"]
+        UC17["日志管理"]
+        UC18["数据统计分析"]
+    end
+    
+    %% 游客用户关联
+    GuestZone --> Actor1
+    
+    %% 普通用户关联
+    Actor2 --> GuestZone
+    Actor2 --> UserZone
+    
+    %% 管理员关联
+    Actor3 --> UserZone
+    Actor3 --> AdminZone
+    
+    %% 用例之间的关系
+    UC4 -.->|include| UC6
+    UC10 -.->|extend| UC4
+    UC11 -.->|extend| UC1
+    
+    %% 样式定义
+    style GuestZone fill:#e3f2fd,stroke:#2196f3,stroke-width:2px
+    style UserZone fill:#fff3e0,stroke:#ff9800,stroke-width:2px
+    style AdminZone fill:#e0f2f1,stroke:#009688,stroke-width:2px
+    
+    style UC1 fill:#e3f2fd,stroke:#2196f3,stroke-width:2px
+    style UC2 fill:#e3f2fd,stroke:#2196f3,stroke-width:2px
+    style UC3 fill:#fff3e0,stroke:#ff9800,stroke-width:2px
+    style UC4 fill:#e8f5e9,stroke:#4caf50,stroke-width:2px
+    style UC5 fill:#e8f5e9,stroke:#4caf50,stroke-width:2px
+    style UC6 fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px
+    style UC7 fill:#fff9c4,stroke:#fbc02d,stroke-width:2px
+    style UC8 fill:#fff9c4,stroke:#fbc02d,stroke-width:2px
+    style UC9 fill:#fff9c4,stroke:#fbc02d,stroke-width:2px
+    style UC10 fill:#ffebee,stroke:#f44336,stroke-width:3px
+    style UC11 fill:#ffebee,stroke:#f44336,stroke-width:2px
+    style UC12 fill:#fce4ec,stroke:#e91e63,stroke-width:2px
+    style UC13 fill:#e0f2f1,stroke:#009688,stroke-width:2px
+    style UC14 fill:#e0f2f1,stroke:#009688,stroke-width:2px
+    style UC15 fill:#e0f2f1,stroke:#009688,stroke-width:2px
+    style UC16 fill:#e0f2f1,stroke:#009688,stroke-width:2px
+    style UC17 fill:#e0f2f1,stroke:#009688,stroke-width:2px
+    style UC18 fill:#e0f2f1,stroke:#009688,stroke-width:2px

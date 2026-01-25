@@ -112,6 +112,18 @@ public:
                                       Q_ARG(QVariant, songName));
         }
     }
+    
+    // 更新歌曲元数据（从解码器获取的封面和时长）
+    void updateSongMetadata(const QString& filePath, const QString& coverUrl, const QString& duration)
+    {
+        QQuickItem* root = rootObject();
+        if (root) {
+            QMetaObject::invokeMethod(root, "updateSongMetadata",
+                Q_ARG(QVariant, filePath),
+                Q_ARG(QVariant, coverUrl),
+                Q_ARG(QVariant, duration));
+        }
+    }
 signals:
     void signal_play_button_click(QString path);
     void signal_remove_click(QString path);

@@ -4,7 +4,7 @@ import QtQuick.Controls 2.14
 Item {
     id: root
     width: 250
-    height: 40
+    height: 70
     
     // 属性
     property int playState: 0  // 0: Stop, 1: Play, 2: Pause

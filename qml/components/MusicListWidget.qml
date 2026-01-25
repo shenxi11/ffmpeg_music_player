@@ -8,6 +8,7 @@ Rectangle {
     
     // 对外暴露的属性
     property bool isNetMusic: false
+    property int currentPlayingIndex: -1  // 当前播放的歌曲索引，-1表示没有播放
     
     // 信号
     signal playRequested(string filePath)
@@ -168,30 +169,13 @@ Rectangle {
     Component {
         id: musicItemDelegate
         
-        Item {
+        Rectangle {
             id: itemRoot
             width: listView.width
-            height: 64
+            height: 60
+            color: itemRoot.containsMouse ? "#E8F4FF" : (index % 2 === 0 ? "#FFFFFF" : "#FAFAFA")
             
-            property bool isHovered: false
-            
-            Rectangle {
-                id: backgroundRect
-                anchors.fill: parent
-                color: itemRoot.isHovered ? "#F0F7FF" : "transparent"
-                
-                Rectangle {
-                    anchors.fill: parent
-                    anchors.leftMargin: 8
-                    anchors.rightMargin: 8
-                    anchors.topMargin: 2
-                    anchors.bottomMargin: 2
-                    color: "transparent"
-                    radius: 6
-                    border.width: itemRoot.isHovered ? 1 : 0
-                    border.color: "#D0E7FF"
-                }
-            }
+            property bool containsMouse: false
             
             Row {
                 anchors.fill: parent
@@ -210,36 +194,17 @@ Rectangle {
                 
                 // 封面
                 Rectangle {
-                    width: 48
-                    height: 48
+                    width: 44
+                    height: 44
                     anchors.verticalCenter: parent.verticalCenter
-                    radius: 6
-                    color: "#F0F0F0"
-                    border.width: 1
-                    border.color: "#E0E0E0"
+                    radius: 4
+                    color: "#E0E0E0"
                     
                     Image {
                         anchors.fill: parent
-                        anchors.margins: 1
+                        anchors.margins: 2
                         source: model.cover !== "" ? model.cover : "qrc:/new/prefix1/icon/Music.png"
                         fillMode: Image.PreserveAspectCrop
-                        smooth: true
-                    }
-                    
-                    // 播放中的波纹效果
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: parent.radius
-                        color: "#3498DB"
-                        opacity: model.isPlaying ? 0.2 : 0
-                        visible: model.isPlaying
-                        
-                        SequentialAnimation on opacity {
-                            running: model.isPlaying
-                            loops: Animation.Infinite
-                            NumberAnimation { from: 0.2; to: 0.4; duration: 1000 }
-                            NumberAnimation { from: 0.4; to: 0.2; duration: 1000 }
-                        }
                     }
                 }
                 
@@ -270,16 +235,7 @@ Rectangle {
                 // 时长
                 Text {
                     text: model.duration || "0:00"
-                    width: 60
-                    font.pixelSize: 12
-                    color: "#666666"
-                    anchors.verticalCenter: parent.verticalCenter
-                }
-                
-                // 大小
-                Text {
-                    text: model.fileSize || "-"
-                    width: 80
+                    width: 100
                     font.pixelSize: 12
                     color: "#666666"
                     anchors.verticalCenter: parent.verticalCenter
@@ -291,7 +247,7 @@ Rectangle {
                 Row {
                     spacing: 8
                     anchors.verticalCenter: parent.verticalCenter
-                    opacity: itemRoot.isHovered ? 1.0 : 0.0
+                    opacity: itemRoot.containsMouse ? 1.0 : 0.0
                     visible: opacity > 0
                     
                     Behavior on opacity { NumberAnimation { duration: 150 } }
@@ -323,18 +279,10 @@ Rectangle {
                             onClicked: {
                                 root.playRequested(model.filePath)
                             }
-                            onEntered: itemRoot.isHovered = true
-                            onExited: {
-                                // 检查鼠标是否真的离开了整个item
-                                var pt = mapToItem(itemRoot, mouseX, mouseY)
-                                if (pt.x < 0 || pt.x > itemRoot.width || pt.y < 0 || pt.y > itemRoot.height) {
-                                    itemRoot.isHovered = false
-                                }
-                            }
                         }
                     }
                     
-                    // 删除按钮
+                    // 删除按钮（本地音乐）
                     Rectangle {
                         width: 68
                         height: 32
@@ -409,8 +357,8 @@ Rectangle {
                 anchors.fill: parent
                 hoverEnabled: true
                 propagateComposedEvents: true
-                onEntered: itemRoot.isHovered = true
-                onExited: itemRoot.isHovered = false
+                onEntered: itemRoot.containsMouse = true
+                onExited: itemRoot.containsMouse = false
                 onPressed: mouse.accepted = false
                 onReleased: mouse.accepted = false
                 onClicked: mouse.accepted = false
@@ -448,47 +396,71 @@ Rectangle {
         return musicListModel.count
     }
     
-    function setPlayingState(filePath, playing) {
-        console.log("[PLAY_STATE] MusicListWidget QML setPlayingState 被调用, filePath=", filePath, ", playing=", playing)
-        
-        // 如果 filePath 为空，则清除所有播放状态
-        if (filePath === "") {
-            console.log("[PLAY_STATE] filePath 为空，清除所有播放状态")
-            for (var i = 0; i < musicListModel.count; i++) {
-                musicListModel.get(i).isPlaying = false
+    // 获取所有歌曲路径列表（用于同步到AudioService）
+    function getAllFilePaths() {
+        var paths = []
+        for (var i = 0; i < musicListModel.count; i++) {
+            paths.push(musicListModel.get(i).filePath)
+        }
+        return paths
+    }
+    
+    // 根据filePath查找索引
+    function getIndexByFilePath(filePath) {
+        for (var i = 0; i < musicListModel.count; i++) {
+            if (musicListModel.get(i).filePath === filePath) {
+                return i
             }
+        }
+        return -1
+    }
+    
+    function setPlayingState(filePath, playing) {
+        // 如果 filePath 为空，则清除当前播放状态
+        if (filePath === "") {
+            if (root.currentPlayingIndex >= 0 && root.currentPlayingIndex < musicListModel.count) {
+                musicListModel.get(root.currentPlayingIndex).isPlaying = false
+            }
+            root.currentPlayingIndex = -1
             return
         }
-        
-        console.log("[PLAY_STATE] 当前列表有", musicListModel.count, "首歌曲")
         
         // 从完整 URL 中提取相对路径（如果是网络路径）
         var pathToMatch = filePath
         if (filePath.indexOf("http") === 0) {
-            // 提取 /uploads/ 之后的部分
             var uploadsIndex = filePath.indexOf("/uploads/")
             if (uploadsIndex !== -1) {
-                pathToMatch = filePath.substring(uploadsIndex + 9) // 9 是 "/uploads/" 的长度
-                console.log("[PLAY_STATE] 从 URL 提取路径:", pathToMatch)
+                pathToMatch = filePath.substring(uploadsIndex + 9)
             }
         }
         
-        // 先将所有歌曲设置为非播放状态
-        var found = false
+        // 查找匹配的歌曲
         for (var i = 0; i < musicListModel.count; i++) {
-            var item = musicListModel.get(i)
-            console.log("[PLAY_STATE] 检查项", i, ": filePath=", item.filePath)
-            if (item.filePath === pathToMatch) {
-                console.log("[PLAY_STATE] 找到匹配项，设置 isPlaying=", playing)
-                item.isPlaying = playing
-                found = true
-            } else if (playing) {
-                // 如果正在播放新歌曲，停止其他歌曲
-                item.isPlaying = false
+            if (musicListModel.get(i).filePath === pathToMatch) {
+                // 找到了目标歌曲
+                if (playing) {
+                    // 关闭上一首
+                    if (root.currentPlayingIndex >= 0 && root.currentPlayingIndex !== i) {
+                        musicListModel.get(root.currentPlayingIndex).isPlaying = false
+                    }
+                    // 开启当前
+                    musicListModel.get(i).isPlaying = true
+                    root.currentPlayingIndex = i
+                } else {
+                    // 关闭当前
+                    musicListModel.get(i).isPlaying = false
+                    if (root.currentPlayingIndex === i) {
+                        root.currentPlayingIndex = -1
+                    }
+                }
+                return
             }
         }
-        if (!found) {
-            console.log("[PLAY_STATE] 警告：没有找到匹配的 filePath!")
+        
+        // 没有找到，可能是其他列表的歌曲
+        if (playing && root.currentPlayingIndex >= 0) {
+            musicListModel.get(root.currentPlayingIndex).isPlaying = false
+            root.currentPlayingIndex = -1
         }
     }
     function playNext(songName){
@@ -511,6 +483,18 @@ Rectangle {
                 var item_last = musicListModel.get((i - 1) < 0 ? musicListModel.count - 1 : i  - 1);
                 item_last.isPlaying =true;
                 root.playRequested(item_last.filePath)
+                break
+            }
+        }
+    }
+    
+    // 更新音乐项的封面和时长（从解码器获取）
+    function updateSongMetadata(filePath, coverUrl, duration) {
+        for (var i = 0; i < musicListModel.count; i++) {
+            if (musicListModel.get(i).filePath === filePath) {
+                musicListModel.setProperty(i, "cover", coverUrl)
+                musicListModel.setProperty(i, "duration", duration)
+                console.log("Updated metadata for:", filePath, "cover:", coverUrl, "duration:", duration)
                 break
             }
         }

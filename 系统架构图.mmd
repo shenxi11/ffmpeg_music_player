@@ -1,0 +1,29 @@
+graph TB
+    subgraph 客户端层["🖥️ 客户端层"]
+        A["Qt/QML客户端<br/>跨平台UI框架"]
+    end
+    
+    subgraph 后端服务层["⚙️ 后端服务层"]
+        B["HTTP路由层<br/>🔀 CORS/日志中间件"]
+        C["业务逻辑层<br/>👤 用户管理 | 🎵 音乐管理 | 📡 流媒体服务"]
+        D["缓存层<br/>⚡ Redis<br/>3级缓存策略"]
+        E["数据持久层<br/>💾 MySQL<br/>连接池管理"]
+    end
+    
+    subgraph 存储层["📁 存储层"]
+        F["文件系统<br/>🎼 音频文件<br/>📝 歌词文件<br/>🖼️ 封面图片"]
+    end
+    
+    A -->|"HTTP/JSON<br/>RESTful API"| B
+    B --> C
+    C -->|"查询/写入<br/>TTL: 5-120min"| D
+    C -->|"CRUD操作<br/>事务管理"| E
+    C -->|"读取/写入<br/>Range请求"| F
+    D -.->|"缓存未命中<br/>回源查询"| E
+    
+    style A fill:#e3f2fd,stroke:#2196f3,stroke-width:3px,color:#000
+    style B fill:#fff3e0,stroke:#ff9800,stroke-width:3px,color:#000
+    style C fill:#f3e5f5,stroke:#9c27b0,stroke-width:3px,color:#000
+    style D fill:#ffebee,stroke:#f44336,stroke-width:3px,color:#000
+    style E fill:#e8f5e9,stroke:#4caf50,stroke-width:3px,color:#000
+    style F fill:#fce4ec,stroke:#e91e63,stroke-width:3px,color:#000

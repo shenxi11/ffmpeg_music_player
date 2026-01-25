@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能音乐流媒体平台 - 后端系统架构图</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: "Microsoft YaHei", "Segoe UI", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+            animation: fadeInDown 0.8s ease;
+        }
+        
+        .header h1 {
+            font-size: 36px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .header p {
+            font-size: 16px;
+            opacity: 0.95;
+        }
+        
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            margin: 0 auto 40px;
+            max-width: 1400px;
+            animation: fadeInUp 0.8s ease;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .container:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 50px rgba(0,0,0,0.25);
+        }
+        
+        h2 {
+            color: #2c3e50;
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid transparent;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            position: relative;
+        }
+        
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 3px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 3px;
+        }
+        
+        .mermaid {
+            display: flex;
+            justify-content: center;
+            margin: 30px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border: 2px solid #e9ecef;
+        }
+        
+        .tips {
+            background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%);
+            border-left: 5px solid #f39c12;
+            padding: 25px;
+            border-radius: 8px;
+            margin-top: 30px;
+            color: #7f5e10;
+            box-shadow: 0 4px 15px rgba(243, 156, 18, 0.2);
+        }
+        
+        .tips strong {
+            display: block;
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #d68910;
+        }
+        
+        .tips ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        
+        .tips li {
+            padding: 10px 0;
+            padding-left: 30px;
+            position: relative;
+            line-height: 1.6;
+        }
+        
+        .tips li::before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #27ae60;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        
+        .tips a {
+            color: #2980b9;
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s ease;
+        }
+        
+        .tips a:hover {
+            color: #3498db;
+            text-decoration: underline;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 6px 12px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 20px;
+            font-size: 12px;
+            margin-left: 10px;
+            font-weight: 500;
+        }
+        
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @media print {
+            body {
+                background: white;
+            }
+            .tips {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎵 智能音乐流媒体平台</h1>
+        <p>基于微服务架构的后端系统设计方案</p>
+    </div>
+
+    <div class="container">
+        <h2>系统架构图<span class="badge">Architecture</span></h2>
+        <div class="mermaid">
+graph TB
+    subgraph 客户端层["🖥️ 客户端层"]
+        A["Qt/QML客户端<br/>跨平台UI框架"]
+    end
+    
+    subgraph 后端服务层["⚙️ 后端服务层"]
+        B["HTTP路由层<br/>🔀 中间件处理"]
+        C["业务逻辑层<br/>👤 用户认证 | 🎵 资源管理 | 📡 流媒体传输"]
+        D["缓存层<br/>⚡ 内存缓存<br/>分级策略"]
+        E["数据持久层<br/>💾 关系数据库<br/>连接池"]
+    end
+    
+    subgraph 存储层["📁 存储层"]
+        F["文件系统<br/>🎼 音频资源<br/>📝 文本资源<br/>🖼️ 图片资源"]
+    end
+    
+    A -->|"HTTP/JSON<br/>RESTful接口"| B
+    B --> C
+    C -->|"缓存优先<br/>差异化TTL"| D
+    C -->|"持久化存储<br/>事务处理"| E
+    C -->|"文件访问<br/>分片传输"| F
+    D -.->|"缓存未命中<br/>回源加载"| E
+    
+    style A fill:#e3f2fd,stroke:#2196f3,stroke-width:3px,color:#000
+    style B fill:#fff3e0,stroke:#ff9800,stroke-width:3px,color:#000
+    style C fill:#f3e5f5,stroke:#9c27b0,stroke-width:3px,color:#000
+    style D fill:#ffebee,stroke:#f44336,stroke-width:3px,color:#000
+    style E fill:#e8f5e9,stroke:#4caf50,stroke-width:3px,color:#000
+    style F fill:#fce4ec,stroke:#e91e63,stroke-width:3px,color:#000
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>数据流程时序图<span class="badge">Sequence Diagram</span></h2>
+        <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant C as 🖥️ 客户端
+    participant S as 🌐 后端服务
+    participant R as ⚡ 缓存层
+    participant M as 💾 数据库
+    participant F as 📁 文件系统
+    
+    rect rgb(230, 240, 255)
+    Note over C,R: 用户登录流程
+    C->>+S: 认证请求
+    S->>+R: 查询缓存
+    alt 缓存命中 🎯
+        R-->>S: 返回缓存结果
+    else 缓存未命中 ❌
+        S->>+M: 查询用户信息
+        M-->>-S: 返回认证数据
+        S->>R: 回写缓存
+    end
+    R-->>-S: 缓存完成
+    S-->>-C: 返回认证响应
+    end
+    
+    rect rgb(240, 255, 240)
+    Note over C,F: 音乐流媒体请求
+    C->>+S: 请求音乐资源
+    S->>+M: 查询元数据
+    M-->>-S: 返回资源信息
+    S->>+F: 读取文件内容
+    F-->>-S: 返回分块数据
+    S-->>-C: 流式传输
+    end
+        </div>
+    </div>
+
+    <div class="tips">
+        <strong>💡 如何导出为高质量图片</strong>
+        <ul>
+            <li><strong>方法1 - 截图工具（最快）：</strong> 按 Win + Shift + S 使用Windows截图工具，框选图表区域即可保存</li>
+            <li><strong>方法2 - 在线工具（推荐，质量最高）：</strong> 访问 <a href="https://mermaid.live" target="_blank">mermaid.live</a>，粘贴.mmd文件内容，导出PNG/SVG矢量图</li>
+            <li><strong>方法3 - 浏览器打印：</strong> 按 Ctrl + P，选择"另存为PDF"，获得矢量格式文档</li>
+            <li><strong>方法4 - 开发者工具：</strong> 按F12，找到SVG元素，右键复制为图片（Chrome/Edge支持）</li>
+            <li><strong>方法5 - Mermaid CLI：</strong> 安装 @mermaid-js/mermaid-cli 后使用命令行批量导出</li>
+        </ul>
+    </div>
+
+    <script>
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'base',
+            themeVariables: {
+                primaryColor: '#e3f2fd',
+                primaryTextColor: '#000',
+                primaryBorderColor: '#2196f3',
+                lineColor: '#607d8b',
+                secondaryColor: '#fff3e0',
+                tertiaryColor: '#f3e5f5',
+                fontSize: '16px',
+                fontFamily: 'Microsoft YaHei, Segoe UI, Arial, sans-serif',
+                nodeTextColor: '#000'
+            },
+            flowchart: {
+                curve: 'basis',
+                padding: 20,
+                nodeSpacing: 80,
+                rankSpacing: 80
+            },
+            sequence: {
+                diagramMarginX: 50,
+                diagramMarginY: 30,
+                actorMargin: 80,
+                width: 180,
+                height: 65,
+                boxMargin: 15,
+                boxTextMargin: 5,
+                noteMargin: 15,
+                messageMargin: 45,
+                mirrorActors: true,
+                useMaxWidth: true
+            }
+        });
+    </script>
+</body>
+</html>

@@ -70,6 +70,10 @@ public:
             connect(root, SIGNAL(rePlay()), this, SIGNAL(signal_rePlay()));
             connect(root, SIGNAL(deskToggled(bool)), this, SIGNAL(signal_desk_toggled(bool)));
             connect(root, SIGNAL(loopToggled(bool)), this, SLOT(on_loop_state_changed(bool)));
+            
+            // 新增信号连接 - playMode属性变化信号
+            connect(root, SIGNAL(playModeChanged()), this, SLOT(on_playMode_changed()));
+            
             qDebug() << "ProcessSliderQml: All signals connected in" << timer.elapsed() << "ms (total)";
         } else {
             qDebug() << "ProcessSliderQml: ERROR - Root object is null!";
@@ -185,6 +189,15 @@ public slots:
         emit signal_loop_change(loop);
     }
     
+    void on_playMode_changed() {
+        QQuickItem* root = rootObject();
+        if (root) {
+            int mode = root->property("playMode").toInt();
+            qDebug() << "Play mode changed to:" << mode;
+            emit signal_playModeChanged(mode);
+        }
+    }
+    
 signals:
     // 进度条信号
     void signal_Slider_Move(int seconds);
@@ -203,6 +216,7 @@ signals:
     void signal_rePlay();
     void signal_desk_toggled(bool checked);
     void signal_loop_change(bool loop);
+    void signal_playModeChanged(int mode);  // 播放模式改变（新）
 };
 
 #endif // PROCESS_SLIDER_QML_H

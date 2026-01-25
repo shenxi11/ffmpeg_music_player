@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能音乐流媒体平台 - 系统用例图</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: "Microsoft YaHei", "Segoe UI", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+            animation: fadeInDown 0.8s ease;
+        }
+        
+        .header h1 {
+            font-size: 36px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .header p {
+            font-size: 16px;
+            opacity: 0.95;
+        }
+        
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            margin: 0 auto 40px;
+            max-width: 1600px;
+            animation: fadeInUp 0.8s ease;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .container:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 50px rgba(0,0,0,0.25);
+        }
+        
+        h2 {
+            color: #2c3e50;
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid transparent;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            position: relative;
+        }
+        
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 80px;
+            height: 3px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 3px;
+        }
+        
+        .mermaid {
+            display: flex;
+            justify-content: center;
+            margin: 30px 0;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border: 2px solid #e9ecef;
+        }
+        
+        .legend {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            border-left: 5px solid #2196f3;
+            padding: 25px;
+            border-radius: 8px;
+            margin-top: 30px;
+            box-shadow: 0 4px 15px rgba(33, 150, 243, 0.2);
+        }
+        
+        .legend h3 {
+            color: #1976d2;
+            font-size: 20px;
+            margin-bottom: 15px;
+        }
+        
+        .legend-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 15px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background: white;
+            border-radius: 6px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .legend-color {
+            width: 30px;
+            height: 30px;
+            border-radius: 4px;
+            margin-right: 12px;
+            border: 2px solid #ccc;
+        }
+        
+        .legend-text {
+            font-size: 14px;
+            color: #333;
+            font-weight: 500;
+        }
+        
+        .tips {
+            background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%);
+            border-left: 5px solid #f39c12;
+            padding: 25px;
+            border-radius: 8px;
+            margin-top: 30px;
+            color: #7f5e10;
+            box-shadow: 0 4px 15px rgba(243, 156, 18, 0.2);
+        }
+        
+        .tips strong {
+            display: block;
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #d68910;
+        }
+        
+        .tips ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        
+        .tips li {
+            padding: 10px 0;
+            padding-left: 30px;
+            position: relative;
+            line-height: 1.6;
+        }
+        
+        .tips li::before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #27ae60;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        
+        .tips a {
+            color: #2980b9;
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s ease;
+        }
+        
+        .tips a:hover {
+            color: #3498db;
+            text-decoration: underline;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 6px 12px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 20px;
+            font-size: 12px;
+            margin-left: 10px;
+            font-weight: 500;
+        }
+        
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @media print {
+            body {
+                background: white;
+            }
+            .tips, .legend {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎵 智能音乐流媒体平台</h1>
+        <p>系统用例图 - Use Case Diagram</p>
+    </div>
+
+    <div class="container">
+        <h2>系统用例图<span class="badge">Use Case</span></h2>
+        <div class="mermaid">
+graph LR
+    %% 左侧：游客功能区
+    subgraph GuestZone["游客功能区"]
+        UC1["浏览音乐列表"]
+        UC2["试听音乐片段"]
+    end
+    
+    %% 游客角色
+    Actor1(("游客用户"))
+    
+    %% 普通用户角色
+    Actor2(("普通用户"))
+    
+    %% 管理员角色
+    Actor3(("管理员"))
+    
+    %% 右侧：普通用户功能区
+    subgraph UserZone["普通用户功能区"]
+        UC3["用户注册登录"]
+        UC4["音乐播放"]
+        UC5["MV观看"]
+        UC6["歌词显示"]
+        UC7["播放历史"]
+        UC8["收藏音乐"]
+        UC9["创建歌单"]
+        UC10["Whisper AI<br/>歌词识别"]
+        UC11["个性化推荐"]
+        UC12["插件扩展"]
+    end
+    
+    %% 右侧：管理员功能区
+    subgraph AdminZone["管理员功能区"]
+        UC13["系统公告管理"]
+        UC14["用户管理"]
+        UC15["音乐资源管理"]
+        UC16["MV资源管理"]
+        UC17["日志管理"]
+        UC18["数据统计分析"]
+    end
+    
+    %% 游客用户关联
+    GuestZone --> Actor1
+    
+    %% 普通用户关联
+    Actor2 --> GuestZone
+    Actor2 --> UserZone
+    
+    %% 管理员关联
+    Actor3 --> UserZone
+    Actor3 --> AdminZone
+    
+    %% 用例之间的关系
+    UC4 -.->|include| UC6
+    UC10 -.->|extend| UC4
+    UC11 -.->|extend| UC1
+    
+    %% 样式定义
+    style GuestZone fill:#e3f2fd,stroke:#2196f3,stroke-width:2px
+    style UserZone fill:#fff3e0,stroke:#ff9800,stroke-width:2px
+    style AdminZone fill:#e0f2f1,stroke:#009688,stroke-width:2px
+    
+    style UC1 fill:#e3f2fd,stroke:#2196f3,stroke-width:2px
+    style UC2 fill:#e3f2fd,stroke:#2196f3,stroke-width:2px
+    style UC3 fill:#fff3e0,stroke:#ff9800,stroke-width:2px
+    style UC4 fill:#e8f5e9,stroke:#4caf50,stroke-width:2px
+    style UC5 fill:#e8f5e9,stroke:#4caf50,stroke-width:2px
+    style UC6 fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px
+    style UC7 fill:#fff9c4,stroke:#fbc02d,stroke-width:2px
+    style UC8 fill:#fff9c4,stroke:#fbc02d,stroke-width:2px
+    style UC9 fill:#fff9c4,stroke:#fbc02d,stroke-width:2px
+    style UC10 fill:#ffebee,stroke:#f44336,stroke-width:3px
+    style UC11 fill:#ffebee,stroke:#f44336,stroke-width:2px
+    style UC12 fill:#fce4ec,stroke:#e91e63,stroke-width:2px
+    style UC13 fill:#e0f2f1,stroke:#009688,stroke-width:2px
+    style UC14 fill:#e0f2f1,stroke:#009688,stroke-width:2px
+    style UC15 fill:#e0f2f1,stroke:#009688,stroke-width:2px
+    style UC16 fill:#e0f2f1,stroke:#009688,stroke-width:2px
+    style UC17 fill:#e0f2f1,stroke:#009688,stroke-width:2px
+    style UC18 fill:#e0f2f1,stroke:#009688,stroke-width:2px
+        </div>
+        
+        <div class="legend">
+            <h3>📋 图例说明</h3>
+            <div class="legend-grid">
+                <div class="legend-item">
+                    <div class="legend-color" style="background:#e3f2fd; border-color:#2196f3;"></div>
+                    <span class="legend-text">游客功能（无需登录）</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background:#fff3e0; border-color:#ff9800;"></div>
+                    <span class="legend-text">基础用户功能</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background:#e8f5e9; border-color:#4caf50;"></div>
+                    <span class="legend-text">播放核心功能</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background:#f3e5f5; border-color:#9c27b0;"></div>
+                    <span class="legend-text">歌词相关功能</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background:#ffebee; border-color:#f44336;"></div>
+                    <span class="legend-text">AI智能功能（创新点）</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background:#fce4ec; border-color:#e91e63;"></div>
+                    <span class="legend-text">插件扩展功能</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background:#e0f2f1; border-color:#009688;"></div>
+                    <span class="legend-text">管理员功能</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tips">
+        <strong>💡 如何导出为高质量图片</strong>
+        <ul>
+            <li><strong>方法1 - 截图工具（最快）：</strong> 按 Win + Shift + S 使用Windows截图工具，框选图表区域即可保存</li>
+            <li><strong>方法2 - 在线工具（推荐，质量最高）：</strong> 访问 <a href="https://mermaid.live" target="_blank">mermaid.live</a>，粘贴系统用例图.mmd文件内容，导出PNG/SVG矢量图</li>
+            <li><strong>方法3 - 浏览器打印：</strong> 按 Ctrl + P，选择"另存为PDF"，获得矢量格式文档</li>
+            <li><strong>方法4 - 开发者工具：</strong> 按F12，找到SVG元素，右键复制为图片（Chrome/Edge支持）</li>
+        </ul>
+    </div>
+
+    <script>
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'base',
+            themeVariables: {
+                primaryColor: '#e3f2fd',
+                primaryTextColor: '#000',
+                primaryBorderColor: '#2196f3',
+                lineColor: '#607d8b',
+                secondaryColor: '#fff3e0',
+                tertiaryColor: '#f3e5f5',
+                fontSize: '16px',
+                fontFamily: 'Microsoft YaHei, Segoe UI, Arial, sans-serif',
+                nodeTextColor: '#000'
+            },
+            flowchart: {
+                curve: 'basis',
+                padding: 20,
+                nodeSpacing: 60,
+                rankSpacing: 100
+            }
+        });
+    </script>
+</body>
+</html>

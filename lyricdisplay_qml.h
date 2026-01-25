@@ -87,6 +87,13 @@ public:
         QMetaObject::invokeMethod(rootObject(), "setIsUp",
                                   Q_ARG(QVariant, up));
     }
+    
+    // 设置歌曲信息（标题和艺术家）
+    void setSongInfo(const QString &title, const QString &artist = QString()) {
+        QMetaObject::invokeMethod(rootObject(), "setSongInfo",
+                                  Q_ARG(QVariant, title),
+                                  Q_ARG(QVariant, artist));
+    }
 
     // 获取当前行号
     int getCurrentLine() const {

@@ -4,6 +4,7 @@
 #include "music_list_widget.h"
 #include "music_list_widget_local.h"
 #include "music_list_widget_net.h"
+#include "video_player_widget.h"
 #include "loginwidget_qml.h"
 #include "searchbox.h"
 #include "user_widget.h"
@@ -31,6 +32,7 @@ private:
     MusicListWidget* list;
     MusicListWidgetLocal* main_list;
     MusicListWidgetNet* net_list;
+    VideoPlayerWidget* video_player;
     LoginWidgetQml* loginWidget;
     UserWidget* userWidget;
     UserWidgetQml* userWidgetQml;
@@ -49,11 +51,14 @@ protected:
         Q_UNUSED(event);
 
         QPainter painter(this);
-
         painter.setRenderHint(QPainter::Antialiasing);
 
-        QColor backgroundColor("#F7F9FC");
-        painter.fillRect(this->rect(), backgroundColor);
+        // QQ音乐风格：浅灰白色渐变背景
+        QLinearGradient gradient(0, 0, 0, height());
+        gradient.setColorAt(0, QColor("#F5F5F7"));   // 浅灰白色
+        gradient.setColorAt(0.5, QColor("#FAFAFA")); // 几乎白色
+        gradient.setColorAt(1, QColor("#F0F0F2"));   // 浅灰色
+        painter.fillRect(rect(), gradient);
 
      }
 

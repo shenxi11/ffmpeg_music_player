@@ -3,18 +3,20 @@
 
 #include <QObject>
 #include <QFileInfo>
+#include <QMetaType>
 
 #include "headers.h"
 
 class Music{
 public:
     Music(){};
-    Music(Music& music){
-        setSongPath(music.getSongPath());
-        setSinger(music.getSinger());
-        setLrcPath(music.getLrcPath());
-        setMusicID(music.getMusicID());
-        setDuration(music.getDuration());
+    Music(const Music& music){
+        setSongPath(music.songPath);
+        setSinger(music.singer);
+        setLrcPath(music.lrcPath);
+        setMusicID(music.musicID);
+        setDuration(music.duration);
+        setPicPath(music.picPath);
     };
 
     void setSongPath(QString songPath){this->songPath = songPath;};
@@ -24,27 +26,28 @@ public:
     void setSinger(QString singer){this->singer = singer;};
     void setDuration(long duration){this->duration = duration;};
 
-    QString getSongPath(){return this->songPath;};
-    QString getSongName()
+    QString getSongPath() const {return this->songPath;};
+    QString getSongName() const
     {
-        auto file = new QFileInfo(this->songPath);
-        this->songName = file->fileName();
-        return this->songName;
+        QFileInfo file(this->songPath);
+        return file.fileName();
     };
-    QString getMusicID(){return this->musicID;};
-    QString getSinger(){return this->singer;};
-    long getDuration(){return this->duration;};
-    QString getLrcPath(){return this->lrcPath;};
-    QString getPicPath(){return this->picPath;};
+    QString getMusicID() const {return this->musicID;};
+    QString getSinger() const {return this->singer;};
+    long getDuration() const {return this->duration;};
+    QString getLrcPath() const {return this->lrcPath;};
+    QString getPicPath() const {return this->picPath;};
 
 private:
     QString musicID;
     QString songName;
     QString songPath;
     QString singer;
-    long duration;
+    long duration = 0;
     QString picPath;
     QString lrcPath;
 };
+
+Q_DECLARE_METATYPE(Music)
 
 #endif // MUSIC_H

@@ -3,8 +3,8 @@
 
 #include <QObject>
 #include <QNetworkAccessManager>
-#include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QNetworkReply>
 #include <QHttpMultiPart>
 #include <QUrl>
 #include <QJsonDocument>
@@ -23,6 +23,8 @@
 #include <memory>
 #include <mutex>
 #include "headers.h"
+#include "music.h"
+
 class User:public QObject{
     Q_OBJECT
 public:
@@ -86,7 +88,7 @@ signals:
     void signal_Registerflag(bool flag);
     void signal_getusername(QString username);
     void signal_send_Packet(QByteArray chunk);
-    void signal_addSong_list(const QStringList songName_list, const QList<double> duration, const QStringList coverUrls = QStringList());
+    void signal_addSong_list(const QList<Music>& musicList);
     void signal_streamurl(bool flag, QString path);
     void signal_add_songs();
     void signal_lrc(QStringList content);
@@ -94,7 +96,7 @@ private:
     HttpRequest(const HttpRequest&) = delete;
     HttpRequest& operator=(const HttpRequest&) = delete;
 
-    const QString localUrl = "http://192.168.1.208:8080/";
+    const QString localUrl = "http://slcdut.xyz:8080/";
     QNetworkAccessManager* manager = nullptr;
 
     bool isUsing = false;

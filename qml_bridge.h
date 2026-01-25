@@ -11,6 +11,7 @@
 #include "lrc_analyze.h"
 #include "controlbar.h"
 #include "httprequest.h"
+#include "music.h"
 
 /**
  * @brief UI桥接类 - 连接C++业务逻辑和QML界面
@@ -170,7 +171,7 @@ private slots:
     void onLrcLineChanged(int line);
     void onAlbumArtChanged(QString picPath);
     void onLoginSuccess(QString username);
-    void onMusicListReceived(const QStringList& songList, const QList<double>& durations);
+    void onMusicListReceived(const QList<Music>& musicList);
     
 private:
     void setupConnections();

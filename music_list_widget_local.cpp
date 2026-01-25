@@ -89,3 +89,9 @@ void MusicListWidgetLocal::on_signal_translate_button_clicked()
 {
     emit signal_translate_button_clicked();
 }
+
+void MusicListWidgetLocal::on_signal_update_metadata(QString filePath, QString coverUrl, QString duration)
+{
+    qDebug() << "[METADATA] MusicListWidgetLocal 收到元数据更新:" << filePath << coverUrl << duration;
+    listWidget->updateSongMetadata(filePath, coverUrl, duration);
+}

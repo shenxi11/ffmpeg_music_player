@@ -6,22 +6,26 @@
 #include <QScrollBar>
 #include <QTextBlock>
 #include "headers.h"
-#include "worker.h"
+// ========== 旧架构（已注释，保留供参考） ==========
+//#include "worker.h"
+//#include "take_pcm.h"
+// ========== 新架构 ==========
+#include "AudioService.h"
 #include "lrc_analyze.h"
-#include "take_pcm.h"
 #include "lyricdisplay_qml.h"
 #include "httprequest.h"
 #include "rotatingcircleimage.h"
 #include "process_slider_qml.h"
 #include "controlbar_qml.h"
 #include "desklrc_qml.h"
+#include "playlist_history_qml.h"
 
 class PlayWidget : public QWidget
 {
     Q_OBJECT
 
 public:
-    PlayWidget(QWidget *parent = nullptr);
+    PlayWidget(QWidget *parent = nullptr, QWidget *mainWidget = nullptr);
     ~PlayWidget();
 
     bool isUp = false;
@@ -68,18 +72,27 @@ signals:
     void signal_isUpChanged(bool flag);
     void signal_desk_lrc(const QString lrc_);
     void signal_netFlagChanged(bool net_flag);
+    void signal_metadata_updated(QString filePath, QString coverUrl, QString duration);
 private:
 
     void init_LyricDisplay();
     void rePlay(QString path);
 
-    std::shared_ptr<Worker> work;//音频转化为pcm的线程
+    // ========== 旧架构（已注释，保留供参考） ==========
+    //std::shared_ptr<Worker> work;//音频转化为pcm的线程
+    //std::shared_ptr<TakePcm> take_pcm;//播放pcm的线程
+    
+    // ========== 新架构 ==========
+    AudioService* audioService;  // 音频服务（单例）
+    AudioSession* currentSession;  // 当前播放会话
+    
     std::shared_ptr<LrcAnalyze> lrc;//解析歌词的线程
-    std::shared_ptr<TakePcm> take_pcm;//播放pcm的线程
     std::map<int, std::string> lyrics;
 
     QString filePath;
     QString fileName;
+    QString currentSongTitle;   // 当前歌曲标题
+    QString currentSongArtist;  // 当前歌曲艺术家
     LyricDisplayQml *lyricDisplay;
     QPushButton *music;
     QPushButton* net;
@@ -91,14 +104,21 @@ private:
     
     // 歌词更新信号连接管理
     QMetaObject::Connection lyricUpdateConnection;
-    QThread *a;
-    QThread *b;
-    QThread *c;
-    QMetaObject::Connection durationsConnection; // 保存 Worker::durations 连接句柄
+    // ========== 旧架构线程（已注释） ==========
+    //QThread *a;
+    //QThread *b;
+    //QThread *c;
+    //QMetaObject::Connection durationsConnection; // 保存 Worker::durations 连接句柄
+    
+    // ========== 新架构 ==========
+    QThread *b;  // 歌词解析线程（保留）
+    QMetaObject::Connection positionUpdateConnection;  // 位置更新连接
+    qint64 lastSeekPosition;  // 记录最后一次跳转位置
 
     ProcessSliderQml* process_slider;
     ProcessSliderQml* controlBar;  // controlBar 现在指向 process_slider
     DeskLrcQml* desk;
+    PlaylistHistoryQml* playlistHistory;  // 播放历史列表
 
     bool play_net = false;
 protected:
@@ -112,10 +132,11 @@ protected:
         {
             // 展开状态：绘制模糊的专辑封面背景
             if (!backgroundLabel->pixmap() || backgroundLabel->pixmap()->isNull()) {
-                // 如果还没有加载专辑封面，使用渐变色作为后备
+                // 如果还没有加载专辑封面，使用QQ音乐风格的浅灰白色渐变
                 QLinearGradient gradient(0, 0, width(), height());
-                gradient.setColorAt(0, QColor("#101D29"));
-                gradient.setColorAt(1, QColor("#24435E"));
+                gradient.setColorAt(0, QColor("#F5F5F7"));   // 浅灰白色
+                gradient.setColorAt(0.5, QColor("#FAFAFA")); // 几乎白色
+                gradient.setColorAt(1, QColor("#F0F0F2"));   // 浅灰色
                 painter.setBrush(gradient);
                 painter.drawRect(0, 0, width(), height());
             } else {
@@ -125,9 +146,13 @@ protected:
         }
         else
         {
-            // 收起状态：浅色背景
-            QColor backgroundColor("#FAFAFA");
-            painter.fillRect(rect(), backgroundColor);
+            // 收起状态：使用QQ音乐风格的浅灰白色渐变
+            QLinearGradient gradient(0, 0, width(), height());
+            gradient.setColorAt(0, QColor("#F5F5F7"));   // 浅灰白色
+            gradient.setColorAt(0.5, QColor("#FAFAFA")); // 几乎白色
+            gradient.setColorAt(1, QColor("#F0F0F2"));   // 浅灰色
+            painter.setBrush(gradient);
+            painter.drawRect(rect());
         }
     }
 };

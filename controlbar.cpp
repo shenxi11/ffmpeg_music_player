@@ -20,13 +20,16 @@ ControlBar::ControlBar(QWidget *parent)
     next  = new QPushButton(this);
     desk = new QPushButton(this);
 
-    loop->setFixedSize(30,30);
-    last->setFixedSize(30,30);
-    play->setFixedSize(30,30);
-    next->setFixedSize(30,30);
-    volume->setFixedSize(30,30);
-    mlist->setFixedSize(30,30);
-    desk->setFixedSize(30,30);
+    int height = 70;
+    int width = 70;
+
+    loop->setFixedSize(width,height);
+    last->setFixedSize(width,height);
+    play->setFixedSize(width,height);
+    next->setFixedSize(width,height);
+    volume->setFixedSize(width,height);
+    mlist->setFixedSize(width,height);
+    desk->setFixedSize(width,height);
 
     QHBoxLayout* hlayout = new QHBoxLayout(this);
     hlayout->addWidget(loop);

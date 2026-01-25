@@ -4,11 +4,17 @@
 #include <QPainter>
 #include <QUrl>
 
-PlayWidget::PlayWidget(QWidget *parent)
-    : QWidget(parent)
+PlayWidget::PlayWidget(QWidget *parent, QWidget *mainWidget)
+    : QWidget(parent),
+      audioService(&AudioService::instance()),
+      currentSession(nullptr),
+      lastSeekPosition(0)
 
 {
     //qDebug() << __FUNCTION__ << QThread::currentThread()->currentThreadId;
+    
+    // 如果没有传入mainWidget，则使用parent
+    QWidget* mainParent = mainWidget ? mainWidget : parent;
     
     // 创建背景图片标签（仅用于存储 pixmap，不直接显示）
     backgroundLabel = new QLabel(this);
@@ -16,8 +22,8 @@ PlayWidget::PlayWidget(QWidget *parent)
     
     // 创建组合的进度条和控制栏（所有功能都在一个 QML 中）
     process_slider = new ProcessSliderQml(this);
-    process_slider->setFixedSize(1000, 60);
-    process_slider->move(0, 500);
+    process_slider->setFixedSize(1000, 70);
+    process_slider->move(0, 490);
     process_slider->setMaxSeconds(0);
     
     // controlBar 现在指向 process_slider（它包含了所有控制功能）
@@ -30,6 +36,10 @@ PlayWidget::PlayWidget(QWidget *parent)
     desk = new DeskLrcQml();
     desk->raise();
     desk->hide();
+    
+    // 创建播放历史列表，父窗口为mainWidget
+    playlistHistory = new PlaylistHistoryQml(mainParent);
+    playlistHistory->hide();
 
     music = new QPushButton(this);
     music->setFixedSize(30,30);
@@ -43,6 +53,8 @@ PlayWidget::PlayWidget(QWidget *parent)
     });
     music->move(10, 10);
 
+    // ========== 旧架构初始化（已注释，保留供参考） ==========
+    /*
     // 创建线程（不要传parent，让线程独立管理生命周期）
     a = new QThread();
     b = new QThread();
@@ -70,6 +82,17 @@ PlayWidget::PlayWidget(QWidget *parent)
     QMetaObject::invokeMethod(take_pcm.get(), [this]() {
         qDebug() << "TakePcm actual thread ID:" << QThread::currentThreadId();
     }, Qt::QueuedConnection);
+    */
+    
+    // ========== 新架构初始化 ==========
+    // 创建歌词解析线程（保留）
+    b = new QThread();
+    lrc = std::make_shared<LrcAnalyze>();
+    // lrc 不需要移到线程，或者可以根据需要决定
+    
+    // 初始化音频服务（单例已在构造函数初始化列表中获取）
+    qDebug() << "AudioService initialized:" << audioService;
+    
     init_LyricDisplay();
 
     QWidget* rotate_widget = new QWidget(this);
@@ -79,9 +102,21 @@ PlayWidget::PlayWidget(QWidget *parent)
     rotatingCircle->resize(300, 300);
 
     connect(this, &PlayWidget::signal_stop_rotate, rotatingCircle, &RotatingCircleImage::on_signal_stop_rotate);
+    
+    // ========== 旧架构信号连接（已注释，保留供参考） ==========
+    /*
     connect(take_pcm.get(), &TakePcm::signal_send_pic_path, process_slider, &ProcessSliderQml::setPicPath);
-    connect(take_pcm.get(), &TakePcm::signal_send_pic_path, this, &PlayWidget::slot_updateBackground);  // 同时更新背景
-    connect(take_pcm.get(), &TakePcm::signal_send_pic_path, rotatingCircle, &RotatingCircleImage::setImage);  // 同时更新旋转唱片
+    connect(take_pcm.get(), &TakePcm::signal_send_pic_path, this, &PlayWidget::slot_updateBackground);
+    connect(take_pcm.get(), &TakePcm::signal_send_pic_path, rotatingCircle, &RotatingCircleImage::setImage);
+    
+    connect(take_pcm.get(), &TakePcm::signal_send_pic_path, this, [this](QString picPath){
+        if (!filePath.isEmpty() && !play_net) {
+            QString durationStr = QString("%1:%2")
+                .arg(duration / 60000000)
+                .arg((duration / 1000000) % 60, 2, 10, QChar('0'));
+            emit signal_metadata_updated(filePath, picPath, durationStr);
+        }
+    });
     connect(take_pcm.get(), &TakePcm::begin_take_lrc, work.get(), &Worker::setPATH);
     connect(take_pcm.get(),&TakePcm::begin_to_play,work.get(),&Worker::play_pcm);
     connect(take_pcm.get(),&TakePcm::data,work.get(),&Worker::receive_data);
@@ -93,15 +128,163 @@ PlayWidget::PlayWidget(QWidget *parent)
         qDebug() << "TakePcm::durations - Total duration:" << value << "microseconds," << (value/1000000) << "seconds";
         process_slider->setMaxSeconds(value / 1000000);
     });
-    // 连接进度跳转信号
     connect(this, &PlayWidget::signal_process_Change, take_pcm.get(), &TakePcm::seekToPosition);
+    */
+    
+    // ========== 新架构信号连接 ==========
+    // 连接 AudioService 的信号
+    connect(audioService, &AudioService::currentTrackChanged, 
+            this, [this](const QString& title, const QString& artist, qint64 durationMs) {
+        qDebug() << "Current track changed:" << title << artist << durationMs;
+        // 更新歌曲信息显示
+        process_slider->setSongName(title);
+        nameLabel->setText(title);
+        // 设置总时长（毫秒转秒）
+        duration = durationMs * 1000;  // 转为微秒保持兼容
+        process_slider->setMaxSeconds(durationMs / 1000);
+        
+        // 保存当前歌曲信息，用于后续添加到播放历史
+        currentSongTitle = title;
+        currentSongArtist = artist;
+    });
+    
+    connect(audioService, &AudioService::albumArtChanged,
+            this, [this](const QString& imagePath) {
+        qDebug() << "Album art changed:" << imagePath;
+        process_slider->setPicPath(imagePath);
+        slot_updateBackground(imagePath);
+        rotatingCircle->setImage(imagePath);
+        
+        // 添加到播放历史（有了专辑图信息）
+        if (!filePath.isEmpty()) {
+            QString title = currentSongTitle.isEmpty() ? fileName : currentSongTitle;
+            QString artist = currentSongArtist.isEmpty() ? "未知艺术家" : currentSongArtist;
+            playlistHistory->addSong(filePath, title, artist, imagePath);
+            qDebug() << "Added to playlist history:" << title << artist;
+        }
+        
+        // 更新本地音乐列表的元数据
+        if (!filePath.isEmpty() && !play_net) {
+            QString durationStr = QString("%1:%2")
+                .arg(duration / 60000000)
+                .arg((duration / 1000000) % 60, 2, 10, QChar('0'));
+            emit signal_metadata_updated(filePath, imagePath, durationStr);
+        }
+    });
+    
+    connect(audioService, &AudioService::positionChanged,
+            this, [this](qint64 positionMs) {
+        // 更新进度条显示（毫秒转秒）
+        int seconds = static_cast<int>(positionMs / 1000);
+        process_slider->setCurrentSeconds(seconds);
+    });
+    
+    connect(audioService, &AudioService::playbackStarted,
+            this, [this](const QString& sessionId, const QUrl& url) {
+        qDebug() << "Playback started, session:" << sessionId << "url:" << url.toString();
+        emit signal_playState(ProcessSliderQml::Play);
+        emit signal_stop_rotate(true);
+        
+        // 更新当前文件路径
+        // 使用toDisplayString()或直接获取原始字符串，避免重复添加scheme
+        QString urlString;
+        if (url.scheme() == "file") {
+            // 本地文件，使用toLocalFile()
+            urlString = url.toLocalFile();
+        } else if (url.scheme().startsWith("http")) {
+            // 网络URL，直接使用toString()
+            urlString = url.toString();
+        } else {
+            // 其他情况
+            urlString = url.toString();
+        }
+        
+        if (!urlString.isEmpty()) {
+            filePath = urlString;
+            QFileInfo fileInfo(urlString);
+            fileName = fileInfo.fileName();
+        }
+        
+        // 延迟100ms更新UI列表，确保音频完全启动后再更新
+        QTimer::singleShot(100, this, [this, urlString]() {
+            emit signal_play_button_click(true, urlString);
+        });
+    });
+    
+    connect(audioService, &AudioService::playbackPaused,
+            this, [this]() {
+        qDebug() << "Playback paused";
+        emit signal_playState(ProcessSliderQml::Pause);
+        emit signal_stop_rotate(false);
+        
+        // 延迟UI更新
+        QString currentFilePath = filePath;
+        QTimer::singleShot(0, this, [this, currentFilePath]() {
+            emit signal_play_button_click(false, currentFilePath);
+        });
+    });
+    
+    connect(audioService, &AudioService::playbackResumed,
+            this, [this]() {
+        qDebug() << "Playback resumed";
+        emit signal_playState(ProcessSliderQml::Play);
+        emit signal_stop_rotate(true);
+        
+        // 延迟UI更新
+        QString currentFilePath = filePath;
+        QTimer::singleShot(0, this, [this, currentFilePath]() {
+            emit signal_play_button_click(true, currentFilePath);
+        });
+    });
+    
+    connect(audioService, &AudioService::playbackStopped,
+            this, [this]() {
+        qDebug() << "Playback stopped";
+        emit signal_playState(ProcessSliderQml::Stop);
+        emit signal_stop_rotate(false);
+    });
+    
+    // 缓冲状态提示（网络音频卡顿时显示）
+    connect(audioService, &AudioService::bufferingStarted,
+            this, [this]() {
+        qDebug() << "Buffering started (network may be slow)";
+        // 显示"正在缓冲..."提示
+        if (nameLabel) {
+            nameLabel->setText("正在缓冲...");
+        }
+    });
+    
+    connect(audioService, &AudioService::bufferingFinished,
+            this, [this]() {
+        qDebug() << "Buffering finished";
+        // 恢复歌曲名显示
+        if (nameLabel && !fileName.isEmpty()) {
+            nameLabel->setText(QFileInfo(fileName).baseName());
+        }
+    });
+    
+    // 进度跳转信号连接
+    connect(this, &PlayWidget::signal_process_Change, 
+            this, [this](qint64 milliseconds, bool back_flag) {
+        qDebug() << "Seeking to position:" << milliseconds << "ms";
+        // 每次都从AudioService获取当前session，避免使用已销毁的session
+        auto session = audioService->currentSession();
+        if (session) {
+            session->seekTo(milliseconds);
+            lastSeekPosition = milliseconds;
+        } else {
+            qDebug() << "No active session to seek";
+        }
+    });
+    
     connect(process_slider, &ProcessSliderQml::signal_Slider_Move, this, [=](int seconds){
         qDebug() << "Slider moved to:" << seconds << "seconds";
         // signal_process_Change 需要的是毫秒，seekToPosition 会再乘以 1000 转为微秒
         qint64 milliseconds = static_cast<qint64>(seconds) * 1000;
         bool back_flag = false;
-        // 重置播放状态
-        work->reset_play();
+        
+        // ========== 旧架构调用（已注释） ==========
+        // work->reset_play();
         
         // 发送跳转信号（单位：毫秒）
         emit signal_process_Change(milliseconds, true);
@@ -111,19 +294,63 @@ PlayWidget::PlayWidget(QWidget *parent)
     });
 
     connect(this, &PlayWidget::signal_filepath, [=](QString path) {
+        // ========== 旧架构调用（已注释） ==========
         //emit take_pcm->begin_to_play();
-        emit take_pcm->signal_begin_make_pcm(path);
+        //emit take_pcm->signal_begin_make_pcm(path);
+        
+        // ========== 新架构调用 ==========
+        qDebug() << "Loading audio file:" << path;
+        QUrl url = QUrl::fromLocalFile(path);
+        
+        // 使用 AudioService 播放
+        if (audioService->play(url)) {
+            currentSession = audioService->currentSession();
+            qDebug() << "Audio loaded successfully, session:" << currentSession;
+        } else {
+            qDebug() << "Failed to load audio file:" << path;
+        }
     });
+    
+    // ========== 旧架构信号连接（已注释） ==========
+    /*
     connect(this, &PlayWidget::signal_worker_play, work.get(), &Worker::Pause);
     connect(this, &PlayWidget::signal_remove_click, work.get(), &Worker::reset_status);
+    */
+    
+    // ========== 新架构 - 播放/暂停控制 ==========
+    connect(this, &PlayWidget::signal_worker_play, this, [this]() {
+        AudioService& service = AudioService::instance();
+        auto session = service.currentSession();
+        if (session) {
+            if (session->isPlaying() && !session->isPaused()) {
+                service.pause();
+            } else {
+                service.resume();
+            }
+        }
+    });
+    
+    connect(this, &PlayWidget::signal_remove_click, this, [this]() {
+        if (currentSession) {
+            currentSession->stop();
+            currentSession = nullptr;
+        }
+    });
 
     connect(this, &PlayWidget::signal_filepath, this, &PlayWidget::_begin_take_lrc);
     connect(this,&PlayWidget::signal_begin_take_lrc,lrc.get(),&LrcAnalyze::begin_take_lrc);
+    
+    // ========== 旧架构歌词连接（已注释） ==========
+    /*
     connect(lrc.get(),&LrcAnalyze::send_lrc,work.get(),&Worker::receive_lrc);
+    */
+    
     connect(lrc.get(),&LrcAnalyze::send_lrc,this, &PlayWidget::slot_Lrc_send_lrc);
     connect(lyricDisplay, &LyricDisplayQml::signal_current_lrc, this, &PlayWidget::signal_desk_lrc);
     connect(this, &PlayWidget::signal_desk_lrc, desk, &DeskLrcQml::setLyricText);
     
+    // ========== 旧架构歌词更新（已注释） ==========
+    /*
     // 保存歌词更新连接，以便在拖拽时断开
     lyricUpdateConnection = connect(work.get(),&Worker::send_lrc,this,[this](int line){
         if(line != lyricDisplay->currentLine)
@@ -131,6 +358,35 @@ PlayWidget::PlayWidget(QWidget *parent)
             lyricDisplay->highlightLine(line);
             lyricDisplay->scrollToLine(line);  // 直接传递行号，而不是差值
             lyricDisplay->currentLine = line;
+            update();
+        }
+    });
+    */
+    
+    // ========== 新架构歌词更新 ==========
+    // 使用 positionChanged 信号来更新歌词高亮
+    lyricUpdateConnection = connect(audioService, &AudioService::positionChanged, 
+            this, [this](qint64 positionMs) {
+        // 根据时间找到对应的歌词行
+        int targetLine = -1;
+        // 歌词提前1000ms显示（让歌词切换与播放进度更同步）
+        int timeInMs = static_cast<int>(positionMs) + 1000;
+        
+        for (auto it = lyrics.begin(); it != lyrics.end(); ++it) {
+            if (it->first <= timeInMs) {
+                auto next = std::next(it);
+                if (next == lyrics.end() || next->first > timeInMs) {
+                    // 找到当前应该高亮的歌词
+                    targetLine = std::distance(lyrics.begin(), it) + 5;  // +5 对应初始偏移
+                    break;
+                }
+            }
+        }
+        
+        if (targetLine >= 0 && targetLine != lyricDisplay->currentLine) {
+            lyricDisplay->highlightLine(targetLine);
+            lyricDisplay->scrollToLine(targetLine);
+            lyricDisplay->currentLine = targetLine;
             update();
         }
     });
@@ -146,8 +402,13 @@ PlayWidget::PlayWidget(QWidget *parent)
     nameLabel->setFixedSize(550, 30);
     nameLabel->setAlignment(Qt::AlignCenter);
 
+    // ========== 旧架构状态连接（已注释） ==========
+    /*
     connect(work.get(),&Worker::Stop,this, &PlayWidget::slot_work_stop);
     connect(work.get(),&Worker::Begin,this, &PlayWidget::slot_work_play);
+    */
+    
+    // ========== 新架构状态更新已在前面通过 audioService 信号处理 ==========
 
     // 设置桌面歌词的 ProcessSlider 引用，让它直接调用 ControlBar 方法
     desk->setProcessSlider(process_slider);
@@ -188,12 +449,26 @@ PlayWidget::PlayWidget(QWidget *parent)
     // ProcessSlider QML 控件连接
     connect(process_slider, &ProcessSliderQml::signal_play_clicked, this, &PlayWidget::slot_play_click);
     connect(this, &PlayWidget::signal_playState, process_slider, &ProcessSliderQml::setState);
+    
+    // ========== 旧架构音量控制（已注释） ==========
+    /*
     connect(process_slider, &ProcessSliderQml::signal_volumeChanged, work.get(), &Worker::Set_Volume);
-    connect(process_slider, &ProcessSliderQml::signal_nextSong, this,[=](){
-        emit signal_Next(fileName,get_net_flag());
+    */
+    
+    // ========== 新架构音量控制 ==========
+    connect(process_slider, &ProcessSliderQml::signal_volumeChanged, this, [this](int volume) {
+        qDebug() << "Volume changed to:" << volume;
+        audioService->setVolume(volume);
     });
-    connect(process_slider, &ProcessSliderQml::signal_lastSong, this,[=](){
-        emit signal_Last(fileName,get_net_flag());
+    
+    // ========== 上一首/下一首 ==========
+    connect(process_slider, &ProcessSliderQml::signal_nextSong, this, [this](){
+        qDebug() << "Next song clicked";
+        audioService->playNext();
+    });
+    connect(process_slider, &ProcessSliderQml::signal_lastSong, this, [this](){
+        qDebug() << "Previous song clicked";
+        audioService->playPrevious();
     });
     connect(process_slider, &ProcessSliderQml::signal_stop, this, [=](){
         if(filePath.size())
@@ -208,7 +483,93 @@ PlayWidget::PlayWidget(QWidget *parent)
         qDebug() << "Loop state changed:" << isLoop;
         // 可以在这里处理循环状态改变的逻辑
     });
+    
+    // ========== 播放历史列表 ==========
+    connect(process_slider, &ProcessSliderQml::signal_mlist_toggled, this, [this](bool show){
+        qDebug() << "Playlist toggle:" << show;
+        if (show) {
+            // 计算播放列表位置（相对于 mainWidget）
+            QWidget* mainWidget = playlistHistory->parentWidget();
+            if (mainWidget) {
+                int windowX = mainWidget->width() - 400;  // 贴在主窗口右边缘
+                int windowY = 60;  // 距离顶部60px（topWidget高度）
+                int windowHeight = mainWidget->height() - 70 - 65;  // 高度：主窗口高度 - slider高度 - topWidget高度
+                
+                qDebug() << "MainWidget size:" << mainWidget->size();
+                qDebug() << "PlaylistHistory position:" << windowX << windowY << "size:" << 400 << windowHeight;
+                
+                playlistHistory->setGeometry(windowX, windowY, 400, windowHeight);
+                playlistHistory->show();
+                playlistHistory->raise();  // 提升到最上层
+                
+                // 通过查找 topWidget 并提升它，确保顶部控件在播放列表之上
+                QWidget* topWidget = mainWidget->findChild<QWidget*>();
+                if (topWidget && topWidget->y() == 0 && topWidget->height() == 60) {
+                    topWidget->raise();
+                }
+            }
+        } else {
+            playlistHistory->hide();
+        }
+    });
+    
+    // 连接播放历史列表的信号
+    connect(playlistHistory, &PlaylistHistoryQml::playRequested, this, [this](const QString& filePath){
+        qDebug() << "Play from history:" << filePath;
+        _play_click(filePath);
+    });
+    
+    connect(playlistHistory, &PlaylistHistoryQml::removeRequested, this, [this](const QString& filePath){
+        qDebug() << "Remove from history:" << filePath;
+        
+        // 将filePath转换为QUrl
+        QUrl url = QUrl::fromUserInput(filePath);
+        
+        // 在播放历史中查找该URL的索引
+        int index = audioService->playlist().indexOf(url);
+        if (index >= 0) {
+            qDebug() << "Removing from AudioService playlist at index:" << index;
+            audioService->removeFromPlaylist(index);
+        } else {
+            qDebug() << "URL not found in playlist:" << url.toString();
+        }
+    });
+    
+    connect(playlistHistory, &PlaylistHistoryQml::clearAllRequested, this, [this](){
+        qDebug() << "Clear all history";
+        audioService->clearPlaylist();
+    });
+    
+    connect(playlistHistory, &PlaylistHistoryQml::pauseToggled, this, [this](){
+        qDebug() << "Pause toggled from playlist history";
+        // 根据PlaylistHistory的isPaused状态来决定是暂停还是继续
+        QQuickItem* root = playlistHistory->rootObject();
+        if (root) {
+            bool isPaused = root->property("isPaused").toBool();
+            if (isPaused) {
+                // 当前是暂停状态，点击后继续播放
+                qDebug() << "Resuming playback";
+                audioService->resume();
+                playlistHistory->setPaused(false);
+            } else {
+                // 当前是播放状态，点击后暂停
+                qDebug() << "Pausing playback";
+                audioService->pause();
+                playlistHistory->setPaused(true);
+            }
+        }
+    });
+    
+    // ========== 播放模式控制 ==========
+    connect(process_slider, &ProcessSliderQml::signal_playModeChanged, this, [this](int mode){
+        qDebug() << "Play mode changed to:" << mode;
+        // 0: Sequential, 1: RepeatOne, 2: RepeatAll, 3: Shuffle
+        AudioService::PlayMode playMode = static_cast<AudioService::PlayMode>(mode);
+        audioService->setPlayMode(playMode);
+    });
 
+    // ========== 旧架构进度更新和 seek 连接（已注释） ==========
+    /*
     connect(take_pcm.get(), &TakePcm::signal_move, this, [this]() {
         // seek 完成后重新连接 durations（参考原 ProcessSlider 实现）
         qDebug() << "TakePcm::signal_move - 重新连接 durations";
@@ -238,6 +599,33 @@ PlayWidget::PlayWidget(QWidget *parent)
 
     // 注意：不在 sliderReleased 时重连，而是在 TakePcm::signal_move 时重连
     // 这样可以避免 seek 期间的时间戳更新干扰
+    */
+    
+    // ========== 新架构进度更新 ==========
+    // positionChanged 已在前面连接到 AudioService
+    
+    // 处理滑块拖动
+    positionUpdateConnection = connect(audioService, &AudioService::positionChanged,
+            this, [this](qint64 positionMs) {
+        // 进度更新已在前面的连接中处理
+    });
+    
+    connect(process_slider, &ProcessSliderQml::signal_sliderPressed, [this](){
+        qDebug() << "拖动进度条 - 断开位置更新";
+        if (positionUpdateConnection) {
+            disconnect(positionUpdateConnection);
+        }
+    });
+    
+    // Seek 完成后重新连接
+    connect(process_slider, &ProcessSliderQml::signal_sliderReleased, [this](){
+        qDebug() << "进度条释放 - 重新连接位置更新";
+        positionUpdateConnection = connect(audioService, &AudioService::positionChanged,
+                this, [this](qint64 positionMs) {
+            int seconds = static_cast<int>(positionMs / 1000);
+            process_slider->setCurrentSeconds(seconds);
+        });
+    });
 
     // 连接播放完成信号
     connect(process_slider, &ProcessSliderQml::signal_playFinished, process_slider, &ProcessSliderQml::slot_playFinished);
@@ -263,6 +651,32 @@ void PlayWidget::set_isUp(bool flag){
             qDebug() << "Showing lyric display";
             lyricDisplay->show();  // 展开时显示歌词
             lyricDisplay->setIsUp(true);
+            
+            // 立即更新歌词高亮行到当前播放位置
+            auto session = audioService->currentSession();
+            if (session) {
+                AudioPlayer& player = AudioPlayer::instance();
+                qint64 currentPosition = player.getCurrentTimestamp();
+                int timeInMs = static_cast<int>(currentPosition) + 1000;  // 歌词提前1000ms
+                
+                int targetLine = -1;
+                for (auto it = lyrics.begin(); it != lyrics.end(); ++it) {
+                    if (it->first <= timeInMs) {
+                        auto next = std::next(it);
+                        if (next == lyrics.end() || next->first > timeInMs) {
+                            targetLine = std::distance(lyrics.begin(), it) + 5;
+                            break;
+                        }
+                    }
+                }
+                
+                if (targetLine >= 0) {
+                    lyricDisplay->highlightLine(targetLine);
+                    lyricDisplay->scrollToLine(targetLine);
+                    lyricDisplay->currentLine = targetLine;
+                    qDebug() << "Initial lyric highlight set to line:" << targetLine << "at position:" << currentPosition << "ms";
+                }
+            }
         } else {
             qDebug() << "Hiding lyric display";
             lyricDisplay->hide();  // 收起时隐藏歌词
@@ -282,7 +696,13 @@ void PlayWidget::slot_work_stop(){
     {
         emit signal_stop_rotate(false);
         qDebug() << "[PLAY_STATE] slot_work_stop 发出 signal_play_button_click(false," << filePath << ")";
-        emit signal_play_button_click(false, filePath);
+        
+        // 延迟UI列表更新，避免阻塞
+        QString currentFilePath = filePath;
+        QTimer::singleShot(0, this, [this, currentFilePath]() {
+            emit signal_play_button_click(false, currentFilePath);
+        });
+        
         process_slider->setSongName(QFileInfo(fileName).baseName());
         nameLabel->setText(QFileInfo(fileName).baseName());
     }
@@ -291,7 +711,13 @@ void PlayWidget::slot_work_play(){
     emit signal_playState(ProcessSliderQml::Play);
     emit signal_stop_rotate(true);
     qDebug() << "[PLAY_STATE] slot_work_play 发出 signal_play_button_click(true," << filePath << ")";
-    emit signal_play_button_click(true, filePath);
+    
+    // 延迟100ms更新UI列表，确保音频完全启动后再更新
+    QString currentFilePath = filePath;
+    QTimer::singleShot(100, this, [this, currentFilePath]() {
+        emit signal_play_button_click(true, currentFilePath);
+    });
+    
     process_slider->setSongName(QFileInfo(fileName).baseName());
     nameLabel->setText(QFileInfo(fileName).baseName());
 }
@@ -302,6 +728,13 @@ void PlayWidget::slot_Lrc_send_lrc(const std::map<int, std::string> lyrics){
     {
         std::lock_guard<std::mutex>lock(mtx);
         this->lyrics = lyrics;
+    }
+    
+    // 设置歌曲信息到歌词显示界面
+    if (!fileName.isEmpty()) {
+        QFileInfo fileInfo(fileName);
+        QString songName = fileInfo.baseName();
+        lyricDisplay->setSongInfo(songName, ""); // 暂时没有艺术家信息
     }
     
     // 使用带时间的 std::map 格式设置歌词
@@ -361,6 +794,8 @@ void PlayWidget::slot_play_click(){
     qDebug() << "[TIMING] slot_play_click 发出 signal_worker_play" << QTime::currentTime().toString("hh:mm:ss.zzz");
     emit signal_worker_play();
     qDebug() << "[TIMING] slot_play_click END" << QTime::currentTime().toString("hh:mm:ss.zzz");
+    
+    // ========== 旧架构调用（已注释） ==========
     //work->Pause();
 }
 
@@ -401,7 +836,7 @@ void PlayWidget::openfile()
                 &dummyWidget,                   // 父窗口（可以是 nullptr）
                 "Open File",                    // 对话框标题
                 QDir::homePath(),               // 起始目录（可以是任意路径）
-                "Audio Files (*.mp3 *.wav *.flac *.ogg);;All Files (*)"  // 文件过滤器
+                "Audio Files (*.mp3 *.wav *.flac *.ogg *mp4);;All Files (*)"  // 文件过滤器
                 );
 
     // 打印选中的文件路径
@@ -468,7 +903,8 @@ PlayWidget::~PlayWidget()
 {
     qDebug() << "PlayWidget::~PlayWidget() - Starting cleanup...";
  
-    
+    // ========== 旧架构清理（已注释，保留供参考） ==========
+    /*
     // 2. 等待线程完成当前工作
     QThread::msleep(200);
     
@@ -508,6 +944,28 @@ PlayWidget::~PlayWidget()
     work.reset();
     lrc.reset();
     take_pcm.reset();
+    */
+    
+    // ========== 新架构清理 ==========
+    // 停止当前会话
+    if (currentSession) {
+        currentSession->stop();
+        currentSession = nullptr;
+    }
+    
+    // 清理歌词线程（保留）
+    if(b)
+    {
+        qDebug() << "PlayWidget: Stopping lyric thread b...";
+        b->quit();
+        if(!b->wait(2000)) {
+            qDebug() << "PlayWidget: Thread b did not finish, terminating...";
+            b->terminate();
+            b->wait();
+        }
+    }
+    
+    lrc.reset();
     
     qDebug() << "PlayWidget::~PlayWidget() - Cleanup complete";
 }
@@ -576,8 +1034,8 @@ void PlayWidget::slot_lyric_seek(int timeMs) {
     qint64 milliseconds = static_cast<qint64>(timeMs);
     qDebug() << "Converting to milliseconds:" << milliseconds;
     
-    // 重置播放状态
-    work->reset_play();
+    // ========== 旧架构调用（已注释） ==========
+    // work->reset_play();
     
     // 发送跳转信号（单位：毫秒）
     emit signal_process_Change(milliseconds, true);
@@ -608,6 +1066,8 @@ void PlayWidget::slot_lyric_drag_start() {
 void PlayWidget::slot_lyric_drag_end() {
     qDebug() << "Lyric drag ended - reconnecting lyric update";
     
+    // ========== 旧架构重连（已注释） ==========
+    /*
     // 重新连接歌词更新信号
     lyricUpdateConnection = connect(work.get(),&Worker::send_lrc,this,[this](int line){
         if(line != lyricDisplay->currentLine)
@@ -615,6 +1075,31 @@ void PlayWidget::slot_lyric_drag_end() {
             lyricDisplay->highlightLine(line);
             lyricDisplay->scrollToLine(line);
             lyricDisplay->currentLine = line;
+            update();
+        }
+    });
+    */
+    
+    // ========== 新架构重连 ==========
+    lyricUpdateConnection = connect(audioService, &AudioService::positionChanged, 
+            this, [this](qint64 positionMs) {
+        int targetLine = -1;
+        int timeInMs = static_cast<int>(positionMs);
+        
+        for (auto it = lyrics.begin(); it != lyrics.end(); ++it) {
+            if (it->first <= timeInMs) {
+                auto next = std::next(it);
+                if (next == lyrics.end() || next->first > timeInMs) {
+                    targetLine = std::distance(lyrics.begin(), it) + 5;
+                    break;
+                }
+            }
+        }
+        
+        if (targetLine >= 0 && targetLine != lyricDisplay->currentLine) {
+            lyricDisplay->highlightLine(targetLine);
+            lyricDisplay->scrollToLine(targetLine);
+            lyricDisplay->currentLine = targetLine;
             update();
         }
     });

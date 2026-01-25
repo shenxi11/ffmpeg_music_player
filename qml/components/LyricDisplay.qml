@@ -7,6 +7,8 @@ Item {
     // 属性
     property int currentLine: -1
     property bool isUp: false
+    property string songTitle: ""
+    property string artist: ""
     
     // 信号
     signal currentLrcChanged(string lyricText)
@@ -17,10 +19,56 @@ Item {
         id: lyricModel
     }
     
+    // 标题栏
+    Rectangle {
+        id: titleBar
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: 50
+        color: "transparent"
+        
+        Column {
+            anchors.top: parent.top
+            anchors.topMargin: 8
+            anchors.horizontalCenter: parent.horizontalCenter
+            spacing: 2
+            
+            Text {
+                text: root.songTitle || "未知歌曲"
+                color: root.isUp ? "#FFFFFF" : "#333333"
+                font.pixelSize: 18
+                font.bold: true
+                anchors.horizontalCenter: parent.horizontalCenter
+            }
+            
+            Text {
+                text: root.artist || ""
+                color: root.isUp ? "#CCCCCC" : "#666666"
+                font.pixelSize: 13
+                visible: root.artist !== ""
+                anchors.horizontalCenter: parent.horizontalCenter
+            }
+        }
+        
+        // 底部分隔线
+        Rectangle {
+            anchors.bottom: parent.bottom
+            anchors.left: parent.left
+            anchors.right: parent.right
+            height: 1
+            color: root.isUp ? "#333333" : "#E0E0E0"
+            opacity: 0.3
+        }
+    }
+    
     // 歌词 ListView
     ListView {
         id: lyricView
-        anchors.fill: parent
+        anchors.top: titleBar.bottom
+        anchors.bottom: parent.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
         model: lyricModel
         clip: true
         interactive: false
@@ -148,6 +196,10 @@ Item {
         
         // 重置当前行为第一行歌词（索引5）
         root.currentLine = 5
+        
+        // 立即滚动到第一行歌词，确保第一次打开时高亮行在中间
+        lyricView.currentIndex = 5
+        lyricView.positionViewAtIndex(5, ListView.Center)
     }
     
     // 函数：高亮指定行
@@ -180,5 +232,11 @@ Item {
     // 函数：设置是否展开状态
     function setIsUp(up) {
         root.isUp = up
+    }
+    
+    // 函数：设置歌曲信息
+    function setSongInfo(title, artistName) {
+        root.songTitle = title || ""
+        root.artist = artistName || ""
     }
 }

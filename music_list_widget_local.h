@@ -11,6 +11,10 @@ class MusicListWidgetLocal : public QWidget
     Q_OBJECT
 public:
     explicit MusicListWidgetLocal(QWidget *parent = nullptr);
+    
+    // 获取内部的QML列表控件
+    MusicListWidgetQml* getListWidget() const { return listWidget; }
+    
 public slots:
     void on_signal_add_button_clicked();
     void on_signal_add_song(const QString filename, const QString path);
@@ -18,6 +22,7 @@ public slots:
     void on_signal_play_click(const QString songName);
     void on_signal_remove_click(const QString songeName);
     void on_signal_translate_button_clicked();
+    void on_signal_update_metadata(QString filePath, QString coverUrl, QString duration);
 signals:
     void signal_add_button_clicked();
     void signal_add_song(const QString filename, const QString path);

@@ -1,6 +1,7 @@
 #include "main_widget.h"
 #include "plugin_manager.h"
 #include "searchbox_qml.h"  // 使用 QML 版本的 SearchBox
+#include "AudioService.h"   // 添加 AudioService 以同步播放列表
 #include <QCoreApplication>
 
 MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
@@ -10,8 +11,7 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     resize(1000,600);
     setWindowFlags(Qt::CustomizeWindowHint);
     
-    // 设置深色背景
-    setStyleSheet("QWidget#MainWidget { background-color: #2C2C2C; }");
+    // 移除深色背景，使用 paintEvent 的渐变背景
     setObjectName("MainWidget");
     
     // 初始化插件管理器，加载所有插件
@@ -21,22 +21,45 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     qDebug() << "Loaded" << loadedCount << "plugins from" << pluginPath;
 
     topWidget = new QWidget(this);
+    topWidget->setStyleSheet("QWidget { background: transparent; }");
+    
     QPushButton* minimizeButton = new QPushButton(topWidget);
-    minimizeButton->setStyleSheet("QPushButton {"
-                                  "    border-image: url(:/new/prefix1/icon/square_unselected.png);"
-                                  "}");
+    minimizeButton->setStyleSheet(
+        "QPushButton {"
+        "    border-image: url(:/new/prefix1/icon/square_unselected.png);"
+        "    background: transparent;"
+        "}"
+        "QPushButton:hover {"
+        "    background: rgba(63, 81, 181, 0.1);"
+        "    border-radius: 15px;"
+        "}"
+    );
     minimizeButton->setFixedSize(30, 30);
 
     QPushButton* maximizeButton = new QPushButton(topWidget);
-    maximizeButton->setStyleSheet("QPushButton {"
-                                  "    border-image: url(:/new/prefix1/icon/minus_sign.png);"
-                                  "}");
+    maximizeButton->setStyleSheet(
+        "QPushButton {"
+        "    border-image: url(:/new/prefix1/icon/minus_sign.png);"
+        "    background: transparent;"
+        "}"
+        "QPushButton:hover {"
+        "    background: rgba(63, 81, 181, 0.1);"
+        "    border-radius: 15px;"
+        "}"
+    );
     maximizeButton->setFixedSize(30, 30);
 
     QPushButton* closeButton = new QPushButton(topWidget);
-    closeButton->setStyleSheet("QPushButton {"
-                               "    border-image: url(:/new/prefix1/icon/close1.png);"
-                               "}");
+    closeButton->setStyleSheet(
+        "QPushButton {"
+        "    border-image: url(:/new/prefix1/icon/close1.png);"
+        "    background: transparent;"
+        "}"
+        "QPushButton:hover {"
+        "    background: rgba(244, 67, 54, 0.2);"
+        "    border-radius: 15px;"
+        "}"
+    );
     closeButton->setFixedSize(30, 30);
 
     connect(minimizeButton, &QPushButton::clicked, this, [=](){
@@ -67,15 +90,17 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
         "QPushButton {"
         "    background: transparent;"
         "    border: none;"
-        "    font-size: 20px;"
-        "    color: #333;"
+        "    font-size: 22px;"
+        "    color: #666666;"
         "    border-radius: 25px;"
+        "    font-weight: bold;"
         "}"
         "QPushButton:hover {"
-        "    background: rgba(0, 122, 204, 0.1);"
+        "    background: rgba(49, 194, 124, 0.1);"
+        "    color: #31C27C;"
         "}"
         "QPushButton:pressed {"
-        "    background: rgba(0, 122, 204, 0.2);"
+        "    background: rgba(49, 194, 124, 0.2);"
         "}"
     );
     
@@ -122,29 +147,84 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     net_list->move(main_list->pos());
     net_list->hide();
     net_list->setObjectName("net");
+    
+    // 创建视频播放器窗口
+    video_player = new VideoPlayerWidget(this);
+    video_player->setFixedSize(800, 400);
+    video_player->move(main_list->pos());
+    video_player->hide();
+    video_player->setObjectName("video");
 
     QWidget* leftWidget = new QWidget(this);
     leftWidget->setFixedSize(200, this->height() - 100);
-    leftWidget->setStyleSheet("background-color: #F0F3F6;");
+    leftWidget->setStyleSheet(
+        "QWidget {"
+        "    background: #F2F3F5;"
+        "    border-radius: 0px;"
+        "}"
+    );
 
-    QPushButton* localList = new QPushButton("本地音乐", leftWidget);
+    QPushButton* localList = new QPushButton("🎵 本地音乐", leftWidget);
     localList->setFixedSize(200,50);
     localList->move(0,this->height()- 500);
     localList->setCheckable(true);
+    localList->setStyleSheet(
+        "QPushButton {"
+        "    background: transparent;"
+        "    color: #333333;"
+        "    border: none;"
+        "    text-align: left;"
+        "    padding-left: 20px;"
+        "    font-size: 14px;"
+        "    font-weight: 500;"
+        "}"
+        "QPushButton:hover {"
+        "    background: rgba(0, 0, 0, 0.03);"
+        "}"
+    );
 
-    QPushButton* NetList = new QPushButton("在线音乐", leftWidget);
+    QPushButton* NetList = new QPushButton("🌐 在线音乐", leftWidget);
     NetList->setFixedSize(200,50);
     NetList->move(0,this->height()- 450);
     NetList->setCheckable(true);
     NetList->setStyleSheet(
-                "background-color: transparent;"
-                "color: black;"
-                "border: none;"
-                );
+        "QPushButton {"
+        "    background: transparent;"
+        "    color: #333333;"
+        "    border: none;"
+        "    text-align: left;"
+        "    padding-left: 20px;"
+        "    font-size: 14px;"
+        "    font-weight: 500;"
+        "}"
+        "QPushButton:hover {"
+        "    background: rgba(0, 0, 0, 0.03);"
+        "}"
+    );
+    
+    QPushButton* VideoList = new QPushButton("🎬 视频播放", leftWidget);
+    VideoList->setFixedSize(200,50);
+    VideoList->move(0,this->height()- 400);
+    VideoList->setCheckable(true);
+    VideoList->setStyleSheet(
+        "QPushButton {"
+        "    background: transparent;"
+        "    color: #333333;"
+        "    border: none;"
+        "    text-align: left;"
+        "    padding-left: 20px;"
+        "    font-size: 14px;"
+        "    font-weight: 500;"
+        "}"
+        "QPushButton:hover {"
+        "    background: rgba(0, 0, 0, 0.03);"
+        "}"
+    );
 
     QButtonGroup* leftButtons = new QButtonGroup(this);
     leftButtons->addButton(localList);
     leftButtons->addButton(NetList);
+    leftButtons->addButton(VideoList);
     leftButtons->setExclusive(true);
 
     QWidget* textWidget = new QWidget(leftWidget);
@@ -156,9 +236,11 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
 
     QLabel *textLabel = new QLabel("网易云音乐", textWidget);
     QFont font;
-    font.setFamily("Brush Script MT");
-    font.setPointSize(20);
+    font.setFamily("Microsoft YaHei");
+    font.setPointSize(16);
+    font.setBold(true);
     textLabel->setFont(font);
+    textLabel->setStyleSheet("color: #333333;");
     textLabel->adjustSize();
 
     QHBoxLayout* layout_text = new QHBoxLayout(textWidget);
@@ -172,17 +254,34 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
         if (checked) {
             main_list->show();
             net_list->hide();
+            video_player->hide();
             localList->setStyleSheet(
-                        "background-color: rgba(44, 210, 126, 0.8);"
-                        "color: white;"
-                        "border: none;"
-                        );
+                "QPushButton {"
+                "    background: rgba(49, 194, 124, 0.15);"
+                "    color: #31C27C;"
+                "    border: none;"
+                "    border-left: 3px solid #31C27C;"
+                "    text-align: left;"
+                "    padding-left: 17px;"
+                "    font-size: 14px;"
+                "    font-weight: 600;"
+                "}"
+            );
         } else {
             localList->setStyleSheet(
-                        "background-color: transparent;"
-                        "color: black;"
-                        "border: none;"
-                        );
+                "QPushButton {"
+                "    background: transparent;"
+                "    color: #333333;"
+                "    border: none;"
+                "    text-align: left;"
+                "    padding-left: 20px;"
+                "    font-size: 14px;"
+                "    font-weight: 500;"
+                "}"
+                "QPushButton:hover {"
+                "    background: rgba(0, 0, 0, 0.03);"
+                "}"
+            );
         }
     });
 
@@ -190,20 +289,75 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
         if(checked)
         {
             net_list->show();
+            video_player->hide();
             main_list->hide();
             NetList->setStyleSheet(
-                        "background-color: rgba(44, 210, 126, 0.8);"
-                        "color: white;"
-                        "border: none;"
-                        );
+                "QPushButton {"
+                "    background: rgba(49, 194, 124, 0.15);"
+                "    color: #31C27C;"
+                "    border: none;"
+                "    border-left: 3px solid #31C27C;"
+                "    text-align: left;"
+                "    padding-left: 17px;"
+                "    font-size: 14px;"
+                "    font-weight: 600;"
+                "}"
+            );
         }
         else
         {
             NetList->setStyleSheet(
-                        "background-color: transparent;"
-                        "color: black;"
-                        "border: none;"
-                        );
+                "QPushButton {"
+                "    background: transparent;"
+                "    color: #333333;"
+                "    border: none;"
+                "    text-align: left;"
+                "    padding-left: 20px;"
+                "    font-size: 14px;"
+                "    font-weight: 500;"
+                "}"
+                "QPushButton:hover {"
+                "    background: rgba(0, 0, 0, 0.03);"
+                "}"
+            );
+        }
+    });
+    
+    connect(VideoList, &QPushButton::toggled, this, [=](bool checked){
+        if(checked)
+        {
+            video_player->show();
+            net_list->hide();
+            main_list->hide();
+            VideoList->setStyleSheet(
+                "QPushButton {"
+                "    background: rgba(49, 194, 124, 0.15);"
+                "    color: #31C27C;"
+                "    border: none;"
+                "    border-left: 3px solid #31C27C;"
+                "    text-align: left;"
+                "    padding-left: 17px;"
+                "    font-size: 14px;"
+                "    font-weight: 600;"
+                "}"
+            );
+        }
+        else
+        {
+            VideoList->setStyleSheet(
+                "QPushButton {"
+                "    background: transparent;"
+                "    color: #333333;"
+                "    border: none;"
+                "    text-align: left;"
+                "    padding-left: 20px;"
+                "    font-size: 14px;"
+                "    font-weight: 500;"
+                "}"
+                "QPushButton:hover {"
+                "    background: rgba(0, 0, 0, 0.03);"
+                "}"
+            );
         }
     });
 
@@ -211,7 +365,7 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
 
 
 
-    w = new PlayWidget(this);
+    w = new PlayWidget(this, this);  // 传入this作为mainWidget
     w->setFixedSize(1000,600);
     QRegion region(0, 500, w->width(), 500);
     w->setMask(region);
@@ -346,6 +500,9 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     connect(w,&PlayWidget::signal_add_song,main_list,&MusicListWidgetLocal::on_signal_add_song);
     connect(w, &PlayWidget::signal_play_button_click,main_list,&MusicListWidgetLocal::on_signal_play_button_click);
     connect(w, &PlayWidget::signal_play_button_click, net_list, &MusicListWidgetNet::on_signal_play_button_click);
+    
+    // 连接元数据更新信号（专辑图片和时长）
+    connect(w, &PlayWidget::signal_metadata_updated, main_list, &MusicListWidgetLocal::on_signal_update_metadata);
 
     connect(main_list, &MusicListWidgetLocal::signal_play_click, w, [=](const QString name, bool flag){
         // 如果之前是网络模式，先清除网络列表的播放状态
@@ -354,6 +511,10 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
             net_list->signal_play_button_click(false, "");
         }
         w->set_play_net(flag);
+        
+        // 注意：播放列表现在是自动管理的播放历史，不需要手动同步
+        // 每次play()会自动添加到历史列表
+        
         w->_play_click(name);
 
     });
@@ -366,6 +527,10 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
             main_list->signal_play_button_click(false, "");
         }
         w->set_play_net(flag);
+        
+        // 注意：播放列表现在是自动管理的播放历史，不需要手动同步
+        // 每次play()会自动添加到历史列表
+        
         w->_play_click(name);
     });
     connect(net_list, &MusicListWidgetNet::signal_choose_download_dir, this, &MainWidget::on_signal_choose_download_dir);

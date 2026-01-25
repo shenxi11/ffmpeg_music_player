@@ -1,0 +1,32 @@
+sequenceDiagram
+    autonumber
+    participant C as 🖥️ 客户端
+    participant S as 🌐 后端服务
+    participant R as ⚡ Redis缓存
+    participant M as 💾 MySQL数据库
+    participant F as 📁 文件系统
+    
+    rect rgb(230, 240, 255)
+    Note over C,R: 用户登录流程
+    C->>+S: 登录请求 (POST /users/login)
+    S->>+R: 查询缓存 (user:login:{account})
+    alt 缓存命中 🎯
+        R-->>S: 返回缓存数据 (TTL剩余时间)
+    else 缓存未命中 ❌
+        S->>+M: 查询数据库 (SELECT users)
+        M-->>-S: 返回用户信息 + 音乐列表
+        S->>R: 写入缓存 (TTL: 5分钟)
+    end
+    R-->>-S: 缓存操作完成
+    S-->>-C: 返回登录响应 (JSON)
+    end
+    
+    rect rgb(240, 255, 240)
+    Note over C,F: 音乐流媒体请求
+    C->>+S: 请求音乐流 (POST /stream)
+    S->>+M: 查询元数据 (music_files表)
+    M-->>-S: 返回文件路径、歌词、封面
+    S->>+F: 读取音频文件 (支持Range)
+    F-->>-S: 返回文件流 (分块传输)
+    S-->>-C: 传输音频数据 (HTTP Range支持)
+    end

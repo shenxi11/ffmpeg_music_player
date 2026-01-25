@@ -206,15 +206,16 @@ void UIBridge::onLoginSuccess(QString username)
     emit isLoggedInChanged(true);
 }
 
-void UIBridge::onMusicListReceived(const QStringList& songList, const QList<double>& durations)
+void UIBridge::onMusicListReceived(const QList<Music>& musicList)
 {
     m_netMusicList.clear();
     
-    for (int i = 0; i < songList.size(); ++i) {
+    for (const Music& music : musicList) {
         QVariantMap item;
-        item["name"] = songList[i];
-        item["duration"] = (i < durations.size()) ? durations[i] : 0.0;
-        item["artist"] = ""; // 可以扩展
+        item["name"] = music.getSongPath();
+        item["duration"] = static_cast<double>(music.getDuration());
+        item["artist"] = music.getSinger().isEmpty() ? "未知艺术家" : music.getSinger();
+        item["cover"] = music.getPicPath();
         m_netMusicList.append(item);
     }
     

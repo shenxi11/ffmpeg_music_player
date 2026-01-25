@@ -7,11 +7,17 @@
 #include <QMap>
 #include "music_list_widget_net_qml.h"
 #include "httprequest.h"
+#include "music.h"
+
 class MusicListWidgetNet : public QWidget
 {
     Q_OBJECT
 public:
     explicit MusicListWidgetNet(QWidget *parent = nullptr);
+    
+    // 获取内部的QML列表控件
+    MusicListWidgetNetQml* getListWidget() const { return listWidget; }
+    
     void on_signal_play_click(const QString name);
     void on_signal_remove_click(const QString name);
     void on_signal_play_button_click(bool flag, const QString filename);
@@ -19,7 +25,7 @@ public:
     void on_signal_download_music(QString songName);
     void on_signal_translate_button_clicked();
 signals:
-    void signal_add_songlist(const QStringList filename_list, const QList<double> duration, const QStringList coverUrls = QStringList());
+    void signal_add_songlist(const QList<Music>& musicList);
     void signal_play_click(const QString songName, bool net);
     void signal_play_button_click(bool flag, const QString filename);
     void signal_last(QString songName);
