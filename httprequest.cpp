@@ -60,37 +60,56 @@ bool HttpRequest::Login(const QString& account, const QString& password)
     connect(reply, &QNetworkReply::finished, [this, reply, account, password]() {
         if (reply->error() == QNetworkReply::NoError) {
             QByteArray response_data = reply->readAll();
-
-            emit signal_Loginflag(true);
+            
             QJsonDocument jsonDoc = QJsonDocument::fromJson(response_data);
-
             QJsonObject jsonObject = jsonDoc.object();
-            auto user = User::getInstance();
-            if (jsonObject.contains("success")) {
-                QJsonValue successValue = jsonObject.value("success");
-                qDebug() << "Response:" << response_data;
-
+            
+            qDebug() << "Login Response:" << response_data;
+            
+            // 检查登录是否成功（优先使用 success_bool，兼容 success 字符串）
+            bool loginSuccess = false;
+            if (jsonObject.contains("success_bool")) {
+                loginSuccess = jsonObject.value("success_bool").toBool();
+            } else if (jsonObject.contains("success")) {
+                QString successStr = jsonObject.value("success").toString();
+                loginSuccess = (successStr == "true");
+            }
+            
+            if (loginSuccess) {
+                auto user = User::getInstance();
+                
+                // 设置账号和密码
                 user->set_account(account);
                 user->set_password(password);
-                user->set_username(successValue.toString());
-
-                emit signal_getusername(successValue.toString());
-            }
-            if(jsonObject.contains("song_path_list"))
-            {
-                QJsonArray successValue = jsonObject.value("song_path_list").toArray();
-                QStringList musics;
-                for(auto i: successValue)
-                {
-                    musics<<i.toString();
+                
+                // 设置用户名（从 username 字段获取）
+                if (jsonObject.contains("username")) {
+                    QString username = jsonObject.value("username").toString();
+                    user->set_username(username);
+                    emit signal_getusername(username);
+                    qDebug() << "Login successful, username:" << username;
                 }
-                user->set_music_path(musics);
-                emit signal_add_songs();
-                qDebug()<<__FUNCTION__<<successValue;
+                
+                // 设置用户收藏的歌曲列表
+                if (jsonObject.contains("song_path_list")) {
+                    QJsonArray songPathArray = jsonObject.value("song_path_list").toArray();
+                    QStringList musics;
+                    for (const auto& songPath : songPathArray) {
+                        musics << songPath.toString();
+                    }
+                    user->set_music_path(musics);
+                    emit signal_add_songs();
+                    qDebug() << "User's favorite songs:" << musics;
+                }
+                
+                emit signal_Loginflag(true);
+            } else {
+                qDebug() << "Login failed: invalid credentials";
+                emit signal_Loginflag(false);
             }
 
         } else {
-            qDebug() << "Error:" << reply->errorString();
+            qDebug() << "Login request error:" << reply->errorString();
             emit signal_Loginflag(false);
         }
         reply->deleteLater();
@@ -482,3 +501,93 @@ bool HttpRequest::getIsUsing(){
     return isUsing;
 }
 
+// 获取视频列表 GET /videos
+bool HttpRequest::getVideoList() {
+    if (!manager) {
+        manager = new QNetworkAccessManager(this);
+    }
+    
+    QString url = localUrl + "videos";
+    qDebug() << "[HttpRequest] Fetching video list from:" << url;
+    
+    QNetworkRequest request(url);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    
+    QNetworkReply* reply = manager->get(request);
+    
+    connect(reply, &QNetworkReply::finished, this, [=]() {
+        if (reply->error() == QNetworkReply::NoError) {
+            QByteArray responseData = reply->readAll();
+            qDebug() << "[HttpRequest] Video list response:" << responseData;
+            
+            QJsonDocument jsonDoc = QJsonDocument::fromJson(responseData);
+            if (jsonDoc.isArray()) {
+                QJsonArray jsonArray = jsonDoc.array();
+                QVariantList videoList;
+                
+                for (const QJsonValue& value : jsonArray) {
+                    QJsonObject obj = value.toObject();
+                    QVariantMap videoInfo;
+                    videoInfo["name"] = obj["name"].toString();
+                    videoInfo["path"] = obj["path"].toString();
+                    videoInfo["size"] = obj["size"].toVariant().toLongLong();
+                    videoList.append(videoInfo);
+                }
+                
+                qDebug() << "[HttpRequest] Parsed" << videoList.size() << "videos";
+                emit signal_videoList(videoList);
+            } else {
+                qWarning() << "[HttpRequest] Failed to parse video list JSON";
+            }
+        } else {
+            qWarning() << "[HttpRequest] Video list request failed:" << reply->errorString();
+        }
+        
+        reply->deleteLater();
+    });
+    
+    return true;
+}
+
+// 获取视频流URL POST /video/stream
+bool HttpRequest::getVideoStreamUrl(const QString& videoPath) {
+    if (!manager) {
+        manager = new QNetworkAccessManager(this);
+    }
+    
+    QString url = localUrl + "video/stream";
+    qDebug() << "[HttpRequest] Fetching video stream URL for:" << videoPath;
+    
+    QNetworkRequest request(url);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    
+    QJsonObject jsonObj;
+    jsonObj["path"] = videoPath;
+    QJsonDocument jsonDoc(jsonObj);
+    QByteArray postData = jsonDoc.toJson();
+    
+    QNetworkReply* reply = manager->post(request, postData);
+    
+    connect(reply, &QNetworkReply::finished, this, [=]() {
+        if (reply->error() == QNetworkReply::NoError) {
+            QByteArray responseData = reply->readAll();
+            qDebug() << "[HttpRequest] Video stream response:" << responseData;
+            
+            QJsonDocument jsonDoc = QJsonDocument::fromJson(responseData);
+            if (jsonDoc.isObject()) {
+                QJsonObject obj = jsonDoc.object();
+                QString videoUrl = obj["url"].toString();
+                qDebug() << "[HttpRequest] Video stream URL:" << videoUrl;
+                emit signal_videoStreamUrl(videoUrl);
+            } else {
+                qWarning() << "[HttpRequest] Failed to parse video stream URL JSON";
+            }
+        } else {
+            qWarning() << "[HttpRequest] Video stream URL request failed:" << reply->errorString();
+        }
+        
+        reply->deleteLater();
+    });
+    
+    return true;
+}

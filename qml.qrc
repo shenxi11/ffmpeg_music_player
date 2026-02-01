@@ -18,5 +18,6 @@
         <file>qml/components/VideoPlayerWidget.qml</file>
         <file>qml/components/PlaylistHistory.qml</file>
         <file>qml/components/PlayModePopup.qml</file>
+        <file>qml/components/VideoListWidget.qml</file>
     </qresource>
 </RCC>

@@ -1,0 +1,62 @@
+新增接口：
+GET /videos - 获取视频列表
+[
+  {
+    "name": "an_hao",
+    "path": "an_hao.mp4",
+    "size": 65324571
+  }
+]
+返回 video 目录下的所有 .mp4 视频文件
+返回格式：
+POST /video/stream - 获取视频流URL
+
+请求体：{"path": "an_hao.mp4"}
+返回：{"url": "http://slcdut.xyz:8080/video/an_hao.mp4"}
+GET /video/{filename} - 视频文件服务
+
+直接访问视频文件，支持断点续传（Range requests）
+Content-Type: video/mp4
+支持 CORS 跨域访问
+已验证：
+✅ 视频列表接口正常工作
+✅ 获取视频流URL接口返回正确的公网域名
+✅ 视频文件可以正常访问，支持流媒体播放
+✅ 服务器日志正确显示所有视频服务路由
+现在您的客户端可以：
+
+调用 /videos 获取所有可用视频
+调用 /video/stream 获取视频的播放URL
+使用返回的URL直接播放视频
+
+
+任务要求：
+    对于目前的视频窗口逻辑也进行改变，点击左边的视频播放本来会直接弹出视频窗口，但是现在做出更改，
+    点击视频播放后会通过GET /videos获取视频列表，将所有视频以类似音乐列表的形式展现出来，点击其中一个视频就会弹出视频窗口。
+    同时会通过/video/stream 获取视频的播放URL，将这个url作为参数传给视频窗口，窗口会将实际的url交给ffmpeg去解码播放，和本地视频的区别只是在于前面的部分，解码播放等过程没有区别，只是提供的是在线的url而已。
+    最后点击播放按钮就可以正常开始播放。
+
+下面是访问示例：
+(base) shen@shen-VMware-Virtual-Platform:~/PycharmProjects/flaskProject/GoTest$ curl -s http://localhost:8080/videos | python3 -m json.tool
+[
+    {
+        "name": "an_hao",
+        "path": "an_hao.mp4",
+        "size": 65324571
+    }
+]
+(base) shen@shen-VMware-Virtual-Platform:~/PycharmProjects/flaskProject/GoTest$ curl -s -X POST http://localhost:8080/video/stream -H "Content-Type: application/json" -d '{"path":"an_hao.mp4"}' | python3 -m json.tool
+{
+    "url": "http://slcdut.xyz:8080/video/an_hao.mp4"
+}
+(base) shen@shen-VMware-Virtual-Platform:~/PycharmProjects/flaskProject/GoTest$ curl -I http://localhost:8080/video/an_hao.mp4 2>&1 | head -10
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0 62.2M    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+HTTP/1.1 200 OK
+Accept-Ranges: bytes
+Access-Control-Allow-Headers: Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization
+Access-Control-Allow-Methods: POST, GET, OPTIONS, PUT, DELETE
+Access-Control-Allow-Origin: *
+Content-Length: 65324571
+Content-Type: video/mp4

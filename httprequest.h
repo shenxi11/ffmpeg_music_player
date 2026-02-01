@@ -80,6 +80,10 @@ public:
     void sendAcknowledgment();
     bool getMusic(const QString& name);
     bool get_file(const QString url);
+    
+    // 视频相关接口
+    bool getVideoList();  // 获取视频列表 GET /videos
+    bool getVideoStreamUrl(const QString& videoPath);  // 获取视频流URL POST /video/stream
 
     void setIsUsing(bool flag_);
     bool getIsUsing();
@@ -92,6 +96,10 @@ signals:
     void signal_streamurl(bool flag, QString path);
     void signal_add_songs();
     void signal_lrc(QStringList content);
+    
+    // 视频相关信号
+    void signal_videoList(const QVariantList& videoList);  // 视频列表信号
+    void signal_videoStreamUrl(const QString& videoUrl);    // 视频流URL信号
 private:
     HttpRequest(const HttpRequest&) = delete;
     HttpRequest& operator=(const HttpRequest&) = delete;

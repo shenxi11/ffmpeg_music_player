@@ -4,7 +4,6 @@
 #include "music_list_widget.h"
 #include "music_list_widget_local.h"
 #include "music_list_widget_net.h"
-#include "video_player_widget.h"
 #include "loginwidget_qml.h"
 #include "searchbox.h"
 #include "user_widget.h"
@@ -12,6 +11,8 @@
 #include "main_menu.h"
 #include "httprequest.h"
 #include "plugin_manager.h"
+#include "VideoPlayerWindow.h"
+#include "video_list_widget.h"
 #include <QWidget>
 #include <QButtonGroup>
 #include <QScreen>
@@ -32,13 +33,14 @@ private:
     MusicListWidget* list;
     MusicListWidgetLocal* main_list;
     MusicListWidgetNet* net_list;
-    VideoPlayerWidget* video_player;
     LoginWidgetQml* loginWidget;
     UserWidget* userWidget;
     UserWidgetQml* userWidgetQml;
     QWidget* topWidget;
     MainMenu* mainMenu;
     QPushButton* menuButton;
+    VideoPlayerWindow* videoPlayerWindow;
+    VideoListWidget* videoListWidget;  // 在线视频列表窗口
 
     QPushButton* Login;
     HttpRequest* request;

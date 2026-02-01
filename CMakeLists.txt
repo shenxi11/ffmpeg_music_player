@@ -53,6 +53,7 @@ find_package(Qt5 REQUIRED COMPONENTS
     Quick
     QuickWidgets
     Qml
+    OpenGL
 )
 find_package(Qt5 REQUIRED COMPONENTS Core)
 
@@ -121,6 +122,10 @@ set(PROJECT_SOURCES
     music_list_widget_local.h
     music_list_widget_net.cpp
     music_list_widget_net.h
+    video_list_widget.cpp
+    video_list_widget.h
+    video_list_widget_qml.cpp
+    video_list_widget_qml.h
     pianwidget.cpp
     pianwidget.h
     play_widget.cpp
@@ -140,16 +145,22 @@ set(PROJECT_SOURCES
     user_widget.cpp
     user_widget.h
     userwidget_qml.h
-    video_player_widget.h
-    video_player_widget.cpp
-    video_frame_item.h
-    video_frame_item.cpp
-    video_audio_player.h
-    video_audio_player.cpp
-    video_worker.h
-    video_worker.cpp
-    frame_buffer_queue.h
-    frame_buffer_queue.cpp
+    VideoPlayerWindow.h
+    VideoPlayerWindow.cpp
+    MediaService.h
+    MediaService.cpp
+    MediaSession.h
+    MediaSession.cpp
+    VideoSession.h
+    VideoSession.cpp
+    VideoDecoder.h
+    VideoDecoder.cpp
+    VideoBuffer.h
+    VideoBuffer.cpp
+    VideoRenderer.h
+    VideoRenderer.cpp
+    VideoRendererGL.h
+    VideoRendererGL.cpp
     worker.cpp
     worker.h
 )
@@ -171,7 +182,6 @@ add_executable(${PROJECT_NAME}
     ${PROJECT_RESOURCES}
     lyricdisplay_qml.h
     desklrc_qml.h
-    videode_coder.h videode_coder.cpp
     audio_ringbuffer.h audio_ringbuffer.cpp
     AudioBuffer.h AudioBuffer.cpp
     AudioDecoder.h AudioDecoder.cpp
@@ -198,6 +208,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     Qt5::Quick
     Qt5::QuickWidgets
     Qt5::Qml
+    Qt5::OpenGL
 )
 
 # 链接 FFmpeg 库
@@ -208,6 +219,12 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     avdevice
     swscale
     swresample
+)
+
+# 链接 OpenGL 库
+find_package(OpenGL REQUIRED)
+target_link_libraries(${PROJECT_NAME} PRIVATE
+    OpenGL::GL
 )
 
 # 设置输出目录（使用 CMake 默认路径）

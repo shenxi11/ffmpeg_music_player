@@ -2,11 +2,14 @@
 #include "plugin_manager.h"
 #include "searchbox_qml.h"  // 使用 QML 版本的 SearchBox
 #include "AudioService.h"   // 添加 AudioService 以同步播放列表
+#include "VideoPlayerWindow.h"
 #include <QCoreApplication>
 
 MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
   ,w(nullptr)
   ,list(nullptr)
+  ,videoPlayerWindow(nullptr)
+  ,videoListWidget(nullptr)
 {
     resize(1000,600);
     setWindowFlags(Qt::CustomizeWindowHint);
@@ -147,13 +150,11 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     net_list->move(main_list->pos());
     net_list->hide();
     net_list->setObjectName("net");
-    
-    // 创建视频播放器窗口
-    video_player = new VideoPlayerWidget(this);
-    video_player->setFixedSize(800, 400);
-    video_player->move(main_list->pos());
-    video_player->hide();
-    video_player->setObjectName("video");
+
+    // 注意：PlayWidget (w) 必须在此之前创建
+    // 创建在线视频列表（内嵌控件）- 先占位，稍后在w创建后初始化
+    videoListWidget = nullptr;
+
 
     QWidget* leftWidget = new QWidget(this);
     leftWidget->setFixedSize(200, this->height() - 100);
@@ -201,12 +202,13 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
         "    background: rgba(0, 0, 0, 0.03);"
         "}"
     );
-    
-    QPushButton* VideoList = new QPushButton("🎬 视频播放", leftWidget);
-    VideoList->setFixedSize(200,50);
-    VideoList->move(0,this->height()- 400);
-    VideoList->setCheckable(true);
-    VideoList->setStyleSheet(
+
+    // 视频播放按钮（非互斥按钮，独立弹出窗口）
+    QPushButton* VideoPlayerBtn = new QPushButton("🎬 视频播放", leftWidget);
+    VideoPlayerBtn->setFixedSize(200, 50);
+    VideoPlayerBtn->move(0, this->height() - 400);
+    VideoPlayerBtn->setCheckable(false);  // 不设置为可选中，每次点击都触发
+    VideoPlayerBtn->setStyleSheet(
         "QPushButton {"
         "    background: transparent;"
         "    color: #333333;"
@@ -219,12 +221,25 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
         "QPushButton:hover {"
         "    background: rgba(0, 0, 0, 0.03);"
         "}"
+        "QPushButton:pressed {"
+        "    background: rgba(49, 194, 124, 0.1);"
+        "}"
     );
+    
+    // 连接视频播放按钮点击事件 - 显示内嵌的在线视频列表
+    connect(VideoPlayerBtn, &QPushButton::clicked, this, [=]() {
+        qDebug() << "[MainWidget] Showing online video list";
+        
+        // 隐藏音乐列表，显示视频列表
+        main_list->hide();
+        net_list->hide();
+        videoListWidget->show();
+        videoListWidget->raise();
+    });
 
     QButtonGroup* leftButtons = new QButtonGroup(this);
     leftButtons->addButton(localList);
     leftButtons->addButton(NetList);
-    leftButtons->addButton(VideoList);
     leftButtons->setExclusive(true);
 
     QWidget* textWidget = new QWidget(leftWidget);
@@ -254,7 +269,7 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
         if (checked) {
             main_list->show();
             net_list->hide();
-            video_player->hide();
+            if (videoListWidget) videoListWidget->hide();  // 隐藏视频列表（检查指针）
             localList->setStyleSheet(
                 "QPushButton {"
                 "    background: rgba(49, 194, 124, 0.15);"
@@ -289,8 +304,8 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
         if(checked)
         {
             net_list->show();
-            video_player->hide();
             main_list->hide();
+            if (videoListWidget) videoListWidget->hide();  // 隐藏视频列表（检查指针）
             NetList->setStyleSheet(
                 "QPushButton {"
                 "    background: rgba(49, 194, 124, 0.15);"
@@ -307,44 +322,6 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
         else
         {
             NetList->setStyleSheet(
-                "QPushButton {"
-                "    background: transparent;"
-                "    color: #333333;"
-                "    border: none;"
-                "    text-align: left;"
-                "    padding-left: 20px;"
-                "    font-size: 14px;"
-                "    font-weight: 500;"
-                "}"
-                "QPushButton:hover {"
-                "    background: rgba(0, 0, 0, 0.03);"
-                "}"
-            );
-        }
-    });
-    
-    connect(VideoList, &QPushButton::toggled, this, [=](bool checked){
-        if(checked)
-        {
-            video_player->show();
-            net_list->hide();
-            main_list->hide();
-            VideoList->setStyleSheet(
-                "QPushButton {"
-                "    background: rgba(49, 194, 124, 0.15);"
-                "    color: #31C27C;"
-                "    border: none;"
-                "    border-left: 3px solid #31C27C;"
-                "    text-align: left;"
-                "    padding-left: 17px;"
-                "    font-size: 14px;"
-                "    font-weight: 600;"
-                "}"
-            );
-        }
-        else
-        {
-            VideoList->setStyleSheet(
                 "QPushButton {"
                 "    background: transparent;"
                 "    color: #333333;"
@@ -363,13 +340,35 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
 
     localList->setChecked(true);
 
-
+    qDebug() << "[MainWidget] Creating PlayWidget...";
 
     w = new PlayWidget(this, this);  // 传入this作为mainWidget
     w->setFixedSize(1000,600);
     QRegion region(0, 500, w->width(), 500);
     w->setMask(region);
     w->move(0, this->height()-w->height());
+
+    qDebug() << "[MainWidget] PlayWidget created successfully";
+
+    // 连接音乐播放信号，当音乐开始播放时暂停视频
+    connect(w, &PlayWidget::signal_playState, this, [=](ProcessSliderQml::State state){
+        if (state == ProcessSliderQml::Play && videoPlayerWindow) {
+            // 音乐开始播放，暂停视频
+            qDebug() << "[MainWidget] Music started, pausing video";
+            videoPlayerWindow->pausePlayback();
+        }
+    });
+
+    qDebug() << "[MainWidget] Creating VideoListWidget...";
+
+    // 创建在线视频列表（内嵌控件）- 现在w已经创建，可以传入引用
+    videoListWidget = new VideoListWidget(w, this);
+    videoListWidget->setFixedSize(800, 400);
+    videoListWidget->move(main_list->pos());
+    videoListWidget->hide();
+    videoListWidget->setObjectName("videoList");
+
+    qDebug() << "[MainWidget] VideoListWidget created successfully";
 
     request = HttpRequestPool::getInstance().getRequest();
 
@@ -638,6 +637,14 @@ MainWidget::~MainWidget()
         loginWidget->close();
         loginWidget->deleteLater();
         loginWidget = nullptr;
+    }
+    
+    // 清理视频播放窗口
+    if(videoPlayerWindow) {
+        qDebug() << "MainWidget: Deleting VideoPlayerWindow...";
+        videoPlayerWindow->close();
+        videoPlayerWindow->deleteLater();
+        videoPlayerWindow = nullptr;
     }
     
     // 4. 等待所有 QThreadPool 任务完成

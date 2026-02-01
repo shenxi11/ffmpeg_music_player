@@ -20,6 +20,7 @@ AudioPlayer::AudioPlayer()
       m_currentTimestamp(0),
       m_baseTimestamp(0),
       m_playbackStartTimestamp(0),
+      m_pausedPosition(0),
       m_sampleRate(44100),
       m_channels(2),
       m_stopRequested(false)
@@ -88,12 +89,15 @@ void AudioPlayer::pause()
 {
     if (!m_isPlaying || m_isPaused) return;
     
+    // 保存当前播放位置
+    m_pausedPosition = m_playbackStartTimestamp + m_playbackTimer.elapsed();
+    
     m_isPaused = true;
     m_cv.notify_all();
     
     m_positionTimer->stop();
     emit playbackPaused();
-    qDebug() << "AudioPlayer: Playback paused";
+    qDebug() << "AudioPlayer: Playback paused at position:" << m_pausedPosition << "ms";
 }
 
 void AudioPlayer::resume()
@@ -103,13 +107,13 @@ void AudioPlayer::resume()
     m_isPaused = false;
     m_cv.notify_all();
     
-    // 恢复播放时重新同步时钟
+    // 恢复播放时重新同步时钟，使用暂停时保存的位置
     m_playbackTimer.restart();
-    m_playbackStartTimestamp = m_currentTimestamp;
+    m_playbackStartTimestamp = m_pausedPosition;
     m_positionTimer->start(100);
     
     emit playbackResumed();
-    qDebug() << "AudioPlayer: Playback resumed";
+    qDebug() << "AudioPlayer: Playback resumed from position:" << m_pausedPosition << "ms";
 }
 
 void AudioPlayer::stop()
@@ -387,6 +391,21 @@ int AudioPlayer::bufferFillLevel() const
     int capacity = m_buffer->capacity();
     
     return capacity > 0 ? (available * 100 / capacity) : 0;
+}
+
+qint64 AudioPlayer::getPlaybackPosition() const
+{
+    if (!m_isPlaying) {
+        return 0;
+    }
+    
+    // 如果暂停，返回暂停时保存的位置
+    if (m_isPaused) {
+        return m_pausedPosition;
+    }
+    
+    qint64 elapsedMs = m_playbackTimer.elapsed();
+    return m_playbackStartTimestamp + elapsedMs;
 }
 
 void AudioPlayer::onPositionUpdateTimer()

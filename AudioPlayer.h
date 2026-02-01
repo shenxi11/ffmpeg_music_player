@@ -48,6 +48,7 @@ public:
     // 时钟同步
     qint64 getCurrentTimestamp() const;  // 获取当前播放时间戳
     void setCurrentTimestamp(qint64 timestampMs);  // 设置当前时间戳（seek时使用）
+    qint64 getPlaybackPosition() const;  // 获取实际播放位置（用于音视频同步）
     
     // 状态查询
     bool isPlaying() const { return m_isPlaying; }
@@ -122,6 +123,7 @@ private:
     qint64 m_baseTimestamp;
     QElapsedTimer m_playbackTimer;
     qint64 m_playbackStartTimestamp;  // 播放开始时的时间戳（用于时钟同步）
+    qint64 m_pausedPosition;  // 暂停时的播放位置
     
     // 音频格式
     int m_sampleRate;
