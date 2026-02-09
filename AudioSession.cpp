@@ -52,14 +52,21 @@ bool AudioSession::loadSource(const QUrl& url)
     
     bool result = false;
     if (url.isLocalFile()) {
+        // 本地文件
         result = m_decoder->initDecoder(url.toLocalFile());
+    } else if (url.scheme().startsWith("http")) {
+        // 网络URL（HTTP/HTTPS）
+        qDebug() << "AudioSession: Loading network URL:" << url.toString();
+        result = m_decoder->initDecoder(url.toString());
+    } else {
+        qDebug() << "AudioSession: Unsupported URL scheme:" << url.scheme();
     }
     
     auto t1 = std::chrono::high_resolution_clock::now();
     qDebug() << "[TIMING] AudioSession::loadSource (initDecoder):" 
-             << std::chrono::duration<double, std::milli>(t1 - t0).count() << "ms";
+             << std::chrono::duration<double, std::milli>(t1 - t0).count() << "ms"
+             << "result:" << result;
     
-    // TODO: 支持网络流
     return result;
 }
 
@@ -140,6 +147,7 @@ void AudioSession::seekTo(qint64 positionMs)
     }
     
     // 立即设置播放器的当前时间戳，确保进度条显示准确
+    // 注意：必须在resume之前设置，否则resume会用旧的pausedPosition覆盖
     m_player->setCurrentTimestamp(positionMs);
     
     // 重置buffering状态，避免seek后误判

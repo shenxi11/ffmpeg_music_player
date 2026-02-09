@@ -24,6 +24,7 @@
 #include <mutex>
 #include "headers.h"
 #include "music.h"
+#include "download_manager.h"
 
 class User:public QObject{
     Q_OBJECT
@@ -41,19 +42,19 @@ public:
         return instance;
     }
 
-    void set_username(QString username){this->username = username;};
-    void set_account(QString account){this->account = account;};
-    void set_password(QString password){this->password = password;};
-    void set_music_path(QStringList musics){this->music_path = musics; emit signal_add_songs();};
+    void set_username(QString username);
+    void set_account(QString account);
+    void set_password(QString password);
+    void set_music_path(QStringList musics);
 
-    QString get_username(){return username;};
-    QString get_account(){return account;};
-    QString get_password(){return password;};
-    QStringList get_music_path(){return this->music_path;};
+    QString get_username();
+    QString get_account();
+    QString get_password();
+    QStringList get_music_path();
 signals:
     void signal_add_songs();
 private:
-    User(QString account = "", QString password = "", QString username = ""){};
+    User(QString account = "", QString password = "", QString username = "");
     User& operator=(const User a) = delete;
     User(const User&) = delete;
 
@@ -73,7 +74,7 @@ public:
     bool Login(const QString& account, const QString& password);
     bool Register(const QString& account, const QString& password, const QString& username);
     bool Upload(const QString& path);
-    bool Download(const QString& filename, const QString download_folder);
+    bool Download(const QString& filename, const QString download_folder, bool downloadLyrics = true, const QString& coverUrl = QString());
     bool AddMusic(const QString username);
     bool getAllFiles();
     void get_music_data(const QString &fileName);
@@ -84,6 +85,22 @@ public:
     // 视频相关接口
     bool getVideoList();  // 获取视频列表 GET /videos
     bool getVideoStreamUrl(const QString& videoPath);  // 获取视频流URL POST /video/stream
+    
+    // 歌手相关接口
+    void searchArtist(const QString& artist);  // 搜索歌手是否存在 POST /artist/search
+    void getMusicByArtist(const QString& artist);  // 根据歌手查询音乐 POST /music/artist
+    
+    // 喜欢音乐相关接口
+    void addFavorite(const QString& userAccount, const QString& path, const QString& title, 
+                    const QString& artist, const QString& duration, bool isLocal);  // 添加喜欢音乐 POST /user/favorites/add
+    void removeFavorite(const QString& userAccount, const QStringList& paths);  // 移除喜欢音乐 DELETE /user/favorites/remove
+    void getFavorites(const QString& userAccount);  // 获取喜欢音乐列表 GET /user/favorites
+    
+    // 播放历史相关接口
+    void addPlayHistory(const QString& userAccount, const QString& path, const QString& title,
+                       const QString& artist, const QString& album, const QString& duration, bool isLocal);  // 添加播放历史 POST /user/history/add
+    void getPlayHistory(const QString& userAccount, int limit = 50);  // 获取播放历史 GET /user/history
+    void removePlayHistory(const QString& userAccount, const QStringList& paths);  // 删除播放历史 DELETE /user/history/remove
 
     void setIsUsing(bool flag_);
     bool getIsUsing();
@@ -100,6 +117,21 @@ signals:
     // 视频相关信号
     void signal_videoList(const QVariantList& videoList);  // 视频列表信号
     void signal_videoStreamUrl(const QString& videoUrl);    // 视频流URL信号
+    
+    // 歌手相关信号
+    void signal_artistExists(bool exists, const QString& artist);  // 歌手是否存在信号
+    void signal_artistMusicList(const QList<Music>& musicList, const QString& artist);  // 歌手音乐列表信号
+    
+    // 喜欢音乐相关信号
+    void signal_addFavoriteResult(bool success);  // 添加喜欢音乐结果信号
+    void signal_removeFavoriteResult(bool success);  // 移除喜欢音乐结果信号
+    void signal_favoritesList(const QVariantList& favorites);  // 喜欢音乐列表信号
+    
+    // 播放历史相关信号
+    void signal_addHistoryResult(bool success);  // 添加播放历史结果信号
+    void signal_historyList(const QVariantList& history);  // 播放历史列表信号
+    void signal_removeHistoryResult(bool success);  // 删除播放历史结果信号
+    
 private:
     HttpRequest(const HttpRequest&) = delete;
     HttpRequest& operator=(const HttpRequest&) = delete;

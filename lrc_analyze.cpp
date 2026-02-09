@@ -89,6 +89,21 @@ void LrcAnalyze::saveFileAsUtf8(const QString &content, const QString &filePath)
 }
 void LrcAnalyze::take_lrc(QString Path)
 {
+    // 如果是网络路径，直接跳过本地文件操作
+    if (Path.contains("http"))
+    {
+        std::string lrcFile = Path.toStdString();  // 歌词URL路径
+        std::reverse(lrcFile.begin(),lrcFile.end());
+        int pos = lrcFile.find(".");
+        int len = lrcFile.size();
+        std::reverse(lrcFile.begin(), lrcFile.end());
+        lrcFile = lrcFile.substr(0,len-pos)+"lrc";
+        
+        emit Begin_send(QString::fromStdString(lrcFile));
+        return;
+    }
+    
+    // 本地文件路径处理
     std::string lrcFile = Path.toStdString();  // 歌词文件路径
 
     std::reverse(lrcFile.begin(),lrcFile.end());
@@ -98,18 +113,29 @@ void LrcAnalyze::take_lrc(QString Path)
 
     std::reverse(lrcFile.begin(), lrcFile.end());
     lrcFile = lrcFile.substr(0,len-pos)+"lrc";
+    
+    QString lrcFilePath = QString::fromStdString(lrcFile);
+    
+    // 检查歌词文件是否存在
+    if (!QFile::exists(lrcFilePath))
+    {
+        qDebug() << "Lyric file not found:" << lrcFilePath;
+        // 发送空歌词列表，不尝试读取不存在的文件
+        emit Begin_send(lrcFilePath);
+        return;
+    }
 
-    QString encoding = detectEncodingWithUchardet(QString::fromStdString(lrcFile));
+    QString encoding = detectEncodingWithUchardet(lrcFilePath);
 
     if (!encoding.isEmpty())
     {
         if (encoding != "UTF-8")
         {
-            QString content = readFileWithEncoding(QString::fromStdString(lrcFile), encoding.toUtf8());
+            QString content = readFileWithEncoding(lrcFilePath, encoding.toUtf8());
 
             if (!content.isEmpty())
             {
-                saveFileAsUtf8(content, QString::fromStdString(lrcFile));
+                saveFileAsUtf8(content, lrcFilePath);
             }
             else
             {
@@ -117,7 +143,7 @@ void LrcAnalyze::take_lrc(QString Path)
             }
         }
     }
-    emit Begin_send(QString::fromStdString(lrcFile));
+    emit Begin_send(lrcFilePath);
 }
 void LrcAnalyze::begin_send(QString lrcFile)
 {
@@ -144,12 +170,21 @@ int LrcAnalyze::timeToMilliseconds(const std::string& timeStr)
 
 std::map<int, std::string> LrcAnalyze::parseLrcFile(const QString& lrcFile)
 {
-    QFile file(lrcFile);
     std::map<int, std::string> lyrics;
+    
+    // 检查文件是否存在
+    if (!QFile::exists(lrcFile))
+    {
+        qDebug() << "Lyric file does not exist:" << lrcFile;
+        return lyrics;  // 返回空歌词映射
+    }
+    
+    QFile file(lrcFile);
 
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
     {
-        throw std::runtime_error("Could not open file: " + lrcFile.toStdString());
+        qWarning() << "Could not open lyric file:" << lrcFile;
+        return lyrics;  // 返回空歌词映射而不是抛出异常
     }
 
     QTextStream in(&file);

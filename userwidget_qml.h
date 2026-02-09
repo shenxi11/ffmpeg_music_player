@@ -108,6 +108,7 @@ protected:
 signals:
     void loginRequested();
     void logoutRequested();
+    void loginStateChanged(bool loggedIn);  // 新增：登录状态变化信号
 
 public slots:
     void showPopupWindow() {
@@ -156,7 +157,10 @@ public slots:
     }
     
     void setLoginState(bool loggedIn) {
-        isLoggedIn_ = loggedIn;
+        if (isLoggedIn_ != loggedIn) {
+            isLoggedIn_ = loggedIn;
+            emit loginStateChanged(loggedIn);  // 发送登录状态变化信号
+        }
         
         QQuickItem *rootItem = rootObject();
         if (rootItem) {
@@ -171,6 +175,11 @@ public slots:
         if (popupWindow) {
             popupWindow->setProperty("isLoggedIn", loggedIn);
         }
+    }
+    
+    // 获取登录状态
+    bool getLoginState() const {
+        return isLoggedIn_;
     }
 };
 

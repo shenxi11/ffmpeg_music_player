@@ -9,34 +9,23 @@
 
 class Music{
 public:
-    Music(){};
-    Music(const Music& music){
-        setSongPath(music.songPath);
-        setSinger(music.singer);
-        setLrcPath(music.lrcPath);
-        setMusicID(music.musicID);
-        setDuration(music.duration);
-        setPicPath(music.picPath);
-    };
+    Music();
+    Music(const Music& music);
 
-    void setSongPath(QString songPath){this->songPath = songPath;};
-    void setMusicID(QString musicID){this->musicID = musicID;};
-    void setPicPath(QString picPath){this->picPath = picPath;};
-    void setLrcPath(QString lrcPath){this->lrcPath = lrcPath;};
-    void setSinger(QString singer){this->singer = singer;};
-    void setDuration(long duration){this->duration = duration;};
+    void setSongPath(QString songPath);
+    void setMusicID(QString musicID);
+    void setPicPath(QString picPath);
+    void setLrcPath(QString lrcPath);
+    void setSinger(QString singer);
+    void setDuration(long duration);
 
-    QString getSongPath() const {return this->songPath;};
-    QString getSongName() const
-    {
-        QFileInfo file(this->songPath);
-        return file.fileName();
-    };
-    QString getMusicID() const {return this->musicID;};
-    QString getSinger() const {return this->singer;};
-    long getDuration() const {return this->duration;};
-    QString getLrcPath() const {return this->lrcPath;};
-    QString getPicPath() const {return this->picPath;};
+    QString getSongPath() const;
+    QString getSongName() const;
+    QString getMusicID() const;
+    QString getSinger() const;
+    long getDuration() const;
+    QString getLrcPath() const;
+    QString getPicPath() const;
 
 private:
     QString musicID;

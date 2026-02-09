@@ -18,9 +18,12 @@ Rectangle {
     signal menuClicked()
     signal localMusicClicked()
     signal onlineMusicClicked()
+    signal playHistoryClicked()
+    signal favoriteMusicClicked()
     
     property bool isMaximized: false
     property string currentView: "local"
+    property bool isUserLoggedIn: false
     
     Rectangle {
         id: titleBar
@@ -259,6 +262,97 @@ Rectangle {
                         onClicked: {
                             root.currentView = "online"
                             root.onlineMusicClicked()
+                        }
+                    }
+                }
+                
+                Rectangle {
+                    width: parent.width
+                    height: 55
+                    color: root.currentView === "history" ? "#40FFFFFF" : (historyBtn.containsMouse ? "#1AFFFFFF" : "transparent")
+                    
+                    Rectangle {
+                        visible: root.currentView === "history"
+                        width: 4
+                        height: parent.height * 0.6
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        color: "white"
+                        radius: 2
+                    }
+                    
+                    Row {
+                        anchors.centerIn: parent
+                        spacing: 15
+                        Text {
+                            text: "⌚"
+                            font.pixelSize: 24
+                            color: "white"
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                        Text {
+                            text: "最近播放"
+                            font.family: "Microsoft YaHei"
+                            font.pixelSize: 16
+                            color: "white"
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+                    
+                    MouseArea {
+                        id: historyBtn
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            root.currentView = "history"
+                            root.playHistoryClicked()
+                        }
+                    }
+                }
+                
+                Rectangle {
+                    width: parent.width
+                    height: 55
+                    visible: root.isUserLoggedIn
+                    color: root.currentView === "favorite" ? "#40FFFFFF" : (favoriteBtn.containsMouse ? "#1AFFFFFF" : "transparent")
+                    
+                    Rectangle {
+                        visible: root.currentView === "favorite"
+                        width: 4
+                        height: parent.height * 0.6
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        color: "white"
+                        radius: 2
+                    }
+                    
+                    Row {
+                        anchors.centerIn: parent
+                        spacing: 15
+                        Text {
+                            text: "♥"
+                            font.pixelSize: 24
+                            color: "white"
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                        Text {
+                            text: "喜欢音乐"
+                            font.family: "Microsoft YaHei"
+                            font.pixelSize: 16
+                            color: "white"
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+                    
+                    MouseArea {
+                        id: favoriteBtn
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            root.currentView = "favorite"
+                            root.favoriteMusicClicked()
                         }
                     }
                 }

@@ -169,19 +169,37 @@ void AudioDecoder::seekTo(qint64 positionMs)
     // 毫秒转微秒 (FFmpeg使用微秒)
     int64_t targetTimestamp = static_cast<int64_t>(positionMs) * 1000;
     
-    // 执行seek操作（不需要锁，因为decode线程会检查m_seekRequested并跳过处理）
-    // av_seek_frame是线程安全的（内部有锁）
-    int ret = av_seek_frame(m_formatCtx, -1, targetTimestamp, AVSEEK_FLAG_BACKWARD);
+    // 转换为流时间基准
+    AVRational time_base = m_formatCtx->streams[m_audioStreamIndex]->time_base;
+    int64_t seek_target = av_rescale_q(targetTimestamp, {1, AV_TIME_BASE}, time_base);
+    
+    // 执行seek操作（使用音频流索引和BACKWARD标志）
+    int ret = av_seek_frame(m_formatCtx, m_audioStreamIndex, seek_target, AVSEEK_FLAG_BACKWARD);
+    
+    // 如果失败，尝试使用全局seek（stream index = -1）
     if (ret < 0) {
-        qDebug() << "AudioDecoder: Seek failed, error code:" << ret;
+        qDebug() << "AudioDecoder: Stream seek failed, trying global seek";
+        ret = av_seek_frame(m_formatCtx, -1, targetTimestamp, AVSEEK_FLAG_BACKWARD);
+    }
+    
+    if (ret < 0) {
+        char errbuf[AV_ERROR_MAX_STRING_SIZE] = {0};
+        av_strerror(ret, errbuf, sizeof(errbuf));
+        qDebug() << "AudioDecoder: Seek failed, error:" << errbuf;
         std::lock_guard<std::mutex> lock(m_mutex);
         m_seekRequested = false;
         return;
     }
     
-    // 清空解码器缓冲（avcodec_flush_buffers内部有锁保护）
+    // 清空解码器缓冲
     if (m_codecCtx) {
         avcodec_flush_buffers(m_codecCtx);
+    }
+    
+    // 对于网络流，清空IO缓冲区
+    bool isNetworkStream = m_filePath.startsWith("http");
+    if (isNetworkStream && m_formatCtx->pb) {
+        avio_flush(m_formatCtx->pb);
     }
     
     qDebug() << "AudioDecoder: Seek completed";
@@ -217,10 +235,19 @@ void AudioDecoder::decode()
         // 读取音频包
         int ret = av_read_frame(m_formatCtx, m_packet);
         if (ret < 0) {
-            // 到达文件末尾
-            qDebug() << "AudioDecoder: End of stream reached";
-            emit decodeCompleted();
-            break;
+            if (ret == AVERROR_EOF) {
+                // 到达文件末尾
+                qDebug() << "AudioDecoder: End of stream reached";
+                emit decodeCompleted();
+                break;
+            } else {
+                // 其他错误（如网络中断），记录但继续尝试
+                char errbuf[AV_ERROR_MAX_STRING_SIZE] = {0};
+                av_strerror(ret, errbuf, sizeof(errbuf));
+                qDebug() << "AudioDecoder: Read frame error:" << errbuf << ", will retry";
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                continue;  // 继续循环，不退出
+            }
         }
         
         // 只处理音频流
@@ -312,18 +339,23 @@ void AudioDecoder::decode()
                     if (++frameCount % 100 == 0) {
                         qDebug() << "AudioDecoder: Decoded" << frameCount << "frames, current timestamp:" << timestamp_ms << "ms";
                     }
+                    
+                    // 给主线程时间处理信号，避免解码过快导致信号堆积
+                    // 每10帧yield一次，让主线程有机会处理decodedData信号
+                    if (frameCount % 10 == 0) {
+                        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+                    }
                 }
             }
         }
         
         // 释放数据包
         av_packet_unref(m_packet);
-        
-        // 短暂睡眠，避免CPU占用过高
-        QThread::msleep(2);
     }
     
-    qDebug() << "AudioDecoder::decode thread finished";
+    // 解码线程结束，重置状态标志
+    m_decoding = false;
+    qDebug() << "AudioDecoder::decode thread finished, m_decoding reset to false";
 }
 
 void AudioDecoder::cleanup()

@@ -83,11 +83,8 @@ Rectangle {
     
     function onSearchTriggered() {
         var text = searchInput.text.trim()
-        if (text === "") {
-            root.searchAll()
-        } else {
-            root.search(text)
-        }
+        // 无论是否为空都发送search信号，由C++端处理空值情况
+        root.search(text)
     }
     
     function clear() {

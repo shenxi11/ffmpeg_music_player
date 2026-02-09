@@ -79,31 +79,41 @@ link_directories(
 # 源文件
 set(PROJECT_SOURCES
     main.cpp
-    controlbar.cpp
-    controlbar.h
     controlbar_qml.h
     pianwidget_qml.h
     process_slider_qml.h
     playlist_history_qml.h
     playlist_history_qml.cpp
+    play_history_widget.h
+    play_history_widget.cpp
+    favorite_music_widget.h
+    favorite_music_widget.cpp
     desk_lrc_widget.cpp
     desk_lrc_widget.h
     desk_lrc_settings.cpp
     desk_lrc_settings.h
     downloadthread.cpp
     downloadthread.h
+    download_manager.cpp
+    download_manager.h
+    download_task_model.cpp
+    download_task_model.h
+    local_music_cache.h
+    local_music_cache.cpp
+    local_music_model.cpp
+    local_music_model.h
     headers.h
     httprequest.cpp
     httprequest.h
     logger.cpp
     logger.h
+    local_and_download_widget.cpp
+    local_and_download_widget.h
     loginwidget.cpp
     loginwidget.h
     loginwidget_qml.h
     lrc_analyze.cpp
     lrc_analyze.h
-    lyrictextedit.cpp
-    lyrictextedit.h
     main_widget.cpp
     main_widget.h
     main_menu.cpp
@@ -111,11 +121,13 @@ set(PROJECT_SOURCES
     mini_controlbar.cpp
     mini_controlbar.h
     music.h
+    music.cpp
     music_item.cpp
     music_item.h
     music_item_qml.h
     music_list_widget_qml.h
     music_list_widget_net_qml.h
+    music_list_widget_net_qml.cpp
     music_list_widget.cpp
     music_list_widget.h
     music_list_widget_local.cpp
@@ -126,20 +138,18 @@ set(PROJECT_SOURCES
     video_list_widget.h
     video_list_widget_qml.cpp
     video_list_widget_qml.h
-    pianwidget.cpp
-    pianwidget.h
     play_widget.cpp
     play_widget.h
     plugin_interface.h
     plugin_manager.cpp
     plugin_manager.h
-    process_slider.cpp
-    process_slider.h
     rotatingcircleimage.cpp
     rotatingcircleimage.h
-    searchbox.cpp
-    searchbox.h
     searchbox_qml.h
+    settings_manager.cpp
+    settings_manager.h
+    settings_widget.cpp
+    settings_widget.h
     take_pcm.cpp
     take_pcm.h
     user_widget.cpp
@@ -182,12 +192,15 @@ add_executable(${PROJECT_NAME}
     ${PROJECT_RESOURCES}
     lyricdisplay_qml.h
     desklrc_qml.h
-    audio_ringbuffer.h audio_ringbuffer.cpp
     AudioBuffer.h AudioBuffer.cpp
     AudioDecoder.h AudioDecoder.cpp
     AudioPlayer.h AudioPlayer.cpp
     AudioSession.h AudioSession.cpp
     AudioService.h AudioService.cpp
+    
+    # ViewModel 层（MVVM架构）
+    viewmodels/BaseViewModel.h viewmodels/BaseViewModel.cpp
+    viewmodels/PlaybackViewModel.h viewmodels/PlaybackViewModel.cpp
 )
 
 

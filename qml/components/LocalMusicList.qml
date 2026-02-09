@@ -1,0 +1,302 @@
+import QtQuick 2.15
+import QtQuick.Controls 2.15
+import QtQuick.Layouts 1.15
+import QtQuick.Dialogs 1.3
+
+// 本地音乐列表
+Rectangle {
+    id: root
+    color: "#f5f5f5"
+
+    signal playMusic(string filename)
+    signal deleteMusic(string filename)
+    signal addMusicClicked()
+    signal addToFavorite(string path, string title, string artist, string duration)
+
+    ColumnLayout {
+        anchors.fill: parent
+        anchors.margins: 20
+        spacing: 10
+
+        // 标题栏和添加按钮
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 10
+
+            Text {
+                text: "本地音乐"
+                font.pixelSize: 20
+                font.bold: true
+                color: "#333333"
+                Layout.fillWidth: true
+            }
+
+            Button {
+                text: "+ 添加音乐"
+                font.pixelSize: 14
+                
+                background: Rectangle {
+                    color: parent.hovered ? "#66b1ff" : "#409EFF"
+                    radius: 4
+                }
+                
+                contentItem: Text {
+                    text: parent.text
+                    font.pixelSize: 14
+                    color: "#ffffff"
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+                
+                onClicked: {
+                    if (typeof localMusicModel !== 'undefined') {
+                        localMusicModel.addMusic("")
+                    }
+                }
+            }
+        }
+
+        // 表头
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 40
+            color: "#ffffff"
+            radius: 4
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 15
+                anchors.rightMargin: 15
+                spacing: 10
+
+                Text {
+                    text: "封面"
+                    font.pixelSize: 14
+                    font.bold: true
+                    color: "#333333"
+                    Layout.preferredWidth: 50
+                }
+
+                Text {
+                    text: "歌曲名"
+                    font.pixelSize: 14
+                    font.bold: true
+                    color: "#333333"
+                    Layout.preferredWidth: 240
+                }
+
+                Text {
+                    text: "时长"
+                    font.pixelSize: 14
+                    font.bold: true
+                    color: "#333333"
+                    Layout.preferredWidth: 80
+                }
+
+                Text {
+                    text: "艺术家"
+                    font.pixelSize: 14
+                    font.bold: true
+                    color: "#333333"
+                    Layout.preferredWidth: 120
+                }
+
+                Text {
+                    text: "操作"
+                    font.pixelSize: 14
+                    font.bold: true
+                    color: "#333333"
+                    Layout.fillWidth: true
+                }
+            }
+        }
+
+        // 音乐列表
+        ListView {
+            id: listView
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            spacing: 8
+            clip: true
+
+            model: typeof localMusicModel !== 'undefined' ? localMusicModel : null
+
+            delegate: Rectangle {
+                width: listView.width
+                height: 60
+                color: itemArea.containsMouse || playBtnArea.containsMouse || deleteBtnArea.containsMouse ? "#f0f0f0" : "#ffffff"
+                radius: 4
+
+                MouseArea {
+                    id: itemArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    propagateComposedEvents: true
+                    onDoubleClicked: {
+                        root.playMusic(model.filePath || "")
+                    }
+                }
+
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.margins: 15
+                    spacing: 10
+
+
+                    // 封面
+                    Rectangle {
+                        Layout.preferredWidth: 44
+                        Layout.preferredHeight: 44
+                        radius: 4
+                        color: "#E0E0E0"
+                        
+                        Image {
+                            anchors.fill: parent
+                            anchors.margins: 2
+                            source: model.coverUrl || "qrc:/new/prefix1/icon/Music.png"
+                            fillMode: Image.PreserveAspectCrop
+                            asynchronous: true
+                        }
+                    }
+
+                    // 歌曲名
+                    Text {
+                        Layout.preferredWidth: 240
+                        text: model.fileName || ""
+                        font.pixelSize: 14
+                        font.bold: model.isPlaying
+                        color: model.isPlaying ? "#4A90E2" : "#333333"
+                        elide: Text.ElideMiddle
+                    }
+
+                    // 时长
+                    Text {
+                        Layout.preferredWidth: 80
+                        text: model.duration || "0:00"
+                        font.pixelSize: 13
+                        color: "#666666"
+                    }
+
+                    // 艺术家
+                    Text {
+                        Layout.preferredWidth: 120
+                        text: model.artist || "未知艺术家"
+                        font.pixelSize: 13
+                        color: "#666666"
+                        elide: Text.ElideRight
+                    }
+
+                    // 操作按钮
+                    Row {
+                        Layout.fillWidth: true
+                        spacing: 10
+                        opacity: itemArea.containsMouse || playBtnArea.containsMouse || favBtnArea.containsMouse || deleteBtnArea.containsMouse ? 1.0 : 0.0
+                        visible: opacity > 0
+                        
+                        Behavior on opacity { NumberAnimation { duration: 150 } }
+
+                        // 喜欢按钮
+                        Rectangle {
+                            width: 32
+                            height: 32
+                            radius: 16
+                            color: favBtnArea.containsMouse ? "#ffe0e6" : "transparent"
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "♡"
+                                font.pixelSize: 16
+                                color: favBtnArea.containsMouse ? "#ff0000" : "#999999"
+                            }
+
+                            MouseArea {
+                                id: favBtnArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                propagateComposedEvents: false
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    root.addToFavorite(
+                                        model.filePath || "",
+                                        model.fileName || "",
+                                        model.artist || "",
+                                        model.duration || ""
+                                    )
+                                }
+                            }
+                        }
+
+                        // 播放按钮
+                        Rectangle {
+                            width: 32
+                            height: 32
+                            radius: 16
+                            color: playBtnArea.containsMouse ? "#4A90E2" : "#DDDDDD"
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: model.isPlaying ? "⏸" : "▶"
+                                font.pixelSize: 14
+                                color: playBtnArea.containsMouse ? "white" : "#333333"
+                            }
+
+                            MouseArea {
+                                id: playBtnArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                propagateComposedEvents: false
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    root.playMusic(model.filePath || "")
+                                }
+                                onEntered: {}
+                                onExited: {}
+                            }
+                        }
+
+                        // 删除按钮
+                        Rectangle {
+                            width: 60
+                            height: 28
+                            radius: 4
+                            color: deleteBtnArea.containsMouse ? "#F56C6C" : "#F0F0F0"
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "删除"
+                                font.pixelSize: 12
+                                color: deleteBtnArea.containsMouse ? "white" : "#666666"
+                            }
+
+                            MouseArea {
+                                id: deleteBtnArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                propagateComposedEvents: false
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    root.deleteMusic(model.filePath || "")
+                                    if (typeof localMusicModel !== 'undefined') {
+                                        localMusicModel.removeMusic(model.filePath || "")
+                                    }
+                                }
+                                onEntered: {}
+                                onExited: {}
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 空状态提示
+            Text {
+                anchors.centerIn: parent
+                text: "暂无本地音乐\n点击右上角「添加音乐」按钮导入"
+                font.pixelSize: 16
+                color: "#999999"
+                horizontalAlignment: Text.AlignHCenter
+                visible: listView.count === 0
+            }
+        }
+    }
+}

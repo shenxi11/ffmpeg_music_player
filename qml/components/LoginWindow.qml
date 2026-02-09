@@ -6,8 +6,8 @@ import QtGraphicalEffects 1.14
 Window {
     id: loginWindow
     
-    width: 450
-    height: 420
+    width: 420
+    height: 540
     visible: false
     flags: Qt.FramelessWindowHint | Qt.Window
     color: "transparent"
@@ -24,27 +24,24 @@ Window {
     Rectangle {
         id: mainContainer
         anchors.fill: parent
-        anchors.margins: 10
-        radius: 15
+        anchors.margins: 8
+        radius: 8
         
-        // 渐变背景
-        gradient: Gradient {
-            GradientStop { position: 0.0; color: "#667eea" }
-            GradientStop { position: 1.0; color: "#764ba2" }
-        }
+        // 简洁的白色背景
+        color: "#ffffff"
         
         border.width: 1
-        border.color: Qt.rgba(1, 1, 1, 0.2)
+        border.color: "#e0e0e0"
         
         // 阴影效果
         layer.enabled: true
         layer.effect: DropShadow {
             transparentBorder: true
             horizontalOffset: 0
-            verticalOffset: 5
-            radius: 20
-            samples: 41
-            color: Qt.rgba(0, 0, 0, 0.3)
+            verticalOffset: 4
+            radius: 16
+            samples: 33
+            color: Qt.rgba(0, 0, 0, 0.15)
         }
         
         Column {
@@ -56,8 +53,8 @@ Window {
                 id: titleBar
                 width: parent.width
                 height: 50
-                color: Qt.rgba(1, 1, 1, 0.1)
-                radius: 15
+                color: "#fafafa"
+                radius: 8
                 
                 Rectangle {
                     anchors.left: parent.left
@@ -72,7 +69,7 @@ Window {
                     anchors.right: parent.right
                     anchors.bottom: parent.bottom
                     height: 1
-                    color: Qt.rgba(1, 1, 1, 0.2)
+                    color: "#e0e0e0"
                 }
                 
                 // 拖动区域
@@ -81,48 +78,47 @@ Window {
                     anchors.rightMargin: closeButton.width + 15
                     
                     onPressed: {
-                        // 使用 Qt 的标准窗口移动方法
                         loginWindow.startSystemMove()
                     }
                 }
                 
                 Row {
                     anchors.fill: parent
-                    anchors.leftMargin: 15
+                    anchors.leftMargin: 20
                     anchors.rightMargin: 15
                     spacing: 0
                     
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "🎵 网易云音乐"
-                        color: "white"
-                        font.pixelSize: 18
+                        text: isLoginMode ? "登录" : "注册"
+                        color: "#333333"
+                        font.pixelSize: 16
                         font.bold: true
                     }
                     
                     Item { 
-                        width: parent.width - 200
+                        width: parent.width - 120
                         height: parent.height
                     }
                     
                     Button {
                         id: closeButton
                         anchors.verticalCenter: parent.verticalCenter
-                        width: 35
-                        height: 35
-                        text: "✕"
+                        width: 32
+                        height: 32
+                        text: "×"
                         
                         background: Rectangle {
-                            color: closeButton.pressed ? Qt.rgba(1, 0.28, 0.4, 1) : 
-                                   closeButton.hovered ? Qt.rgba(1, 0.28, 0.4, 0.8) : 
-                                   Qt.rgba(1, 1, 1, 0.1)
-                            radius: 17
+                            color: closeButton.pressed ? "#e0e0e0" : 
+                                   closeButton.hovered ? "#f5f5f5" : 
+                                   "transparent"
+                            radius: 4
                         }
                         
                         contentItem: Text {
                             text: closeButton.text
-                            color: "white"
-                            font.pixelSize: 16
+                            color: "#666666"
+                            font.pixelSize: 20
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                         }
@@ -141,124 +137,172 @@ Window {
                 
                 Column {
                     anchors.fill: parent
-                    anchors.margins: 30
-                    anchors.topMargin: 10
-                    anchors.bottomMargin: 20
-                    spacing: 12
+                    anchors.margins: 35
+                    anchors.topMargin: 30
+                    anchors.bottomMargin: 25
+                    spacing: 18
                     
-                    // Logo
-                    Text {
+                    // Logo 和欢迎文字
+                    Column {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: "🎵"
-                        font.pixelSize: 40
-                        color: "white"
-                    }
-                    
-                    // 欢迎文字
-                    Text {
-                        id: welcomeText
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        text: isLoginMode ? "欢迎登录" : "创建新账号"
-                        color: "white"
-                        font.pixelSize: 16
-                        font.bold: true
+                        spacing: 8
+                        
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: "♪"
+                            font.pixelSize: 42
+                            color: "#409EFF"
+                            font.bold: true
+                        }
+                        
+                        Text {
+                            id: welcomeText
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: isLoginMode ? "欢迎回来" : "创建账号"
+                            color: "#333333"
+                            font.pixelSize: 20
+                            font.bold: true
+                        }
+                        
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: isLoginMode ? "登录以使用完整功能" : "注册新用户账号"
+                            color: "#999999"
+                            font.pixelSize: 13
+                        }
                     }
                     
                     Item { height: 5 }
                     
                     // 账号输入框
-                    TextField {
-                        id: accountInput
+                    Column {
                         width: parent.width
-                        height: 45
-                        placeholderText: "📧 请输入账号"
-                        font.pixelSize: 14
-                        selectByMouse: true
+                        spacing: 8
                         
-                        background: Rectangle {
-                            color: accountInput.activeFocus ? "white" : Qt.rgba(1, 1, 1, 0.9)
-                            border.width: 2
-                            border.color: accountInput.activeFocus ? Qt.rgba(1, 0.28, 0.4, 0.8) : Qt.rgba(1, 1, 1, 0.3)
-                            radius: 8
+                        Text {
+                            text: "账号"
+                            color: "#666666"
+                            font.pixelSize: 13
                         }
                         
-                        leftPadding: 15
-                        rightPadding: 15
+                        TextField {
+                            id: accountInput
+                            width: parent.width
+                            height: 42
+                            placeholderText: "请输入账号"
+                            font.pixelSize: 14
+                            selectByMouse: true
+                            
+                            background: Rectangle {
+                                color: "#f5f5f5"
+                                border.width: accountInput.activeFocus ? 2 : 1
+                                border.color: accountInput.activeFocus ? "#409EFF" : "#e0e0e0"
+                                radius: 4
+                            }
+                            
+                            leftPadding: 15
+                            rightPadding: 15
+                            color: "#333333"
+                        }
                     }
                     
                     // 密码输入框
-                    TextField {
-                        id: passwordInput
+                    Column {
                         width: parent.width
-                        height: 45
-                        placeholderText: "🔒 请输入密码"
-                        echoMode: TextInput.Password
-                        font.pixelSize: 14
-                        selectByMouse: true
+                        spacing: 8
                         
-                        background: Rectangle {
-                            color: passwordInput.activeFocus ? "white" : Qt.rgba(1, 1, 1, 0.9)
-                            border.width: 2
-                            border.color: passwordInput.activeFocus ? Qt.rgba(1, 0.28, 0.4, 0.8) : Qt.rgba(1, 1, 1, 0.3)
-                            radius: 8
+                        Text {
+                            text: "密码"
+                            color: "#666666"
+                            font.pixelSize: 13
                         }
                         
-                        leftPadding: 15
-                        rightPadding: 15
-                        
-                        Keys.onReturnPressed: {
-                            if (isLoginMode) {
-                                onLoginClicked()
+                        TextField {
+                            id: passwordInput
+                            width: parent.width
+                            height: 42
+                            placeholderText: "请输入密码"
+                            echoMode: TextInput.Password
+                            font.pixelSize: 14
+                            selectByMouse: true
+                            
+                            background: Rectangle {
+                                color: "#f5f5f5"
+                                border.width: passwordInput.activeFocus ? 2 : 1
+                                border.color: passwordInput.activeFocus ? "#409EFF" : "#e0e0e0"
+                                radius: 4
+                            }
+                            
+                            leftPadding: 15
+                            rightPadding: 15
+                            color: "#333333"
+                            
+                            Keys.onReturnPressed: {
+                                if (isLoginMode) {
+                                    onLoginClicked()
+                                }
                             }
                         }
                     }
                     
                     // 用户名输入框（注册时显示）
-                    TextField {
-                        id: usernameInput
+                    Column {
                         width: parent.width
-                        height: 45
-                        placeholderText: "👤 请输入用户名"
-                        font.pixelSize: 14
-                        selectByMouse: true
+                        spacing: 8
                         visible: !isLoginMode
                         
-                        background: Rectangle {
-                            color: usernameInput.activeFocus ? "white" : Qt.rgba(1, 1, 1, 0.9)
-                            border.width: 2
-                            border.color: usernameInput.activeFocus ? Qt.rgba(1, 0.28, 0.4, 0.8) : Qt.rgba(1, 1, 1, 0.3)
-                            radius: 8
+                        Text {
+                            text: "用户名"
+                            color: "#666666"
+                            font.pixelSize: 13
                         }
                         
-                        leftPadding: 15
-                        rightPadding: 15
-                        
-                        Keys.onReturnPressed: {
-                            if (!isLoginMode) {
-                                onLoginClicked()
+                        TextField {
+                            id: usernameInput
+                            width: parent.width
+                            height: 42
+                            placeholderText: "请输入用户名"
+                            font.pixelSize: 14
+                            selectByMouse: true
+                            
+                            background: Rectangle {
+                                color: "#f5f5f5"
+                                border.width: usernameInput.activeFocus ? 2 : 1
+                                border.color: usernameInput.activeFocus ? "#409EFF" : "#e0e0e0"
+                                radius: 4
+                            }
+                            
+                            leftPadding: 15
+                            rightPadding: 15
+                            color: "#333333"
+                            
+                            Keys.onReturnPressed: {
+                                if (!isLoginMode) {
+                                    onLoginClicked()
+                                }
                             }
                         }
                     }
+                    
+                    Item { height: 5 }
                     
                     // 登录/注册按钮
                     Button {
                         id: loginButton
                         width: parent.width
-                        height: 45
+                        height: 42
                         text: isLoginMode ? "登录" : "注册"
                         
                         background: Rectangle {
-                            gradient: Gradient {
-                                GradientStop { position: 0.0; color: loginButton.pressed ? "#e53935" : loginButton.hovered ? "#ff5252" : "#ff6b6b" }
-                                GradientStop { position: 1.0; color: loginButton.pressed ? "#d32f2f" : loginButton.hovered ? "#e53935" : "#ee5a52" }
-                            }
-                            radius: 8
+                            color: loginButton.pressed ? "#3a8ee6" : 
+                                   loginButton.hovered ? "#66b1ff" : "#409EFF"
+                            radius: 4
                         }
                         
                         contentItem: Text {
                             text: loginButton.text
                             color: "white"
-                            font.pixelSize: 16
+                            font.pixelSize: 15
                             font.bold: true
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
@@ -270,27 +314,38 @@ Window {
                     }
                     
                     // 切换登录/注册
-                    Text {
-                        id: switchModeText
+                    Row {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: isLoginMode ? "还没有账号？<u>点击注册</u>" : "已有账号？<u>点击登录</u>"
-                        color: Qt.rgba(1, 1, 1, 0.8)
-                        font.pixelSize: 13
-                        textFormat: Text.RichText
+                        spacing: 5
                         
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            hoverEnabled: true
-                            onEntered: {
-                                parent.color = "white"
-                            }
-                            onExited: {
-                                parent.color = Qt.rgba(1, 1, 1, 0.8)
-                            }
-                            onClicked: {
-                                isLoginMode = !isLoginMode
-                                usernameInput.text = ""
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: isLoginMode ? "还没有账号？" : "已有账号？"
+                            color: "#999999"
+                            font.pixelSize: 13
+                        }
+                        
+                        Text {
+                            id: switchModeText
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: isLoginMode ? "立即注册" : "立即登录"
+                            color: "#409EFF"
+                            font.pixelSize: 13
+                            
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                hoverEnabled: true
+                                onEntered: {
+                                    parent.font.underline = true
+                                }
+                                onExited: {
+                                    parent.font.underline = false
+                                }
+                                onClicked: {
+                                    isLoginMode = !isLoginMode
+                                    usernameInput.text = ""
+                                }
                             }
                         }
                     }

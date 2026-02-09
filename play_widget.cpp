@@ -6,12 +6,15 @@
 
 PlayWidget::PlayWidget(QWidget *parent, QWidget *mainWidget)
     : QWidget(parent),
+      m_playbackViewModel(new PlaybackViewModel(this)),  // 新增：初始化ViewModel
       audioService(&AudioService::instance()),
       currentSession(nullptr),
       lastSeekPosition(0)
 
 {
     //qDebug() << __FUNCTION__ << QThread::currentThread()->currentThreadId;
+    
+    qDebug() << "[MVVM] PlayWidget: Initializing with PlaybackViewModel";
     
     // 如果没有传入mainWidget，则使用parent
     QWidget* mainParent = mainWidget ? mainWidget : parent;
@@ -158,8 +161,21 @@ PlayWidget::PlayWidget(QWidget *parent, QWidget *mainWidget)
         // 添加到播放历史（有了专辑图信息）
         if (!filePath.isEmpty()) {
             QString title = currentSongTitle.isEmpty() ? fileName : currentSongTitle;
-            QString artist = currentSongArtist.isEmpty() ? "未知艺术家" : currentSongArtist;
-            playlistHistory->addSong(filePath, title, artist, imagePath);
+            
+            // 对于网络音乐，优先使用从列表传递的artist和cover
+            QString artist;
+            QString cover;
+            if (play_net && !networkSongArtist.isEmpty()) {
+                artist = networkSongArtist;
+                cover = networkSongCover.isEmpty() ? imagePath : networkSongCover;
+                qDebug() << "Using network metadata - Artist:" << artist << "Cover:" << cover;
+            } else {
+                // 本地音乐或没有网络元数据时，使用从AudioService获取的
+                artist = currentSongArtist.isEmpty() ? "未知艺术家" : currentSongArtist;
+                cover = imagePath;
+            }
+            
+            playlistHistory->addSong(filePath, title, artist, cover);
             qDebug() << "Added to playlist history:" << title << artist;
         }
         
@@ -244,6 +260,44 @@ PlayWidget::PlayWidget(QWidget *parent, QWidget *mainWidget)
         emit signal_stop_rotate(false);
     });
     
+    // ========== MVVM: 连接 PlaybackViewModel 信号到 UI ==========
+    qDebug() << "[MVVM] Connecting PlaybackViewModel signals to UI...";
+    
+    // 播放状态变化 -> 同步更新UI（辅助AudioService信号）
+    connect(m_playbackViewModel, &PlaybackViewModel::isPlayingChanged, this, [this]() {
+        bool playing = m_playbackViewModel->isPlaying();
+        qDebug() << "[MVVM] ViewModel isPlaying changed:" << playing;
+        
+        // 注意：这里是辅助信号，主要逻辑仍由AudioService信号处理
+        // 未来可以逐步切换到只使用ViewModel信号
+    });
+    
+    // 进度变化 -> 辅助更新（主要由AudioService::positionChanged处理）
+    connect(m_playbackViewModel, &PlaybackViewModel::positionChanged, this, [this]() {
+        qint64 position = m_playbackViewModel->position();
+        // qDebug() << "[MVVM] Position from ViewModel:" << position << "ms";
+        // 进度更新频率高，这里只做记录，实际更新由AudioService处理
+        // 注意：拖动进度条时这个信号会被忽略（由process_slider的isSliderPressed控制）
+    });
+    
+    // 时长变化 -> 辅助更新
+    connect(m_playbackViewModel, &PlaybackViewModel::durationChanged, this, [this]() {
+        qint64 duration = m_playbackViewModel->duration();
+        qDebug() << "[MVVM] Duration from ViewModel:" << duration << "ms";
+    });
+    
+    // 曲目信息变化 -> 辅助更新标题显示
+    connect(m_playbackViewModel, &PlaybackViewModel::currentTitleChanged, this, [this]() {
+        QString title = m_playbackViewModel->currentTitle();
+        qDebug() << "[MVVM] Current title from ViewModel:" << title;
+        
+        // 可以在这里添加额外的UI更新逻辑
+    });
+    
+    qDebug() << "[MVVM] PlaybackViewModel signals connected successfully";
+    
+    // ========== 继续原有信号连接 ==========
+    
     // 缓冲状态提示（网络音频卡顿时显示）
     connect(audioService, &AudioService::bufferingStarted,
             this, [this]() {
@@ -298,17 +352,23 @@ PlayWidget::PlayWidget(QWidget *parent, QWidget *mainWidget)
         //emit take_pcm->begin_to_play();
         //emit take_pcm->signal_begin_make_pcm(path);
         
-        // ========== 新架构调用 ==========
-        qDebug() << "Loading audio file:" << path;
-        QUrl url = QUrl::fromLocalFile(path);
-        
-        // 使用 AudioService 播放
-        if (audioService->play(url)) {
+        #ifndef USE_MVVM_PLAYBACK
+            // ========== 旧架构：直接使用 AudioService 播放 ==========
+            qDebug() << "Loading audio file:" << path;
+            QUrl url = QUrl::fromLocalFile(path);
+            
+            // 使用 AudioService 播放
+            if (audioService->play(url)) {
+                currentSession = audioService->currentSession();
+                qDebug() << "Audio loaded successfully, session:" << currentSession;
+            } else {
+                qDebug() << "Failed to load audio file:" << path;
+            }
+        #else
+            // ========== MVVM模式：ViewModel已经播放，这里只更新session引用 ==========
+            qDebug() << "[MVVM] signal_filepath received, updating currentSession reference";
             currentSession = audioService->currentSession();
-            qDebug() << "Audio loaded successfully, session:" << currentSession;
-        } else {
-            qDebug() << "Failed to load audio file:" << path;
-        }
+        #endif
     });
     
     // ========== 旧架构信号连接（已注释） ==========
@@ -614,12 +674,14 @@ PlayWidget::PlayWidget(QWidget *parent, QWidget *mainWidget)
         qDebug() << "拖动进度条 - 断开位置更新";
         if (positionUpdateConnection) {
             disconnect(positionUpdateConnection);
+            positionUpdateConnection = QMetaObject::Connection();  // 清空连接句柄
         }
     });
     
     // Seek 完成后重新连接
     connect(process_slider, &ProcessSliderQml::signal_sliderReleased, [this](){
         qDebug() << "进度条释放 - 重新连接位置更新";
+        // 重新建立位置更新连接
         positionUpdateConnection = connect(audioService, &AudioService::positionChanged,
                 this, [this](qint64 positionMs) {
             int seconds = static_cast<int>(positionMs / 1000);
@@ -656,7 +718,8 @@ void PlayWidget::set_isUp(bool flag){
             auto session = audioService->currentSession();
             if (session) {
                 AudioPlayer& player = AudioPlayer::instance();
-                qint64 currentPosition = player.getCurrentTimestamp();
+                // 使用播放位置而不是解码时间戳（seek后解码时间戳会滞后）
+                qint64 currentPosition = player.getPlaybackPosition();
                 int timeInMs = static_cast<int>(currentPosition) + 1000;  // 歌词提前1000ms
                 
                 int targetLine = -1;
@@ -771,32 +834,63 @@ void PlayWidget::slot_Lrc_send_lrc(const std::map<int, std::string> lyrics){
 void PlayWidget::slot_play_click(){
     qDebug() << "[TIMING] slot_play_click START" << QTime::currentTime().toString("hh:mm:ss.zzz");
     
-    // ProcessSliderQml 内部处理进度，这里只需要处理播放状态
-    ProcessSliderQml::State currentState = controlBar->getState();
-    
-    // 检查是否播放完成后首次点击（进度在开头且状态为 Stop）
-    // 如果是，则重新播放
-    QQuickItem* root = controlBar->rootObject();
-    if (root && currentState == ProcessSliderQml::Stop) {
-        QVariant currentTime = root->property("currentTime");
-        if (currentTime.isValid() && currentTime.toInt() == 0) {
-            qDebug() << "播放完成后重新开始，调用 rePlay";
-            rePlay(filePath);
-            return;
+    #ifdef USE_MVVM_PLAYBACK
+        // ========== MVVM模式：通过ViewModel切换播放/暂停 ==========
+        qDebug() << "[MVVM] slot_play_click: Using ViewModel togglePlayPause";
+        
+        ProcessSliderQml::State currentState = controlBar->getState();
+        
+        // 检查是否播放完成后首次点击（进度在开头且状态为 Stop）
+        QQuickItem* root = controlBar->rootObject();
+        if (root && currentState == ProcessSliderQml::Stop) {
+            QVariant currentTime = root->property("currentTime");
+            if (currentTime.isValid() && currentTime.toInt() == 0) {
+                qDebug() << "[MVVM] 播放完成后重新开始";
+                // 使用ViewModel重新播放
+                if (!filePath.isEmpty()) {
+                    QUrl url = filePath.startsWith("http", Qt::CaseInsensitive) 
+                        ? QUrl(filePath) 
+                        : QUrl::fromLocalFile(filePath);
+                    m_playbackViewModel->play(url);
+                }
+                return;
+            }
         }
-    }
+        
+        // 切换播放/暂停状态
+        m_playbackViewModel->togglePlayPause();
+        
+        // 同步UI状态（临时方案，最终UI应直接绑定ViewModel）
+        if (m_playbackViewModel->isPlaying()) {
+            emit signal_playState(ProcessSliderQml::Play);
+        } else {
+            emit signal_playState(ProcessSliderQml::Pause);
+        }
+        
+    #else
+        // ========== 旧模式：使用信号机制 ==========
+        ProcessSliderQml::State currentState = controlBar->getState();
+        
+        // 检查是否播放完成后首次点击
+        QQuickItem* root = controlBar->rootObject();
+        if (root && currentState == ProcessSliderQml::Stop) {
+            QVariant currentTime = root->property("currentTime");
+            if (currentTime.isValid() && currentTime.toInt() == 0) {
+                qDebug() << "播放完成后重新开始，调用 rePlay";
+                rePlay(filePath);
+                return;
+            }
+        }
+        
+        if(currentState == ProcessSliderQml::Pause || currentState == ProcessSliderQml::Stop) {
+            emit signal_playState(ProcessSliderQml::Play);
+        } else {
+            emit signal_playState(ProcessSliderQml::Pause);
+        }
+        emit signal_worker_play();
+    #endif
     
-    if(currentState == ProcessSliderQml::Pause || currentState == ProcessSliderQml::Stop) {
-        emit signal_playState(ProcessSliderQml::Play);
-    } else {
-        emit signal_playState(ProcessSliderQml::Pause);
-    }
-    qDebug() << "[TIMING] slot_play_click 发出 signal_worker_play" << QTime::currentTime().toString("hh:mm:ss.zzz");
-    emit signal_worker_play();
     qDebug() << "[TIMING] slot_play_click END" << QTime::currentTime().toString("hh:mm:ss.zzz");
-    
-    // ========== 旧架构调用（已注释） ==========
-    //work->Pause();
 }
 
 void PlayWidget::rePlay(QString path)
@@ -850,7 +944,6 @@ void PlayWidget::openfile()
 
 void PlayWidget::_play_click(QString songPath)
 {
-
     if(songPath != this->filePath)
     {
         this->filePath = songPath;
@@ -859,13 +952,39 @@ void PlayWidget::_play_click(QString songPath)
         fileName = fileInfo.fileName();
         if(!checkAndWarnIfPathNotExists(songPath))
             return;
-        emit signal_filepath(songPath);
+        
+        #ifdef USE_MVVM_PLAYBACK
+            // ========== MVVM模式：通过ViewModel播放 ==========
+            qDebug() << "[MVVM] _play_click: Playing via ViewModel:" << songPath;
+            
+            // 使用ViewModel播放
+            QUrl url;
+            if (songPath.startsWith("http", Qt::CaseInsensitive)) {
+                url = QUrl(songPath);  // 网络URL
+            } else {
+                url = QUrl::fromLocalFile(songPath);  // 本地文件
+            }
+            
+            m_playbackViewModel->play(url);
+            
+            // ViewModel会自动更新状态并触发信号
+            // 这里只需要处理UI层特有的逻辑
+            emit signal_begin_to_play(songPath);
+            
+            // 重要：触发歌词加载
+            emit signal_filepath(songPath);
+            
+        #else
+            // ========== 旧模式：直接触发signal_filepath ==========
+            qDebug() << "[Legacy] _play_click: Using old signal mechanism";
+            emit signal_filepath(songPath);
+        #endif
     }
     else
     {
+        // 相同路径，切换播放/暂停
         slot_play_click();
     }
-
 }
 void PlayWidget::_remove_click(QString songName)
 {
@@ -978,13 +1097,23 @@ void PlayWidget::slot_updateBackground(QString picPath) {
     if (picPath.startsWith("file:///")) {
         localPath = QUrl(picPath).toLocalFile();
         qDebug() << "Converted URL to local path:" << localPath;
+    } else if (picPath.startsWith("qrc:")) {
+        // QRC资源路径，去掉qrc:前缀，保留:/
+        localPath = picPath.mid(3);  // 去掉"qrc"，保留":/..."
+        qDebug() << "Converted QRC path:" << localPath;
     }
     
     // 加载原始图片
     QPixmap originalPixmap(localPath);
     if (originalPixmap.isNull()) {
         qDebug() << "Failed to load album cover for background:" << localPath;
-        return;
+        // 使用默认背景图片
+        qDebug() << "Using default background image";
+        originalPixmap.load(":/new/prefix1/icon/Music.png");
+        if (originalPixmap.isNull()) {
+            qDebug() << "Failed to load default background image, skipping";
+            return;
+        }
     }
     
     qDebug() << "Original pixmap size:" << originalPixmap.size();
@@ -1030,17 +1159,18 @@ void PlayWidget::slot_updateBackground(QString picPath) {
 void PlayWidget::slot_lyric_seek(int timeMs) {
     qDebug() << "Seeking to time:" << timeMs << "ms";
     
-    // 直接使用现有的跳转逻辑，就像进度条拖动一样
-    qint64 milliseconds = static_cast<qint64>(timeMs);
-    qDebug() << "Converting to milliseconds:" << milliseconds;
+    #ifdef USE_MVVM_PLAYBACK
+        // ========== MVVM模式：通过ViewModel跳转 ==========
+        qDebug() << "[MVVM] slot_lyric_seek: Using ViewModel seekTo";
+        m_playbackViewModel->seekTo(timeMs);
+        lastSeekPosition = timeMs;
+    #else
+        // ========== 旧模式：使用信号机制 ==========
+        qint64 milliseconds = static_cast<qint64>(timeMs);
+        emit signal_process_Change(milliseconds, true);
+    #endif
     
-    // ========== 旧架构调用（已注释） ==========
-    // work->reset_play();
-    
-    // 发送跳转信号（单位：毫秒）
-    emit signal_process_Change(milliseconds, true);
-    
-    // 同步更新进度条显示位置
+    // 同步更新进度条显示位置（两种模式都需要）
     if (process_slider) {
         QQuickItem* root = process_slider->rootObject();
         if (root) {
@@ -1128,4 +1258,25 @@ void PlayWidget::slot_lyric_preview(int timeMs) {
     }
 }
 
+PlaybackViewModel* PlayWidget::playbackViewModel() const
+{
+    return m_playbackViewModel;
+}
+
+bool PlayWidget::get_net_flag()
+{
+    return play_net;
+}
+
+void PlayWidget::set_play_net(bool flag)
+{
+    play_net = flag;
+    emit signal_netFlagChanged(flag);
+}
+
+void PlayWidget::setNetworkMetadata(const QString& artist, const QString& cover)
+{
+    networkSongArtist = artist;
+    networkSongCover = cover;
+}
 

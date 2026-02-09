@@ -117,6 +117,7 @@ private:
     bool m_isBuffering;
     int m_bufferingPercent;
     bool m_decoderPausedByFlowControl;  // 解码器是否被流控暂停
+    bool m_hasStartedPlayback;  // 是否已经开始过播放（用于区分首次播放和中途恢复）
     
     // Seek优化
     bool m_seekGracePeriod;  // seek后的宽限期，避免立即触发buffering

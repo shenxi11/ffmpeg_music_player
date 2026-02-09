@@ -1,6 +1,11 @@
 #ifndef PLAY_WIDGET_H
 #define PLAY_WIDGET_H
 
+// ========== MVVM 配置开关 ==========
+// 取消注释以启用MVVM模式的播放控制
+#define USE_MVVM_PLAYBACK  // 启用ViewModel播放控制
+// ====================================
+
 #include <QWidget>
 #include <QSlider>
 #include <QScrollBar>
@@ -11,6 +16,7 @@
 //#include "take_pcm.h"
 // ========== 新架构 ==========
 #include "AudioService.h"
+#include "viewmodels/PlaybackViewModel.h"  // 新增：ViewModel
 #include "lrc_analyze.h"
 #include "lyricdisplay_qml.h"
 #include "httprequest.h"
@@ -23,13 +29,19 @@
 class PlayWidget : public QWidget
 {
     Q_OBJECT
+    
+    // ========== MVVM: 暴露ViewModel给QML ==========
+    Q_PROPERTY(PlaybackViewModel* playbackViewModel READ playbackViewModel CONSTANT)
 
 public:
     PlayWidget(QWidget *parent = nullptr, QWidget *mainWidget = nullptr);
     ~PlayWidget();
 
+    // ========== MVVM: ViewModel访问器 ==========
+    PlaybackViewModel* playbackViewModel() const;
+
     bool isUp = false;
-    bool get_net_flag(){return play_net;};
+    bool get_net_flag();
     void set_isUp(bool flag);
     bool checkAndWarnIfPathNotExists(const QString &path);
 public slots:
@@ -40,7 +52,8 @@ public slots:
     void openfile();
     void setPianWidgetEnable(bool flag);
 
-    void set_play_net(bool flag){play_net = flag; emit signal_netFlagChanged(flag);};
+    void set_play_net(bool flag);
+    void setNetworkMetadata(const QString& artist, const QString& cover);
     void slot_play_click();
     void slot_Lrc_send_lrc(const std::map<int, std::string> lyrics);
     void slot_work_stop();
@@ -82,9 +95,12 @@ private:
     //std::shared_ptr<Worker> work;//音频转化为pcm的线程
     //std::shared_ptr<TakePcm> take_pcm;//播放pcm的线程
     
-    // ========== 新架构 ==========
-    AudioService* audioService;  // 音频服务（单例）
-    AudioSession* currentSession;  // 当前播放会话
+    // ========== MVVM架构 ==========
+    PlaybackViewModel* m_playbackViewModel;  // 播放器ViewModel（新）
+    
+    // ========== Service层（保留用于旧代码兼容） ==========
+    AudioService* audioService;  // 音频服务（单例） - 将逐步由ViewModel替代
+    AudioSession* currentSession;  // 当前播放会话 - 将逐步由ViewModel替代
     
     std::shared_ptr<LrcAnalyze> lrc;//解析歌词的线程
     std::map<int, std::string> lyrics;
@@ -93,6 +109,9 @@ private:
     QString fileName;
     QString currentSongTitle;   // 当前歌曲标题
     QString currentSongArtist;  // 当前歌曲艺术家
+    QString networkSongArtist;  // 网络音乐的艺术家（从服务器获取）
+    QString networkSongCover;   // 网络音乐的封面（从服务器获取）
+    
     LyricDisplayQml *lyricDisplay;
     QPushButton *music;
     QPushButton* net;

@@ -7,165 +7,70 @@
 #include <QQuickItem>
 #include <QDebug>
 
+/**
+ * @brief 网络音乐列表组件 ViewModel (MVVM模式)
+ * 
+ * MVVM架构：
+ * - Q_PROPERTY 暴露属性供 QML 绑定
+ * - QML 作为纯 View 层，只负责显示
+ * - 业务逻辑在 C++ 中处理
+ */
 class MusicListWidgetNetQml : public QQuickWidget
 {
     Q_OBJECT
+    
+    // ===== MVVM 属性绑定 =====
+    Q_PROPERTY(QString currentPlayingPath READ currentPlayingPath WRITE setCurrentPlayingPath NOTIFY currentPlayingPathChanged)
+    Q_PROPERTY(bool isPlaying READ isPlaying WRITE setIsPlaying NOTIFY isPlayingChanged)
+    Q_PROPERTY(int songCount READ songCount NOTIFY songCountChanged)
+    
 public:
-    explicit MusicListWidgetNetQml(QWidget *parent = nullptr)
-        : QQuickWidget(parent)
-    {
-        // 设置 QML 源文件
-        setSource(QUrl("qrc:/qml/components/MusicListWidgetNet.qml"));
-        setResizeMode(QQuickWidget::SizeRootObjectToView);
-        
-        // 连接信号
-        QQuickItem* root = rootObject();
-        if (root) {
-            // 连接 QML 信号到 C++ 信号
-            connect(root, SIGNAL(playRequested(QString)), 
-                    this, SIGNAL(signal_play_click(QString)));
-            connect(root, SIGNAL(removeRequested(QString)), 
-                    this, SIGNAL(signal_remove_click(QString)));
-            connect(root, SIGNAL(downloadRequested(QString)), 
-                    this, SIGNAL(signal_download_click(QString)));
-            connect(root, SIGNAL(chooseDownloadDir()), 
-                    this, SIGNAL(signal_choose_download_dir()));
-        }
-        connect(this, &MusicListWidgetNetQml::signal_next, this, &MusicListWidgetNetQml::playNext);
-        connect(this, &MusicListWidgetNetQml::signal_last, this, &MusicListWidgetNetQml::playLast);
+    explicit MusicListWidgetNetQml(QWidget *parent = nullptr);
+    
+    // ===== MVVM 属性访问器 =====
+    QString currentPlayingPath() const { return m_currentPlayingPath; }
+    bool isPlaying() const { return m_isPlaying; }
+    int songCount() const { return m_songCount; }
+    
+    // ===== 属性设置器（带数据绑定通知）=====
+    void setCurrentPlayingPath(const QString& path);
+    void setIsPlaying(bool playing);
+    void setPlayingState(const QString& filePath, bool playing);
 
-    }
-
-    // 添加歌曲到列表
+    // ===== 业务逻辑方法 =====
     void addSong(const QString& songName, const QString& filePath, 
                  const QString& artist = "", const QString& duration = "0:00",
-                 const QString& cover = "")
-    {
-        QQuickItem* root = rootObject();
-        if (root) {
-            QMetaObject::invokeMethod(root, "addSong",
-                Q_ARG(QVariant, songName),
-                Q_ARG(QVariant, filePath),
-                Q_ARG(QVariant, artist),
-                Q_ARG(QVariant, duration),
-                Q_ARG(QVariant, cover));
-        }
-    }
-
-    // 批量添加歌曲列表
-    void addSongList(const QStringList& songNames, const QList<double>& durations, const QStringList& coverUrls = QStringList(), const QStringList& artists = QStringList())
-    {
-        QQuickItem* root = rootObject();
-        if (root) {
-            QVariantList nameList;
-            QVariantList durationList;
-            QVariantList coverList;
-            QVariantList artistList;
-            
-            for (const QString& name : songNames) {
-                nameList.append(name);
-            }
-            
-            for (double duration : durations) {
-                int minutes = static_cast<int>(duration) / 60;
-                int seconds = static_cast<int>(duration) % 60;
-                QString formattedDuration = QString("%1:%2").arg(minutes).arg(seconds, 2, 10, QChar('0'));
-                durationList.append(formattedDuration);
-                qDebug() << "Adding song with duration:" << duration << "seconds -> formatted:" << formattedDuration;
-            }
-            
-            for (const QString& cover : coverUrls) {
-                coverList.append(cover);
-                qDebug() << "Adding song with cover URL:" << cover;
-            }
-            
-            for (const QString& artist : artists) {
-                artistList.append(artist);
-                qDebug() << "Adding song with artist:" << artist;
-            }
-            
-            QMetaObject::invokeMethod(root, "addSongList",
-                Q_ARG(QVariant, nameList),
-                Q_ARG(QVariant, durationList),
-                Q_ARG(QVariant, coverList),
-                Q_ARG(QVariant, artistList));
-        }
-    }
-
-    // 从列表中移除歌曲
-    void removeSong(const QString& filePath)
-    {
-        QQuickItem* root = rootObject();
-        if (root) {
-            QMetaObject::invokeMethod(root, "removeSong",
-                Q_ARG(QVariant, filePath));
-        }
-    }
-
-    // 清空列表
-    void clearAll()
-    {
-        QQuickItem* root = rootObject();
-        if (root) {
-            QMetaObject::invokeMethod(root, "clearAll");
-        }
-    }
-
-    // 获取歌曲数量
-    int getCount()
-    {
-        QQuickItem* root = rootObject();
-        if (root) {
-            QVariant result;
-            QMetaObject::invokeMethod(root, "getCount", 
-                Q_RETURN_ARG(QVariant, result));
-            return result.toInt();
-        }
-        return 0;
-    }
-
-    // 设置下载路径
-    void setDownloadDir(const QString& dir)
-    {
-        QQuickItem* root = rootObject();
-        if (root) {
-            QMetaObject::invokeMethod(root, "setDownloadDir",
-                Q_ARG(QVariant, dir));
-        }
-    }
-
-    // 设置播放状态
-    void setPlayingState(const QString& filePath, bool playing)
-    {
-        QQuickItem* root = rootObject();
-        if (root) {
-            QMetaObject::invokeMethod(root, "setPlayingState",
-                Q_ARG(QVariant, filePath),
-                Q_ARG(QVariant, playing));
-        }
-    }
-
-    void playNext(const QString& songName){
-        QQuickItem* root = rootObject();
-        if (root) {
-            QMetaObject::invokeMethod(root, "playNext",
-                                      Q_ARG(QVariant, songName));
-        }
-    }
-    void playLast(const QString& songName){
-        QQuickItem* root = rootObject();
-        if (root) {
-            QMetaObject::invokeMethod(root, "playLast",
-                                      Q_ARG(QVariant, songName));
-        }
-    }
+                 const QString& cover = "");
+    void addSongList(const QStringList& songNames, const QStringList& relativePaths, 
+                     const QList<double>& durations, const QStringList& coverUrls = QStringList(), 
+                     const QStringList& artists = QStringList());
+    void removeSong(const QString& filePath);
+    void clearAll();
+    int getCount();
+    void playNext(const QString& songName);
+    void playLast(const QString& songName);
+    
 signals:
-    void signal_play_click(QString path);
+    // ===== MVVM 属性变化信号 =====
+    void currentPlayingPathChanged();
+    void isPlayingChanged();
+    void songCountChanged();
+    
+    // ===== 业务逻辑信号 =====
+    void signal_play_click(QString path, QString artist, QString cover);
     void signal_remove_click(QString path);
     void signal_download_click(QString path);
-    void signal_choose_download_dir();
     void signal_next(QString songName);
-     void signal_last(QString songName);
+    void signal_last(QString songName);
+    void addToFavorite(QString path, QString title, QString artist, QString duration);
+
+private:
+    // ===== MVVM 数据模型 =====
+    QString m_currentPlayingPath;
+    bool m_isPlaying;
+    int m_songCount;
+    
+    void updateSongCount();
 };
 
 #endif // MUSIC_LIST_WIDGET_NET_QML_H

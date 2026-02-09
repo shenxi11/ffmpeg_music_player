@@ -4,6 +4,8 @@
 #include "music_list_widget.h"
 #include "music_list_widget_local.h"
 #include "music_list_widget_net.h"
+#include "local_and_download_widget.h"
+#include "local_music_cache.h"
 #include "loginwidget_qml.h"
 #include "searchbox.h"
 #include "user_widget.h"
@@ -13,6 +15,10 @@
 #include "plugin_manager.h"
 #include "VideoPlayerWindow.h"
 #include "video_list_widget.h"
+#include "settings_widget.h"
+#include "settings_manager.h"
+#include "play_history_widget.h"
+#include "favorite_music_widget.h"
 #include <QWidget>
 #include <QButtonGroup>
 #include <QScreen>
@@ -25,14 +31,31 @@ public:
     explicit MainWidget(QWidget *parent = nullptr);
     ~MainWidget();
     void Update_paint();
-public slots:
-    void on_signal_choose_download_dir();
+    
+    // 检查登录状态 (Q_INVOKABLE用于QMetaObject::invokeMethod调用)
+    Q_INVOKABLE bool isUserLoggedIn() const { 
+        return userWidgetQml ? userWidgetQml->getLoginState() : false; 
+    }
+    
+    // 显示登录窗口
+    void showLoginWindow() {
+        if (loginWidget) {
+            loginWidget->isVisible = true;
+            loginWidget->show();
+        }
+    }
+    
 signals:
+    void loginRequired();  // 需要登录的信号
+    
 private:
     PlayWidget* w;
     MusicListWidget* list;
     MusicListWidgetLocal* main_list;
+    LocalAndDownloadWidget* localAndDownloadWidget;  // 新的本地和下载页面
     MusicListWidgetNet* net_list;
+    PlayHistoryWidget* playHistoryWidget;  // 播放历史widget
+    FavoriteMusicWidget* favoriteMusicWidget;  // 喜欢音乐widget
     LoginWidgetQml* loginWidget;
     UserWidget* userWidget;
     UserWidgetQml* userWidgetQml;
@@ -41,9 +64,14 @@ private:
     QPushButton* menuButton;
     VideoPlayerWindow* videoPlayerWindow;
     VideoListWidget* videoListWidget;  // 在线视频列表窗口
+    SettingsWidget* settingsWidget;    // 设置窗口
 
     QPushButton* Login;
     HttpRequest* request;
+    
+    // 网络音乐元数据缓存（用于添加播放历史）
+    QString m_networkMusicArtist;
+    QString m_networkMusicCover;
 
     QPoint pos_ = QPoint(0, 0);
     bool dragging = false;

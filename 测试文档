@@ -1,0 +1,138 @@
+#!/bin/bash
+
+# 用户音乐功能测试脚本
+# 测试喜欢列表和播放历史
+
+BASE_URL="http://slcdut.xyz:8080"
+USER_ACCOUNT="gotest123"  # 使用实际存在的用户账号
+
+echo "========================================="
+echo "用户音乐功能测试"
+echo "测试用户: $USER_ACCOUNT"
+echo "========================================="
+echo ""
+
+# 1. 添加喜欢音乐（在线音乐）
+echo "【测试1】添加喜欢音乐（在线音乐）..."
+curl -X POST "${BASE_URL}/user/favorites/add?user_account=${USER_ACCOUNT}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "music_path": "/uploads/music/周杰伦 - 晴天.mp3",
+    "music_title": "晴天",
+    "artist": "周杰伦",
+    "duration_sec": 269,
+    "is_local": false
+  }'
+echo ""
+echo ""
+
+# 2. 添加喜欢音乐（本地音乐）
+echo "【测试2】添加喜欢音乐（本地音乐）..."
+curl -X POST "${BASE_URL}/user/favorites/add?user_account=${USER_ACCOUNT}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "music_path": "/sdcard/Music/林俊杰 - 江南.mp3",
+    "music_title": "江南",
+    "artist": "林俊杰",
+    "duration_sec": 260,
+    "is_local": true
+  }'
+echo ""
+echo ""
+
+# 3. 测试重复添加（应该返回错误）
+echo "【测试3】重复添加喜欢音乐（应该失败）..."
+curl -X POST "${BASE_URL}/user/favorites/add?user_account=${USER_ACCOUNT}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "music_path": "/uploads/music/周杰伦 - 晴天.mp3",
+    "music_title": "晴天",
+    "artist": "周杰伦",
+    "duration_sec": 269,
+    "is_local": false
+  }'
+echo ""
+echo ""
+
+# 4. 查询喜欢列表
+echo "【测试4】查询喜欢列表..."
+curl "${BASE_URL}/user/favorites?user_account=${USER_ACCOUNT}"
+echo ""
+echo ""
+
+# 5. 添加播放历史（在线音乐）
+echo "【测试5】添加播放历史（在线音乐）..."
+for i in {1..3}; do
+  curl -X POST "${BASE_URL}/user/history/add?user_account=${USER_ACCOUNT}" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "music_path": "/uploads/music/周杰伦 - 七里香.mp3",
+      "music_title": "七里香",
+      "artist": "周杰伦",
+      "album": "七里香",
+      "duration_sec": 300,
+      "is_local": false
+    }'
+  echo ""
+  sleep 1  # 间隔1秒，确保时间戳不同
+done
+echo ""
+
+# 6. 添加播放历史（本地音乐）
+echo "【测试6】添加播放历史（本地音乐）..."
+curl -X POST "${BASE_URL}/user/history/add?user_account=${USER_ACCOUNT}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "music_path": "/sdcard/Music/薛之谦 - 演员.mp3",
+    "music_title": "演员",
+    "artist": "薛之谦",
+    "album": "绅士",
+    "duration_sec": 263,
+    "is_local": true
+  }'
+echo ""
+echo ""
+
+# 7. 查询播放历史（默认50条）
+echo "【测试7】查询播放历史（默认50条）..."
+curl "${BASE_URL}/user/history?user_account=${USER_ACCOUNT}"
+echo ""
+echo ""
+
+# 8. 查询播放历史（限制2条）
+echo "【测试8】查询播放历史（限制2条）..."
+curl "${BASE_URL}/user/history?user_account=${USER_ACCOUNT}&limit=2"
+echo ""
+echo ""
+
+# 9. 移除喜欢音乐
+echo "【测试9】移除喜欢音乐..."
+curl -X DELETE "${BASE_URL}/user/favorites/remove" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"user_account\": \"${USER_ACCOUNT}\",
+    \"music_path\": \"/uploads/music/周杰伦 - 晴天.mp3\"
+  }"
+echo ""
+echo ""
+
+# 10. 再次查询喜欢列表（应该只剩一首）
+echo "【测试10】再次查询喜欢列表..."
+curl "${BASE_URL}/user/favorites?user_account=${USER_ACCOUNT}"
+echo ""
+echo ""
+
+# 11. 测试删除不存在的喜欢音乐（应该返回错误）
+echo "【测试11】删除不存在的喜欢音乐（应该失败）..."
+curl -X DELETE "${BASE_URL}/user/favorites/remove" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"user_account\": \"${USER_ACCOUNT}\",
+    \"music_path\": \"/not/exist/path.mp3\"
+  }"
+echo ""
+echo ""
+
+echo "========================================="
+echo "测试完成！"
+echo "========================================="

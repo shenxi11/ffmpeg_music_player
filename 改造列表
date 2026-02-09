@@ -1,0 +1,12 @@
+ 推荐改造优先级
+第一阶段（立即改造）
+✅ RotatingCircleQml - 最简单，3个方法，先练手
+✅ DeskLrcQml - 核心功能，高频使用
+✅ LyricDisplayQml - 核心功能，数据复杂
+第二阶段（近期改造）
+PlaylistHistoryQml - 补充Q_PROPERTY声明（已有setter）
+SearchBoxQml - 简单组件
+UserWidgetQml - 用户信息
+第三阶段（长期规划）
+MusicListWidgetQml/NetQml - 列表组件复杂
+其他低频组件

@@ -34,6 +34,8 @@ public:
             connect(root, SIGNAL(menuClicked()), this, SIGNAL(menuClicked()));
             connect(root, SIGNAL(localMusicClicked()), this, SIGNAL(localMusicClicked()));
             connect(root, SIGNAL(onlineMusicClicked()), this, SIGNAL(onlineMusicClicked()));
+            connect(root, SIGNAL(playHistoryClicked()), this, SIGNAL(playHistoryClicked()));
+            connect(root, SIGNAL(favoriteMusicClicked()), this, SIGNAL(favoriteMusicClicked()));
         } else {
             qCritical() << "MainViewQml: Failed to get root object!";
         }
@@ -57,6 +59,14 @@ public:
         }
     }
     
+    void setUserLoggedIn(bool loggedIn)
+    {
+        QQuickItem* root = rootObject();
+        if (root) {
+            root->setProperty("isUserLoggedIn", loggedIn);
+        }
+    }
+    
 signals:
     void minimizeClicked();
     void maximizeClicked();
@@ -64,6 +74,8 @@ signals:
     void menuClicked();
     void localMusicClicked();
     void onlineMusicClicked();
+    void playHistoryClicked();
+    void favoriteMusicClicked();
 };
 
 #endif // MAIN_VIEW_QML_H

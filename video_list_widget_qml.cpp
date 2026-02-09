@@ -1,4 +1,62 @@
 #include "video_list_widget_qml.h"
 
-// 此文件用于触发Qt MOC系统生成VideoListWidgetQml类的元对象代码
-// 实现都在头文件中
+VideoListWidgetQml::VideoListWidgetQml(QWidget *parent)
+    : QQuickWidget(parent)
+{
+    // 设置 QML 源文件
+    setSource(QUrl("qrc:/qml/components/VideoListWidget.qml"));
+    setResizeMode(QQuickWidget::SizeRootObjectToView);
+    
+    // 连接信号
+    QQuickItem* root = rootObject();
+    if (root) {
+        // 连接 QML 信号到 C++ 信号
+        connect(root, SIGNAL(videoSelected(QString, QString)), 
+                this, SIGNAL(signal_video_selected(QString, QString)));
+        connect(root, SIGNAL(refreshRequested()), 
+                this, SIGNAL(signal_refresh_requested()));
+    } else {
+        qWarning() << "VideoListWidgetQml: Failed to load QML root object";
+    }
+}
+
+void VideoListWidgetQml::addVideo(const QString& name, const QString& path, qint64 size)
+{
+    QQuickItem* root = rootObject();
+    if (root) {
+        QMetaObject::invokeMethod(root, "addVideo",
+            Q_ARG(QVariant, name),
+            Q_ARG(QVariant, path),
+            Q_ARG(QVariant, size));
+    }
+}
+
+void VideoListWidgetQml::addVideoList(const QVariantList& videoList)
+{
+    for (const QVariant& video : videoList) {
+        QVariantMap videoMap = video.toMap();
+        QString name = videoMap["name"].toString();
+        QString path = videoMap["path"].toString();
+        qint64 size = videoMap["size"].toLongLong();
+        addVideo(name, path, size);
+    }
+}
+
+void VideoListWidgetQml::clearAll()
+{
+    QQuickItem* root = rootObject();
+    if (root) {
+        QMetaObject::invokeMethod(root, "clearAll");
+    }
+}
+
+int VideoListWidgetQml::getCount()
+{
+    QQuickItem* root = rootObject();
+    if (root) {
+        QVariant result;
+        QMetaObject::invokeMethod(root, "getCount", Q_RETURN_ARG(QVariant, result));
+        return result.toInt();
+    }
+    return 0;
+}

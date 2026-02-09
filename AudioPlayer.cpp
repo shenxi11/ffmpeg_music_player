@@ -375,11 +375,16 @@ void AudioPlayer::setCurrentTimestamp(qint64 timestampMs)
     std::lock_guard<std::mutex> lock(m_timestampMutex);
     m_currentTimestamp = timestampMs;
     
-    // 如果正在播放，重新同步时钟
+    // 如果正在播放且未暂停，重新同步时钟
     if (m_isPlaying && !m_isPaused) {
         m_playbackTimer.restart();
         m_playbackStartTimestamp = timestampMs;
         qDebug() << "AudioPlayer: Timestamp set to" << timestampMs << "ms, clock resynced";
+    }
+    // 如果已暂停，更新暂停位置（用于seek场景）
+    else if (m_isPlaying && m_isPaused) {
+        m_pausedPosition = timestampMs;
+        qDebug() << "AudioPlayer: Paused position updated to" << timestampMs << "ms (for seek)";
     }
 }
 

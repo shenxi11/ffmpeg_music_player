@@ -1,0 +1,197 @@
+22:27:27: Starting E:\FFmpeg_whisper\ffmpeg_music_player_build\Debug\ffmpeg_music_player.exe...
+[2026-02-04 22:27:29.847] [DEBUG] Logger initialized. Log file: "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/debug.log"
+
+[2026-02-04 22:27:29.848] [DEBUG] =========================================
+
+[2026-02-04 22:27:29.848] [DEBUG] FFmpeg Music Player Starting...
+
+[2026-02-04 22:27:29.848] [DEBUG] Log file: "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/debug.log"
+
+[2026-02-04 22:27:29.848] [DEBUG] DLL search path (resource): "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/resource"
+
+[2026-02-04 22:27:29.849] [DEBUG] Resource directory exists: true
+
+[2026-02-04 22:27:29.849] [DEBUG] =========================================
+
+Loading plugins from: "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/plugin"
+PluginManager initialized
+Loading plugins from: "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/plugin"
+Found 2 plugin files
+Attempting to load plugin: "audio_converter_plugin.dll"
+AudioConverterPlugin constructor
+Initializing AudioConverterPlugin...
+AudioConverterPlugin initialized successfully
+Plugin loaded successfully: "音频转换器" Version: "1.0.0"
+Attempting to load plugin: "whisper_translate_plugin.dll"
+WhisperTranslatePlugin: Constructor called
+WhisperTranslatePlugin: Initializing...
+WhisperTranslatePlugin: Initialized successfully
+Plugin loaded successfully: "Whisper 翻译" Version: "1.0.0"
+Successfully loaded 2 plugins
+Loaded 2 plugins
+Loading plugins from: "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/plugin"
+Found 2 plugin files
+Attempting to load plugin: "audio_converter_plugin.dll"
+Plugin loaded successfully: "音频转换器" Version: "1.0.0"
+Attempting to load plugin: "whisper_translate_plugin.dll"
+Plugin loaded successfully: "Whisper 翻译" Version: "1.0.0"
+Successfully loaded 2 plugins
+Loaded 2 plugins from "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/plugin"
+SearchBoxQml: Initializing...
+SearchBoxQml: Current QML import paths: ("qrc:/", "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug", "qrc:/qt-project.org/imports", "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/qml")
+SearchBoxQml: Loading QML from qrc:/qml/components/SearchBox.qml
+SearchBoxQml: QML loaded successfully, status = QQuickWidget::Ready
+SearchBoxQml: Root item found, size: 250 x 60
+SearchBoxQml: QML signals connected successfully
+SearchBoxQml: Initialization complete
+UserWidgetQml: Initializing...
+UserWidgetQml: Loading QML from qrc:/qml/components/UserWidget.qml
+UserWidgetQml: QML loaded successfully
+UserWidgetQml: Initializing popup window...
+UserWidgetQml: Popup window loaded
+UserWidgetQml: Popup window signals connected
+UserWidgetQml: Initialization complete
+LoginWidgetQml: Initializing...
+LoginWidgetQml: QML loaded successfully
+LoginWidgetQml: Initialization complete
+[DownloadManager] Initialized with max concurrent: 3
+[DownloadManager] Loaded 14 tasks
+[LocalMusicCache] Initialized with 1 songs
+[LocalAndDownloadWidget] Initializing...
+[LocalAndDownloadWidget] Initial refresh of active tasks
+[DownloadingList] Component completed
+[DownloadingList] Initial refresh
+[DownloadingList] Model reset, count: 0
+[DownloadedMusicList] Model reset, count: 0
+[DownloadedMusicList] Component completed
+[DownloadedMusicList] Initial refresh
+[DownloadingList] Model reset, count: 0
+[DownloadedMusicList] Model reset, count: 0
+[LocalAndDownloadWidget] Root object loaded successfully
+[LocalAndDownloadWidget] Signals connected
+[LocalAndDownloadWidget] Initialized successfully
+PlayHistoryWidget: Created
+PlayHistoryWidget: Signals connected
+FavoriteMusicWidget: Created
+FavoriteMusicWidget: Signals connected
+[MainWidget] Creating PlayWidget...
+AudioService: Pre-warming AudioPlayer singleton...
+AudioPlayer: Audio device OPENED and ready (hot state)
+  Sample Rate: 44100
+  Channels: 2
+  Buffer Size: 65536
+  Device will remain open until destruction
+AudioPlayer created in thread: 0x4eb0
+AudioPlayer: Playback thread started and ready
+AudioPlayer: Audio device is HOT and ready (no startup delay)
+AudioService: AudioPlayer ready, all songs will have ZERO startup delay
+AudioPlayer: Playback thread started: 0x7ca4
+[MVVM] PlaybackViewModel: Initializing and connecting to AudioService
+[MVVM] PlaybackViewModel: All signals connected successfully
+[MVVM] PlayWidget: Initializing with PlaybackViewModel
+ProcessSliderQml: Loading QML from qrc:/qml/components/ProcessSlider.qml
+  QML source set in 77 ms
+  Resize mode set in 77 ms
+ProcessSliderQml: QML loaded successfully in 78 ms
+ProcessSliderQml: Root object found, connecting signals...
+ProcessSliderQml: All signals connected in 78 ms (total)
+ProcessSliderQml: Constructor completed in 78 ms (total)
+ProcessSliderQml created at position: QPoint(0,490) size: QSize(1000, 70) visible: false
+qrc:/qml/components/DeskLyric.qml:292:17: QML Rectangle: Detected anchors on an item that is managed by a layout. This is undefined behavior; use Layout.alignment instead.
+qrc:/qml/components/DeskLyric.qml:292:17: QML Rectangle: Detected anchors on an item that is managed by a layout. This is undefined behavior; use Layout.alignment instead.
+DeskLyric.qml loaded successfully
+DeskLrcQml: QML signals connected
+PlaylistHistoryQml: Created, root object: true
+PlaylistHistoryQml: Signals connected
+AudioService initialized: AudioService(0x7ff6b6bd04b0)
+Initializing LyricDisplay...
+LyricDisplay.qml loaded successfully
+LyricDisplay initialized, size: QSize(550, 350) position: QPoint(400,100)
+[MVVM] Connecting PlaybackViewModel signals to UI...
+[MVVM] PlaybackViewModel signals connected successfully
+[MainWidget] PlayWidget created successfully
+[MainWidget] Creating VideoListWidget...
+[MainWidget] VideoListWidget created successfully
+[MainWidget] Search keyword: "周杰伦"
+[HttpRequest] Searching music with keyword: "周杰伦"
+Response data from server: "[{\"path\":\"\xE6\x96\xAD\xE4\xBA\x86\xE7\x9A\x84\xE5\xBC\xA6/\xE6\x96\xAD\xE4\xBA\x86\xE7\x9A\x84\xE5\xBC\xA6.mp3\",\"duration\":\"297.56 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE6\x96\xAD\xE4\xBA\x86\xE7\x9A\x84\xE5\xBC\xA6/\xE6\x96\xAD\xE4\xBA\x86\xE7\x9A\x84\xE5\xBC\xA6_cover.png\"},{\"path\":\"\xE5\x91\x8A\xE7\x99\xBD\xE6\xB0\x94\xE7\x90\x83/\xE5\x91\x8A\xE7\x99\xBD\xE6\xB0\x94\xE7\x90\x83.mp3\",\"duration\":\"215.64 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE5\x91\x8A\xE7\x99\xBD\xE6\xB0\x94\xE7\x90\x83/\xE5\x91\x8A\xE7\x99\xBD\xE6\xB0\x94\xE7\x90\x83_cover.png\"},{\"path\":\"\xE8\xBD\xA8\xE8\xBF\xB9/\xE8\xBD\xA8\xE8\xBF\xB9.mp3\",\"duration\":\"326.90 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE8\xBD\xA8\xE8\xBF\xB9/\xE8\xBD\xA8\xE8\xBF\xB9_cover.png\"},{\"path\":\"\xE7\x88\xB1\xE6\x83\x85\xE5\xBA\x9F\xE6\x9F\xB4/\xE7\x88\xB1\xE6\x83\x85\xE5\xBA\x9F\xE6\x9F\xB4.mp3\",\"duration\":\"285.65 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE7\x88\xB1\xE6\x83\x85\xE5\xBA\x9F\xE6\x9F\xB4/\xE7\x88\xB1\xE6\x83\x85\xE5\xBA\x9F\xE6\x9F\xB4_cover.png\"},{\"path\":\"\xE5\xBA\x8A\xE8\xBE\xB9\xE6\x95\x85\xE4\xBA\x8B/\xE5\xBA\x8A\xE8\xBE\xB9\xE6\x95\x85\xE4\xBA\x8B.mp3\",\"duration\":\"226.25 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE5\xBA\x8A\xE8\xBE\xB9\xE6\x95\x85\xE4\xBA\x8B/\xE5\xBA\x8A\xE8\xBE\xB9\xE6\x95\x85\xE4\xBA\x8B_cover.png\"},{\"path\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\\u0026\xE6\x9E\x97\xE4\xBF\x8A\xE6\x9D\xB0-\xE6\x99\xB4\xE5\xA4\xA9+\xE5\xAE\x89\xE9\x9D\x99+\xE4\xBF\xAE\xE7\x82\xBC\xE7\x88\xB1\xE6\x83\x85+\xE6\x9C\x80\xE9\x95\xBF\xE7\x9A\x84\xE7\x94\xB5\xE5\xBD\xB1 (2017\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\xE5\x9C\xB0\xE8\xA1\xA8\xE6\x9C\x80\xE5\xBC\xBA\xE6\xBC\x94\xE5\x94\xB1\xE4\xBC\x9A\xE5\x8F\xB0\xE5\x8C\x97\xE7\xAB\x99)/\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\\u0026\xE6\x9E\x97\xE4\xBF\x8A\xE6\x9D\xB0-\xE6\x99\xB4\xE5\xA4\xA9+\xE5\xAE\x89\xE9\x9D\x99+\xE4\xBF\xAE\xE7\x82\xBC\xE7\x88\xB1\xE6\x83\x85+\xE6\x9C\x80\xE9\x95\xBF\xE7\x9A\x84\xE7\x94\xB5\xE5\xBD\xB1 (2017\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\xE5\x9C\xB0\xE8\xA1\xA8\xE6\x9C\x80\xE5\xBC\xBA\xE6\xBC\x94\xE5\x94\xB1\xE4\xBC\x9A\xE5\x8F\xB0\xE5\x8C\x97\xE7\xAB\x99).mp3\",\"duration\":\"268.25 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\\u0026\xE6\x9E\x97\xE4\xBF\x8A\xE6\x9D\xB0\"},{\"path\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\\u0026\xE6\x9E\x97\xE4\xBF\x8A\xE6\x9D\xB0-\xE6\x99\xB4\xE5\xA4\xA9 (2017\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\xE5\x9C\xB0\xE8\xA1\xA8\xE6\x9C\x80\xE5\xBC\xBA\xE6\xBC\x94\xE5\x94\xB1\xE4\xBC\x9A\xE5\x8F\xB0\xE5\x8C\x97\xE7\xAB\x99)/\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\\u0026\xE6\x9E\x97\xE4\xBF\x8A\xE6\x9D\xB0-\xE6\x99\xB4\xE5\xA4\xA9 (2017\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\xE5\x9C\xB0\xE8\xA1\xA8\xE6\x9C\x80\xE5\xBC\xBA\xE6\xBC\x94\xE5\x94\xB1\xE4\xBC\x9A\xE5\x8F\xB0\xE5\x8C\x97\xE7\xAB\x99).mp3\",\"duration\":\"239.23 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\\u0026\xE6\x9E\x97\xE4\xBF\x8A\xE6\x9D\xB0\"},{\"path\":\"\xE5\x8F\x91\xE5\xA6\x82\xE9\x9B\xAA/\xE5\x8F\x91\xE5\xA6\x82\xE9\x9B\xAA.mp3\",\"duration\":\"299.28 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE5\x8F\x91\xE5\xA6\x82\xE9\x9B\xAA/\xE5\x8F\x91\xE5\xA6\x82\xE9\x9B\xAA_cover.png\"},{\"path\":\"\xE7\x88\xB1\xE5\x9C\xA8\xE8\xA5\xBF\xE5\x85\x83\xE5\x89\x8D/\xE7\x88\xB1\xE5\x9C\xA8\xE8\xA5\xBF\xE5\x85\x83\xE5\x89\x8D.mp3\",\"duration\":\"234.29 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE7\x88\xB1\xE5\x9C\xA8\xE8\xA5\xBF\xE5\x85\x83\xE5\x89\x8D/\xE7\x88\xB1\xE5\x9C\xA8\xE8\xA5\xBF\xE5\x85\x83\xE5\x89\x8D_cover.png\"},{\"path\":\"\xE8\x8A\xB1\xE6\xB5\xB7/\xE8\x8A\xB1\xE6\xB5\xB7.mp3\",\"duration\":\"264.65 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE8\x8A\xB1\xE6\xB5\xB7/\xE8\x8A\xB1\xE6\xB5\xB7_cover.png\"},{\"path\":\"\xE6\x9C\xAC\xE8\x8D\x89\xE7\xBA\xB2\xE7\x9B\xAE/\xE6\x9C\xAC\xE8\x8D\x89\xE7\xBA\xB2\xE7\x9B\xAE.mp3\",\"duration\":\"206.89 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE6\x9C\xAC\xE8\x8D\x89\xE7\xBA\xB2\xE7\x9B\xAE/\xE6\x9C\xAC\xE8\x8D\x89\xE7\xBA\xB2\xE7\x9B\xAE_cover.png\"},{\"path\":\"\xE7\x99\xBD\xE8\x89\xB2\xE9\xA3\x8E\xE8\xBD\xA6/\xE7\x99\xBD\xE8\x89\xB2\xE9\xA3\x8E\xE8\xBD\xA6.mp3\",\"duration\":\"270.24 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE7\x99\xBD\xE8\x89\xB2\xE9\xA3\x8E\xE8\xBD\xA6/\xE7\x99\xBD\xE8\x89\xB2\xE9\xA3\x8E\xE8\xBD\xA6_cover.png\"},{\"path\":\"\xE7\xBB\x99\xE6\x88\x91\xE4\xB8\x80\xE9\xA6\x96\xE6\xAD\x8C\xE7\x9A\x84\xE6\x97\xB6\xE9\x97\xB4/\xE7\xBB\x99\xE6\x88\x91\xE4\xB8\x80\xE9\xA6\x96\xE6\xAD\x8C\xE7\x9A\x84\xE6\x97\xB6\xE9\x97\xB4.mp3\",\"duration\":\"253.60 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE7\xBB\x99\xE6\x88\x91\xE4\xB8\x80\xE9\xA6\x96\xE6\xAD\x8C\xE7\x9A\x84\xE6\x97\xB6\xE9\x97\xB4/\xE7\xBB\x99\xE6\x88\x91\xE4\xB8\x80\xE9\xA6\x96\xE6\xAD\x8C\xE7\x9A\x84\xE6\x97\xB6\xE9\x97\xB4_cover.png\"},{\"path\":\"\xE4\xB8\x9C\xE9\xA3\x8E\xE7\xA0\xB4/\xE4\xB8\x9C\xE9\xA3\x8E\xE7\xA0\xB4.mp3\",\"duration\":\"315.45 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE4\xB8\x9C\xE9\xA3\x8E\xE7\xA0\xB4/\xE4\xB8\x9C\xE9\xA3\x8E\xE7\xA0\xB4_cover.png\"},{\"path\":\"\xE6\x90\x81\xE6\xB5\x85/\xE6\x90\x81\xE6\xB5\x85.mp3\",\"duration\":\"238.18 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE6\x90\x81\xE6\xB5\x85/\xE6\x90\x81\xE6\xB5\x85_cover.png\"},{\"path\":\"\xE5\xBD\xA9\xE8\x99\xB9/\xE5\xBD\xA9\xE8\x99\xB9.mp3\",\"duration\":\"261.96 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE5\xBD\xA9\xE8\x99\xB9/\xE5\xBD\xA9\xE8\x99\xB9_cover.png\"},{\"path\":\"\xE6\x9E\xAB/\xE6\x9E\xAB.mp3\",\"duration\":\"277.05 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE6\x9E\xAB/\xE6\x9E\xAB_cover.png\"},{\"path\":\"\xE6\x9A\x97\xE5\x8F\xB7/\xE6\x9A\x97\xE5\x8F\xB7.mp3\",\"duration\":\"271.80 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE6\x9A\x97\xE5\x8F\xB7/\xE6\x9A\x97\xE5\x8F\xB7_cover.png\"},{\"path\":\"\xE5\xAE\x89\xE9\x9D\x99/\xE5\xAE\x89\xE9\x9D\x99.mp3\",\"duration\":\"334.26 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE5\xAE\x89\xE9\x9D\x99/\xE5\xAE\x89\xE9\x9D\x99_cover.png\"},{\"path\":\"\xE7\xAD\x89\xE4\xBD\xA0\xE4\xB8\x8B\xE8\xAF\xBE (with \xE6\x9D\xA8\xE7\x91\x9E\xE4\xBB\xA3)/\xE7\xAD\x89\xE4\xBD\xA0\xE4\xB8\x8B\xE8\xAF\xBE (with \xE6\x9D\xA8\xE7\x91\x9E\xE4\xBB\xA3).mp3\",\"duration\":\"270.03 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE7\xAD\x89\xE4\xBD\xA0\xE4\xB8\x8B\xE8\xAF\xBE (with \xE6\x9D\xA8\xE7\x91\x9E\xE4\xBB\xA3)/\xE7\xAD\x89\xE4\xBD\xA0\xE4\xB8\x8B\xE8\xAF\xBE (with \xE6\x9D\xA8\xE7\x91\x9E\xE4\xBB\xA3)_cover.png\"},{\"path\":\"\xE5\x8D\x8A\xE5\x85\xBD\xE4\xBA\xBA/\xE5\x8D\x8A\xE5\x85\xBD\xE4\xBA\xBA.mp3\",\"duration\":\"247.43 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE5\x8D\x8A\xE5\x85\xBD\xE4\xBA\xBA/\xE5\x8D\x8A\xE5\x85\xBD\xE4\xBA\xBA_cover.png\"},{\"path\":\"\xE7\xA8\xBB\xE9\xA6\x99/\xE7\xA8\xBB\xE9\xA6\x99.mp3\",\"duration\":\"223.50 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE7\xA8\xBB\xE9\xA6\x99/\xE7\xA8\xBB\xE9\xA6\x99_cover.png\"},{\"path\":\"\xE7\xBA\xA2\xE5\xB0\x98\xE5\xAE\xA2\xE6\xA0\x88/\xE7\xBA\xA2\xE5\xB0\x98\xE5\xAE\xA2\xE6\xA0\x88.mp3\",\"duration\":\"275.64 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE7\xBA\xA2\xE5\xB0\x98\xE5\xAE\xA2\xE6\xA0\x88/\xE7\xBA\xA2\xE5\xB0\x98\xE5\xAE\xA2\xE6\xA0\x88_cover.png\"},{\"path\":\"\xE4\xB8\x8D\xE7\x88\xB1\xE6\x88\x91\xE5\xB0\xB1\xE6\x8B\x89\xE5\x80\x92/\xE4\xB8\x8D\xE7\x88\xB1\xE6\x88\x91\xE5\xB0\xB1\xE6\x8B\x89\xE5\x80\x92.mp3\",\"duration\":\"245.89 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE4\xB8\x8D\xE7\x88\xB1\xE6\x88\x91\xE5\xB0\xB1\xE6\x8B\x89\xE5\x80\x92/\xE4\xB8\x8D\xE7\x88\xB1\xE6\x88\x91\xE5\xB0\xB1\xE6\x8B\x89\xE5\x80\x92_cover.png\"},{\"path\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6 - \xE4\xB8\x83\xE9\x87\x8C\xE9\xA6\x99_EM/\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6 - \xE4\xB8\x83\xE9\x87\x8C\xE9\xA6\x99_EM.flac\",\"duration\":\"299.20 seconds\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6 - \xE4\xB8\x83\xE9\x87\x8C\xE9\xA6\x99_EM/\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6 - \xE4\xB8\x83\xE9\x87\x8C\xE9\xA6\x99_EM_cover.png\"},{\"path\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\\u0026\xE6\x9E\x97\xE4\xBF\x8A\xE6\x9D\xB0-Stay With You (50\xE7\xA7\x92Live\xE7\x89\x87\xE6\xAE\xB5)/\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\\u0026\xE6\x9E\x97\xE4\xBF\x8A\xE6\x9D\xB0-Stay With You (50\xE7\xA7\x92Live\xE7\x89\x87\xE6\xAE\xB5).mp3\",\"duration\":\"50.08 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\\u0026\xE6\x9E\x97\xE4\xBF\x8A\xE6\x9D\xB0\"},{\"path\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\\u0026\xE6\x9E\x97\xE4\xBF\x8A\xE6\x9D\xB0-\xE4\xBF\xAE\xE7\x82\xBC\xE7\x88\xB1\xE6\x83\x85+\xE6\x9C\x80\xE9\x95\xBF\xE7\x9A\x84\xE7\x94\xB5\xE5\xBD\xB1 (2017\xE5\x9C\xB0\xE8\xA1\xA8\xE6\x9C\x80\xE5\xBC\xBA\xE6\xBC\x94\xE5\x94\xB1\xE4\xBC\x9A\xE5\x8F\xB0\xE5\x8C\x97\xE7\xAB\x99)/\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\\u0026\xE6\x9E\x97\xE4\xBF\x8A\xE6\x9D\xB0-\xE4\xBF\xAE\xE7\x82\xBC\xE7\x88\xB1\xE6\x83\x85+\xE6\x9C\x80\xE9\x95\xBF\xE7\x9A\x84\xE7\x94\xB5\xE5\xBD\xB1 (2017\xE5\x9C\xB0\xE8\xA1\xA8\xE6\x9C\x80\xE5\xBC\xBA\xE6\xBC\x94\xE5\x94\xB1\xE4\xBC\x9A\xE5\x8F\xB0\xE5\x8C\x97\xE7\xAB\x99).mp3\",\"duration\":\"200.62 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\\u0026\xE6\x9E\x97\xE4\xBF\x8A\xE6\x9D\xB0\"},{\"path\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\\u0026\xE6\x9E\x97\xE4\xBF\x8A\xE6\x9D\xB0-\xE7\xAE\x97\xE4\xBB\x80\xE4\xB9\x88\xE7\x94\xB7\xE4\xBA\xBA (Live)/\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\\u0026\xE6\x9E\x97\xE4\xBF\x8A\xE6\x9D\xB0-\xE7\xAE\x97\xE4\xBB\x80\xE4\xB9\x88\xE7\x94\xB7\xE4\xBA\xBA (Live).mp3\",\"duration\":\"285.52 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\\u0026\xE6\x9E\x97\xE4\xBF\x8A\xE6\x9D\xB0\"},{\"path\":\"\xE8\xB4\xB9\xE7\x8E\x89\xE6\xB8\x85-\xE5\x8D\x83\xE9\x87\x8C\xE4\xB9\x8B\xE5\xA4\x96/\xE8\xB4\xB9\xE7\x8E\x89\xE6\xB8\x85-\xE5\x8D\x83\xE9\x87\x8C\xE4\xB9\x8B\xE5\xA4\x96.mp3\",\"duration\":\"254.28 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\\u0026\xE8\xB4\xB9\xE7\x8E\x89\xE6\xB8\x85\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE8\xB4\xB9\xE7\x8E\x89\xE6\xB8\x85-\xE5\x8D\x83\xE9\x87\x8C\xE4\xB9\x8B\xE5\xA4\x96/\xE8\xB4\xB9\xE7\x8E\x89\xE6\xB8\x85-\xE5\x8D\x83\xE9\x87\x8C\xE4\xB9\x8B\xE5\xA4\x96_cover.png\"},{\"path\":\"\xE5\x8D\x83\xE9\x87\x8C\xE4\xB9\x8B\xE5\xA4\x96/\xE5\x8D\x83\xE9\x87\x8C\xE4\xB9\x8B\xE5\xA4\x96.mp3\",\"duration\":\"254.28 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\\u0026\xE8\xB4\xB9\xE7\x8E\x89\xE6\xB8\x85\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE5\x8D\x83\xE9\x87\x8C\xE4\xB9\x8B\xE5\xA4\x96/\xE5\x8D\x83\xE9\x87\x8C\xE4\xB9\x8B\xE5\xA4\x96_cover.png\"}]\n"
+Music files and durations received from server:
+File Path: "断了的弦/断了的弦.mp3" , Duration: 297.56 , Cover: "http://slcdut.xyz:8080/uploads/断了的弦/断了的弦_cover.png" , Artist: "周杰伦"
+File Path: "告白气球/告白气球.mp3" , Duration: 215.64 , Cover: "http://slcdut.xyz:8080/uploads/告白气球/告白气球_cover.png" , Artist: "周杰伦"
+File Path: "轨迹/轨迹.mp3" , Duration: 326.9 , Cover: "http://slcdut.xyz:8080/uploads/轨迹/轨迹_cover.png" , Artist: "周杰伦"
+File Path: "爱情废柴/爱情废柴.mp3" , Duration: 285.65 , Cover: "http://slcdut.xyz:8080/uploads/爱情废柴/爱情废柴_cover.png" , Artist: "周杰伦"
+File Path: "床边故事/床边故事.mp3" , Duration: 226.25 , Cover: "http://slcdut.xyz:8080/uploads/床边故事/床边故事_cover.png" , Artist: "周杰伦"
+File Path: "周杰伦&林俊杰-晴天+安静+修炼爱情+最长的电影 (2017周杰伦地表最强演唱会台北站)/周杰伦&林俊杰-晴天+安静+修炼爱情+最长的电影 (2017周杰伦地表最强演唱会台北站).mp3" , Duration: 268.25 , Cover: "" , Artist: "周杰伦&林俊杰"
+File Path: "周杰伦&林俊杰-晴天 (2017周杰伦地表最强演唱会台北站)/周杰伦&林俊杰-晴天 (2017周杰伦地表最强演唱会台北站).mp3" , Duration: 239.23 , Cover: "" , Artist: "周杰伦&林俊杰"
+File Path: "发如雪/发如雪.mp3" , Duration: 299.28 , Cover: "http://slcdut.xyz:8080/uploads/发如雪/发如雪_cover.png" , Artist: "周杰伦"
+File Path: "爱在西元前/爱在西元前.mp3" , Duration: 234.29 , Cover: "http://slcdut.xyz:8080/uploads/爱在西元前/爱在西元前_cover.png" , Artist: "周杰伦"
+File Path: "花海/花海.mp3" , Duration: 264.65 , Cover: "http://slcdut.xyz:8080/uploads/花海/花海_cover.png" , Artist: "周杰伦"
+File Path: "本草纲目/本草纲目.mp3" , Duration: 206.89 , Cover: "http://slcdut.xyz:8080/uploads/本草纲目/本草纲目_cover.png" , Artist: "周杰伦"
+File Path: "白色风车/白色风车.mp3" , Duration: 270.24 , Cover: "http://slcdut.xyz:8080/uploads/白色风车/白色风车_cover.png" , Artist: "周杰伦"
+File Path: "给我一首歌的时间/给我一首歌的时间.mp3" , Duration: 253.6 , Cover: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间_cover.png" , Artist: "周杰伦"
+File Path: "东风破/东风破.mp3" , Duration: 315.45 , Cover: "http://slcdut.xyz:8080/uploads/东风破/东风破_cover.png" , Artist: "周杰伦"
+File Path: "搁浅/搁浅.mp3" , Duration: 238.18 , Cover: "http://slcdut.xyz:8080/uploads/搁浅/搁浅_cover.png" , Artist: "周杰伦"
+File Path: "彩虹/彩虹.mp3" , Duration: 261.96 , Cover: "http://slcdut.xyz:8080/uploads/彩虹/彩虹_cover.png" , Artist: "周杰伦"
+File Path: "枫/枫.mp3" , Duration: 277.05 , Cover: "http://slcdut.xyz:8080/uploads/枫/枫_cover.png" , Artist: "周杰伦"
+File Path: "暗号/暗号.mp3" , Duration: 271.8 , Cover: "http://slcdut.xyz:8080/uploads/暗号/暗号_cover.png" , Artist: "周杰伦"
+File Path: "安静/安静.mp3" , Duration: 334.26 , Cover: "http://slcdut.xyz:8080/uploads/安静/安静_cover.png" , Artist: "周杰伦"
+File Path: "等你下课 (with 杨瑞代)/等你下课 (with 杨瑞代).mp3" , Duration: 270.03 , Cover: "http://slcdut.xyz:8080/uploads/等你下课 (with 杨瑞代)/等你下课 (with 杨瑞代)_cover.png" , Artist: "周杰伦"
+File Path: "半兽人/半兽人.mp3" , Duration: 247.43 , Cover: "http://slcdut.xyz:8080/uploads/半兽人/半兽人_cover.png" , Artist: "周杰伦"
+File Path: "稻香/稻香.mp3" , Duration: 223.5 , Cover: "http://slcdut.xyz:8080/uploads/稻香/稻香_cover.png" , Artist: "周杰伦"
+File Path: "红尘客栈/红尘客栈.mp3" , Duration: 275.64 , Cover: "http://slcdut.xyz:8080/uploads/红尘客栈/红尘客栈_cover.png" , Artist: "周杰伦"
+File Path: "不爱我就拉倒/不爱我就拉倒.mp3" , Duration: 245.89 , Cover: "http://slcdut.xyz:8080/uploads/不爱我就拉倒/不爱我就拉倒_cover.png" , Artist: "周杰伦"
+File Path: "周杰伦 - 七里香_EM/周杰伦 - 七里香_EM.flac" , Duration: 299.2 , Cover: "http://slcdut.xyz:8080/uploads/周杰伦 - 七里香_EM/周杰伦 - 七里香_EM_cover.png" , Artist: "未知艺术家"
+File Path: "周杰伦&林俊杰-Stay With You (50秒Live片段)/周杰伦&林俊杰-Stay With You (50秒Live片段).mp3" , Duration: 50.08 , Cover: "" , Artist: "周杰伦&林俊杰"
+File Path: "周杰伦&林俊杰-修炼爱情+最长的电影 (2017地表最强演唱会台北站)/周杰伦&林俊杰-修炼爱情+最长的电影 (2017地表最强演唱会台北站).mp3" , Duration: 200.62 , Cover: "" , Artist: "周杰伦&林俊杰"
+File Path: "周杰伦&林俊杰-算什么男人 (Live)/周杰伦&林俊杰-算什么男人 (Live).mp3" , Duration: 285.52 , Cover: "" , Artist: "周杰伦&林俊杰"
+File Path: "费玉清-千里之外/费玉清-千里之外.mp3" , Duration: 254.28 , Cover: "http://slcdut.xyz:8080/uploads/费玉清-千里之外/费玉清-千里之外_cover.png" , Artist: "周杰伦&费玉清"
+File Path: "千里之外/千里之外.mp3" , Duration: 254.28 , Cover: "http://slcdut.xyz:8080/uploads/千里之外/千里之外_cover.png" , Artist: "周杰伦&费玉清"
+MusicListWidgetNet: Received 30 songs
+[MainWidget] Add to favorite from online: "白色风车.mp3"
+尝试登录: root
+LoginWidgetQml: Login requested for account: "root"
+Login Response: "{\"success\":\"true\",\"success_bool\":true,\"username\":\"SL\",\"song_path_list\":[\"/home/shen/shared/BEYOND - \xE6\xB5\xB7\xE9\x98\x94\xE5\xA4\xA9\xE7\xA9\xBA.ogg\",\"/home/shen/shared/ai_qing_fei_chai.mp3\",\"/home/shen/shared/\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6 - \xE4\xB8\x83\xE9\x87\x8C\xE9\xA6\x99_EM.flac\",\"/home/shen/shared/yi_lu_xiang_bei.mp3\",\"/home/shen/shared/ye_qu.mp3\",\"/home/shen/shared/Love_Song.mp3\",\"E:/MP3/\xE6\x9A\x97\xE5\x8F\xB7/\xE6\x9A\x97\xE5\x8F\xB7.mp3\"]}\n"
+[MainWidget] Login state changed: true
+PlayHistoryWidget: Set logged in: true account: "root"
+FavoriteMusicWidget: Set user account: "root"
+[MainWidget] Favorite music button visibility: true
+LoginWidgetQml: Login successful, username: "SL"
+Login successful, username: "SL"
+MusicListWidgetLocal::{ctor}::<lambda_b56fbaab161f6665873ad587f87d4e5c>::operator () login
+User's favorite songs: ("/home/shen/shared/BEYOND - 海阔天空.ogg", "/home/shen/shared/ai_qing_fei_chai.mp3", "/home/shen/shared/周杰伦 - 七里香_EM.flac", "/home/shen/shared/yi_lu_xiang_bei.mp3", "/home/shen/shared/ye_qu.mp3", "/home/shen/shared/Love_Song.mp3", "E:/MP3/暗号/暗号.mp3")
+[MainWidget] Add to favorite from online: "白色风车.mp3"
+[HttpRequest] Adding favorite: "白色风车.mp3" for user: "root"
+[HttpRequest] Add favorite response: "{\"message\":\"\xE6\xB7\xBB\xE5\x8A\xA0\xE6\x88\x90\xE5\x8A\x9F\",\"success\":true}\n"
+[HttpRequest] Add favorite success: true
+[MainWidget] Add to favorite success
+[HttpRequest] Fetching favorites for user: "root"
+[HttpRequest] Favorites response: "[{\"path\":\"\xE7\x99\xBD\xE8\x89\xB2\xE9\xA3\x8E\xE8\xBD\xA6/\xE7\x99\xBD\xE8\x89\xB2\xE9\xA3\x8E\xE8\xBD\xA6.mp3\",\"title\":\"\xE7\x99\xBD\xE8\x89\xB2\xE9\xA3\x8E\xE8\xBD\xA6.mp3\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"duration\":\"04:30\",\"is_local\":false,\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE7\x99\xBD\xE8\x89\xB2\xE9\xA3\x8E\xE8\xBD\xA6/\xE7\x99\xBD\xE8\x89\xB2\xE9\xA3\x8E\xE8\xBD\xA6_cover.png\",\"added_at\":\"2026-02-04 22:28:28\"},{\"path\":\"D:/Music/\xE5\x91\x8A\xE7\x99\xBD\xE6\xB0\x94\xE7\x90\x83/\xE5\x91\x8A\xE7\x99\xBD\xE6\xB0\x94\xE7\x90\x83.mp3\",\"is_local\":true,\"added_at\":\"2026-02-04 18:25:28\"},{\"path\":\"E:/MP3/\xE7\x88\xB1\xE6\x83\x85\xE5\xBA\x9F\xE6\x9F\xB4/\xE7\x88\xB1\xE6\x83\x85\xE5\xBA\x9F\xE6\x9F\xB4.mp3\",\"title\":\"\xE7\x88\xB1\xE6\x83\x85\xE5\xBA\x9F\xE6\x9F\xB4.mp3\",\"artist\":\"\xE6\x9C\xAA\xE7\x9F\xA5\xE8\x89\xBA\xE6\x9C\xAF\xE5\xAE\xB6\",\"duration\":\"04:45\",\"is_local\":true,\"added_at\":\"2026-02-04 18:25:17\"}]\n"
+[HttpRequest] Successfully parsed 3 favorites
+[FavoriteMusicList] Loading 3 items
+[FavoriteMusicList] Item 0 - title: 白色风车.mp3 cover_art_url: http://slcdut.xyz:8080/uploads/白色风车/白色风车_cover.png
+[FavoriteMusicList] Item 1 - title:  cover_art_url: 
+[FavoriteMusicList] Item 2 - title: 爱情废柴.mp3 cover_art_url: 
+FavoriteMusicWidget: Loaded 3 favorite items
+[FavoriteMusic] Cover loaded: http://slcdut.xyz:8080/uploads/白色风车/白色风车_cover.png
+[FavoriteMusic] Cover loaded: qrc:/new/prefix1/icon/Music.png
+[FavoriteMusic] Cover loaded: qrc:/new/prefix1/icon/Music.png
+[MainWidget] Add to favorite from online: "给我一首歌的时间.mp3"
+[HttpRequest] Adding favorite: "给我一首歌的时间.mp3" for user: "root"
+[HttpRequest] Add favorite response: "{\"message\":\"\xE6\xB7\xBB\xE5\x8A\xA0\xE6\x88\x90\xE5\x8A\x9F\",\"success\":true}\n"
+[HttpRequest] Add favorite success: true
+[MainWidget] Add to favorite success
+[HttpRequest] Fetching favorites for user: "root"
+[HttpRequest] Favorites response: "[{\"path\":\"\xE7\xBB\x99\xE6\x88\x91\xE4\xB8\x80\xE9\xA6\x96\xE6\xAD\x8C\xE7\x9A\x84\xE6\x97\xB6\xE9\x97\xB4/\xE7\xBB\x99\xE6\x88\x91\xE4\xB8\x80\xE9\xA6\x96\xE6\xAD\x8C\xE7\x9A\x84\xE6\x97\xB6\xE9\x97\xB4.mp3\",\"title\":\"\xE7\xBB\x99\xE6\x88\x91\xE4\xB8\x80\xE9\xA6\x96\xE6\xAD\x8C\xE7\x9A\x84\xE6\x97\xB6\xE9\x97\xB4.mp3\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"duration\":\"04:13\",\"is_local\":false,\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE7\xBB\x99\xE6\x88\x91\xE4\xB8\x80\xE9\xA6\x96\xE6\xAD\x8C\xE7\x9A\x84\xE6\x97\xB6\xE9\x97\xB4/\xE7\xBB\x99\xE6\x88\x91\xE4\xB8\x80\xE9\xA6\x96\xE6\xAD\x8C\xE7\x9A\x84\xE6\x97\xB6\xE9\x97\xB4_cover.png\",\"added_at\":\"2026-02-04 22:28:32\"},{\"path\":\"\xE7\x99\xBD\xE8\x89\xB2\xE9\xA3\x8E\xE8\xBD\xA6/\xE7\x99\xBD\xE8\x89\xB2\xE9\xA3\x8E\xE8\xBD\xA6.mp3\",\"title\":\"\xE7\x99\xBD\xE8\x89\xB2\xE9\xA3\x8E\xE8\xBD\xA6.mp3\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"duration\":\"04:30\",\"is_local\":false,\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE7\x99\xBD\xE8\x89\xB2\xE9\xA3\x8E\xE8\xBD\xA6/\xE7\x99\xBD\xE8\x89\xB2\xE9\xA3\x8E\xE8\xBD\xA6_cover.png\",\"added_at\":\"2026-02-04 22:28:28\"},{\"path\":\"D:/Music/\xE5\x91\x8A\xE7\x99\xBD\xE6\xB0\x94\xE7\x90\x83/\xE5\x91\x8A\xE7\x99\xBD\xE6\xB0\x94\xE7\x90\x83.mp3\",\"is_local\":true,\"added_at\":\"2026-02-04 18:25:28\"},{\"path\":\"E:/MP3/\xE7\x88\xB1\xE6\x83\x85\xE5\xBA\x9F\xE6\x9F\xB4/\xE7\x88\xB1\xE6\x83\x85\xE5\xBA\x9F\xE6\x9F\xB4.mp3\",\"title\":\"\xE7\x88\xB1\xE6\x83\x85\xE5\xBA\x9F\xE6\x9F\xB4.mp3\",\"artist\":\"\xE6\x9C\xAA\xE7\x9F\xA5\xE8\x89\xBA\xE6\x9C\xAF\xE5\xAE\xB6\",\"duration\":\"04:45\",\"is_local\":true,\"added_at\":\"2026-02-04 18:25:17\"}]\n"
+[HttpRequest] Successfully parsed 4 favorites
+[FavoriteMusicList] Loading 4 items
+[FavoriteMusicList] Item 0 - title: 给我一首歌的时间.mp3 cover_art_url: http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间_cover.png
+[FavoriteMusicList] Item 1 - title: 白色风车.mp3 cover_art_url: http://slcdut.xyz:8080/uploads/白色风车/白色风车_cover.png
+[FavoriteMusicList] Item 2 - title:  cover_art_url: 
+[FavoriteMusicList] Item 3 - title: 爱情废柴.mp3 cover_art_url: 
+FavoriteMusicWidget: Loaded 4 favorite items
+[FavoriteMusic] Cover loaded: http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间_cover.png
+[FavoriteMusic] Cover loaded: http://slcdut.xyz:8080/uploads/白色风车/白色风车_cover.png
+[FavoriteMusic] Cover loaded: qrc:/new/prefix1/icon/Music.png
+[FavoriteMusic] Cover loaded: qrc:/new/prefix1/icon/Music.png
+[FavoriteMusicWidget] Play music: "给我一首歌的时间/给我一首歌的时间.mp3"
+[FavoriteMusicWidget] Play music: "白色风车/白色风车.mp3"

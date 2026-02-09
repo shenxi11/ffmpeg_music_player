@@ -1,7 +1,58 @@
 #include "httprequest.h"
 #include "music.h"
+
 User* User::instance = nullptr;
 QMutex User::mutex;
+
+// User类构造函数实现
+User::User(QString account, QString password, QString username)
+    : account(account), password(password), username(username)
+{
+}
+
+// User类setter实现
+void User::set_username(QString username)
+{
+    this->username = username;
+}
+
+void User::set_account(QString account)
+{
+    this->account = account;
+}
+
+void User::set_password(QString password)
+{
+    this->password = password;
+}
+
+void User::set_music_path(QStringList musics)
+{
+    this->music_path = musics;
+    emit signal_add_songs();
+}
+
+// User类getter实现
+QString User::get_username()
+{
+    return username;
+}
+
+QString User::get_account()
+{
+    return account;
+}
+
+QString User::get_password()
+{
+    return password;
+}
+
+QStringList User::get_music_path()
+{
+    return this->music_path;
+}
+
 HttpRequest::HttpRequest(QObject *parent)
 {
 
@@ -240,47 +291,43 @@ bool HttpRequest::get_file(const QString url)
 }
 
 
-bool HttpRequest::Download(const QString& filename, const QString download_folder)
+bool HttpRequest::Download(const QString& filename, const QString download_folder, bool downloadLyrics, const QString& coverUrl)
 {
-    if(!manager)
-            manager = new QNetworkAccessManager();
-    QUrl url(localUrl + "download");
-    QNetworkRequest request(url);
-    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-
+    // 构建下载URL
+    QString downloadUrl = localUrl + "download";
+    
+    // 准备POST数据
     QJsonObject jsonObject;
     jsonObject["filename"] = filename;
     QJsonDocument jsonDoc(jsonObject);
-    QByteArray requestData = jsonDoc.toJson();
-
-    QNetworkReply* reply = manager->post(request, requestData);
-
-    QObject::connect(reply, &QNetworkReply::finished, [reply, filename, download_folder]() {
-        if (reply->error() == QNetworkReply::NoError) {
-            QByteArray responseData = reply->readAll();
-
-            qDebug()<<__FUNCTION__<<"download"<<responseData.size();
-
-            QString downloadFolder = download_folder;
-            QDir dir(downloadFolder);
-            if (!dir.exists()) {
-                dir.mkpath(".");
-            }
-
-            QFile file(downloadFolder + "/" + filename);
-            if (file.open(QIODevice::WriteOnly)) {
-                file.write(responseData);
-                file.close();
-                qDebug() << "File downloaded successfully:" << filename;
-            } else {
-                qWarning() << "Failed to open file for writing:" << filename;
-            }
-        } else {
-            qWarning() << "Download failed:" << reply->errorString();
+    QByteArray postData = jsonDoc.toJson();
+    
+    qDebug() << "[HttpRequest] Adding download to queue:" << filename;
+    qDebug() << "  Download lyrics:" << downloadLyrics;
+    qDebug() << "  Cover URL:" << coverUrl;
+    
+    // 使用下载管理器进行异步下载，传递coverUrl
+    DownloadManager::instance().addDownload(downloadUrl, filename, download_folder, postData, coverUrl);
+    
+    // 如果需要下载歌词
+    if (downloadLyrics) {
+        // 从filename提取歌曲名（去掉扩展名）
+        QString lrcFilename = filename;
+        int lastDot = lrcFilename.lastIndexOf('.');
+        if (lastDot != -1) {
+            lrcFilename = lrcFilename.left(lastDot) + ".lrc";
         }
-
-        reply->deleteLater();
-    });
+        
+        QString lrcUrl = localUrl + "download";
+        QJsonObject lrcJsonObject;
+        lrcJsonObject["filename"] = lrcFilename;
+        QJsonDocument lrcJsonDoc(lrcJsonObject);
+        QByteArray lrcPostData = lrcJsonDoc.toJson();
+        
+        qDebug() << "[HttpRequest] Also adding lyric file to queue:" << lrcFilename;
+        DownloadManager::instance().addDownload(lrcUrl, lrcFilename, download_folder, lrcPostData);
+    }
+    
     return true;
 }
 
@@ -428,14 +475,15 @@ void HttpRequest::sendAcknowledgment() {
 bool HttpRequest::getMusic(const QString& name) {
     if(!manager)
             manager = new QNetworkAccessManager();
-    QUrl url(localUrl + "file");
+    QUrl url(localUrl + "music/search");
     QNetworkRequest request(url);
 
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
 
     QJsonObject requestBody;
-    requestBody["name"] = name;
+    requestBody["keyword"] = name;  // 使用keyword参数
 
+    qDebug() << "[HttpRequest] Searching music with keyword:" << name;
     QNetworkReply* reply = manager->post(request, QJsonDocument(requestBody).toJson());
 
     QObject::connect(reply, &QNetworkReply::finished, [this, reply]() {
@@ -591,3 +639,476 @@ bool HttpRequest::getVideoStreamUrl(const QString& videoPath) {
     
     return true;
 }
+
+// 搜索歌手是否存在 POST /artist/search
+void HttpRequest::searchArtist(const QString& artist) {
+    if (!manager) {
+        manager = new QNetworkAccessManager(this);
+    }
+    
+    QString url = localUrl + "artist/search";
+    qDebug() << "[HttpRequest] Searching artist:" << artist;
+    
+    QNetworkRequest request(url);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    
+    QJsonObject jsonObj;
+    jsonObj["artist"] = artist;
+    QJsonDocument jsonDoc(jsonObj);
+    QByteArray postData = jsonDoc.toJson();
+    
+    QNetworkReply* reply = manager->post(request, postData);
+    
+    connect(reply, &QNetworkReply::finished, this, [=]() {
+        if (reply->error() == QNetworkReply::NoError) {
+            QByteArray responseData = reply->readAll();
+            qDebug() << "[HttpRequest] Artist search response:" << responseData;
+            
+            QJsonDocument jsonDoc = QJsonDocument::fromJson(responseData);
+            if (jsonDoc.isObject()) {
+                QJsonObject obj = jsonDoc.object();
+                bool exists = obj["exists"].toBool();
+                qDebug() << "[HttpRequest] Artist exists:" << exists;
+                emit signal_artistExists(exists, artist);
+            } else {
+                qWarning() << "[HttpRequest] Failed to parse artist search JSON";
+                emit signal_artistExists(false, artist);
+            }
+        } else {
+            qWarning() << "[HttpRequest] Artist search request failed:" << reply->errorString();
+            emit signal_artistExists(false, artist);
+        }
+        
+        reply->deleteLater();
+    });
+}
+
+// 根据歌手查询音乐 POST /music/artist
+void HttpRequest::getMusicByArtist(const QString& artist) {
+    if (!manager) {
+        manager = new QNetworkAccessManager(this);
+    }
+    
+    QString url = localUrl + "music/artist";
+    qDebug() << "[HttpRequest] Fetching music by artist:" << artist;
+    
+    QNetworkRequest request(url);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    
+    QJsonObject jsonObj;
+    jsonObj["artist"] = artist;
+    QJsonDocument jsonDoc(jsonObj);
+    QByteArray postData = jsonDoc.toJson();
+    
+    QNetworkReply* reply = manager->post(request, postData);
+    
+    connect(reply, &QNetworkReply::finished, this, [=]() {
+        if (reply->error() == QNetworkReply::NoError) {
+            QByteArray responseData = reply->readAll();
+            qDebug() << "[HttpRequest] Artist music list response size:" << responseData.size();
+            
+            QJsonDocument jsonDoc = QJsonDocument::fromJson(responseData);
+            if (jsonDoc.isArray()) {
+                QJsonArray jsonArray = jsonDoc.array();
+                QList<Music> musicList;
+                
+                qDebug() << "[HttpRequest] Parsing" << jsonArray.size() << "songs for artist:" << artist;
+                
+                for (const QJsonValue& value : jsonArray) {
+                    QJsonObject obj = value.toObject();
+                    
+                    QString path = obj["path"].toString();
+                    QString durationStr = obj["duration"].toString();
+                    QString artistName = obj["artist"].toString();
+                    QString coverUrl = obj["cover_art_url"].toString();
+                    
+                    qDebug() << "[HttpRequest] Parsing song - path:" << path 
+                             << ", artist:" << artistName 
+                             << ", duration:" << durationStr
+                             << ", cover:" << coverUrl;
+                    
+                    // 解析时长
+                    double duration = 0.0;
+                    if (durationStr.contains("seconds")) {
+                        durationStr.replace(" seconds", "");
+                        duration = durationStr.toDouble();
+                    }
+                    
+                    // 构建完整URL
+                    QString fullPath = localUrl + "uploads/" + path;
+                    
+                    qDebug() << "[HttpRequest] Full path built:" << fullPath;
+                    
+                    Music music;
+                    music.setSongPath(fullPath);
+                    music.setDuration(duration);
+                    music.setSinger(artistName);
+                    music.setPicPath(coverUrl);
+                    
+                    qDebug() << "[HttpRequest] Music created - songName:" << music.getSongName() 
+                             << ", singer:" << music.getSinger();
+                    
+                    musicList.append(music);
+                }
+                
+                qDebug() << "[HttpRequest] Successfully parsed" << musicList.size() << "songs for artist:" << artist;
+                emit signal_artistMusicList(musicList, artist);
+            } else {
+                qWarning() << "[HttpRequest] Failed to parse artist music list JSON";
+                emit signal_artistMusicList(QList<Music>(), artist);
+            }
+        } else {
+            qWarning() << "[HttpRequest] Artist music list request failed:" << reply->errorString();
+            emit signal_artistMusicList(QList<Music>(), artist);
+        }
+        
+        reply->deleteLater();
+    });
+}
+
+// 添加喜欢音乐 POST /user/favorites/add
+void HttpRequest::addFavorite(const QString& userAccount, const QString& path, const QString& title,
+                              const QString& artist, const QString& duration, bool isLocal) {
+    if (!manager) {
+        manager = new QNetworkAccessManager(this);
+    }
+    
+    QString url = localUrl + "user/favorites/add?user_account=" + QUrl::toPercentEncoding(userAccount);
+    qDebug() << "[HttpRequest] Adding favorite:" << title << "for user:" << userAccount;
+    
+    QNetworkRequest request(url);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    
+    // 将duration字符串转换为秒数
+    int durationSec = 0;
+    if (duration.contains(":")) {
+        QStringList parts = duration.split(":");
+        if (parts.size() >= 2) {
+            durationSec = parts[0].toInt() * 60 + parts[1].toInt();
+        }
+    } else {
+        durationSec = duration.toInt();
+    }
+    
+    QJsonObject jsonObj;
+    jsonObj["music_path"] = path;
+    jsonObj["music_title"] = title;
+    jsonObj["artist"] = artist;
+    jsonObj["duration_sec"] = durationSec;
+    jsonObj["is_local"] = isLocal;
+    
+    QJsonDocument jsonDoc(jsonObj);
+    QByteArray postData = jsonDoc.toJson();
+    
+    QNetworkReply* reply = manager->post(request, postData);
+    
+    connect(reply, &QNetworkReply::finished, this, [=]() {
+        bool success = false;
+        if (reply->error() == QNetworkReply::NoError) {
+            QByteArray responseData = reply->readAll();
+            qDebug() << "[HttpRequest] Add favorite response:" << responseData;
+            
+            QJsonDocument jsonDoc = QJsonDocument::fromJson(responseData);
+            if (jsonDoc.isObject()) {
+                QJsonObject obj = jsonDoc.object();
+                success = obj["success"].toBool();
+                qDebug() << "[HttpRequest] Add favorite success:" << success;
+            }
+        } else {
+            qWarning() << "[HttpRequest] Add favorite request failed:" << reply->errorString();
+        }
+        
+        emit signal_addFavoriteResult(success);
+        reply->deleteLater();
+    });
+}
+
+// 移除喜欢音乐 DELETE /user/favorites/remove
+void HttpRequest::removeFavorite(const QString& userAccount, const QStringList& paths) {
+    if (!manager) {
+        manager = new QNetworkAccessManager(this);
+    }
+    
+    QString url = localUrl + "user/favorites/remove";
+    qDebug() << "[HttpRequest] Removing favorites for user:" << userAccount << "paths count:" << paths.size();
+    
+    QNetworkRequest request(url);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    
+    QJsonObject jsonObj;
+    jsonObj["user_account"] = userAccount;
+    jsonObj["music_path"] = paths.size() > 0 ? paths[0] : "";  // 服务端接口只支持单个删除
+    
+    
+    QJsonDocument jsonDoc(jsonObj);
+    QByteArray postData = jsonDoc.toJson();
+    
+    qDebug() << "[HttpRequest] Remove favorite request body:" << postData;
+    
+    QNetworkReply* reply = manager->sendCustomRequest(request, "DELETE", postData);
+    
+    connect(reply, &QNetworkReply::finished, this, [=]() {
+        bool success = false;
+        if (reply->error() == QNetworkReply::NoError) {
+            QByteArray responseData = reply->readAll();
+            qDebug() << "[HttpRequest] Remove favorite response:" << responseData;
+            
+            QJsonDocument jsonDoc = QJsonDocument::fromJson(responseData);
+            if (jsonDoc.isObject()) {
+                QJsonObject obj = jsonDoc.object();
+                success = obj["success"].toBool();
+                qDebug() << "[HttpRequest] Remove favorite success:" << success;
+            }
+        } else {
+            qWarning() << "[HttpRequest] Remove favorite request failed:" << reply->errorString();
+        }
+        
+        emit signal_removeFavoriteResult(success);
+        reply->deleteLater();
+    });
+}
+
+// 获取喜欢音乐列表 GET /user/favorites
+void HttpRequest::getFavorites(const QString& userAccount) {
+    if (!manager) {
+        manager = new QNetworkAccessManager(this);
+    }
+    
+    QString url = localUrl + "user/favorites?user_account=" + QUrl::toPercentEncoding(userAccount);
+    qDebug() << "[HttpRequest] Fetching favorites for user:" << userAccount;
+    
+    QNetworkRequest request(url);
+    QNetworkReply* reply = manager->get(request);
+    
+    connect(reply, &QNetworkReply::finished, this, [=]() {
+        QVariantList favoritesList;
+        
+        if (reply->error() == QNetworkReply::NoError) {
+            QByteArray responseData = reply->readAll();
+            qDebug() << "[HttpRequest] Favorites response:" << responseData;
+            
+            QJsonDocument jsonDoc = QJsonDocument::fromJson(responseData);
+            
+            // 服务端直接返回数组，不是对象
+            if (jsonDoc.isArray()) {
+                QJsonArray favoritesArray = jsonDoc.array();
+                
+                for (const QJsonValue& value : favoritesArray) {
+                    QJsonObject favObj = value.toObject();
+                    QVariantMap favorite;
+                    
+                    QString path = favObj["path"].toString();
+                    bool isLocal = favObj["is_local"].toBool();
+                    
+                    // 对于在线音乐，如果path是相对路径，需要补全为完整URL
+                    if (!isLocal && !path.startsWith("http")) {
+                        path = localUrl + "uploads/" + path;
+                        qDebug() << "[HttpRequest] Online music path completed:" << path;
+                    }
+                    
+                    favorite["path"] = path;
+                    favorite["title"] = favObj["title"].toString();
+                    favorite["artist"] = favObj["artist"].toString();
+                    favorite["duration"] = favObj["duration"].toString();
+                    favorite["is_local"] = isLocal;
+                    favorite["added_at"] = favObj["added_at"].toString();
+                    favorite["cover_art_url"] = favObj["cover_art_url"].toString();
+                    
+                    favoritesList.append(favorite);
+                }
+                
+                qDebug() << "[HttpRequest] Successfully parsed" << favoritesList.size() << "favorites";
+            } else {
+                qWarning() << "[HttpRequest] Favorites response is not a JSON array!";
+            }
+        } else {
+            qWarning() << "[HttpRequest] Favorites request failed:" << reply->errorString();
+        }
+        
+        emit signal_favoritesList(favoritesList);
+        reply->deleteLater();
+    });
+}
+
+// 添加播放历史 POST /user/history/add
+void HttpRequest::addPlayHistory(const QString& userAccount, const QString& path, const QString& title,
+                                 const QString& artist, const QString& album, const QString& duration, bool isLocal) {
+    if (!manager) {
+        manager = new QNetworkAccessManager(this);
+    }
+    
+    QString url = localUrl + "user/history/add?user_account=" + QUrl::toPercentEncoding(userAccount);
+    qDebug() << "[HttpRequest] Adding play history:" << title << "for user:" << userAccount;
+    
+    QNetworkRequest request(url);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    
+    // 将duration字符串转换为秒数
+    int durationSec = 0;
+    if (duration.contains(":")) {
+        QStringList parts = duration.split(":");
+        if (parts.size() >= 2) {
+            durationSec = parts[0].toInt() * 60 + parts[1].toInt();
+        }
+    } else {
+        durationSec = duration.toInt();
+    }
+    
+    QJsonObject jsonObj;
+    jsonObj["music_path"] = path;
+    jsonObj["music_title"] = title;
+    jsonObj["artist"] = artist;
+    jsonObj["album"] = album;
+    jsonObj["duration_sec"] = durationSec;
+    jsonObj["is_local"] = isLocal;
+    
+    QJsonDocument jsonDoc(jsonObj);
+    QByteArray postData = jsonDoc.toJson();
+    
+    qDebug() << "[HttpRequest] ========== ADD HISTORY REQUEST ==========";
+    qDebug() << "[HttpRequest] URL:" << url;
+    qDebug() << "[HttpRequest] POST Data:" << QString::fromUtf8(postData);
+    qDebug() << "[HttpRequest] music_path:" << path;
+    qDebug() << "[HttpRequest] music_title:" << title;
+    qDebug() << "[HttpRequest] artist:" << artist;
+    qDebug() << "[HttpRequest] is_local:" << isLocal;
+    qDebug() << "[HttpRequest] =============================================="; 
+    
+    QNetworkReply* reply = manager->post(request, postData);
+    
+    connect(reply, &QNetworkReply::finished, this, [=]() {
+        bool success = false;
+        if (reply->error() == QNetworkReply::NoError) {
+            QByteArray responseData = reply->readAll();
+            qDebug() << "[HttpRequest] Add history response:" << responseData;
+            
+            QJsonDocument jsonDoc = QJsonDocument::fromJson(responseData);
+            if (jsonDoc.isObject()) {
+                QJsonObject obj = jsonDoc.object();
+                success = obj["success"].toBool();
+                qDebug() << "[HttpRequest] Add history success:" << success;
+            }
+        } else {
+            qWarning() << "[HttpRequest] Add history request failed:" << reply->errorString();
+        }
+        
+        emit signal_addHistoryResult(success);
+        reply->deleteLater();
+    });
+}
+
+// 获取播放历史 GET /user/history
+void HttpRequest::getPlayHistory(const QString& userAccount, int limit) {
+    if (!manager) {
+        manager = new QNetworkAccessManager(this);
+    }
+    
+    QString url = localUrl + "user/history?user_account=" + QUrl::toPercentEncoding(userAccount) 
+                  + "&limit=" + QString::number(limit);
+    qDebug() << "[HttpRequest] Fetching play history for user:" << userAccount << "limit:" << limit;
+    
+    QNetworkRequest request(url);
+    QNetworkReply* reply = manager->get(request);
+    
+    connect(reply, &QNetworkReply::finished, this, [=]() {
+        QVariantList historyList;
+        
+        if (reply->error() == QNetworkReply::NoError) {
+            QByteArray responseData = reply->readAll();
+            qDebug() << "[HttpRequest] History response:" << responseData;
+            
+            QJsonDocument jsonDoc = QJsonDocument::fromJson(responseData);
+            
+            // 服务端直接返回数组，不是对象
+            if (jsonDoc.isArray()) {
+                QJsonArray historyArray = jsonDoc.array();
+                
+                for (const QJsonValue& value : historyArray) {
+                    QJsonObject histObj = value.toObject();
+                    QVariantMap history;
+                    
+                    QString path = histObj["path"].toString();
+                    bool isLocal = histObj["is_local"].toBool();
+                    
+                    // 对于在线音乐，如果path是相对路径，需要补全为完整URL
+                    if (!isLocal && !path.startsWith("http")) {
+                        path = localUrl + "uploads/" + path;
+                        qDebug() << "[HttpRequest] Online music path completed:" << path;
+                    }
+                    
+                    history["path"] = path;
+                    history["title"] = histObj["title"].toString();
+                    history["artist"] = histObj["artist"].toString();
+                    history["album"] = histObj["album"].toString();
+                    history["duration"] = histObj["duration"].toString();
+                    history["is_local"] = isLocal;
+                    history["play_time"] = histObj["play_time"].toString();
+                    history["cover_art_url"] = histObj["cover_art_url"].toString();
+                    
+                    historyList.append(history);
+                }
+                
+                qDebug() << "[HttpRequest] Successfully parsed" << historyList.size() << "history items";
+            } else {
+                qWarning() << "[HttpRequest] History response is not a JSON array!";
+            }
+        } else {
+            qWarning() << "[HttpRequest] History request failed:" << reply->errorString();
+        }
+        
+        emit signal_historyList(historyList);
+        reply->deleteLater();
+    });
+}
+
+// 删除播放历史 POST /user/history/delete
+void HttpRequest::removePlayHistory(const QString& userAccount, const QStringList& paths) {
+    if (!manager) {
+        manager = new QNetworkAccessManager(this);
+    }
+    
+    QString url = localUrl + "user/history/delete?user_account=" + QUrl::toPercentEncoding(userAccount);
+    qDebug() << "[HttpRequest] Deleting play history for user:" << userAccount << "paths count:" << paths.size();
+    
+    QNetworkRequest request(url);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    
+    // 构建请求体，使用 music_paths 数组
+    QJsonObject jsonObj;
+    QJsonArray pathArray;
+    for (const QString& path : paths) {
+        pathArray.append(path);
+    }
+    jsonObj["music_paths"] = pathArray;
+    
+    QJsonDocument jsonDoc(jsonObj);
+    QByteArray postData = jsonDoc.toJson();
+    
+    qDebug() << "[HttpRequest] Delete history request body:" << postData;
+    
+    QNetworkReply* reply = manager->post(request, postData);
+    
+    connect(reply, &QNetworkReply::finished, this, [=]() {
+        bool success = false;
+        int deletedCount = 0;
+        
+        if (reply->error() == QNetworkReply::NoError) {
+            QByteArray responseData = reply->readAll();
+            qDebug() << "[HttpRequest] Delete history response:" << responseData;
+            
+            QJsonDocument jsonDoc = QJsonDocument::fromJson(responseData);
+            if (jsonDoc.isObject()) {
+                QJsonObject obj = jsonDoc.object();
+                success = obj["success"].toBool();
+                deletedCount = obj["deleted_count"].toInt();
+                qDebug() << "[HttpRequest] Delete history success:" << success << "deleted count:" << deletedCount;
+            }
+        } else {
+            qWarning() << "[HttpRequest] Delete history request failed:" << reply->errorString();
+        }
+        
+        emit signal_removeHistoryResult(success);
+        reply->deleteLater();
+    });
+}
+

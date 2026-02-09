@@ -109,6 +109,16 @@ void MusicItem::set_netflag(bool flag)
         }
     }
 }
+
+MusicItem::~MusicItem()
+{
+}
+
+std::shared_ptr<Music> MusicItem::getMusic()
+{
+    return this->music;
+}
+
 void MusicItem::on_signal_download_clicked()
 {
     emit signal_download_click(music->getSongName());

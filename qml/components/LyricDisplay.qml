@@ -19,53 +19,10 @@ Item {
         id: lyricModel
     }
     
-    // 标题栏
-    Rectangle {
-        id: titleBar
-        anchors.top: parent.top
-        anchors.left: parent.left
-        anchors.right: parent.right
-        height: 50
-        color: "transparent"
-        
-        Column {
-            anchors.top: parent.top
-            anchors.topMargin: 8
-            anchors.horizontalCenter: parent.horizontalCenter
-            spacing: 2
-            
-            Text {
-                text: root.songTitle || "未知歌曲"
-                color: root.isUp ? "#FFFFFF" : "#333333"
-                font.pixelSize: 18
-                font.bold: true
-                anchors.horizontalCenter: parent.horizontalCenter
-            }
-            
-            Text {
-                text: root.artist || ""
-                color: root.isUp ? "#CCCCCC" : "#666666"
-                font.pixelSize: 13
-                visible: root.artist !== ""
-                anchors.horizontalCenter: parent.horizontalCenter
-            }
-        }
-        
-        // 底部分隔线
-        Rectangle {
-            anchors.bottom: parent.bottom
-            anchors.left: parent.left
-            anchors.right: parent.right
-            height: 1
-            color: root.isUp ? "#333333" : "#E0E0E0"
-            opacity: 0.3
-        }
-    }
-    
     // 歌词 ListView
     ListView {
         id: lyricView
-        anchors.top: titleBar.bottom
+        anchors.top: parent.top
         anchors.bottom: parent.bottom
         anchors.left: parent.left
         anchors.right: parent.right

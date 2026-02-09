@@ -10,9 +10,9 @@ class MusicItem :  public QWidget
     Q_OBJECT
 public:
     explicit MusicItem(const QString& name, const QString& path, const QString& picPath, QSize size);
-    ~MusicItem(){};
+    ~MusicItem();
 
-    std::shared_ptr<Music> getMusic(){return this->music;};
+    std::shared_ptr<Music> getMusic();
     void button_op(bool flag);
     void _play_click();
     void _remove_click();

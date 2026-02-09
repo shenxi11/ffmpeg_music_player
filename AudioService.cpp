@@ -91,9 +91,11 @@ bool AudioService::play(const QUrl& url)
     // 查找URL在播放历史中的索引
     int foundIndex = m_playlist.indexOf(url);
     if (foundIndex >= 0) {
-        // 已在历史中，移动到该位置
-        m_currentIndex = foundIndex;
-        qDebug() << "AudioService: Playing from history at index" << foundIndex << "of" << m_playlist.size();
+        // 已在历史中，移动到头部（避免重复）
+        m_playlist.removeAt(foundIndex);
+        m_playlist.prepend(url);
+        m_currentIndex = 0;
+        qDebug() << "AudioService: Moved from index" << foundIndex << "to top of playback history, total" << m_playlist.size();
     } else {
         // 不在历史中，添加到历史列表头部（最新播放的在前面）
         m_playlist.prepend(url);
