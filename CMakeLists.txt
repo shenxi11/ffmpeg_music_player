@@ -107,6 +107,19 @@ set(PROJECT_SOURCES
     httprequest.h
     logger.cpp
     logger.h
+    
+    # 新网络层（方案B重构）
+    network/network_types.h
+    network/network_manager.h
+    network/network_manager.cpp
+    network/response_cache.h
+    network/response_cache.cpp
+    network/network_service.h
+    network/network_service.cpp
+    
+    # HttpRequest重构示例（V2）
+    httprequest_v2.h
+    httprequest_v2.cpp
     local_and_download_widget.cpp
     local_and_download_widget.h
     loginwidget.cpp

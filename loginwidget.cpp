@@ -15,7 +15,7 @@ LoginWidget::LoginWidget(QWidget *parent) : QWidget(parent)
     this->setAttribute(Qt::WA_TranslucentBackground); // 设置背景透明
     isLogin = true; // 默认是登录模式
 
-    request = HttpRequestPool::getInstance().getRequest();
+    request = new HttpRequestV2(this);
 
     // 创建主容器，添加圆角和阴影效果
     QWidget *mainContainer = new QWidget(this);
@@ -220,7 +220,7 @@ LoginWidget::LoginWidget(QWidget *parent) : QWidget(parent)
         if (isLogin) {
             // 登录逻辑
             qDebug() << "尝试登录: 账号:" << Account << "密码:" << Password;
-            request->Login(Account, Password); // 调用 HttpRequest 的登录方法
+            request->login(Account, Password); // 调用 HttpRequestV2 的登录方法
         } else {
             // 注册逻辑
             QString Username = username->text();  // 从用户名输入框获取用户名
@@ -229,7 +229,7 @@ LoginWidget::LoginWidget(QWidget *parent) : QWidget(parent)
                 return;
             }
             qDebug() << "尝试注册: 账号:" << Account << "密码:" << Password << "用户名:" << Username;
-            request->Register(Account, Password, Username); // 调用 HttpRequest 的注册方法
+            request->registerUser(Account, Password, Username); // 调用 HttpRequestV2 的注册方法
         }
     });
 
@@ -248,7 +248,7 @@ LoginWidget::LoginWidget(QWidget *parent) : QWidget(parent)
         username->setVisible(!isLogin);  // 切换用户名输入框的显示与隐藏
     });
 
-    connect(request, &HttpRequest::signal_getusername, this, [=](QString username) {
+    connect(request, &HttpRequestV2::signal_getusername, this, [=](QString username) {
         if(username.size() > 0)
         {
             emit login_(username);
@@ -263,7 +263,7 @@ LoginWidget::LoginWidget(QWidget *parent) : QWidget(parent)
         }
     });
 
-    connect(request, &HttpRequest::signal_Registerflag, this, [=](bool success) {
+    connect(request, &HttpRequestV2::signal_Registerflag, this, [=](bool success) {
         if (success && !isLogin) {
             qDebug() << "注册成功！";
             isLogin = true;

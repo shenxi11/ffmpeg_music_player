@@ -7,7 +7,7 @@
 #include <QQmlComponent>
 #include <QQuickWindow>
 #include <QDebug>
-#include "httprequest.h"
+#include "httprequest_v2.h"
 
 /**
  * @brief QML 版本的 LoginWidget 包装类
@@ -26,8 +26,8 @@ public:
     {
         qDebug() << "LoginWidgetQml: Initializing...";
         
-        // 获取 HttpRequest 实例
-        request = HttpRequestPool::getInstance().getRequest();
+        // 创建 HttpRequestV2 实例
+        request = new HttpRequestV2(this);
         
         // 加载 QML 文件
         m_engine->load(QUrl("qrc:/qml/components/LoginWindow.qml"));
@@ -54,9 +54,9 @@ public:
         connect(m_window, SIGNAL(registerRequested(QString, QString, QString)), 
                 this, SLOT(onRegisterRequested(QString, QString, QString)));
         
-        // 连接 HttpRequest 信号
-        connect(request, &HttpRequest::signal_getusername, this, &LoginWidgetQml::onUsernameReceived);
-        connect(request, &HttpRequest::signal_Registerflag, this, &LoginWidgetQml::onRegisterResult);
+        // 连接 HttpRequestV2 信号
+        connect(request, &HttpRequestV2::signal_getusername, this, &LoginWidgetQml::onUsernameReceived);
+        connect(request, &HttpRequestV2::signal_Registerflag, this, &LoginWidgetQml::onRegisterResult);
         
         // 监听窗口可见性变化
         connect(m_window, &QQuickWindow::visibleChanged, this, [this]() {
@@ -104,7 +104,7 @@ private slots:
      */
     void onLoginRequested(const QString &account, const QString &password) {
         qDebug() << "LoginWidgetQml: Login requested for account:" << account;
-        request->Login(account, password);
+        request->login(account, password);
     }
     
     /**
@@ -112,7 +112,7 @@ private slots:
      */
     void onRegisterRequested(const QString &account, const QString &password, const QString &username) {
         qDebug() << "LoginWidgetQml: Register requested for account:" << account << "username:" << username;
-        request->Register(account, password, username);
+        request->registerUser(account, password, username);
     }
     
     /**
@@ -153,7 +153,7 @@ private slots:
 private:
     QQuickWindow *m_window;
     QQmlApplicationEngine *m_engine;
-    HttpRequest *request;
+    HttpRequestV2 *request;
 };
 
 #endif // LOGINWIDGET_QML_H

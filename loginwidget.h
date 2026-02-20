@@ -1,7 +1,7 @@
 #ifndef LOGINWIDGET_H
 #define LOGINWIDGET_H
 
-#include "httprequest.h"
+#include "httprequest_v2.h"
 #include <QObject>
 #include <QWidget>
 #include <QDebug>
@@ -44,7 +44,7 @@ private:
     QPoint mouseStartPoint = QPoint(0, 0);
     QPoint windowStartPoint = QPoint(0, 0);
 
-    HttpRequest* request;
+    HttpRequestV2* request;
 };
 
 #endif // LOGINWIDGET_H
