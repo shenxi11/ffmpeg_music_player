@@ -1,11 +1,6 @@
 #ifndef PLAY_WIDGET_H
 #define PLAY_WIDGET_H
 
-// ========== MVVM 配置开关 ==========
-// 取消注释以启用MVVM模式的播放控制
-#define USE_MVVM_PLAYBACK  // 启用ViewModel播放控制
-// ====================================
-
 #include <QWidget>
 #include <QSlider>
 #include <QScrollBar>
@@ -96,11 +91,10 @@ private:
     //std::shared_ptr<TakePcm> take_pcm;//播放pcm的线程
     
     // ========== MVVM架构 ==========
-    PlaybackViewModel* m_playbackViewModel;  // 播放器ViewModel（新）
+    PlaybackViewModel* m_playbackViewModel;  // 播放器ViewModel - UI层的唯一接口
     
-    // ========== Service层（保留用于旧代码兼容） ==========
-    AudioService* audioService;  // 音频服务（单例） - 将逐步由ViewModel替代
-    AudioSession* currentSession;  // 当前播放会话 - 将逐步由ViewModel替代
+    // ========== Service层（仅供内部使用，UI不应直接访问） ==========
+    AudioSession* currentSession;  // 当前播放会话（用于歌词同步等特殊场景）
     
     std::shared_ptr<LrcAnalyze> lrc;//解析歌词的线程
     std::map<int, std::string> lyrics;

@@ -53,6 +53,7 @@ class PlaybackViewModel : public BaseViewModel
     Q_PROPERTY(QString currentAlbum READ currentAlbum NOTIFY currentAlbumChanged)
     Q_PROPERTY(QString currentAlbumArt READ currentAlbumArt NOTIFY currentAlbumArtChanged)
     Q_PROPERTY(QUrl currentUrl READ currentUrl NOTIFY currentUrlChanged)
+    Q_PROPERTY(QString currentFilePath READ currentFilePath NOTIFY currentFilePathChanged)
     
     // ========== 进度格式化属性（方便UI显示） ==========
     Q_PROPERTY(QString positionText READ positionText NOTIFY positionChanged)
@@ -75,6 +76,7 @@ public:
     QString currentAlbum() const { return m_currentAlbum; }
     QString currentAlbumArt() const { return m_currentAlbumArt; }
     QUrl currentUrl() const { return m_currentUrl; }
+    QString currentFilePath() const { return m_currentFilePath; }
     
     // ========== 格式化文本访问器 ==========
     QString positionText() const { return formatTime(m_position); }
@@ -146,6 +148,12 @@ signals:
     void playbackStarted();
     void playbackStopped();
     void playbackCompleted();
+    void currentFilePathChanged();
+    
+    // UI相关事件（ViewModel负责协调）
+    void shouldStartRotation();  // 通知UI开始旋转动画
+    void shouldStopRotation();   // 通知UI停止旋转动画
+    void shouldLoadLyrics(const QString& filePath);  // 通知UI加载歌词
     
 private slots:
     // AudioService事件处理
@@ -186,6 +194,7 @@ private:
     QString m_currentAlbum;
     QString m_currentAlbumArt;
     QUrl m_currentUrl;
+    QString m_currentFilePath;  // 当前播放文件路径（用于UI显示和歌词加载）
 };
 
 #endif // PLAYBACKVIEWMODEL_H
