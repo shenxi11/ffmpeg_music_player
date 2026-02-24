@@ -3,7 +3,7 @@
 
 #include <QObject>
 #include"headers.h"
-#include "httprequest.h"
+#include "httprequest_v2.h"
 class LrcAnalyze : public QObject
 {
     Q_OBJECT
@@ -26,7 +26,7 @@ private:
 //    void run() override;
 
     std::map<int, std::string> lyrics;  // 用来存储解析的歌词，时间戳为 key，歌词文本为 value
-    HttpRequest* request;
+    HttpRequestV2* request;
 
 signals:
     void begin_take_lrc(QString Path);

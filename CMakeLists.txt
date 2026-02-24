@@ -103,8 +103,6 @@ set(PROJECT_SOURCES
     local_music_model.cpp
     local_music_model.h
     headers.h
-    httprequest.cpp
-    httprequest.h
     logger.cpp
     logger.h
     
@@ -120,6 +118,8 @@ set(PROJECT_SOURCES
     # HttpRequest重构示例（V2）
     httprequest_v2.h
     httprequest_v2.cpp
+    user.h
+    user.cpp
     local_and_download_widget.cpp
     local_and_download_widget.h
     loginwidget.cpp

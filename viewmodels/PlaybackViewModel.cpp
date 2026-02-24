@@ -146,6 +146,18 @@ void PlaybackViewModel::onAudioServicePlaybackStarted(const QString& sessionId, 
     Q_UNUSED(sessionId);
     
     qDebug() << "[MVVM-ViewModel] onAudioServicePlaybackStarted, URL:" << url;
+
+    QString filePath;
+    if (url.isLocalFile()) {
+        filePath = url.toLocalFile();
+    } else {
+        filePath = url.toString();
+    }
+    if (m_currentFilePath != filePath) {
+        m_currentFilePath = filePath;
+        emit currentFilePathChanged();
+        emit shouldLoadLyrics(filePath);
+    }
     
     updatePlayingState(true);
     updatePausedState(false);
@@ -161,6 +173,7 @@ void PlaybackViewModel::onAudioServicePlaybackPaused()
 {
     qDebug() << "[MVVM-ViewModel] onAudioServicePlaybackPaused";
     
+    updatePlayingState(false);  // 暂停时，isPlaying应该为false，UI显示播放图标
     updatePausedState(true);
     
     // 通知UI停止旋转动画
@@ -169,6 +182,8 @@ void PlaybackViewModel::onAudioServicePlaybackPaused()
 
 void PlaybackViewModel::onAudioServicePlaybackResumed()
 {
+    qDebug() << "[MVVM-ViewModel] onAudioServicePlaybackResumed";
+    updatePlayingState(true);   // 恢复播放时，isPlaying应该为true，UI显示暂停图标
     updatePausedState(false);
 }
 
@@ -202,6 +217,7 @@ void PlaybackViewModel::updatePlayingState(bool playing)
 {
     if (m_isPlaying != playing) {
         m_isPlaying = playing;
+        qDebug() << "[MVVM-ViewModel] isPlaying changed to:" << playing;
         emit isPlayingChanged();
     }
 }

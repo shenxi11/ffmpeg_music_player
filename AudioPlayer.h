@@ -6,6 +6,7 @@
 #include <QIODevice>
 #include <QTimer>
 #include <QElapsedTimer>
+#include <QString>
 #include <atomic>
 #include <thread>
 #include <mutex>
@@ -43,7 +44,10 @@ public:
     int volume() const { return m_volume; }
     
     // 写入音频数据（从解码器）
-    void writeAudioData(const QByteArray& data, qint64 timestampMs);
+    void writeAudioData(const QByteArray& data, qint64 timestampMs, const QString& ownerId = QString());
+    void setWriteOwner(const QString& ownerId);
+    void clearWriteOwner(const QString& ownerId = QString());
+    QString writeOwner() const;
     
     // 时钟同步
     qint64 getCurrentTimestamp() const;  // 获取当前播放时间戳
@@ -105,6 +109,10 @@ private:
     };
     std::queue<TimestampedData> m_timestampQueue;
     mutable std::mutex m_timestampMutex;
+    
+    // 写入所有权（防止音频/视频会话同时向同一输出写入）
+    QString m_writeOwner;
+    mutable std::mutex m_ownerMutex;
     
     // 播放线程
     std::thread m_playThread;

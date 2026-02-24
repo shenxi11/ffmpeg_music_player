@@ -81,7 +81,10 @@ bool AudioDecoder::initDecoder(const QString& filePath)
     int sampleRate = m_codecCtx->sample_rate;
     int channels = 2; // 重采样后的通道数
     emit metadataReady(m_duration, sampleRate, channels);
-    
+
+    // 提取音频标签（标题、艺术家）
+    extractAudioTags();
+
     // 提取封面
     extractAlbumArt();
     
@@ -374,6 +377,35 @@ void AudioDecoder::cleanup()
         avformat_close_input(&m_formatCtx);
     if(m_swrCtx)
         swr_free(&m_swrCtx);
+}
+
+void AudioDecoder::extractAudioTags()
+{
+    if (!m_formatCtx) return;
+
+    // 从format context的metadata中提取标题和艺术家
+    AVDictionaryEntry *tag = nullptr;
+
+    // 提取标题
+    tag = av_dict_get(m_formatCtx->metadata, "title", nullptr, 0);
+    if (tag) {
+        m_extractedTitle = QString::fromUtf8(tag->value);
+        qDebug() << "AudioDecoder: Extracted title from metadata:" << m_extractedTitle;
+    } else {
+        m_extractedTitle = "";
+    }
+
+    // 提取艺术家
+    tag = av_dict_get(m_formatCtx->metadata, "artist", nullptr, 0);
+    if (tag) {
+        m_extractedArtist = QString::fromUtf8(tag->value);
+        qDebug() << "AudioDecoder: Extracted artist from metadata:" << m_extractedArtist;
+    } else {
+        m_extractedArtist = "";
+    }
+
+    // 发送音频标签信号
+    emit audioTagsReady(m_extractedTitle, m_extractedArtist);
 }
 
 void AudioDecoder::extractAlbumArt()

@@ -5,6 +5,9 @@
 #include <QUrl>
 #include <QTimer>
 #include <QThread>
+#include <QString>
+#include <mutex>
+#include <condition_variable>
 #include "AudioSession.h"
 
 extern "C" {
@@ -63,7 +66,7 @@ public:
     qint64 getDuration() const { return m_duration; }
     PlaybackState state() const { return m_state; }
     bool hasVideo() const { return m_videoSession != nullptr; }
-    bool hasAudio() const { return m_audioSession != nullptr; }
+    bool hasAudio() const { return m_audioCodecCtx != nullptr || m_audioStreamIndex >= 0; }
     
 signals:
     // 位置和状态信号
@@ -130,7 +133,13 @@ private:
     // 解复用线程
     QThread* m_demuxThread;
     bool m_demuxRunning;
+    bool m_demuxPaused;
+    std::mutex m_demuxPauseMutex;
+    std::condition_variable m_demuxPauseCv;
     bool m_seekPending;  // Seek后等待首帧同步标志
+    
+    // MediaSession写入AudioPlayer时使用的所有权ID
+    QString m_audioWriteOwnerId;
     
     // 位置更新定时器
     QTimer* m_positionTimer;

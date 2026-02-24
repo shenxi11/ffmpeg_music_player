@@ -5,7 +5,7 @@
 #include <QVBoxLayout>
 #include <QDebug>
 #include "video_list_widget_qml.h"
-#include "httprequest.h"
+#include "httprequest_v2.h"
 #include "VideoPlayerWindow.h"
 #include "play_widget.h"  // 添加PlayWidget头文件
 #include "AudioService.h"  // 添加AudioService头文件
@@ -20,9 +20,14 @@ class VideoListWidget : public QWidget
 public:
     explicit VideoListWidget(PlayWidget* playWidget, QWidget *parent = nullptr);
     ~VideoListWidget();
+    VideoPlayerWindow* playerWindow() const { return videoPlayerWindow; }
 
 signals:
     void signal_open_video_player(const QString& videoUrl, const QString& videoName);
+    void videoPlayerWindowReady(VideoPlayerWindow* window);
+
+public slots:
+    void pauseVideoPlayback();
 
 private slots:
     /**
@@ -50,7 +55,7 @@ protected:
 
 private:
     VideoListWidgetQml* listWidget;
-    HttpRequest* request;
+    HttpRequestV2* request;
     VideoPlayerWindow* videoPlayerWindow = nullptr;
     QString m_selectedVideoName;
     PlayWidget* m_playWidget;  // 音乐播放器引用

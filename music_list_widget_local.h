@@ -4,7 +4,7 @@
 #include <QObject>
 #include <QWidget>
 #include "music_list_widget_qml.h"
-#include "httprequest.h"
+#include "httprequest_v2.h"
 
 class MusicListWidgetLocal : public QWidget
 {
@@ -35,8 +35,7 @@ signals:
 private:
     MusicListWidgetQml* listWidget;
     QPushButton* add;
-    // QPushButton* translateBtn; // 已删除：功能已并入插件系统
-    HttpRequest* request;
+    HttpRequestV2* request;
 };
 
 #endif // MUSICLISTWIDGETLOCAL_H

@@ -153,6 +153,36 @@ void AudioPlayer::resetBuffer()
     qDebug() << "AudioPlayer: Buffer reset (ready for new song)";
 }
 
+void AudioPlayer::setWriteOwner(const QString& ownerId)
+{
+    if (ownerId.isEmpty()) {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(m_ownerMutex);
+    if (m_writeOwner != ownerId) {
+        m_writeOwner = ownerId;
+        qDebug() << "AudioPlayer: Write owner set to" << m_writeOwner;
+    }
+}
+
+void AudioPlayer::clearWriteOwner(const QString& ownerId)
+{
+    std::lock_guard<std::mutex> lock(m_ownerMutex);
+    if (ownerId.isEmpty() || m_writeOwner == ownerId) {
+        if (!m_writeOwner.isEmpty()) {
+            qDebug() << "AudioPlayer: Write owner cleared from" << m_writeOwner;
+        }
+        m_writeOwner.clear();
+    }
+}
+
+QString AudioPlayer::writeOwner() const
+{
+    std::lock_guard<std::mutex> lock(m_ownerMutex);
+    return m_writeOwner;
+}
+
 void AudioPlayer::setVolume(int volume)
 {
     m_volume = qBound(0, volume, 100);
@@ -164,9 +194,27 @@ void AudioPlayer::setVolume(int volume)
     qDebug() << "AudioPlayer: Volume set to" << m_volume;
 }
 
-void AudioPlayer::writeAudioData(const QByteArray& data, qint64 timestampMs)
+void AudioPlayer::writeAudioData(const QByteArray& data, qint64 timestampMs, const QString& ownerId)
 {
     if (!m_buffer || data.isEmpty()) return;
+
+    {
+        std::lock_guard<std::mutex> lock(m_ownerMutex);
+        if (!ownerId.isEmpty() && m_writeOwner.isEmpty()) {
+            m_writeOwner = ownerId;
+            qDebug() << "AudioPlayer: Write owner auto-set to" << m_writeOwner;
+        }
+
+        if (!ownerId.isEmpty() && !m_writeOwner.isEmpty() && ownerId != m_writeOwner) {
+            static int droppedPacketCount = 0;
+            droppedPacketCount++;
+            if (droppedPacketCount % 200 == 1) {
+                qDebug() << "AudioPlayer: Dropped audio packet from non-owner source"
+                         << ownerId << "current owner:" << m_writeOwner;
+            }
+            return;
+        }
+    }
     
     static int writeCount = 0;
     if (++writeCount % 100 == 0) {

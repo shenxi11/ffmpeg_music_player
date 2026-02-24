@@ -9,7 +9,7 @@
 #include <QDebug>
 #include "plugin_manager.h"
 #include "logger.h"
-#include "httprequest.h"
+#include "httprequest_v2.h"
 
 #ifdef Q_OS_WIN
 #include <Windows.h>

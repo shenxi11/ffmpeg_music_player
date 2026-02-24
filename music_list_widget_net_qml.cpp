@@ -1,4 +1,30 @@
 #include "music_list_widget_net_qml.h"
+#include <cmath>
+
+namespace {
+QString formatDurationForDisplay(double rawDuration)
+{
+    if (!std::isfinite(rawDuration) || rawDuration <= 0.0) {
+        return "0:00";
+    }
+
+    // Search API currently mixes milliseconds and seconds across endpoints.
+    // Normalize to seconds first, then render as m:ss.
+    double secondsValue = rawDuration;
+    if (rawDuration > 10000.0) {
+        secondsValue = rawDuration / 1000.0;
+    }
+
+    qint64 totalSeconds = static_cast<qint64>(secondsValue + 0.5);
+    if (totalSeconds < 0) {
+        totalSeconds = 0;
+    }
+
+    const qint64 minutes = totalSeconds / 60;
+    const qint64 seconds = totalSeconds % 60;
+    return QString("%1:%2").arg(minutes).arg(seconds, 2, 10, QChar('0'));
+}
+}
 
 MusicListWidgetNetQml::MusicListWidgetNetQml(QWidget *parent)
     : QQuickWidget(parent)
@@ -43,27 +69,22 @@ void MusicListWidgetNetQml::setIsPlaying(bool playing)
 
 void MusicListWidgetNetQml::setPlayingState(const QString& filePath, bool playing)
 {
-    bool changed = false;
-    
     if (m_currentPlayingPath != filePath) {
         m_currentPlayingPath = filePath;
         emit currentPlayingPathChanged();
-        changed = true;
     }
     
     if (m_isPlaying != playing) {
         m_isPlaying = playing;
         emit isPlayingChanged();
-        changed = true;
     }
     
-    if (changed) {
-        QQuickItem* root = rootObject();
-        if (root) {
-            QMetaObject::invokeMethod(root, "setPlayingState",
-                Q_ARG(QVariant, filePath),
-                Q_ARG(QVariant, playing));
-        }
+    // Always forward to QML to keep list row state in sync after model refreshes.
+    QQuickItem* root = rootObject();
+    if (root) {
+        QMetaObject::invokeMethod(root, "setPlayingState",
+            Q_ARG(QVariant, filePath),
+            Q_ARG(QVariant, playing));
     }
 }
 
@@ -104,10 +125,7 @@ void MusicListWidgetNetQml::addSongList(const QStringList& songNames, const QStr
         }
         
         for (double duration : durations) {
-            int minutes = static_cast<int>(duration) / 60;
-            int seconds = static_cast<int>(duration) % 60;
-            QString formattedDuration = QString("%1:%2").arg(minutes).arg(seconds, 2, 10, QChar('0'));
-            durationList.append(formattedDuration);
+            durationList.append(formatDurationForDisplay(duration));
         }
         
         for (const QString& cover : coverUrls) {

@@ -14,7 +14,6 @@
 #include "viewmodels/PlaybackViewModel.h"  // 新增：ViewModel
 #include "lrc_analyze.h"
 #include "lyricdisplay_qml.h"
-#include "httprequest.h"
 #include "rotatingcircleimage.h"
 #include "process_slider_qml.h"
 #include "controlbar_qml.h"
@@ -49,6 +48,7 @@ public slots:
 
     void set_play_net(bool flag);
     void setNetworkMetadata(const QString& artist, const QString& cover);
+    void setNetworkMetadata(const QString& title, const QString& artist, const QString& cover);
     void slot_play_click();
     void slot_Lrc_send_lrc(const std::map<int, std::string> lyrics);
     void slot_work_stop();

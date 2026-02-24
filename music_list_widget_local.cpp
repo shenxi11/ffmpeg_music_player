@@ -1,7 +1,8 @@
 #include "music_list_widget_local.h"
 #include "play_widget.h"
 #include <QVBoxLayout>
-#include "httprequest.h"
+#include "httprequest_v2.h"
+#include "user.h"
 #include <QFileInfo>
 #include <QDebug>
 
@@ -15,7 +16,7 @@ MusicListWidgetLocal::MusicListWidgetLocal(QWidget *parent) : QWidget(parent)
     v_layout->addWidget(listWidget);
     setLayout(v_layout);
 
-    request = HttpRequestPool::getInstance().getRequest();
+    request = new HttpRequestV2(this);
 
     // 连接 QML 的信号到外部
     connect(listWidget, &MusicListWidgetQml::signal_add_song,
@@ -41,12 +42,13 @@ MusicListWidgetLocal::MusicListWidgetLocal(QWidget *parent) : QWidget(parent)
 
     // 用户登录后加载音乐列表
     auto user = User::getInstance();
-    connect(user, &User::signal_add_songs, this, [=](){
+    connect(user, &User::signal_add_songs, this, [this, user](){
         qDebug() << __FUNCTION__ << "login";
         listWidget->clearAll();
-        for(auto i: user->get_music_path())
+        QStringList musicPaths = user->get_music_path();
+        for(const QString& path : musicPaths)
         {
-            QFileInfo info = QFileInfo(i);
+            QFileInfo info(path);
             listWidget->addSong(info.fileName(), info.filePath(), "", "0:00", "", "-");
         }
     });

@@ -32,6 +32,10 @@ public:
     // 状态查询
     bool isDecoding() const { return m_decoding; }
     qint64 duration() const { return m_duration; }
+
+    // 元数据查询
+    QString extractedTitle() const { return m_extractedTitle; }
+    QString extractedArtist() const { return m_extractedArtist; }
     
 signals:
     // 解码数据输出
@@ -39,7 +43,10 @@ signals:
     
     // 元数据信息
     void metadataReady(qint64 durationMs, int sampleRate, int channels);
-    
+
+    // 音频标签信息（标题、艺术家）
+    void audioTagsReady(const QString& title, const QString& artist);
+
     // 封面图片
     void albumArtReady(const QString& imagePath);
     
@@ -59,6 +66,7 @@ public slots:
 private:
     void cleanup();
     void extractAlbumArt();
+    void extractAudioTags();
     bool openFile(const QString& filePath);
     bool setupDecoder();
     bool setupResampler();
@@ -98,6 +106,10 @@ private:
     // 基准时间戳（第一个数据包的PTS）
     qint64 m_firstPts;
     bool m_firstPtsSet;
+
+    // 提取的元数据
+    QString m_extractedTitle;
+    QString m_extractedArtist;
 };
 
 #endif // AUDIODECODER_H

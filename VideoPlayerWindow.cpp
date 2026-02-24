@@ -1,4 +1,4 @@
-#include "VideoPlayerWindow.h"
+﻿#include "VideoPlayerWindow.h"
 #include "VideoSession.h"
 #include "VideoRendererGL.h"
 #include <QDebug>
@@ -8,7 +8,6 @@
 #include <QScreen>
 #include <QTimer>
 
-// ==================== VideoPlayerWindow 实现 ====================
 
 VideoPlayerWindow::VideoPlayerWindow(QWidget *parent)
     : QWidget(parent)
@@ -26,11 +25,9 @@ VideoPlayerWindow::VideoPlayerWindow(QWidget *parent)
 {
     setupUI();
     
-    // 设置窗口属性
-    setWindowTitle("视频播放器");
+    setWindowTitle(QStringLiteral(u"\u89c6\u9891\u64ad\u653e\u5668"));
     setFixedSize(720, 480);
     
-    // 设置为独立窗口
     setWindowFlags(Qt::Window | Qt::WindowCloseButtonHint | Qt::WindowMinimizeButtonHint | Qt::WindowMaximizeButtonHint);
 }
 
@@ -41,12 +38,10 @@ VideoPlayerWindow::~VideoPlayerWindow()
 
 void VideoPlayerWindow::setupUI()
 {
-    // 主布局
     QVBoxLayout* mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->setSpacing(0);
     
-    // ===== 顶部标题栏 =====
     QWidget* titleBar = new QWidget(this);
     titleBar->setFixedHeight(40);
     titleBar->setStyleSheet(
@@ -58,7 +53,7 @@ void VideoPlayerWindow::setupUI()
     QHBoxLayout* titleLayout = new QHBoxLayout(titleBar);
     titleLayout->setContentsMargins(15, 0, 15, 0);
     
-    m_fileNameLabel = new QLabel("未打开视频文件", titleBar);
+    m_fileNameLabel = new QLabel(QStringLiteral(u"\u672a\u52a0\u8f7d\u89c6\u9891"), titleBar);
     m_fileNameLabel->setStyleSheet(
         "QLabel {"
         "    color: #FFFFFF;"
@@ -67,7 +62,7 @@ void VideoPlayerWindow::setupUI()
         "}"
     );
     
-    QPushButton* closeBtn = new QPushButton("✕", titleBar);
+    QPushButton* closeBtn = new QPushButton("X", titleBar);
     closeBtn->setFixedSize(30, 30);
     closeBtn->setStyleSheet(
         "QPushButton {"
@@ -87,10 +82,8 @@ void VideoPlayerWindow::setupUI()
     titleLayout->addStretch();
     titleLayout->addWidget(closeBtn);
     
-    // ===== 视频渲染区域（OpenGL硬件加速）=====
     m_renderWidget = new VideoRendererGL(this);
     
-    // ===== 控制栏 =====
     QWidget* controlBar = new QWidget(this);
     controlBar->setFixedHeight(100);
     controlBar->setStyleSheet(
@@ -103,7 +96,6 @@ void VideoPlayerWindow::setupUI()
     controlLayout->setContentsMargins(20, 10, 20, 10);
     controlLayout->setSpacing(8);
     
-    // 进度条
     m_progressSlider = new QSlider(Qt::Horizontal, controlBar);
     m_progressSlider->setRange(0, 1000);
     m_progressSlider->setValue(0);
@@ -130,12 +122,10 @@ void VideoPlayerWindow::setupUI()
     connect(m_progressSlider, &QSlider::sliderReleased, this, &VideoPlayerWindow::onSliderReleased);
     connect(m_progressSlider, &QSlider::valueChanged, this, &VideoPlayerWindow::onSliderValueChanged);
     
-    // 按钮和时间显示
     QHBoxLayout* buttonLayout = new QHBoxLayout();
     buttonLayout->setSpacing(15);
     
-    // 播放/暂停按钮
-    m_playPauseBtn = new QPushButton("▶", controlBar);
+    m_playPauseBtn = new QPushButton(QStringLiteral(u"\u64ad\u653e"), controlBar);
     m_playPauseBtn->setFixedSize(50, 50);
     m_playPauseBtn->setStyleSheet(
         "QPushButton {"
@@ -160,8 +150,7 @@ void VideoPlayerWindow::setupUI()
     m_playPauseBtn->setEnabled(false);
     connect(m_playPauseBtn, &QPushButton::clicked, this, &VideoPlayerWindow::onPlayPauseClicked);
     
-    // 打开文件按钮
-    m_openFileBtn = new QPushButton("📁 选择视频", controlBar);
+    m_openFileBtn = new QPushButton(QStringLiteral(u"\u6253\u5f00\u89c6\u9891"), controlBar);
     m_openFileBtn->setFixedHeight(40);
     m_openFileBtn->setStyleSheet(
         "QPushButton {"
@@ -183,7 +172,6 @@ void VideoPlayerWindow::setupUI()
     );
     connect(m_openFileBtn, &QPushButton::clicked, this, &VideoPlayerWindow::onOpenFileClicked);
     
-    // 时间显示
     m_timeLabel = new QLabel("00:00 / 00:00", controlBar);
     m_timeLabel->setStyleSheet(
         "QLabel {"
@@ -202,14 +190,12 @@ void VideoPlayerWindow::setupUI()
     controlLayout->addWidget(m_progressSlider);
     controlLayout->addLayout(buttonLayout);
     
-    // ===== 添加到主布局 =====
     mainLayout->addWidget(titleBar);
     mainLayout->addWidget(m_renderWidget, 1);
     mainLayout->addWidget(controlBar);
     
     setLayout(mainLayout);
     
-    // 设置窗口样式
     setStyleSheet(
         "QWidget#VideoPlayerWindow {"
         "    background: #000000;"
@@ -225,21 +211,18 @@ void VideoPlayerWindow::loadVideo(const QString& filePath)
     
     qDebug() << "[VideoPlayerWindow] Loading video:" << filePath;
     
-    // 停止当前播放
     if (m_mediaSession && m_isPlaying) {
         m_mediaSession->stop();
     }
     
-    // 重置所有状态
     m_isPlaying = false;
     m_currentPosition = 0;
     m_duration = 0;
     m_sliderPressed = false;
     
-    // 重置UI控件
     if (m_playPauseBtn) {
-        m_playPauseBtn->setText("▶");
-        m_playPauseBtn->setEnabled(false);  // 加载完成后会重新启用
+        m_playPauseBtn->setText(QStringLiteral(u"\u64ad\u653e"));
+        m_playPauseBtn->setEnabled(false);
     }
     if (m_progressSlider) {
         m_progressSlider->setValue(0);
@@ -248,7 +231,6 @@ void VideoPlayerWindow::loadVideo(const QString& filePath)
         m_timeLabel->setText("00:00 / 00:00");
     }
     
-    // 更新文件名
     m_currentFilePath = filePath;
     QFileInfo fileInfo(filePath);
     QString fileName = fileInfo.fileName();
@@ -256,7 +238,6 @@ void VideoPlayerWindow::loadVideo(const QString& filePath)
         m_fileNameLabel->setText(fileName);
     }
     
-    // 清理旧的MediaSession
     if (m_mediaSession) {
         delete m_mediaSession;
         m_mediaSession = nullptr;
@@ -264,7 +245,6 @@ void VideoPlayerWindow::loadVideo(const QString& filePath)
     
     m_mediaSession = new MediaSession(this);
     
-    // 连接信号
     connect(m_mediaSession, &MediaSession::positionChanged,
             this, &VideoPlayerWindow::onPositionChanged);
     connect(m_mediaSession, &MediaSession::durationChanged,
@@ -276,24 +256,20 @@ void VideoPlayerWindow::loadVideo(const QString& filePath)
         qDebug() << "[VideoPlayerWindow] State changed:" << (int)state;
     });
     
-    // 加载视频
     QUrl url = QUrl::fromLocalFile(filePath);
     if (!m_mediaSession->loadSource(url)) {
         qWarning() << "[VideoPlayerWindow] Failed to load video";
         return;
     }
     
-    // 获取视频会话并设置渲染器
     if (m_mediaSession->hasVideo()) {
         VideoSession* videoSession = m_mediaSession->videoSession();
         if (videoSession && m_renderWidget) {
-            // 设置 VideoSession 使用我们的渲染器
             videoSession->setVideoRenderer(m_renderWidget);
             qDebug() << "[VideoPlayerWindow] VideoRenderer connected to VideoSession";
         }
     }
     
-    // 启用播放按钮
     m_playPauseBtn->setEnabled(true);
     
     emit videoLoaded(filePath);
@@ -305,32 +281,35 @@ void VideoPlayerWindow::onPlayPauseClicked()
         qWarning() << "[VideoPlayerWindow] No media session";
         return;
     }
-    
+
     m_isPlaying = !m_isPlaying;
-    
+
     if (m_isPlaying) {
-        m_playPauseBtn->setText("⏸");
+        m_playPauseBtn->setText(QStringLiteral(u"\u6682\u505c"));
         qDebug() << "[VideoPlayerWindow] Play";
-        
-        // 直接播放，不需要seek（播放完成后已经自动重置到开头）
+
+        // Notify outside first (pause music) to avoid overlap window.
+        emit playStateChanged(m_isPlaying);
+
+        // Direct playback without seek.
         m_mediaSession->play();
     } else {
-        m_playPauseBtn->setText("▶");
+        m_playPauseBtn->setText(QStringLiteral(u"\u64ad\u653e"));
         qDebug() << "[VideoPlayerWindow] Pause";
         m_mediaSession->pause();
+
+        emit playStateChanged(m_isPlaying);
     }
-    
-    emit playStateChanged(m_isPlaying);
 }
 
 void VideoPlayerWindow::pausePlayback()
 {
     if (!m_mediaSession || !m_isPlaying) {
-        return;  // 没有会话或已经暂停
+        return;
     }
     
     m_isPlaying = false;
-    m_playPauseBtn->setText("▶");
+    m_playPauseBtn->setText(QStringLiteral(u"\u64ad\u653e"));
     qDebug() << "[VideoPlayerWindow] Pause (external)";
     m_mediaSession->pause();
     
@@ -341,9 +320,9 @@ void VideoPlayerWindow::onOpenFileClicked()
 {
     QString filePath = QFileDialog::getOpenFileName(
         this,
-        "选择视频文件",
+        QStringLiteral(u"\u9009\u62e9\u89c6\u9891\u6587\u4ef6"),
         QDir::homePath(),
-        "视频文件 (*.mp4 *.avi *.mkv *.mov *.flv *.wmv);;所有文件 (*.*)"
+        QStringLiteral(u"\u89c6\u9891\u6587\u4ef6 (*.mp4 *.avi *.mkv *.mov *.flv *.wmv);;\u6240\u6709\u6587\u4ef6 (*.*)")
     );
     
     if (!filePath.isEmpty()) {
@@ -361,11 +340,9 @@ void VideoPlayerWindow::onPlaybackFinished()
 {
     qDebug() << "[VideoPlayerWindow] Playback finished";
     
-    // 停止播放
     if (m_mediaSession) {
         m_mediaSession->stop();
         
-        // 使用QTimer延迟执行seek，确保stop完全完成
         QTimer::singleShot(100, this, [this]() {
             if (m_mediaSession) {
                 qDebug() << "[VideoPlayerWindow] Seeking to beginning for next playback";
@@ -374,13 +351,11 @@ void VideoPlayerWindow::onPlaybackFinished()
         });
     }
     
-    // 更新UI状态
     m_isPlaying = false;
     if (m_playPauseBtn) {
-        m_playPauseBtn->setText("▶");
+        m_playPauseBtn->setText(QStringLiteral(u"\u64ad\u653e"));
     }
     
-    // 重置进度条到开头
     m_currentPosition = 0;
     if (m_progressSlider && !m_sliderPressed) {
         m_progressSlider->setValue(0);
@@ -392,13 +367,11 @@ void VideoPlayerWindow::onSliderReleased()
 {
     m_sliderPressed = false;
     
-    // 计算目标位置
     qint64 targetPosition = (m_duration * m_progressSlider->value()) / 1000;
     m_currentPosition = targetPosition;
     
     qDebug() << "[VideoPlayerWindow] Seek to:" << targetPosition << "ms";
     
-    // 调用 MediaSession 的 seek 接口
     if (m_mediaSession) {
         m_mediaSession->seekTo(targetPosition);
     }
@@ -409,7 +382,6 @@ void VideoPlayerWindow::onSliderReleased()
 void VideoPlayerWindow::onSliderValueChanged(int value)
 {
     if (m_sliderPressed) {
-        // 拖动时更新时间显示
         qint64 position = (m_duration * value) / 1000;
         updateTimeLabel(position, m_duration);
     }
@@ -449,26 +421,22 @@ void VideoPlayerWindow::closeEvent(QCloseEvent *event)
 {
     qDebug() << "[VideoPlayerWindow] Closing window, cleaning up resources...";
     
-    // 停止播放
     if (m_mediaSession) {
         if (m_isPlaying) {
             m_mediaSession->stop();
         }
         
-        // 清理MediaSession资源
         m_mediaSession->deleteLater();
         m_mediaSession = nullptr;
     }
     
-    // 重置状态
     m_isPlaying = false;
     m_currentPosition = 0;
     m_duration = 0;
     m_currentFilePath.clear();
     
-    // 重置UI控件
     if (m_playPauseBtn) {
-        m_playPauseBtn->setText("▶");
+        m_playPauseBtn->setText(QStringLiteral(u"\u64ad\u653e"));
         m_playPauseBtn->setEnabled(false);
     }
     if (m_progressSlider) {
@@ -478,10 +446,9 @@ void VideoPlayerWindow::closeEvent(QCloseEvent *event)
         m_timeLabel->setText("00:00 / 00:00");
     }
     if (m_fileNameLabel) {
-        m_fileNameLabel->setText("未打开视频文件");
+        m_fileNameLabel->setText(QStringLiteral(u"\u672a\u52a0\u8f7d\u89c6\u9891"));
     }
     
-    // 清理渲染器
     if (m_renderWidget) {
         m_renderWidget->stop();
     }
@@ -494,13 +461,11 @@ void VideoPlayerWindow::onPositionChanged(qint64 positionMs)
 {
     m_currentPosition = positionMs;
     
-    // 更新进度条（如果没有被拖动）
     if (!m_sliderPressed && m_duration > 0) {
         int sliderValue = (positionMs * 1000) / m_duration;
         m_progressSlider->setValue(sliderValue);
     }
     
-    // 更新时间显示
     updateTimeLabel(positionMs, m_duration);
 }
 

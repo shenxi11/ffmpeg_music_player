@@ -10,7 +10,7 @@
 #include "take_pcm.h"
 #include "lrc_analyze.h"
 #include "controlbar.h"
-#include "httprequest.h"
+#include "httprequest_v2.h"
 #include "music.h"
 
 /**
@@ -181,7 +181,7 @@ private:
     std::shared_ptr<Worker> m_worker;
     std::shared_ptr<TakePcm> m_takePcm;
     std::shared_ptr<LrcAnalyze> m_lrcAnalyze;
-    HttpRequest* m_httpRequest;
+    HttpRequestV2* m_httpRequest;
     
     QThread* m_workerThread;
     QThread* m_decoderThread;

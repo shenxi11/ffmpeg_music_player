@@ -1,4 +1,4 @@
-import QtQuick 2.14
+﻿import QtQuick 2.14
 import QtQuick.Controls 2.14
 
 Rectangle {
@@ -13,6 +13,47 @@ Rectangle {
     signal removeRequested(string filePath)
     signal downloadRequested(string filePath)
     signal addToFavorite(string path, string title, string artist, string duration)
+
+    function _looksUnreadable(value) {
+        if (value === undefined || value === null) return true
+        var text = String(value).trim()
+        if (text.length === 0) return true
+        if (/^[\?？\s]+$/.test(text)) return true
+        var suspicious = text.match(/[鍙鍚鍛鍜鍝鎵鎺鏄鏃鏂鏈鏉鏋鏌鏍鐨缁璁妫娓绛鎻锛]/g)
+        return suspicious && suspicious.length >= 3
+    }
+
+    function _baseNameFromPath(path) {
+        if (!path) return ""
+        var value = String(path)
+        var qPos = value.indexOf("?")
+        if (qPos >= 0) value = value.substring(0, qPos)
+        var slash = value.lastIndexOf("/")
+        var name = slash >= 0 ? value.substring(slash + 1) : value
+        var dot = name.lastIndexOf(".")
+        if (dot > 0) name = name.substring(0, dot)
+        try {
+            name = decodeURIComponent(name)
+        } catch (e) {
+        }
+        return name
+    }
+
+    function normalizeText(value, fallbackText) {
+        if (_looksUnreadable(value)) return fallbackText
+        return String(value)
+    }
+
+    function displayTitle(item) {
+        var title = normalizeText(item.songName, "")
+        if (title.length > 0) return title
+        var fromPath = normalizeText(_baseNameFromPath(item.filePath), "")
+        return fromPath.length > 0 ? fromPath : "未知歌曲"
+    }
+
+    function displayArtist(item) {
+        return normalizeText(item.artist, "未知艺术家")
+    }
 
     // 顶部标题
     Text {
@@ -163,7 +204,7 @@ Rectangle {
                 // 歌曲名
                 Text {
                     width: 240
-                    text: model.songName
+                    text: root.displayTitle(model)
                     font.pixelSize: 14
                     font.bold: model.isPlaying
                     color: model.isPlaying ? "#409EFF" : "#333333"
@@ -183,7 +224,7 @@ Rectangle {
                 // 艺术家
                 Text {
                     width: 120
-                    text: model.artist || "未知艺术家"
+                    text: root.displayArtist(model)
                     font.pixelSize: 13
                     color: "#888888"
                     elide: Text.ElideRight
@@ -223,8 +264,8 @@ Rectangle {
                             onClicked: {
                                 root.addToFavorite(
                                     model.filePath || "",
-                                    model.filePath ? model.filePath.split('/').pop() : "",
-                                    model.artist || "",
+                                    root.displayTitle(model),
+                                    root.displayArtist(model),
                                     model.duration || ""
                                 )
                             }
@@ -254,7 +295,7 @@ Rectangle {
                                 console.log("[MusicListWidgetNet] Play clicked - path:", model.filePath)
                                 console.log("[MusicListWidgetNet] artist:", model.artist)
                                 console.log("[MusicListWidgetNet] cover:", model.cover)
-                                root.playRequested(model.filePath, model.artist || "未知艺术家", model.cover || "")
+                                root.playRequested(model.filePath, root.displayArtist(model), model.cover || "")
                             }
                         }
                     }
@@ -290,7 +331,7 @@ Rectangle {
                 hoverEnabled: true
                 propagateComposedEvents: true
                 onDoubleClicked: {
-                    root.playRequested(model.filePath, model.artist || "未知艺术家", model.cover || "")
+                    root.playRequested(model.filePath, root.displayArtist(model), model.cover || "")
                 }
             }
         }
@@ -298,10 +339,14 @@ Rectangle {
     
     // 提供给 C++ 调用的方法
     function addSong(songName, filePath, artist, duration, cover) {
+        var normalizedName = normalizeText(songName, "")
+        if (normalizedName.length === 0) {
+            normalizedName = normalizeText(_baseNameFromPath(filePath), "未知歌曲")
+        }
         musicListModel.append({
-                                  "songName": songName,
+                                  "songName": normalizedName,
                                   "filePath": filePath,
-                                  "artist": artist || "",
+                                  "artist": normalizeText(artist, "未知艺术家"),
                                   "duration": duration || "0:00",
                                   "cover": cover || "",
                                   "isPlaying": false
@@ -312,10 +357,14 @@ Rectangle {
         coverUrls = coverUrls || []
         artists = artists || []
         for (var i = 0; i < songNames.length; i++) {
+            var normalizedName = normalizeText(songNames[i], "")
+            if (normalizedName.length === 0) {
+                normalizedName = normalizeText(_baseNameFromPath(relativePaths[i]), "未知歌曲")
+            }
             musicListModel.append({
-                                      "songName": songNames[i],
+                                      "songName": normalizedName,
                                       "filePath": relativePaths[i],
-                                      "artist": artists[i] || "未知艺术家",
+                                      "artist": normalizeText(artists[i], "未知艺术家"),
                                       "duration": durations[i] || "0:00",
                                       "cover": coverUrls[i] || "",
                                       "isPlaying": false
@@ -396,7 +445,7 @@ Rectangle {
                 var item_next = musicListModel.get((i + 1) % musicListModel.count);
                 item.isPlaying = false
                 item_next.isPlaying = true
-                root.playRequested(item_next.filePath, item_next.artist || "未知艺术家", item_next.cover || "")
+                root.playRequested(item_next.filePath, root.displayArtist(item_next), item_next.cover || "")
                 break
             }
         }
@@ -408,7 +457,7 @@ Rectangle {
                 var item_last = musicListModel.get(i - 1 < 0 ? musicListModel.count - 1 : i  - 1);
                 item.isPlaying = false;
                 item_last.isPlaying = true;
-                root.playRequested(item_last.filePath, item_last.artist || "未知艺术家", item_last.cover || "")
+                root.playRequested(item_last.filePath, root.displayArtist(item_last), item_last.cover || "")
                 break;
             }
         }

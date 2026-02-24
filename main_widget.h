@@ -11,7 +11,7 @@
 #include "user_widget.h"
 #include "userwidget_qml.h"
 #include "main_menu.h"
-#include "httprequest.h"
+#include "httprequest_v2.h"
 #include "plugin_manager.h"
 #include "VideoPlayerWindow.h"
 #include "video_list_widget.h"
@@ -67,7 +67,7 @@ private:
     SettingsWidget* settingsWidget;    // 设置窗口
 
     QPushButton* Login;
-    HttpRequest* request;
+    HttpRequestV2* request;
     
     // 网络音乐元数据缓存（用于添加播放历史）
     QString m_networkMusicArtist;

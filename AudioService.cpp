@@ -91,16 +91,14 @@ bool AudioService::play(const QUrl& url)
     // 查找URL在播放历史中的索引
     int foundIndex = m_playlist.indexOf(url);
     if (foundIndex >= 0) {
-        // 已在历史中，移动到头部（避免重复）
-        m_playlist.removeAt(foundIndex);
-        m_playlist.prepend(url);
-        m_currentIndex = 0;
-        qDebug() << "AudioService: Moved from index" << foundIndex << "to top of playback history, total" << m_playlist.size();
+        m_currentIndex = foundIndex;
+        qDebug() << "AudioService: Using existing playlist index" << foundIndex
+                 << "total" << m_playlist.size();
     } else {
-        // 不在历史中，添加到历史列表头部（最新播放的在前面）
-        m_playlist.prepend(url);
-        m_currentIndex = 0;  // 当前索引总是0（最新的）
-        qDebug() << "AudioService: Added to playback history at top, total" << m_playlist.size();
+        m_playlist.append(url);
+        m_currentIndex = m_playlist.size() - 1;
+        qDebug() << "AudioService: Added to playlist tail at index" << m_currentIndex
+                 << "total" << m_playlist.size();
     }
     emit currentIndexChanged(m_currentIndex);
     
@@ -183,12 +181,7 @@ void AudioService::setPlaylist(const QList<QUrl>& urls)
 
 void AudioService::addToPlaylist(const QUrl& url)
 {
-    // 添加到头部，保持"最新在前"的顺序
-    m_playlist.prepend(url);
-    // 调整当前索引（所有现有歌曲的索引都+1）
-    if (m_currentIndex >= 0) {
-        m_currentIndex++;
-    }
+    m_playlist.append(url);
     emit playlistChanged();
 }
 

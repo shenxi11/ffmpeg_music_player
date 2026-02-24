@@ -15,6 +15,8 @@ PlayHistoryWidget::PlayHistoryWidget(QWidget *parent)
     if (root) {
         connect(root, SIGNAL(playMusic(QString)),
                 this, SIGNAL(playMusic(QString)));
+        connect(root, SIGNAL(playMusicWithMetadata(QString,QString,QString,QString)),
+                this, SIGNAL(playMusicWithMetadata(QString,QString,QString,QString)));
         connect(root, SIGNAL(deleteHistory(QVariant)),
                 this, SLOT(handleDeleteHistory(QVariant)));
         connect(root, SIGNAL(loginRequested()),
@@ -58,6 +60,19 @@ void PlayHistoryWidget::setCurrentPlayingPath(const QString& filePath)
     } else {
         qDebug() << "[PlayHistoryWidget] WARNING: root object is null!";
     }
+}
+
+void PlayHistoryWidget::setPlayingState(const QString& filePath, bool playing)
+{
+    QQuickItem* root = rootObject();
+    if (!root) {
+        qDebug() << "[PlayHistoryWidget] WARNING: root object is null when setting playing state";
+        return;
+    }
+
+    QMetaObject::invokeMethod(root, "setPlayingState",
+                              Q_ARG(QVariant, filePath),
+                              Q_ARG(QVariant, playing));
 }
 
 void PlayHistoryWidget::clearHistory()

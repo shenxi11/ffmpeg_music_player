@@ -19,10 +19,10 @@ Network::NetworkManager::NetworkManager(QObject* parent)
 {
     m_manager = new QNetworkAccessManager(this);
     
-    // 配置网络管理�?
+    // 配置网络管理
     m_manager->setTransferTimeout(m_globalTimeout);
     
-    // 启用HTTP/2（如果Qt版本支持�?
+    // 启用HTTP/2（如果Qt版本支持
 #if QT_VERSION >= QT_VERSION_CHECK(5, 9, 0)
     m_manager->setProperty("HTTP2Enabled", true);
 #endif
@@ -46,7 +46,7 @@ QString Network::NetworkManager::sendRequest(
     // 生成唯一请求ID
     QString requestId = QUuid::createUuid().toString(QUuid::WithoutBraces);
     
-    // 创建请求上下�?
+    // 创建请求上下
     auto context = std::make_shared<RequestContext>();
     context->requestId = requestId;
     context->url = url;
@@ -77,7 +77,7 @@ void Network::NetworkManager::executeRequest(std::shared_ptr<RequestContext> con
 {
     QNetworkRequest request = createRequest(context->url, context->options);
     
-    // 根据HTTP方法发送请�?
+    // 根据HTTP方法发送请
     QNetworkReply* reply = nullptr;
     
     switch (context->method) {
@@ -141,7 +141,7 @@ void Network::NetworkManager::executeRequest(std::shared_ptr<RequestContext> con
         });
     }
     
-    // 设置超时定时�?
+    // 设置超时定时
     int timeout = context->options.timeout > 0 ? context->options.timeout : m_globalTimeout;
     context->timeoutTimer = new QTimer();
     context->timeoutTimer->setSingleShot(true);
@@ -158,7 +158,7 @@ void Network::NetworkManager::handleReplyFinished(std::shared_ptr<RequestContext
         return;
     }
     
-    // 停止超时定时�?
+    // 停止超时定时
     if (context->timeoutTimer) {
         context->timeoutTimer->stop();
         context->timeoutTimer->deleteLater();
@@ -176,7 +176,7 @@ void Network::NetworkManager::handleReplyFinished(std::shared_ptr<RequestContext
     response.errorString = reply->errorString();
     response.elapsedMs = context->elapsedTimer->elapsed();
     
-    // 获取响应�?
+    // 获取响应
     const auto headerList = reply->rawHeaderPairs();
     for (const auto& pair : headerList) {
         response.headers[QString::fromUtf8(pair.first)] = QString::fromUtf8(pair.second);
@@ -188,7 +188,7 @@ void Network::NetworkManager::handleReplyFinished(std::shared_ptr<RequestContext
              << "Size:" << response.body.size() << "bytes"
              << "Retry:" << context->currentRetry;
     
-    // 检查是否需要重�?
+    // 检查是否需要重
     if (response.error != QNetworkReply::NoError && 
         context->currentRetry < context->options.maxRetries) {
         
@@ -235,7 +235,7 @@ void Network::NetworkManager::handleTimeout(std::shared_ptr<RequestContext> cont
         context->reply->abort();
     }
     
-    // 检查是否需要重�?
+    // 检查是否需要重
     if (context->currentRetry < context->options.maxRetries) {
         qDebug() << "[NetworkManager] Timeout, will retry:" << context->requestId
                  << "Retry" << (context->currentRetry + 1) << "of" << context->options.maxRetries;
@@ -275,7 +275,7 @@ void Network::NetworkManager::retryRequest(std::shared_ptr<RequestContext> conte
     
     qDebug() << "[NetworkManager] Retrying request in" << delay << "ms:" << context->requestId;
     
-    // 使用定时器延迟重�?
+    // 使用定时器延迟重
     QTimer::singleShot(delay, this, [this, context]() {
         context->elapsedTimer->restart();
         executeRequest(context);
@@ -291,7 +291,7 @@ int Network::NetworkManager::calculateRetryDelay(int retry, const RequestOptions
     // 指数退避：delay * (2 ^ retry)
     int delay = options.retryDelay * (1 << retry);
     
-    // 限制最大延迟为30�?
+    // 限制最大延迟为30
     return qMin(delay, 30000);
 }
 
@@ -389,7 +389,7 @@ QNetworkRequest Network::NetworkManager::createRequest(const QString& url, const
     QUrl qurl(url);
     QNetworkRequest request(qurl);
     
-    // 设置默认请求�?
+    // 设置默认请求
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     request.setRawHeader("Connection", "keep-alive");
     request.setRawHeader("Keep-Alive", "timeout=300, max=1000");
@@ -405,7 +405,7 @@ QNetworkRequest Network::NetworkManager::createRequest(const QString& url, const
         request.setRawHeader(it.key().toUtf8(), it.value().toUtf8());
     }
     
-    // 重定向策�?
+    // 重定向策
     if (options.followRedirects) {
         request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, 
                            QNetworkRequest::NoLessSafeRedirectPolicy);

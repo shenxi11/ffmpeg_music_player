@@ -84,6 +84,7 @@ Item {
     
     // 播放控制函数
     function setPlayState(state) {
+        console.log("[ProcessSlider.qml] setPlayState called, state:", state, "old playState:", root.playState)
         root.playState = state
     }
     

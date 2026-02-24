@@ -83,6 +83,26 @@ public:
     void getPlayHistory(const QString& userAccount, int limit = 50);
     
     /**
+     * @brief 搜索音乐
+     * @param keyword 搜索关键字（标题、歌手、专辑等）
+     */
+    void getMusic(const QString& keyword);
+    
+    /**
+     * @brief 删除喜欢音乐
+     * @param userAccount 用户账号
+     * @param paths 音乐路径列表
+     */
+    void removeFavorite(const QString& userAccount, const QStringList& paths);
+    
+    /**
+     * @brief 删除播放历史
+     * @param userAccount 用户账号
+     * @param paths 音乐路径列表
+     */
+    void removePlayHistory(const QString& userAccount, const QStringList& paths);
+    
+    /**
      * @brief 获取视频列表
      */
     void getVideoList();
@@ -102,6 +122,28 @@ public:
      */
     void getMusicByArtist(const QString& artist);
     
+    /**
+     * @brief 获取音乐流数据（兼容旧API）
+     * @param fileName 文件名
+     */
+    void getMusicData(const QString& fileName);
+    void get_music_data(const QString& fileName) { getMusicData(fileName); } // 别名，兼容旧代码
+    
+    /**
+     * @brief 添加音乐到用户列表
+     * @param musicPath 音乐路径
+     */
+    void addMusic(const QString& musicPath);
+    void AddMusic(const QString& musicPath) { addMusic(musicPath); } // 别名，兼容旧代码
+    
+    /**
+     * @brief 下载（兼容旧API）
+     */
+    void Download(const QString& filename, const QString& downloadFolder, 
+                 bool downloadLyrics = true, const QString& coverUrl = QString()) {
+        downloadFile(filename, downloadFolder, downloadLyrics, coverUrl);
+    }
+    
 signals:
     // 与原HttpRequest保持兼容的信号
     void signal_Loginflag(bool flag);
@@ -115,8 +157,11 @@ signals:
     void signal_artistMusicList(const QList<Music>& musicList, const QString& artist);
     void signal_addFavoriteResult(bool success);
     void signal_favoritesList(const QVariantList& favorites);
+    void signal_removeFavoriteResult(bool success);
     void signal_addHistoryResult(bool success);
     void signal_historyList(const QVariantList& history);
+    void signal_removeHistoryResult(bool success);
+    void signal_streamurl(bool flag, QString url);  // 音乐流URL信号
     
 private:
     Network::NetworkService& m_networkService;

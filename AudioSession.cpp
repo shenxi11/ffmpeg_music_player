@@ -1,5 +1,6 @@
 #include "AudioSession.h"
 #include <chrono>
+#include <QFileInfo>
 
 AudioSession::AudioSession(const QString& sessionId, QObject* parent)
     : QObject(parent),
@@ -47,9 +48,29 @@ AudioSession::~AudioSession()
 bool AudioSession::loadSource(const QUrl& url)
 {
     auto t0 = std::chrono::high_resolution_clock::now();
-    
+
     m_sourceUrl = url;
-    
+
+    // 从URL提取歌曲名称
+    QString filePath;
+    if (url.isLocalFile()) {
+        filePath = url.toLocalFile();
+    } else {
+        filePath = url.toString();
+    }
+
+    // 提取文件名作为标题（去除扩展名）
+    QFileInfo fileInfo(filePath);
+    m_title = fileInfo.completeBaseName();  // 不包含扩展名的文件名
+    if (m_title.isEmpty()) {
+        m_title = fileInfo.fileName();  // 如果completeBaseName为空，使用完整文件名
+    }
+
+    // 艺术家默认为空，后续可以从元数据中提取
+    m_artist = "";
+
+    qDebug() << "AudioSession: Extracted title from URL:" << m_title;
+
     bool result = false;
     if (url.isLocalFile()) {
         // 本地文件
@@ -61,12 +82,31 @@ bool AudioSession::loadSource(const QUrl& url)
     } else {
         qDebug() << "AudioSession: Unsupported URL scheme:" << url.scheme();
     }
-    
+
+    // 同步获取解码器提取的元数据（标题和艺术家）
+    // 这样可以确保在 playbackStarted 信号发出时，元数据已经可用
+    if (result) {
+        QString extractedTitle = m_decoder->extractedTitle();
+        QString extractedArtist = m_decoder->extractedArtist();
+
+        // 如果从文件元数据中提取到了标题，则使用它
+        if (!extractedTitle.isEmpty()) {
+            m_title = extractedTitle;
+            qDebug() << "AudioSession: Using title from file metadata:" << m_title;
+        }
+
+        // 如果从文件元数据中提取到了艺术家，则使用它
+        if (!extractedArtist.isEmpty()) {
+            m_artist = extractedArtist;
+            qDebug() << "AudioSession: Using artist from file metadata:" << m_artist;
+        }
+    }
+
     auto t1 = std::chrono::high_resolution_clock::now();
-    qDebug() << "[TIMING] AudioSession::loadSource (initDecoder):" 
+    qDebug() << "[TIMING] AudioSession::loadSource (initDecoder):"
              << std::chrono::duration<double, std::milli>(t1 - t0).count() << "ms"
              << "result:" << result;
-    
+
     return result;
 }
 
@@ -81,6 +121,9 @@ void AudioSession::play()
     
     // 注意：resetBuffer由AudioService在switchToSession中调用
     // 这里不再调用，避免时序问题
+
+    // 声明当前会话为共享AudioPlayer的写入者，防止与视频会话串流
+    m_player->setWriteOwner(m_sessionId);
     
     // 先启动解码器预填充缓冲区，但不立即播放
     m_decoder->startDecode();
@@ -104,6 +147,9 @@ void AudioSession::pause()
 
 void AudioSession::resume()
 {
+    // 恢复时重新声明写入所有权
+    m_player->setWriteOwner(m_sessionId);
+
     // 恢复解码
     m_decoder->startDecode();
     // 恢复播放
@@ -115,6 +161,7 @@ void AudioSession::stop()
 {
     m_decoder->stopDecode();
     m_player->stop();
+    m_player->clearWriteOwner(m_sessionId);
     m_active = false;
     emit sessionStopped();
 }
@@ -215,7 +262,7 @@ void AudioSession::onDecodedData(const QByteArray& data, qint64 timestampMs)
     }
     
     // 将解码数据传递给播放器
-    m_player->writeAudioData(data, timestampMs);
+    m_player->writeAudioData(data, timestampMs, m_sessionId);
     
     // 如果正在缓冲，检查是否可以开始播放
     // 初始播放需要 40% 即可开始（网络音频需要更多缓冲），中途缓冲需要 85% 才恢复
@@ -242,6 +289,23 @@ void AudioSession::onMetadataReady(qint64 durationMs, int sampleRate, int channe
     m_duration = durationMs;
     emit durationChanged(durationMs);
     emit metadataReady(m_title, m_artist, durationMs);
+}
+
+void AudioSession::onAudioTagsReady(const QString& title, const QString& artist)
+{
+    // 如果从文件元数据中提取到了标题和艺术家，则使用它们
+    // 否则保留从URL提取的标题
+    if (!title.isEmpty()) {
+        m_title = title;
+        qDebug() << "AudioSession: Using title from file metadata:" << m_title;
+    }
+    if (!artist.isEmpty()) {
+        m_artist = artist;
+        qDebug() << "AudioSession: Using artist from file metadata:" << m_artist;
+    }
+
+    // 重新发送元数据信号，因为标题和艺术家可能已更新
+    emit metadataReady(m_title, m_artist, m_duration);
 }
 
 void AudioSession::onAlbumArtReady(const QString& imagePath)
@@ -393,6 +457,7 @@ void AudioSession::connectSignals()
     // 连接解码器信号 - 显式使用Qt::QueuedConnection，因为AudioDecoder在std::thread中emit
     connect(m_decoder, &AudioDecoder::decodedData, this, &AudioSession::onDecodedData, Qt::QueuedConnection);
     connect(m_decoder, &AudioDecoder::metadataReady, this, &AudioSession::onMetadataReady, Qt::QueuedConnection);
+    connect(m_decoder, &AudioDecoder::audioTagsReady, this, &AudioSession::onAudioTagsReady, Qt::QueuedConnection);
     connect(m_decoder, &AudioDecoder::albumArtReady, this, &AudioSession::onAlbumArtReady, Qt::QueuedConnection);
     connect(m_decoder, &AudioDecoder::decodeError, this, &AudioSession::onDecodeError, Qt::QueuedConnection);
     connect(m_decoder, &AudioDecoder::decodeCompleted, this, &AudioSession::onDecodeCompleted, Qt::QueuedConnection);

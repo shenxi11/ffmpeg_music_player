@@ -120,6 +120,7 @@ public:
     void setState(State state) {
         QQuickItem* root = rootObject();
         if (root) {
+            qDebug() << "[ProcessSliderQml] setState called with state:" << state;
             QMetaObject::invokeMethod(root, "setPlayState", Q_ARG(QVariant, static_cast<int>(state)));
         }
     }

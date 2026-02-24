@@ -65,12 +65,34 @@ public:
         }
     }
     
+    // 设置当前播放路径
+    void setCurrentPlayingPath(const QString& path)
+    {
+        QQuickItem* root = rootObject();
+        if (root) {
+            qDebug() << "[PlaylistHistory] setCurrentPlayingPath:" << path;
+            root->setProperty("currentPlayingPath", path);
+        }
+    }
+    
     // 设置暂停状态
     void setPaused(bool paused)
     {
         QQuickItem* root = rootObject();
         if (root) {
+            qDebug() << "[PlaylistHistory] setPaused:" << paused;
             root->setProperty("isPaused", paused);
+        }
+    }
+    
+    // 同步播放状态（组合更新）
+    void updatePlayingState(const QString& currentPath, bool isPlaying)
+    {
+        QQuickItem* root = rootObject();
+        if (root) {
+            qDebug() << "[PlaylistHistory] updatePlayingState - path:" << currentPath << "isPlaying:" << isPlaying;
+            root->setProperty("currentPlayingPath", currentPath);
+            root->setProperty("isPaused", !isPlaying);
         }
     }
     

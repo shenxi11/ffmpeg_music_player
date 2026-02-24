@@ -1,17 +1,17 @@
-22:27:27: Starting E:\FFmpeg_whisper\ffmpeg_music_player_build\Debug\ffmpeg_music_player.exe...
-[2026-02-04 22:27:29.847] [DEBUG] Logger initialized. Log file: "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/debug.log"
+20:19:44: Starting E:\FFmpeg_whisper\ffmpeg_music_player_build\Debug\ffmpeg_music_player.exe...
+[2026-02-24 20:19:46.774] [DEBUG] Logger initialized. Log file: "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/debug.log"
 
-[2026-02-04 22:27:29.848] [DEBUG] =========================================
+[2026-02-24 20:19:46.774] [DEBUG] =========================================
 
-[2026-02-04 22:27:29.848] [DEBUG] FFmpeg Music Player Starting...
+[2026-02-24 20:19:46.774] [DEBUG] FFmpeg Music Player Starting...
 
-[2026-02-04 22:27:29.848] [DEBUG] Log file: "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/debug.log"
+[2026-02-24 20:19:46.774] [DEBUG] Log file: "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/debug.log"
 
-[2026-02-04 22:27:29.848] [DEBUG] DLL search path (resource): "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/resource"
+[2026-02-24 20:19:46.774] [DEBUG] DLL search path (resource): "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/resource"
 
-[2026-02-04 22:27:29.849] [DEBUG] Resource directory exists: true
+[2026-02-24 20:19:46.775] [DEBUG] Resource directory exists: true
 
-[2026-02-04 22:27:29.849] [DEBUG] =========================================
+[2026-02-24 20:19:46.775] [DEBUG] =========================================
 
 Loading plugins from: "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/plugin"
 PluginManager initialized
@@ -52,9 +52,15 @@ UserWidgetQml: Popup window loaded
 UserWidgetQml: Popup window signals connected
 UserWidgetQml: Initialization complete
 LoginWidgetQml: Initializing...
+[NetworkManager] Initialized with HTTP/2 support
+[NetworkService] Initialized
+[NetworkService] Base URL set to: "http://slcdut.xyz:8080/"
+[HttpRequestV2] Initialized with new network layer
 LoginWidgetQml: QML loaded successfully
 LoginWidgetQml: Initialization complete
-[DownloadManager] Initialized with max concurrent: 3
+[NetworkService] Base URL set to: "http://slcdut.xyz:8080/"
+[HttpRequestV2] Initialized with new network layer
+[DownloadManager] Initialized with thread pool, max threads: 3
 [DownloadManager] Loaded 14 tasks
 [LocalMusicCache] Initialized with 1 songs
 [LocalAndDownloadWidget] Initializing...
@@ -70,6 +76,8 @@ LoginWidgetQml: Initialization complete
 [LocalAndDownloadWidget] Root object loaded successfully
 [LocalAndDownloadWidget] Signals connected
 [LocalAndDownloadWidget] Initialized successfully
+[NetworkService] Base URL set to: "http://slcdut.xyz:8080/"
+[HttpRequestV2] Initialized with new network layer
 PlayHistoryWidget: Created
 PlayHistoryWidget: Signals connected
 FavoriteMusicWidget: Created
@@ -81,21 +89,21 @@ AudioPlayer: Audio device OPENED and ready (hot state)
   Channels: 2
   Buffer Size: 65536
   Device will remain open until destruction
-AudioPlayer created in thread: 0x4eb0
+AudioPlayer created in thread: 0x7478
 AudioPlayer: Playback thread started and ready
 AudioPlayer: Audio device is HOT and ready (no startup delay)
 AudioService: AudioPlayer ready, all songs will have ZERO startup delay
-AudioPlayer: Playback thread started: 0x7ca4
 [MVVM] PlaybackViewModel: Initializing and connecting to AudioService
 [MVVM] PlaybackViewModel: All signals connected successfully
-[MVVM] PlayWidget: Initializing with PlaybackViewModel
+[MVVM-UI] PlayWidget: Initializing with ViewModel-only architecture
+AudioPlayer: Playback thread started: 0x8b8c
 ProcessSliderQml: Loading QML from qrc:/qml/components/ProcessSlider.qml
-  QML source set in 77 ms
-  Resize mode set in 77 ms
-ProcessSliderQml: QML loaded successfully in 78 ms
+  QML source set in 69 ms
+  Resize mode set in 69 ms
+ProcessSliderQml: QML loaded successfully in 69 ms
 ProcessSliderQml: Root object found, connecting signals...
-ProcessSliderQml: All signals connected in 78 ms (total)
-ProcessSliderQml: Constructor completed in 78 ms (total)
+ProcessSliderQml: All signals connected in 69 ms (total)
+ProcessSliderQml: Constructor completed in 69 ms (total)
 ProcessSliderQml created at position: QPoint(0,490) size: QSize(1000, 70) visible: false
 qrc:/qml/components/DeskLyric.qml:292:17: QML Rectangle: Detected anchors on an item that is managed by a layout. This is undefined behavior; use Layout.alignment instead.
 qrc:/qml/components/DeskLyric.qml:292:17: QML Rectangle: Detected anchors on an item that is managed by a layout. This is undefined behavior; use Layout.alignment instead.
@@ -103,95 +111,575 @@ DeskLyric.qml loaded successfully
 DeskLrcQml: QML signals connected
 PlaylistHistoryQml: Created, root object: true
 PlaylistHistoryQml: Signals connected
-AudioService initialized: AudioService(0x7ff6b6bd04b0)
+[NetworkService] Base URL set to: "http://slcdut.xyz:8080/"
+[HttpRequestV2] Initialized with new network layer
+[MVVM-UI] AudioService initialized
 Initializing LyricDisplay...
 LyricDisplay.qml loaded successfully
 LyricDisplay initialized, size: QSize(550, 350) position: QPoint(400,100)
-[MVVM] Connecting PlaybackViewModel signals to UI...
-[MVVM] PlaybackViewModel signals connected successfully
+[MVVM-UI] Connecting ViewModel signals to UI...
+[MVVM-UI] ViewModel signals connected successfully
 [MainWidget] PlayWidget created successfully
 [MainWidget] Creating VideoListWidget...
+[NetworkService] Base URL set to: "http://slcdut.xyz:8080/"
+[HttpRequestV2] Initialized with new network layer
 [MainWidget] VideoListWidget created successfully
-[MainWidget] Search keyword: "周杰伦"
-[HttpRequest] Searching music with keyword: "周杰伦"
-Response data from server: "[{\"path\":\"\xE6\x96\xAD\xE4\xBA\x86\xE7\x9A\x84\xE5\xBC\xA6/\xE6\x96\xAD\xE4\xBA\x86\xE7\x9A\x84\xE5\xBC\xA6.mp3\",\"duration\":\"297.56 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE6\x96\xAD\xE4\xBA\x86\xE7\x9A\x84\xE5\xBC\xA6/\xE6\x96\xAD\xE4\xBA\x86\xE7\x9A\x84\xE5\xBC\xA6_cover.png\"},{\"path\":\"\xE5\x91\x8A\xE7\x99\xBD\xE6\xB0\x94\xE7\x90\x83/\xE5\x91\x8A\xE7\x99\xBD\xE6\xB0\x94\xE7\x90\x83.mp3\",\"duration\":\"215.64 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE5\x91\x8A\xE7\x99\xBD\xE6\xB0\x94\xE7\x90\x83/\xE5\x91\x8A\xE7\x99\xBD\xE6\xB0\x94\xE7\x90\x83_cover.png\"},{\"path\":\"\xE8\xBD\xA8\xE8\xBF\xB9/\xE8\xBD\xA8\xE8\xBF\xB9.mp3\",\"duration\":\"326.90 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE8\xBD\xA8\xE8\xBF\xB9/\xE8\xBD\xA8\xE8\xBF\xB9_cover.png\"},{\"path\":\"\xE7\x88\xB1\xE6\x83\x85\xE5\xBA\x9F\xE6\x9F\xB4/\xE7\x88\xB1\xE6\x83\x85\xE5\xBA\x9F\xE6\x9F\xB4.mp3\",\"duration\":\"285.65 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE7\x88\xB1\xE6\x83\x85\xE5\xBA\x9F\xE6\x9F\xB4/\xE7\x88\xB1\xE6\x83\x85\xE5\xBA\x9F\xE6\x9F\xB4_cover.png\"},{\"path\":\"\xE5\xBA\x8A\xE8\xBE\xB9\xE6\x95\x85\xE4\xBA\x8B/\xE5\xBA\x8A\xE8\xBE\xB9\xE6\x95\x85\xE4\xBA\x8B.mp3\",\"duration\":\"226.25 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE5\xBA\x8A\xE8\xBE\xB9\xE6\x95\x85\xE4\xBA\x8B/\xE5\xBA\x8A\xE8\xBE\xB9\xE6\x95\x85\xE4\xBA\x8B_cover.png\"},{\"path\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\\u0026\xE6\x9E\x97\xE4\xBF\x8A\xE6\x9D\xB0-\xE6\x99\xB4\xE5\xA4\xA9+\xE5\xAE\x89\xE9\x9D\x99+\xE4\xBF\xAE\xE7\x82\xBC\xE7\x88\xB1\xE6\x83\x85+\xE6\x9C\x80\xE9\x95\xBF\xE7\x9A\x84\xE7\x94\xB5\xE5\xBD\xB1 (2017\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\xE5\x9C\xB0\xE8\xA1\xA8\xE6\x9C\x80\xE5\xBC\xBA\xE6\xBC\x94\xE5\x94\xB1\xE4\xBC\x9A\xE5\x8F\xB0\xE5\x8C\x97\xE7\xAB\x99)/\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\\u0026\xE6\x9E\x97\xE4\xBF\x8A\xE6\x9D\xB0-\xE6\x99\xB4\xE5\xA4\xA9+\xE5\xAE\x89\xE9\x9D\x99+\xE4\xBF\xAE\xE7\x82\xBC\xE7\x88\xB1\xE6\x83\x85+\xE6\x9C\x80\xE9\x95\xBF\xE7\x9A\x84\xE7\x94\xB5\xE5\xBD\xB1 (2017\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\xE5\x9C\xB0\xE8\xA1\xA8\xE6\x9C\x80\xE5\xBC\xBA\xE6\xBC\x94\xE5\x94\xB1\xE4\xBC\x9A\xE5\x8F\xB0\xE5\x8C\x97\xE7\xAB\x99).mp3\",\"duration\":\"268.25 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\\u0026\xE6\x9E\x97\xE4\xBF\x8A\xE6\x9D\xB0\"},{\"path\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\\u0026\xE6\x9E\x97\xE4\xBF\x8A\xE6\x9D\xB0-\xE6\x99\xB4\xE5\xA4\xA9 (2017\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\xE5\x9C\xB0\xE8\xA1\xA8\xE6\x9C\x80\xE5\xBC\xBA\xE6\xBC\x94\xE5\x94\xB1\xE4\xBC\x9A\xE5\x8F\xB0\xE5\x8C\x97\xE7\xAB\x99)/\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\\u0026\xE6\x9E\x97\xE4\xBF\x8A\xE6\x9D\xB0-\xE6\x99\xB4\xE5\xA4\xA9 (2017\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\xE5\x9C\xB0\xE8\xA1\xA8\xE6\x9C\x80\xE5\xBC\xBA\xE6\xBC\x94\xE5\x94\xB1\xE4\xBC\x9A\xE5\x8F\xB0\xE5\x8C\x97\xE7\xAB\x99).mp3\",\"duration\":\"239.23 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\\u0026\xE6\x9E\x97\xE4\xBF\x8A\xE6\x9D\xB0\"},{\"path\":\"\xE5\x8F\x91\xE5\xA6\x82\xE9\x9B\xAA/\xE5\x8F\x91\xE5\xA6\x82\xE9\x9B\xAA.mp3\",\"duration\":\"299.28 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE5\x8F\x91\xE5\xA6\x82\xE9\x9B\xAA/\xE5\x8F\x91\xE5\xA6\x82\xE9\x9B\xAA_cover.png\"},{\"path\":\"\xE7\x88\xB1\xE5\x9C\xA8\xE8\xA5\xBF\xE5\x85\x83\xE5\x89\x8D/\xE7\x88\xB1\xE5\x9C\xA8\xE8\xA5\xBF\xE5\x85\x83\xE5\x89\x8D.mp3\",\"duration\":\"234.29 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE7\x88\xB1\xE5\x9C\xA8\xE8\xA5\xBF\xE5\x85\x83\xE5\x89\x8D/\xE7\x88\xB1\xE5\x9C\xA8\xE8\xA5\xBF\xE5\x85\x83\xE5\x89\x8D_cover.png\"},{\"path\":\"\xE8\x8A\xB1\xE6\xB5\xB7/\xE8\x8A\xB1\xE6\xB5\xB7.mp3\",\"duration\":\"264.65 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE8\x8A\xB1\xE6\xB5\xB7/\xE8\x8A\xB1\xE6\xB5\xB7_cover.png\"},{\"path\":\"\xE6\x9C\xAC\xE8\x8D\x89\xE7\xBA\xB2\xE7\x9B\xAE/\xE6\x9C\xAC\xE8\x8D\x89\xE7\xBA\xB2\xE7\x9B\xAE.mp3\",\"duration\":\"206.89 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE6\x9C\xAC\xE8\x8D\x89\xE7\xBA\xB2\xE7\x9B\xAE/\xE6\x9C\xAC\xE8\x8D\x89\xE7\xBA\xB2\xE7\x9B\xAE_cover.png\"},{\"path\":\"\xE7\x99\xBD\xE8\x89\xB2\xE9\xA3\x8E\xE8\xBD\xA6/\xE7\x99\xBD\xE8\x89\xB2\xE9\xA3\x8E\xE8\xBD\xA6.mp3\",\"duration\":\"270.24 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE7\x99\xBD\xE8\x89\xB2\xE9\xA3\x8E\xE8\xBD\xA6/\xE7\x99\xBD\xE8\x89\xB2\xE9\xA3\x8E\xE8\xBD\xA6_cover.png\"},{\"path\":\"\xE7\xBB\x99\xE6\x88\x91\xE4\xB8\x80\xE9\xA6\x96\xE6\xAD\x8C\xE7\x9A\x84\xE6\x97\xB6\xE9\x97\xB4/\xE7\xBB\x99\xE6\x88\x91\xE4\xB8\x80\xE9\xA6\x96\xE6\xAD\x8C\xE7\x9A\x84\xE6\x97\xB6\xE9\x97\xB4.mp3\",\"duration\":\"253.60 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE7\xBB\x99\xE6\x88\x91\xE4\xB8\x80\xE9\xA6\x96\xE6\xAD\x8C\xE7\x9A\x84\xE6\x97\xB6\xE9\x97\xB4/\xE7\xBB\x99\xE6\x88\x91\xE4\xB8\x80\xE9\xA6\x96\xE6\xAD\x8C\xE7\x9A\x84\xE6\x97\xB6\xE9\x97\xB4_cover.png\"},{\"path\":\"\xE4\xB8\x9C\xE9\xA3\x8E\xE7\xA0\xB4/\xE4\xB8\x9C\xE9\xA3\x8E\xE7\xA0\xB4.mp3\",\"duration\":\"315.45 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE4\xB8\x9C\xE9\xA3\x8E\xE7\xA0\xB4/\xE4\xB8\x9C\xE9\xA3\x8E\xE7\xA0\xB4_cover.png\"},{\"path\":\"\xE6\x90\x81\xE6\xB5\x85/\xE6\x90\x81\xE6\xB5\x85.mp3\",\"duration\":\"238.18 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE6\x90\x81\xE6\xB5\x85/\xE6\x90\x81\xE6\xB5\x85_cover.png\"},{\"path\":\"\xE5\xBD\xA9\xE8\x99\xB9/\xE5\xBD\xA9\xE8\x99\xB9.mp3\",\"duration\":\"261.96 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE5\xBD\xA9\xE8\x99\xB9/\xE5\xBD\xA9\xE8\x99\xB9_cover.png\"},{\"path\":\"\xE6\x9E\xAB/\xE6\x9E\xAB.mp3\",\"duration\":\"277.05 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE6\x9E\xAB/\xE6\x9E\xAB_cover.png\"},{\"path\":\"\xE6\x9A\x97\xE5\x8F\xB7/\xE6\x9A\x97\xE5\x8F\xB7.mp3\",\"duration\":\"271.80 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE6\x9A\x97\xE5\x8F\xB7/\xE6\x9A\x97\xE5\x8F\xB7_cover.png\"},{\"path\":\"\xE5\xAE\x89\xE9\x9D\x99/\xE5\xAE\x89\xE9\x9D\x99.mp3\",\"duration\":\"334.26 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE5\xAE\x89\xE9\x9D\x99/\xE5\xAE\x89\xE9\x9D\x99_cover.png\"},{\"path\":\"\xE7\xAD\x89\xE4\xBD\xA0\xE4\xB8\x8B\xE8\xAF\xBE (with \xE6\x9D\xA8\xE7\x91\x9E\xE4\xBB\xA3)/\xE7\xAD\x89\xE4\xBD\xA0\xE4\xB8\x8B\xE8\xAF\xBE (with \xE6\x9D\xA8\xE7\x91\x9E\xE4\xBB\xA3).mp3\",\"duration\":\"270.03 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE7\xAD\x89\xE4\xBD\xA0\xE4\xB8\x8B\xE8\xAF\xBE (with \xE6\x9D\xA8\xE7\x91\x9E\xE4\xBB\xA3)/\xE7\xAD\x89\xE4\xBD\xA0\xE4\xB8\x8B\xE8\xAF\xBE (with \xE6\x9D\xA8\xE7\x91\x9E\xE4\xBB\xA3)_cover.png\"},{\"path\":\"\xE5\x8D\x8A\xE5\x85\xBD\xE4\xBA\xBA/\xE5\x8D\x8A\xE5\x85\xBD\xE4\xBA\xBA.mp3\",\"duration\":\"247.43 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE5\x8D\x8A\xE5\x85\xBD\xE4\xBA\xBA/\xE5\x8D\x8A\xE5\x85\xBD\xE4\xBA\xBA_cover.png\"},{\"path\":\"\xE7\xA8\xBB\xE9\xA6\x99/\xE7\xA8\xBB\xE9\xA6\x99.mp3\",\"duration\":\"223.50 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE7\xA8\xBB\xE9\xA6\x99/\xE7\xA8\xBB\xE9\xA6\x99_cover.png\"},{\"path\":\"\xE7\xBA\xA2\xE5\xB0\x98\xE5\xAE\xA2\xE6\xA0\x88/\xE7\xBA\xA2\xE5\xB0\x98\xE5\xAE\xA2\xE6\xA0\x88.mp3\",\"duration\":\"275.64 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE7\xBA\xA2\xE5\xB0\x98\xE5\xAE\xA2\xE6\xA0\x88/\xE7\xBA\xA2\xE5\xB0\x98\xE5\xAE\xA2\xE6\xA0\x88_cover.png\"},{\"path\":\"\xE4\xB8\x8D\xE7\x88\xB1\xE6\x88\x91\xE5\xB0\xB1\xE6\x8B\x89\xE5\x80\x92/\xE4\xB8\x8D\xE7\x88\xB1\xE6\x88\x91\xE5\xB0\xB1\xE6\x8B\x89\xE5\x80\x92.mp3\",\"duration\":\"245.89 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE4\xB8\x8D\xE7\x88\xB1\xE6\x88\x91\xE5\xB0\xB1\xE6\x8B\x89\xE5\x80\x92/\xE4\xB8\x8D\xE7\x88\xB1\xE6\x88\x91\xE5\xB0\xB1\xE6\x8B\x89\xE5\x80\x92_cover.png\"},{\"path\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6 - \xE4\xB8\x83\xE9\x87\x8C\xE9\xA6\x99_EM/\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6 - \xE4\xB8\x83\xE9\x87\x8C\xE9\xA6\x99_EM.flac\",\"duration\":\"299.20 seconds\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6 - \xE4\xB8\x83\xE9\x87\x8C\xE9\xA6\x99_EM/\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6 - \xE4\xB8\x83\xE9\x87\x8C\xE9\xA6\x99_EM_cover.png\"},{\"path\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\\u0026\xE6\x9E\x97\xE4\xBF\x8A\xE6\x9D\xB0-Stay With You (50\xE7\xA7\x92Live\xE7\x89\x87\xE6\xAE\xB5)/\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\\u0026\xE6\x9E\x97\xE4\xBF\x8A\xE6\x9D\xB0-Stay With You (50\xE7\xA7\x92Live\xE7\x89\x87\xE6\xAE\xB5).mp3\",\"duration\":\"50.08 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\\u0026\xE6\x9E\x97\xE4\xBF\x8A\xE6\x9D\xB0\"},{\"path\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\\u0026\xE6\x9E\x97\xE4\xBF\x8A\xE6\x9D\xB0-\xE4\xBF\xAE\xE7\x82\xBC\xE7\x88\xB1\xE6\x83\x85+\xE6\x9C\x80\xE9\x95\xBF\xE7\x9A\x84\xE7\x94\xB5\xE5\xBD\xB1 (2017\xE5\x9C\xB0\xE8\xA1\xA8\xE6\x9C\x80\xE5\xBC\xBA\xE6\xBC\x94\xE5\x94\xB1\xE4\xBC\x9A\xE5\x8F\xB0\xE5\x8C\x97\xE7\xAB\x99)/\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\\u0026\xE6\x9E\x97\xE4\xBF\x8A\xE6\x9D\xB0-\xE4\xBF\xAE\xE7\x82\xBC\xE7\x88\xB1\xE6\x83\x85+\xE6\x9C\x80\xE9\x95\xBF\xE7\x9A\x84\xE7\x94\xB5\xE5\xBD\xB1 (2017\xE5\x9C\xB0\xE8\xA1\xA8\xE6\x9C\x80\xE5\xBC\xBA\xE6\xBC\x94\xE5\x94\xB1\xE4\xBC\x9A\xE5\x8F\xB0\xE5\x8C\x97\xE7\xAB\x99).mp3\",\"duration\":\"200.62 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\\u0026\xE6\x9E\x97\xE4\xBF\x8A\xE6\x9D\xB0\"},{\"path\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\\u0026\xE6\x9E\x97\xE4\xBF\x8A\xE6\x9D\xB0-\xE7\xAE\x97\xE4\xBB\x80\xE4\xB9\x88\xE7\x94\xB7\xE4\xBA\xBA (Live)/\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\\u0026\xE6\x9E\x97\xE4\xBF\x8A\xE6\x9D\xB0-\xE7\xAE\x97\xE4\xBB\x80\xE4\xB9\x88\xE7\x94\xB7\xE4\xBA\xBA (Live).mp3\",\"duration\":\"285.52 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\\u0026\xE6\x9E\x97\xE4\xBF\x8A\xE6\x9D\xB0\"},{\"path\":\"\xE8\xB4\xB9\xE7\x8E\x89\xE6\xB8\x85-\xE5\x8D\x83\xE9\x87\x8C\xE4\xB9\x8B\xE5\xA4\x96/\xE8\xB4\xB9\xE7\x8E\x89\xE6\xB8\x85-\xE5\x8D\x83\xE9\x87\x8C\xE4\xB9\x8B\xE5\xA4\x96.mp3\",\"duration\":\"254.28 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\\u0026\xE8\xB4\xB9\xE7\x8E\x89\xE6\xB8\x85\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE8\xB4\xB9\xE7\x8E\x89\xE6\xB8\x85-\xE5\x8D\x83\xE9\x87\x8C\xE4\xB9\x8B\xE5\xA4\x96/\xE8\xB4\xB9\xE7\x8E\x89\xE6\xB8\x85-\xE5\x8D\x83\xE9\x87\x8C\xE4\xB9\x8B\xE5\xA4\x96_cover.png\"},{\"path\":\"\xE5\x8D\x83\xE9\x87\x8C\xE4\xB9\x8B\xE5\xA4\x96/\xE5\x8D\x83\xE9\x87\x8C\xE4\xB9\x8B\xE5\xA4\x96.mp3\",\"duration\":\"254.28 seconds\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\\u0026\xE8\xB4\xB9\xE7\x8E\x89\xE6\xB8\x85\",\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE5\x8D\x83\xE9\x87\x8C\xE4\xB9\x8B\xE5\xA4\x96/\xE5\x8D\x83\xE9\x87\x8C\xE4\xB9\x8B\xE5\xA4\x96_cover.png\"}]\n"
-Music files and durations received from server:
-File Path: "断了的弦/断了的弦.mp3" , Duration: 297.56 , Cover: "http://slcdut.xyz:8080/uploads/断了的弦/断了的弦_cover.png" , Artist: "周杰伦"
-File Path: "告白气球/告白气球.mp3" , Duration: 215.64 , Cover: "http://slcdut.xyz:8080/uploads/告白气球/告白气球_cover.png" , Artist: "周杰伦"
-File Path: "轨迹/轨迹.mp3" , Duration: 326.9 , Cover: "http://slcdut.xyz:8080/uploads/轨迹/轨迹_cover.png" , Artist: "周杰伦"
-File Path: "爱情废柴/爱情废柴.mp3" , Duration: 285.65 , Cover: "http://slcdut.xyz:8080/uploads/爱情废柴/爱情废柴_cover.png" , Artist: "周杰伦"
-File Path: "床边故事/床边故事.mp3" , Duration: 226.25 , Cover: "http://slcdut.xyz:8080/uploads/床边故事/床边故事_cover.png" , Artist: "周杰伦"
-File Path: "周杰伦&林俊杰-晴天+安静+修炼爱情+最长的电影 (2017周杰伦地表最强演唱会台北站)/周杰伦&林俊杰-晴天+安静+修炼爱情+最长的电影 (2017周杰伦地表最强演唱会台北站).mp3" , Duration: 268.25 , Cover: "" , Artist: "周杰伦&林俊杰"
-File Path: "周杰伦&林俊杰-晴天 (2017周杰伦地表最强演唱会台北站)/周杰伦&林俊杰-晴天 (2017周杰伦地表最强演唱会台北站).mp3" , Duration: 239.23 , Cover: "" , Artist: "周杰伦&林俊杰"
-File Path: "发如雪/发如雪.mp3" , Duration: 299.28 , Cover: "http://slcdut.xyz:8080/uploads/发如雪/发如雪_cover.png" , Artist: "周杰伦"
-File Path: "爱在西元前/爱在西元前.mp3" , Duration: 234.29 , Cover: "http://slcdut.xyz:8080/uploads/爱在西元前/爱在西元前_cover.png" , Artist: "周杰伦"
-File Path: "花海/花海.mp3" , Duration: 264.65 , Cover: "http://slcdut.xyz:8080/uploads/花海/花海_cover.png" , Artist: "周杰伦"
-File Path: "本草纲目/本草纲目.mp3" , Duration: 206.89 , Cover: "http://slcdut.xyz:8080/uploads/本草纲目/本草纲目_cover.png" , Artist: "周杰伦"
-File Path: "白色风车/白色风车.mp3" , Duration: 270.24 , Cover: "http://slcdut.xyz:8080/uploads/白色风车/白色风车_cover.png" , Artist: "周杰伦"
-File Path: "给我一首歌的时间/给我一首歌的时间.mp3" , Duration: 253.6 , Cover: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间_cover.png" , Artist: "周杰伦"
-File Path: "东风破/东风破.mp3" , Duration: 315.45 , Cover: "http://slcdut.xyz:8080/uploads/东风破/东风破_cover.png" , Artist: "周杰伦"
-File Path: "搁浅/搁浅.mp3" , Duration: 238.18 , Cover: "http://slcdut.xyz:8080/uploads/搁浅/搁浅_cover.png" , Artist: "周杰伦"
-File Path: "彩虹/彩虹.mp3" , Duration: 261.96 , Cover: "http://slcdut.xyz:8080/uploads/彩虹/彩虹_cover.png" , Artist: "周杰伦"
-File Path: "枫/枫.mp3" , Duration: 277.05 , Cover: "http://slcdut.xyz:8080/uploads/枫/枫_cover.png" , Artist: "周杰伦"
-File Path: "暗号/暗号.mp3" , Duration: 271.8 , Cover: "http://slcdut.xyz:8080/uploads/暗号/暗号_cover.png" , Artist: "周杰伦"
-File Path: "安静/安静.mp3" , Duration: 334.26 , Cover: "http://slcdut.xyz:8080/uploads/安静/安静_cover.png" , Artist: "周杰伦"
-File Path: "等你下课 (with 杨瑞代)/等你下课 (with 杨瑞代).mp3" , Duration: 270.03 , Cover: "http://slcdut.xyz:8080/uploads/等你下课 (with 杨瑞代)/等你下课 (with 杨瑞代)_cover.png" , Artist: "周杰伦"
-File Path: "半兽人/半兽人.mp3" , Duration: 247.43 , Cover: "http://slcdut.xyz:8080/uploads/半兽人/半兽人_cover.png" , Artist: "周杰伦"
-File Path: "稻香/稻香.mp3" , Duration: 223.5 , Cover: "http://slcdut.xyz:8080/uploads/稻香/稻香_cover.png" , Artist: "周杰伦"
-File Path: "红尘客栈/红尘客栈.mp3" , Duration: 275.64 , Cover: "http://slcdut.xyz:8080/uploads/红尘客栈/红尘客栈_cover.png" , Artist: "周杰伦"
-File Path: "不爱我就拉倒/不爱我就拉倒.mp3" , Duration: 245.89 , Cover: "http://slcdut.xyz:8080/uploads/不爱我就拉倒/不爱我就拉倒_cover.png" , Artist: "周杰伦"
-File Path: "周杰伦 - 七里香_EM/周杰伦 - 七里香_EM.flac" , Duration: 299.2 , Cover: "http://slcdut.xyz:8080/uploads/周杰伦 - 七里香_EM/周杰伦 - 七里香_EM_cover.png" , Artist: "未知艺术家"
-File Path: "周杰伦&林俊杰-Stay With You (50秒Live片段)/周杰伦&林俊杰-Stay With You (50秒Live片段).mp3" , Duration: 50.08 , Cover: "" , Artist: "周杰伦&林俊杰"
-File Path: "周杰伦&林俊杰-修炼爱情+最长的电影 (2017地表最强演唱会台北站)/周杰伦&林俊杰-修炼爱情+最长的电影 (2017地表最强演唱会台北站).mp3" , Duration: 200.62 , Cover: "" , Artist: "周杰伦&林俊杰"
-File Path: "周杰伦&林俊杰-算什么男人 (Live)/周杰伦&林俊杰-算什么男人 (Live).mp3" , Duration: 285.52 , Cover: "" , Artist: "周杰伦&林俊杰"
-File Path: "费玉清-千里之外/费玉清-千里之外.mp3" , Duration: 254.28 , Cover: "http://slcdut.xyz:8080/uploads/费玉清-千里之外/费玉清-千里之外_cover.png" , Artist: "周杰伦&费玉清"
-File Path: "千里之外/千里之外.mp3" , Duration: 254.28 , Cover: "http://slcdut.xyz:8080/uploads/千里之外/千里之外_cover.png" , Artist: "周杰伦&费玉清"
-MusicListWidgetNet: Received 30 songs
-[MainWidget] Add to favorite from online: "白色风车.mp3"
+[NetworkService] Base URL set to: "http://slcdut.xyz:8080/"
+[HttpRequestV2] Initialized with new network layer
+[NetworkManager] DNS prewarmed for: "slcdut.xyz" Addresses: (QHostAddress("192.168.1.208"))
+[NetworkManager] DNS prewarmed for: "slcdut.xyz" Addresses: (QHostAddress("192.168.1.208"))
+[NetworkManager] DNS prewarmed for: "slcdut.xyz" Addresses: (QHostAddress("192.168.1.208"))
+[NetworkManager] DNS prewarmed for: "slcdut.xyz" Addresses: (QHostAddress("192.168.1.208"))
+[NetworkManager] DNS prewarmed for: "slcdut.xyz" Addresses: (QHostAddress("192.168.1.208"))
+[NetworkManager] DNS prewarmed for: "slcdut.xyz" Addresses: (QHostAddress("192.168.1.208"))
+showPopup called
+popupMenu visible = true
+UserWidgetQml: Mouse pressed, showing popup
+UserWidgetQml: Showing popup window...
+UserWidgetQml: Setting popup position to 1410 451
+UserWidgetQml: Popup window shown
+hidePopup called
 尝试登录: root
 LoginWidgetQml: Login requested for account: "root"
-Login Response: "{\"success\":\"true\",\"success_bool\":true,\"username\":\"SL\",\"song_path_list\":[\"/home/shen/shared/BEYOND - \xE6\xB5\xB7\xE9\x98\x94\xE5\xA4\xA9\xE7\xA9\xBA.ogg\",\"/home/shen/shared/ai_qing_fei_chai.mp3\",\"/home/shen/shared/\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6 - \xE4\xB8\x83\xE9\x87\x8C\xE9\xA6\x99_EM.flac\",\"/home/shen/shared/yi_lu_xiang_bei.mp3\",\"/home/shen/shared/ye_qu.mp3\",\"/home/shen/shared/Love_Song.mp3\",\"E:/MP3/\xE6\x9A\x97\xE5\x8F\xB7/\xE6\x9A\x97\xE5\x8F\xB7.mp3\"]}\n"
+[HttpRequestV2] Login: "root"
+[NetworkManager] Request started: "749fc2c8-0e30-485d-844f-bca689de91d6" "POST" "http://slcdut.xyz:8080/users/login"
+[NetworkManager] Request finished: "749fc2c8-0e30-485d-844f-bca689de91d6" Status: 200 Elapsed: 43 ms Size: 342 bytes Retry: 0
+[HttpRequestV2] Login response received in 43 ms
 [MainWidget] Login state changed: true
 PlayHistoryWidget: Set logged in: true account: "root"
 FavoriteMusicWidget: Set user account: "root"
 [MainWidget] Favorite music button visibility: true
 LoginWidgetQml: Login successful, username: "SL"
-Login successful, username: "SL"
-MusicListWidgetLocal::{ctor}::<lambda_b56fbaab161f6665873ad587f87d4e5c>::operator () login
-User's favorite songs: ("/home/shen/shared/BEYOND - 海阔天空.ogg", "/home/shen/shared/ai_qing_fei_chai.mp3", "/home/shen/shared/周杰伦 - 七里香_EM.flac", "/home/shen/shared/yi_lu_xiang_bei.mp3", "/home/shen/shared/ye_qu.mp3", "/home/shen/shared/Love_Song.mp3", "E:/MP3/暗号/暗号.mp3")
-[MainWidget] Add to favorite from online: "白色风车.mp3"
-[HttpRequest] Adding favorite: "白色风车.mp3" for user: "root"
-[HttpRequest] Add favorite response: "{\"message\":\"\xE6\xB7\xBB\xE5\x8A\xA0\xE6\x88\x90\xE5\x8A\x9F\",\"success\":true}\n"
-[HttpRequest] Add favorite success: true
-[MainWidget] Add to favorite success
-[HttpRequest] Fetching favorites for user: "root"
-[HttpRequest] Favorites response: "[{\"path\":\"\xE7\x99\xBD\xE8\x89\xB2\xE9\xA3\x8E\xE8\xBD\xA6/\xE7\x99\xBD\xE8\x89\xB2\xE9\xA3\x8E\xE8\xBD\xA6.mp3\",\"title\":\"\xE7\x99\xBD\xE8\x89\xB2\xE9\xA3\x8E\xE8\xBD\xA6.mp3\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"duration\":\"04:30\",\"is_local\":false,\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE7\x99\xBD\xE8\x89\xB2\xE9\xA3\x8E\xE8\xBD\xA6/\xE7\x99\xBD\xE8\x89\xB2\xE9\xA3\x8E\xE8\xBD\xA6_cover.png\",\"added_at\":\"2026-02-04 22:28:28\"},{\"path\":\"D:/Music/\xE5\x91\x8A\xE7\x99\xBD\xE6\xB0\x94\xE7\x90\x83/\xE5\x91\x8A\xE7\x99\xBD\xE6\xB0\x94\xE7\x90\x83.mp3\",\"is_local\":true,\"added_at\":\"2026-02-04 18:25:28\"},{\"path\":\"E:/MP3/\xE7\x88\xB1\xE6\x83\x85\xE5\xBA\x9F\xE6\x9F\xB4/\xE7\x88\xB1\xE6\x83\x85\xE5\xBA\x9F\xE6\x9F\xB4.mp3\",\"title\":\"\xE7\x88\xB1\xE6\x83\x85\xE5\xBA\x9F\xE6\x9F\xB4.mp3\",\"artist\":\"\xE6\x9C\xAA\xE7\x9F\xA5\xE8\x89\xBA\xE6\x9C\xAF\xE5\xAE\xB6\",\"duration\":\"04:45\",\"is_local\":true,\"added_at\":\"2026-02-04 18:25:17\"}]\n"
-[HttpRequest] Successfully parsed 3 favorites
-[FavoriteMusicList] Loading 3 items
-[FavoriteMusicList] Item 0 - title: 白色风车.mp3 cover_art_url: http://slcdut.xyz:8080/uploads/白色风车/白色风车_cover.png
-[FavoriteMusicList] Item 1 - title:  cover_art_url: 
-[FavoriteMusicList] Item 2 - title: 爱情废柴.mp3 cover_art_url: 
-FavoriteMusicWidget: Loaded 3 favorite items
-[FavoriteMusic] Cover loaded: http://slcdut.xyz:8080/uploads/白色风车/白色风车_cover.png
-[FavoriteMusic] Cover loaded: qrc:/new/prefix1/icon/Music.png
-[FavoriteMusic] Cover loaded: qrc:/new/prefix1/icon/Music.png
-[MainWidget] Add to favorite from online: "给我一首歌的时间.mp3"
-[HttpRequest] Adding favorite: "给我一首歌的时间.mp3" for user: "root"
-[HttpRequest] Add favorite response: "{\"message\":\"\xE6\xB7\xBB\xE5\x8A\xA0\xE6\x88\x90\xE5\x8A\x9F\",\"success\":true}\n"
-[HttpRequest] Add favorite success: true
-[MainWidget] Add to favorite success
-[HttpRequest] Fetching favorites for user: "root"
-[HttpRequest] Favorites response: "[{\"path\":\"\xE7\xBB\x99\xE6\x88\x91\xE4\xB8\x80\xE9\xA6\x96\xE6\xAD\x8C\xE7\x9A\x84\xE6\x97\xB6\xE9\x97\xB4/\xE7\xBB\x99\xE6\x88\x91\xE4\xB8\x80\xE9\xA6\x96\xE6\xAD\x8C\xE7\x9A\x84\xE6\x97\xB6\xE9\x97\xB4.mp3\",\"title\":\"\xE7\xBB\x99\xE6\x88\x91\xE4\xB8\x80\xE9\xA6\x96\xE6\xAD\x8C\xE7\x9A\x84\xE6\x97\xB6\xE9\x97\xB4.mp3\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"duration\":\"04:13\",\"is_local\":false,\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE7\xBB\x99\xE6\x88\x91\xE4\xB8\x80\xE9\xA6\x96\xE6\xAD\x8C\xE7\x9A\x84\xE6\x97\xB6\xE9\x97\xB4/\xE7\xBB\x99\xE6\x88\x91\xE4\xB8\x80\xE9\xA6\x96\xE6\xAD\x8C\xE7\x9A\x84\xE6\x97\xB6\xE9\x97\xB4_cover.png\",\"added_at\":\"2026-02-04 22:28:32\"},{\"path\":\"\xE7\x99\xBD\xE8\x89\xB2\xE9\xA3\x8E\xE8\xBD\xA6/\xE7\x99\xBD\xE8\x89\xB2\xE9\xA3\x8E\xE8\xBD\xA6.mp3\",\"title\":\"\xE7\x99\xBD\xE8\x89\xB2\xE9\xA3\x8E\xE8\xBD\xA6.mp3\",\"artist\":\"\xE5\x91\xA8\xE6\x9D\xB0\xE4\xBC\xA6\",\"duration\":\"04:30\",\"is_local\":false,\"cover_art_url\":\"http://slcdut.xyz:8080/uploads/\xE7\x99\xBD\xE8\x89\xB2\xE9\xA3\x8E\xE8\xBD\xA6/\xE7\x99\xBD\xE8\x89\xB2\xE9\xA3\x8E\xE8\xBD\xA6_cover.png\",\"added_at\":\"2026-02-04 22:28:28\"},{\"path\":\"D:/Music/\xE5\x91\x8A\xE7\x99\xBD\xE6\xB0\x94\xE7\x90\x83/\xE5\x91\x8A\xE7\x99\xBD\xE6\xB0\x94\xE7\x90\x83.mp3\",\"is_local\":true,\"added_at\":\"2026-02-04 18:25:28\"},{\"path\":\"E:/MP3/\xE7\x88\xB1\xE6\x83\x85\xE5\xBA\x9F\xE6\x9F\xB4/\xE7\x88\xB1\xE6\x83\x85\xE5\xBA\x9F\xE6\x9F\xB4.mp3\",\"title\":\"\xE7\x88\xB1\xE6\x83\x85\xE5\xBA\x9F\xE6\x9F\xB4.mp3\",\"artist\":\"\xE6\x9C\xAA\xE7\x9F\xA5\xE8\x89\xBA\xE6\x9C\xAF\xE5\xAE\xB6\",\"duration\":\"04:45\",\"is_local\":true,\"added_at\":\"2026-02-04 18:25:17\"}]\n"
-[HttpRequest] Successfully parsed 4 favorites
-[FavoriteMusicList] Loading 4 items
-[FavoriteMusicList] Item 0 - title: 给我一首歌的时间.mp3 cover_art_url: http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间_cover.png
-[FavoriteMusicList] Item 1 - title: 白色风车.mp3 cover_art_url: http://slcdut.xyz:8080/uploads/白色风车/白色风车_cover.png
-[FavoriteMusicList] Item 2 - title:  cover_art_url: 
-[FavoriteMusicList] Item 3 - title: 爱情废柴.mp3 cover_art_url: 
-FavoriteMusicWidget: Loaded 4 favorite items
-[FavoriteMusic] Cover loaded: http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间_cover.png
-[FavoriteMusic] Cover loaded: http://slcdut.xyz:8080/uploads/白色风车/白色风车_cover.png
-[FavoriteMusic] Cover loaded: qrc:/new/prefix1/icon/Music.png
-[FavoriteMusic] Cover loaded: qrc:/new/prefix1/icon/Music.png
-[FavoriteMusicWidget] Play music: "给我一首歌的时间/给我一首歌的时间.mp3"
-[FavoriteMusicWidget] Play music: "白色风车/白色风车.mp3"
+[HttpRequestV2] Login successful, username: "SL"
+MusicListWidgetLocal::{ctor}::<lambda_8d3264bdd330e960acba9c4eb3076553>::operator () login
+[HttpRequestV2] User's favorite songs: 7
+[NetworkManager] Request started: "c5afcb0f-ae13-4316-8812-1e7f9bba6b3c" "GET" "http://slcdut.xyz:8080/user/history?user_account=root&limit=50"
+[NetworkManager] Request finished: "c5afcb0f-ae13-4316-8812-1e7f9bba6b3c" Status: 200 Elapsed: 13 ms Size: 2725 bytes Retry: 0
+[ResponseCache] Cached: "http://slcdut.xyz:8080/user/history?user_account=root&limit=50" TTL: -30 s Size: 2725 bytes
+[NetworkService] Cached response for: "http://slcdut.xyz:8080/user/history?user_account=root&limit=50"
+[HttpRequestV2] History received: 13 
+[PlayHistoryList] Loading 13 items
+[PlayHistoryList] Item 0 - title: 床边故事 cover_art_url: http://slcdut.xyz:8080/uploads/床边故事/床边故事_cover.png
+[PlayHistoryList] Item 1 - title: 告白气球 cover_art_url: http://slcdut.xyz:8080/uploads/告白气球/告白气球_cover.png
+[PlayHistoryList] Item 2 - title: 给我一首歌的时间 cover_art_url: http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间_cover.png
+[PlayHistoryList] Item 3 - title: 断了的弦 cover_art_url: http://slcdut.xyz:8080/uploads/断了的弦/断了的弦_cover.png
+[PlayHistoryList] Item 4 - title: 发如雪 cover_art_url: http://slcdut.xyz:8080/uploads/发如雪/发如雪_cover.png
+[PlayHistoryList] Item 5 - title: 白色风车 cover_art_url: http://slcdut.xyz:8080/uploads/白色风车/白色风车_cover.png
+[PlayHistoryList] Item 6 - title: 东风破 cover_art_url: http://slcdut.xyz:8080/uploads/东风破/东风破_cover.png
+[PlayHistoryList] Item 7 - title: 搁浅 cover_art_url: http://slcdut.xyz:8080/uploads/搁浅/搁浅_cover.png
+[PlayHistoryList] Item 8 - title: 周杰伦 - 七里香_EM cover_art_url: 
+[PlayHistoryList] Item 9 - title: 告白气球 cover_art_url: 
+[PlayHistoryList] Item 10 - title: 爱情废柴 cover_art_url: http://slcdut.xyz:8080/uploads/爱情废柴/爱情废柴_cover.png
+[PlayHistoryList] Item 11 - title: 发如雪 cover_art_url: 
+[PlayHistoryList] Item 12 - title: 爱情废柴 cover_art_url: 
+PlayHistoryWidget: Loaded 13 history items
+[PlayHistory] Cover loaded: qrc:/new/prefix1/icon/Music.png
+[PlayHistory] Cover loaded: qrc:/new/prefix1/icon/Music.png
+[PlayHistory] Cover loaded: http://slcdut.xyz:8080/uploads/告白气球/告白气球_cover.png
+[PlayHistory] Cover loaded: http://slcdut.xyz:8080/uploads/发如雪/发如雪_cover.png
+[PlayHistory] Cover loaded: http://slcdut.xyz:8080/uploads/床边故事/床边故事_cover.png
+[PlayHistory] Cover loaded: http://slcdut.xyz:8080/uploads/东风破/东风破_cover.png
+[PlayHistory] Cover loaded: http://slcdut.xyz:8080/uploads/白色风车/白色风车_cover.png
+[PlayHistory] Cover loaded: http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间_cover.png
+[PlayHistory] Cover loaded: http://slcdut.xyz:8080/uploads/搁浅/搁浅_cover.png
+[PlayHistory] Cover loaded: http://slcdut.xyz:8080/uploads/爱情废柴/爱情废柴_cover.png
+[PlayHistory] Cover loaded: http://slcdut.xyz:8080/uploads/断了的弦/断了的弦_cover.png
+[PlayHistoryWidget] Play music with metadata: "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3" title: "床边故事" artist: "周杰伦" cover: "http://slcdut.xyz:8080/uploads/床边故事/床边故事_cover.png"
+检测到网络路径，跳过存在性检 "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
+[MVVM-UI] _play_click: Playing via ViewModel: "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
+[MVVM-ViewModel] play() called with URL: QUrl("http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3")
+[MVVM-UI] Should load lyrics for: "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
+[HttpRequestV2] Getting lyrics from: "http://slcdut.xyz:8080/uploads/床边故事/lrc"
+[NetworkManager] Request started: "793aa185-556b-4442-95ef-cbea8186141d" "GET" "http://slcdut.xyz:8080/uploads/床边故事/lrc"
+AudioService: Added to playlist tail at index 0 total 1
+AudioDecoder created in thread: 0x7478
+[TIMING] AudioService::play - createSession: 0.4608 ms
+AudioSession: Extracted title from URL: "床边故事"
+AudioSession: Loading network URL: "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
+[TIMING]   avformat_open_input: 5.0888 ms
+[TIMING]   avformat_find_stream_info: 1.2021 ms
+Audio stream found at index: 0
+[TIMING] AudioDecoder::openFile: 6.4203 ms
+Decoder setup successfully. Sample rate: 44100 Channels: 2
+[TIMING] AudioDecoder::setupDecoder: 0.1055 ms
+Resampler setup successfully
+[TIMING] AudioDecoder::setupResampler: 0.129 ms
+AudioDecoder: Extracted title from metadata: "床边故事"
+AudioDecoder: Extracted artist from metadata: "周杰伦"
+Album cover extracted to: "file:///C:/Users/SL/AppData/Local/Temp/album_cover_1771935650951.jpg"
+[TIMING] AudioDecoder::initDecoder TOTAL: 8.1728 ms
+AudioDecoder initialized successfully. Duration: 226246 ms
+AudioSession: Using title from file metadata: "床边故事"
+AudioSession: Using artist from file metadata: "周杰伦"
+[TIMING] AudioSession::loadSource (initDecoder): 8.4953 ms result: true
+[TIMING] AudioService::play - loadSource: 8.662 ms
+AudioPlayer: Volume set to 100
+[MVVM-ViewModel] onAudioServicePlaybackStarted, URL: QUrl("http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3")
+[MVVM-ViewModel] isPlaying changed to: true
+[MVVM-UI] isPlaying changed: true
+Desktop lyric playing state updated to: true
+[ProcessSliderQml] setState called with state: 1
+[ProcessSlider.qml] setPlayState called, state: 1 old playState: 0
+[MainWidget] Music started, pausing video
+[PLAY_STATE] MusicListWidgetLocal::on_signal_play_button_click 收到信号, flag= true , filename= "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
+[PLAY_STATE] sender 是PlayWidget, net_flag= true
+[PLAY_STATE] MusicListWidgetNet::on_signal_play_button_click flag= true , filename= "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
+[PlaylistHistory] updatePlayingState - path: "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3" isPlaying: true
+[MVVM-UI] Playback started
+Desktop lyric playing state updated to: true
+[ProcessSliderQml] setState called with state: 1
+[ProcessSlider.qml] setPlayState called, state: 1 old playState: 1
+[MainWidget] Music started, pausing video
+[PLAY_STATE] MusicListWidgetLocal::on_signal_play_button_click 收到信号, flag= true , filename= "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
+[PLAY_STATE] sender 是PlayWidget, net_flag= true
+[PLAY_STATE] MusicListWidgetNet::on_signal_play_button_click flag= true , filename= "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
+[MainWidget] playbackStarted signal received! sessionId: "session_1" url: QUrl("http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3")
+[MainWidget] Extracted filePath: "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
+[MainWidget] About to call setCurrentPlayingPath on both widgets...
+[PlayHistoryWidget] Setting currentPlayingPath to: "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
+[PlayHistoryWidget] Verified currentPlayingPath is now: "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
+[FavoriteMusicWidget] Setting currentPlayingPath to: "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
+[FavoriteMusicWidget] Verified currentPlayingPath is now: "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
+[MainWidget] setCurrentPlayingPath calls completed
+[MainWidget] Using cached network artist: "周杰伦"
+[MainWidget] ========== ADDING TO PLAY HISTORY ==========
+[MainWidget] userAccount: "root"
+[MainWidget] filePath: "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
+[MainWidget] title: "床边故事"
+[MainWidget] artist: "周杰伦"
+[MainWidget] album: ""
+[MainWidget] duration: "0" seconds
+[MainWidget] isLocal: false
+[MainWidget] =============================================
+[NetworkManager] Request started: "a2391362-cc33-42b4-a900-39a42466d52b" "POST" "http://slcdut.xyz:8080/user/history/add?user_account=root"
+AudioPlayer: Write owner set to "session_1"
+AudioDecoder: Decode thread launched
+[TIMING] AudioSession::play - startDecode call: 5.5314 ms
+[TIMING] AudioService::play - play() call: 5.7144 ms
+[TIMING] AudioService::play - TOTAL: 14.8372 ms
+[MVVM-ViewModel] AudioService play succeeded
+AudioDecoder: Decode thread started in std::thread
+AudioDecoder::decode thread started in std::thread
+[mp3float @ 0000022da3f21740] Could not update timestamps for skipped samples.
+AudioDecoder: First PTS set to 0 ms
+[NetworkManager] Request finished: "793aa185-556b-4442-95ef-cbea8186141d" Status: 200 Elapsed: 19 ms Size: 3196 bytes Retry: 0
+[ResponseCache] Cached: "http://slcdut.xyz:8080/uploads/床边故事/lrc" TTL: -3600 s Size: 3196 bytes
+[NetworkService] Cached response for: "http://slcdut.xyz:8080/uploads/床边故事/lrc"
+[HttpRequestV2] Lyrics received: 88 lines
+Sending first lyric to desktop: "欢迎来访爱听音乐网 www.v9v8.com"
+DeskLrcQml::setLyricText called with: "欢迎来访爱听音乐网 www.v9v8.com"
+DeskLyric.qml: setLyricText called with: 欢迎来访爱听音乐网 www.v9v8.com
+Setting desktop song name: "床边故事"
+DeskLrcQml::setSongName called with: "床边故事"
+DeskLyric.qml: setSongName called with: 床边故事
+[MVVM-UI] Duration changed: 226246 ms
+[MVVM-UI] Title changed: "床边故事"
+[MVVM-UI] Artist changed: "周杰伦"
+AudioSession: Using title from file metadata: "床边故事"
+AudioSession: Using artist from file metadata: "周杰伦"
+[MVVM-UI] Album art changed: "file:///C:/Users/SL/AppData/Local/Temp/album_cover_1771935650951.jpg"
+slot_updateBackground called with: "file:///C:/Users/SL/AppData/Local/Temp/album_cover_1771935650951.jpg"
+Converted URL to local path: "C:/Users/SL/AppData/Local/Temp/album_cover_1771935650951.jpg"
+Original pixmap size: QSize(300, 300)
+AudioDecoder: Decoded 100 frames, current timestamp: 2586 ms
+Cropped pixmap size: QSize(1000, 600)
+Background updated successfully, pixmap size: QSize(1000, 600)
+backgroundLabel visible: false geometry: QRect(0,0 100x30)
+RotatingCircleImage: Converted URL to local path: "C:/Users/SL/AppData/Local/Temp/album_cover_1771935650951.jpg"
+RotatingCircleImage: Image loaded successfully, size: QSize(300, 300)
+PlaylistHistory::addSong - "床边故事" "周杰伦"
+AudioDecoder: Decoded 200 frames, current timestamp: 5198 ms
+[MVVM-UI] Added to playlist history: "床边故事" "周杰伦"
+[PlaylistHistory] setCurrentPlayingPath: "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
+AudioSession: Decode started
+AudioPlayer: Start playback (device already hot, ZERO startup delay)
+AudioPlayer: First audio data write
+AudioSession: Initial playback started (onDataDecoded), fill level: 40 %
+AudioService: Buffering finished
+[MVVM-UI] Buffering finished
+AudioPlayer: Received 100 data packets, size: 4608 buffer level: 447676
+AudioSession: Buffer full ( 86 %), pausing decoder
+AudioBuffer: Expanded to 1048576 bytes
+AudioPlayer: Received 200 data packets, size: 4608 buffer level: 908476
+AudioDecoder: Resuming from pause
+AudioSession: Buffer low ( 0 %), resuming decoder
+AudioPlayer: Playback paused at position: 1 ms
+AudioService: Buffering started (network may be slow)
+[MVVM-UI] Buffering started
+AudioSession: Buffering started, fill level: 0 %
+AudioSession: Buffer full ( 87 %), pausing decoder
+AudioPlayer: Playback resumed from position: 1 ms
+AudioSession: Buffer filled, resuming playback
+AudioService: Buffering finished
+[MVVM-UI] Buffering finished
+AudioDecoder: Resuming from pause
+AudioSession: Buffer low ( 8 %), resuming decoder
+AudioPlayer: Playback paused at position: 2 ms
+AudioService: Buffering started (network may be slow)
+[MVVM-UI] Buffering started
+AudioSession: Buffering started, fill level: 8 %
+AudioSession: Buffer full ( 91 %), pausing decoder
+AudioDecoder: Paused, waiting for resume signal
+AudioPlayer: Playback resumed from position: 2 ms
+AudioSession: Buffer filled, resuming playback
+AudioService: Buffering finished
+[MVVM-UI] Buffering finished
+AudioDecoder: Resuming from pause
+AudioSession: Buffer low ( 13 %), resuming decoder
+AudioDecoder: Resumed
+AudioSession: Buffer full ( 91 %), pausing decoder
+AudioDecoder: Paused, waiting for resume signal
+AudioDecoder: Resuming from pause
+AudioSession: Buffer low ( 16 %), resuming decoder
+AudioDecoder: Resumed
+AudioSession: Buffer full ( 92 %), pausing decoder
+AudioDecoder: Paused, waiting for resume signal
+AudioDecoder: Resuming from pause
+AudioSession: Buffer low ( 20 %), resuming decoder
+AudioDecoder: Resumed
+AudioSession: Buffer full ( 92 %), pausing decoder
+AudioDecoder: Paused, waiting for resume signal
+AudioDecoder: Resuming from pause
+AudioSession: Buffer low ( 22 %), resuming decoder
+AudioDecoder: Resumed
+AudioSession: Buffer full ( 93 %), pausing decoder
+AudioDecoder: Paused, waiting for resume signal
+AudioDecoder: Resuming from pause
+AudioSession: Buffer low ( 26 %), resuming decoder
+AudioDecoder: Resumed
+AudioSession: Buffer full ( 94 %), pausing decoder
+AudioDecoder: Resuming from pause
+AudioSession: Buffer low ( 29 %), resuming decoder
+AudioSession: Buffer full ( 94 %), pausing decoder
+AudioDecoder: Resuming from pause
+AudioSession: Buffer low ( 32 %), resuming decoder
+AudioSession: Buffer full ( 94 %), pausing decoder
+AudioDecoder: Resuming from pause
+AudioSession: Buffer low ( 36 %), resuming decoder
+AudioSession: Buffer full ( 95 %), pausing decoder
+AudioDecoder: Resuming from pause
+AudioSession: Buffer low ( 39 %), resuming decoder
+AudioSession: Playback started
+AudioSession: Decode paused
+AudioSession: Playback paused
+[MVVM-ViewModel] onAudioServicePlaybackPaused
+[MVVM-ViewModel] isPlaying changed to: false
+[MVVM-UI] isPlaying changed: false
+Desktop lyric playing state updated to: false
+[ProcessSliderQml] setState called with state: 2
+[ProcessSlider.qml] setPlayState called, state: 2 old playState: 1
+[PLAY_STATE] MusicListWidgetLocal::on_signal_play_button_click 收到信号, flag= false , filename= "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
+[PLAY_STATE] sender 是PlayWidget, net_flag= true
+[PLAY_STATE] MusicListWidgetNet::on_signal_play_button_click flag= false , filename= "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
+[PlaylistHistory] updatePlayingState - path: "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3" isPlaying: false
+AudioSession: Decode paused
+AudioSession: Playback resumed
+[MVVM-ViewModel] onAudioServicePlaybackResumed
+[MVVM-ViewModel] isPlaying changed to: true
+[MVVM-UI] isPlaying changed: true
+Desktop lyric playing state updated to: true
+[ProcessSliderQml] setState called with state: 1
+[ProcessSlider.qml] setPlayState called, state: 1 old playState: 2
+[MainWidget] Music started, pausing video
+[PLAY_STATE] MusicListWidgetLocal::on_signal_play_button_click 收到信号, flag= true , filename= "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
+[PLAY_STATE] sender 是PlayWidget, net_flag= true
+[PLAY_STATE] MusicListWidgetNet::on_signal_play_button_click flag= true , filename= "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
+[PlaylistHistory] updatePlayingState - path: "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3" isPlaying: true
+AudioSession: Playback paused
+[MVVM-ViewModel] onAudioServicePlaybackPaused
+[MVVM-ViewModel] isPlaying changed to: false
+[MVVM-UI] isPlaying changed: false
+Desktop lyric playing state updated to: false
+[ProcessSliderQml] setState called with state: 2
+[ProcessSlider.qml] setPlayState called, state: 2 old playState: 1
+[PLAY_STATE] MusicListWidgetLocal::on_signal_play_button_click 收到信号, flag= false , filename= "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
+[PLAY_STATE] sender 是PlayWidget, net_flag= true
+[PLAY_STATE] MusicListWidgetNet::on_signal_play_button_click flag= false , filename= "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
+[PlaylistHistory] updatePlayingState - path: "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3" isPlaying: false
+AudioSession: Buffer full ( 95 %), pausing decoder
+AudioSession: Decode paused
+AudioSession: Playback resumed
+[MVVM-ViewModel] onAudioServicePlaybackResumed
+[MVVM-ViewModel] isPlaying changed to: true
+[MVVM-UI] isPlaying changed: true
+Desktop lyric playing state updated to: true
+[ProcessSliderQml] setState called with state: 1
+[ProcessSlider.qml] setPlayState called, state: 1 old playState: 2
+[MainWidget] Music started, pausing video
+[PLAY_STATE] MusicListWidgetLocal::on_signal_play_button_click 收到信号, flag= true , filename= "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
+[PLAY_STATE] sender 是PlayWidget, net_flag= true
+[PLAY_STATE] MusicListWidgetNet::on_signal_play_button_click flag= true , filename= "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
+[PlaylistHistory] updatePlayingState - path: "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3" isPlaying: true
+AudioSession: Decode paused
+AudioSession: Decode paused
+AudioSession: Decode paused
+AudioSession: Decode paused
+AudioSession: Decode paused
+AudioSession: Decode paused
+AudioSession: Decode paused
+AudioSession: Decode paused
+AudioSession: Decode paused
+AudioDecoder: Paused, waiting for resume signal
+[NetworkManager] Request finished: "a2391362-cc33-42b4-a900-39a42466d52b" Status: 200 Elapsed: 174 ms Size: 42 bytes Retry: 0
+AudioPlayer: Position update: 1099 ms (elapsed: 1097 ms)
+AudioPlayer: Position update: 2190 ms (elapsed: 2188 ms)
+AudioDecoder: Resuming from pause
+AudioSession: Buffer low ( 57 %), resuming decoder
+AudioDecoder: Resumed
+AudioDecoder: Decoded 300 frames, current timestamp: 7811 ms
+AudioSession: Buffer full ( 86 %), pausing decoder
+AudioPlayer: Received 300 data packets, size: 4608 buffer level: 918716
+AudioSession: Decode paused
+AudioDecoder: Paused, waiting for resume signal
+AudioPlayer: Position update: 3289 ms (elapsed: 3287 ms)
+AudioDecoder: Resuming from pause
+AudioSession: Buffer low ( 57 %), resuming decoder
+AudioDecoder: Resumed
+AudioPlayer: Position update: 4379 ms (elapsed: 4377 ms)
+AudioSession: Buffer full ( 86 %), pausing decoder
+AudioSession: Decode paused
+AudioDecoder: Paused, waiting for resume signal
+[PlayHistoryWidget] Play music with metadata: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3" title: "给我一首歌的时间" artist: "周杰伦" cover: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间_cover.png"
+检测到网络路径，跳过存在性检 "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
+[MVVM-UI] _play_click: Playing via ViewModel: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
+[MVVM-ViewModel] play() called with URL: QUrl("http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3")
+[MVVM-UI] Should load lyrics for: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
+[HttpRequestV2] Getting lyrics from: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/lrc"
+[NetworkManager] Request started: "2baf489a-6ff9-40ca-8ebb-2f8209a211ba" "GET" "http://slcdut.xyz:8080/uploads/给我一首歌的时间/lrc"
+AudioService: Added to playlist tail at index 1 total 2
+AudioDecoder created in thread: 0x7478
+[TIMING] AudioService::play - createSession: 0.2026 ms
+AudioSession: Extracted title from URL: "给我一首歌的时间"
+AudioSession: Loading network URL: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
+[TIMING]   avformat_open_input: 43.2814 ms
+[TIMING]   avformat_find_stream_info: 0.9451 ms
+Audio stream found at index: 0
+[TIMING] AudioDecoder::openFile: 44.3575 ms
+Decoder setup successfully. Sample rate: 44100 Channels: 2
+[TIMING] AudioDecoder::setupDecoder: 0.1105 ms
+Resampler setup successfully
+[TIMING] AudioDecoder::setupResampler: 0.096 ms
+AudioDecoder: Extracted title from metadata: "给我一首歌的时间"
+AudioDecoder: Extracted artist from metadata: "周杰伦"
+Album cover extracted to: "file:///C:/Users/SL/AppData/Local/Temp/album_cover_1771935656275.jpg"
+[TIMING] AudioDecoder::initDecoder TOTAL: 45.6928 ms
+AudioDecoder initialized successfully. Duration: 253596 ms
+AudioSession: Using title from file metadata: "给我一首歌的时间"
+AudioSession: Using artist from file metadata: "周杰伦"
+[TIMING] AudioSession::loadSource (initDecoder): 45.9774 ms result: true
+[TIMING] AudioService::play - loadSource: 46.0946 ms
+AudioDecoder: Resumed
+AudioDecoder: Stop requested during pause
+AudioDecoder::decode thread finished, m_decoding reset to false
+AudioDecoder: Decode thread stopped synchronously
+AudioPlayer: Playback stopped (device and thread still hot)
+AudioPlayer: Write owner cleared from "session_1"
+AudioService: Destroyed old session "session_1"
+AudioPlayer: Buffer reset (ready for new song)
+AudioService: Shared AudioPlayer buffer reset
+AudioPlayer: Volume set to 100
+[MVVM-ViewModel] onAudioServicePlaybackStarted, URL: QUrl("http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3")
+[MVVM-UI] Album art changed: ""
+slot_updateBackground called with: ""
+Failed to load album cover for background: ""
+Using default background image
+Original pixmap size: QSize(200, 200)
+Cropped pixmap size: QSize(1000, 600)
+Background updated successfully, pixmap size: QSize(1000, 600)
+backgroundLabel visible: false geometry: QRect(0,0 100x30)
+Failed to load image for RotatingCircleImage: ""
+  Tried local path: ""
+PlaylistHistory::addSong - "给我一首歌的时间" "周杰伦"
+[MVVM-UI] Added to playlist history: "给我一首歌的时间" "周杰伦"
+[PlaylistHistory] setCurrentPlayingPath: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
+[MVVM-UI] Playback started
+Desktop lyric playing state updated to: true
+[ProcessSliderQml] setState called with state: 1
+[ProcessSlider.qml] setPlayState called, state: 1 old playState: 1
+[MainWidget] Music started, pausing video
+[PLAY_STATE] MusicListWidgetLocal::on_signal_play_button_click 收到信号, flag= true , filename= "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
+[PLAY_STATE] sender 是PlayWidget, net_flag= true
+[PLAY_STATE] MusicListWidgetNet::on_signal_play_button_click flag= true , filename= "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
+[MainWidget] playbackStarted signal received! sessionId: "session_2" url: QUrl("http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3")
+[MainWidget] Extracted filePath: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
+[MainWidget] About to call setCurrentPlayingPath on both widgets...
+[PlayHistoryWidget] Setting currentPlayingPath to: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
+[PlayHistoryWidget] Verified currentPlayingPath is now: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
+[FavoriteMusicWidget] Setting currentPlayingPath to: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
+[FavoriteMusicWidget] Verified currentPlayingPath is now: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
+[MainWidget] setCurrentPlayingPath calls completed
+[MainWidget] Using cached network artist: "周杰伦"
+[MainWidget] ========== ADDING TO PLAY HISTORY ==========
+[MainWidget] userAccount: "root"
+[MainWidget] filePath: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
+[MainWidget] title: "给我一首歌的时间"
+[MainWidget] artist: "周杰伦"
+[MainWidget] album: ""
+[MainWidget] duration: "0" seconds
+[MainWidget] isLocal: false
+[MainWidget] =============================================
+[NetworkManager] Request started: "bba32031-53a7-4596-996b-03ddf93ead99" "POST" "http://slcdut.xyz:8080/user/history/add?user_account=root"
+AudioPlayer: Write owner set to "session_2"
+AudioDecoder: Decode thread launched
+[TIMING] AudioSession::play - startDecode call: 80.6745 ms
+[TIMING] AudioService::play - play() call: 82.2465 ms
+[TIMING] AudioService::play - TOTAL: 128.544 ms
+[MVVM-ViewModel] AudioService play succeeded
+AudioDecoder: Decode thread started in std::thread
+AudioDecoder::decode thread started in std::thread
+[mp3float @ 0000022da3f20e00] Could not update timestamps for skipped samples.
+AudioDecoder: First PTS set to 0 ms
+[NetworkManager] Request finished: "2baf489a-6ff9-40ca-8ebb-2f8209a211ba" Status: 200 Elapsed: 131 ms Size: 3048 bytes Retry: 0
+[ResponseCache] Cached: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/lrc" TTL: -3600 s Size: 3048 bytes
+[NetworkService] Cached response for: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/lrc"
+[HttpRequestV2] Lyrics received: 71 lines
+AudioDecoder: Decoded 400 frames, current timestamp: 758 ms
+Sending first lyric to desktop: "欢迎来访爱听音乐网 www.v9v8.com"
+DeskLrcQml::setLyricText called with: "欢迎来访爱听音乐网 www.v9v8.com"
+DeskLyric.qml: setLyricText called with: 欢迎来访爱听音乐网 www.v9v8.com
+Setting desktop song name: "给我一首歌的时间"
+DeskLrcQml::setSongName called with: "给我一首歌的时间"
+DeskLyric.qml: setSongName called with: 给我一首歌的时间
+[MVVM-UI] Duration changed: 253596 ms
+[MVVM-UI] Title changed: "给我一首歌的时间"
+[MVVM-UI] Artist changed: "周杰伦"
+AudioSession: Using title from file metadata: "给我一首歌的时间"
+AudioSession: Using artist from file metadata: "周杰伦"
+[MVVM-UI] Album art changed: "file:///C:/Users/SL/AppData/Local/Temp/album_cover_1771935656275.jpg"
+slot_updateBackground called with: "file:///C:/Users/SL/AppData/Local/Temp/album_cover_1771935656275.jpg"
+Converted URL to local path: "C:/Users/SL/AppData/Local/Temp/album_cover_1771935656275.jpg"
+Original pixmap size: QSize(300, 300)
+AudioDecoder: Decoded 500 frames, current timestamp: 3370 ms
+Cropped pixmap size: QSize(1000, 600)
+Background updated successfully, pixmap size: QSize(1000, 600)
+backgroundLabel visible: false geometry: QRect(0,0 100x30)
+RotatingCircleImage: Converted URL to local path: "C:/Users/SL/AppData/Local/Temp/album_cover_1771935656275.jpg"
+RotatingCircleImage: Image loaded successfully, size: QSize(300, 300)
+PlaylistHistory::addSong - "给我一首歌的时间" "周杰伦"
+[MVVM-UI] Added to playlist history: "给我一首歌的时间" "周杰伦"
+[PlaylistHistory] setCurrentPlayingPath: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
+AudioSession: Playback stopped
+AudioSession: Decode started
+AudioPlayer: Received 400 data packets, size: 4608 buffer level: 129212
+AudioPlayer: Start playback (device already hot, ZERO startup delay)
+AudioSession: Initial playback started (onDataDecoded), fill level: 40 %
+AudioService: Buffering finished
+[MVVM-UI] Buffering finished
+AudioPlayer: Received 500 data packets, size: 4608 buffer level: 585916
+AudioPlayer: Playback paused at position: 1 ms
+AudioService: Buffering started (network may be slow)
+[MVVM-UI] Buffering started
+AudioSession: Buffering started, fill level: 0 %
+AudioPlayer: Playback resumed from position: 1 ms
+AudioSession: Buffer filled, resuming playback
+AudioService: Buffering finished
+[MVVM-UI] Buffering finished
+AudioSession: Buffer full ( 86 %), pausing decoder
+AudioDecoder: Paused, waiting for resume signal
+AudioDecoder: Resuming from pause
+AudioSession: Buffer low ( 2 %), resuming decoder
+AudioDecoder: Resumed
+AudioPlayer: Playback paused at position: 1 ms
+AudioService: Buffering started (network may be slow)
+[MVVM-UI] Buffering started
+AudioSession: Buffering started, fill level: 2 %
+AudioPlayer: Playback resumed from position: 1 ms
+AudioService: Buffering finished
+[MVVM-UI] Buffering finished
+AudioSession: Buffering finished, fill level: 25 %
+AudioSession: Playback started
+AudioSession: Playback paused
+[MVVM-ViewModel] onAudioServicePlaybackPaused
+[MVVM-ViewModel] isPlaying changed to: false
+[MVVM-UI] isPlaying changed: false
+Desktop lyric playing state updated to: false
+[ProcessSliderQml] setState called with state: 2
+[ProcessSlider.qml] setPlayState called, state: 2 old playState: 1
+[PLAY_STATE] MusicListWidgetLocal::on_signal_play_button_click 收到信号, flag= false , filename= "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
+[PLAY_STATE] sender 是PlayWidget, net_flag= true
+[PLAY_STATE] MusicListWidgetNet::on_signal_play_button_click flag= false , filename= "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
+[PlaylistHistory] updatePlayingState - path: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3" isPlaying: false
+AudioSession: Playback resumed
+[MVVM-ViewModel] onAudioServicePlaybackResumed
+[MVVM-ViewModel] isPlaying changed to: true
+[MVVM-UI] isPlaying changed: true
+Desktop lyric playing state updated to: true
+[ProcessSliderQml] setState called with state: 1
+[ProcessSlider.qml] setPlayState called, state: 1 old playState: 2
+[MainWidget] Music started, pausing video
+[PLAY_STATE] MusicListWidgetLocal::on_signal_play_button_click 收到信号, flag= true , filename= "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
+[PLAY_STATE] sender 是PlayWidget, net_flag= true
+[PLAY_STATE] MusicListWidgetNet::on_signal_play_button_click flag= true , filename= "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
+[PlaylistHistory] updatePlayingState - path: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3" isPlaying: true
+AudioSession: Buffer full ( 87 %), pausing decoder
+AudioSession: Decode paused
+AudioSession: Playback paused
+[MVVM-ViewModel] onAudioServicePlaybackPaused
+[MVVM-ViewModel] isPlaying changed to: false
+[MVVM-UI] isPlaying changed: false
+Desktop lyric playing state updated to: false
+[ProcessSliderQml] setState called with state: 2
+[ProcessSlider.qml] setPlayState called, state: 2 old playState: 1
+[PLAY_STATE] MusicListWidgetLocal::on_signal_play_button_click 收到信号, flag= false , filename= "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
+[PLAY_STATE] sender 是PlayWidget, net_flag= true
+[PLAY_STATE] MusicListWidgetNet::on_signal_play_button_click flag= false , filename= "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
+[PlaylistHistory] updatePlayingState - path: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3" isPlaying: false
+AudioSession: Playback resumed
+[MVVM-ViewModel] onAudioServicePlaybackResumed
+[MVVM-ViewModel] isPlaying changed to: true
+[MVVM-UI] isPlaying changed: true
+AudioDecoder: Paused, waiting for resume signal
+Desktop lyric playing state updated to: true
+[ProcessSliderQml] setState called with state: 1
+[ProcessSlider.qml] setPlayState called, state: 1 old playState: 2
+[MainWidget] Music started, pausing video
+[PLAY_STATE] MusicListWidgetLocal::on_signal_play_button_click 收到信号, flag= true , filename= "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
+[PLAY_STATE] sender 是PlayWidget, net_flag= true
+[PLAY_STATE] MusicListWidgetNet::on_signal_play_button_click flag= true , filename= "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
+[PlaylistHistory] updatePlayingState - path: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3" isPlaying: true
+AudioSession: Decode paused
+[NetworkManager] Request finished: "bba32031-53a7-4596-996b-03ddf93ead99" Status: 200 Elapsed: 160 ms Size: 42 bytes Retry: 0
+AudioPlayer: Position update: 433 ms (elapsed: 432 ms)
+LyricDisplay.qml: emitting currentLrcChanged with: 词：周杰伦
+AudioPlayer: Position update: 1525 ms (elapsed: 1524 ms)
+Playlist toggle: true
+MainWidget size: QSize(1000, 600)
+PlaylistHistory position: 600 60 size: 400 465
+AudioDecoder: Resuming from pause
+AudioSession: Buffer low ( 58 %), resuming decoder
+AudioDecoder: Resumed
+AudioDecoder: Decoded 600 frames, current timestamp: 5982 ms
+AudioPlayer: Received 600 data packets, size: 4608 buffer level: 702652
+AudioSession: Buffer full ( 86 %), pausing decoder
+AudioSession: Decode paused
+AudioDecoder: Paused, waiting for resume signal
+Playlist toggle: false
+AudioPlayer: Position update: 2620 ms (elapsed: 2619 ms)
+LyricDisplay.qml: emitting currentLrcChanged with: 编曲：林迈可
+AudioPlayer: Position update: 3714 ms (elapsed: 3713 ms)
+AudioDecoder: Resuming from pause
+AudioSession: Buffer low ( 58 %), resuming decoder
+AudioDecoder: Resumed
+AudioDecoder: Decoded 700 frames, current timestamp: 8594 ms
+AudioPlayer: Received 700 data packets, size: 4608 buffer level: 831676
+AudioSession: Buffer full ( 86 %), pausing decoder
+AudioDecoder: Paused, waiting for resume signal
+AudioSession: Decode paused
+LyricDisplay.qml: emitting currentLrcChanged with: 制作人：周杰伦
+AudioPlayer: Position update: 4814 ms (elapsed: 4813 ms)
+[TIMING] slot_play_click START "20:21:01.609"
+[MVVM-UI] slot_play_click: Using ViewModel togglePlayPause
+AudioPlayer: Playback paused at position: 5132 ms
+[TIMING] slot_play_click END "20:21:01.610"
+AudioSession: Decode paused
+AudioSession: Playback paused
+[MVVM-ViewModel] onAudioServicePlaybackPaused
+[MVVM-ViewModel] isPlaying changed to: false
+[MVVM-UI] isPlaying changed: false
+Desktop lyric playing state updated to: false
+[ProcessSliderQml] setState called with state: 2
+[ProcessSlider.qml] setPlayState called, state: 2 old playState: 1
+[PLAY_STATE] MusicListWidgetLocal::on_signal_play_button_click 收到信号, flag= false , filename= "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
+[PLAY_STATE] sender 是PlayWidget, net_flag= true
+[PLAY_STATE] MusicListWidgetNet::on_signal_play_button_click flag= false , filename= "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
+[PlaylistHistory] updatePlayingState - path: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3" isPlaying: false

@@ -76,6 +76,7 @@ private slots:
     // 解码器槽函数
     void onDecodedData(const QByteArray& data, qint64 timestampMs);
     void onMetadataReady(qint64 durationMs, int sampleRate, int channels);
+    void onAudioTagsReady(const QString& title, const QString& artist);
     void onAlbumArtReady(const QString& imagePath);
     void onDecodeError(const QString& error);
     void onDecodeCompleted();

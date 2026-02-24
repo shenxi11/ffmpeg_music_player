@@ -1,12 +1,12 @@
 #include "lrc_analyze.h"
-#include "httprequest.h"
+#include "httprequest_v2.h"
 
 LrcAnalyze::LrcAnalyze()
 {
     connect(this, &LrcAnalyze::begin_take_lrc, this, &LrcAnalyze::take_lrc);
 
     connect(this, &LrcAnalyze::Begin_send, this, &LrcAnalyze::begin_send);
-    request = HttpRequestPool::getInstance().getRequest();
+    request = new HttpRequestV2(this);
 }
 
 LrcAnalyze::~LrcAnalyze()
@@ -215,9 +215,9 @@ std::map<int, std::string> LrcAnalyze::parseLrcFile(const QString& lrcFile)
 void LrcAnalyze::parseLrcFileFromUrl(const QString& urlString)
 {
 
-    request->get_file(urlString);
-
-    connect(request, &HttpRequest::signal_lrc, this, [=](QStringList arg){
+request->getLyrics(urlString);
+    
+    connect(request, &HttpRequestV2::signal_lrc, this, [=](QStringList arg){
 
         std::map<int, std::string> lyrics;
         QRegularExpression regexPattern(R"(\[(\d{2}:\d{2}\.\d{2})\](.*))");  // 正则匹配 [mm:ss.xx] 和歌词内容
@@ -240,7 +240,7 @@ void LrcAnalyze::parseLrcFileFromUrl(const QString& urlString)
         }
         this->lyrics = lyrics;
         emit this->send_lrc(this->lyrics);
-        disconnect(request, &HttpRequest::signal_lrc, nullptr, nullptr);
+        disconnect(request, &HttpRequestV2::signal_lrc, nullptr, nullptr);
     });
 
 }

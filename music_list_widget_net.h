@@ -6,7 +6,7 @@
 #include <QStringList>
 #include <QMap>
 #include "music_list_widget_net_qml.h"
-#include "httprequest.h"
+#include "httprequest_v2.h"
 #include "music.h"
 
 // 前向声明，避免循环依赖
@@ -52,7 +52,7 @@ private:
     QMap<QString, double> song_duration;
     QMap<QString, QString> song_cover;  // 存储歌曲封面URL
 
-    HttpRequest* request;
+    HttpRequestV2* request;
     QString currentSongArtist;  // 当前歌曲的艺术家
     QString currentSongCover;   // 当前歌曲的封面
     QWidget* mainWidget;  // MainWidget指针，用于检查登录状态

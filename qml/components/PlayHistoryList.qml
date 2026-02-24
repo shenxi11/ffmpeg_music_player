@@ -1,30 +1,96 @@
-import QtQuick 2.15
+﻿import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 
-// 播放历史列表
 Rectangle {
     id: root
     color: "#f5f5f5"
 
     property bool isLoggedIn: false
     property string userAccount: ""
-    property string currentPlayingPath: ""  // 当前播放的音乐路径
+    property string currentPlayingPath: ""
+    property bool isPlaying: false
 
     signal playMusic(string filename)
+    signal playMusicWithMetadata(string filePath, string title, string artist, string cover)
     signal deleteHistory(var selectedPaths)
     signal loginRequested()
     signal refreshRequested()
 
-    // 播放历史数据模型
+    function _looksUnreadable(value) {
+        if (value === undefined || value === null) return true
+        var text = String(value).trim()
+        if (text.length === 0) return true
+        if (/^[\?？\s]+$/.test(text)) return true
+        var suspicious = text.match(/[鍙鍚鍛鍜鍝鎵鎺鏄鏃鏂鏈鏉鏋鏌鏍鐨缁璁妫娓绛鎻锛]/g)
+        return suspicious && suspicious.length >= 3
+    }
+
+    function _baseNameFromPath(path) {
+        if (!path) return ""
+        var value = String(path)
+        var qPos = value.indexOf("?")
+        if (qPos >= 0) value = value.substring(0, qPos)
+        var slash = value.lastIndexOf("/")
+        var name = slash >= 0 ? value.substring(slash + 1) : value
+        var dot = name.lastIndexOf(".")
+        if (dot > 0) name = name.substring(0, dot)
+        try {
+            name = decodeURIComponent(name)
+        } catch (e) {
+        }
+        return name
+    }
+
+    function normalizeText(value, fallbackText) {
+        if (_looksUnreadable(value)) return fallbackText
+        return String(value)
+    }
+
+    function displayTitle(item) {
+        var title = normalizeText(item.title, "")
+        if (title.length > 0) return title
+        var fromPath = normalizeText(_baseNameFromPath(item.path), "")
+        return fromPath.length > 0 ? fromPath : "未知歌曲"
+    }
+
+    function displayArtist(item) {
+        return normalizeText(item.artist, "未知艺术家")
+    }
+
+    function _normalizePath(path) {
+        if (!path) return ""
+        var value = String(path).trim()
+        if (value.indexOf("file:///") === 0) {
+            value = value.substring(8)
+        }
+        var qPos = value.indexOf("?")
+        if (qPos > 0) {
+            value = value.substring(0, qPos)
+        }
+        try {
+            value = decodeURIComponent(value)
+        } catch (e) {
+        }
+        return value
+    }
+
+    function _isSameTrack(pathA, pathB) {
+        return _normalizePath(pathA) === _normalizePath(pathB)
+    }
+
+    function setPlayingState(filePath, playing) {
+        root.currentPlayingPath = filePath || ""
+        root.isPlaying = playing
+    }
+
     ListModel {
         id: historyModel
     }
 
-    // 选中的项目
+    // 閫変腑鐨勯」鐩?
     property var selectedItems: []
 
-    // 未登录状态界面
     Rectangle {
         anchors.fill: parent
         visible: !root.isLoggedIn
@@ -85,13 +151,12 @@ Rectangle {
         }
     }
 
-    // 已登录状态界面
+    // 宸茬櫥褰曠姸鎬佺晫闈?
     ColumnLayout {
         anchors.fill: parent
         spacing: 10
         visible: root.isLoggedIn
 
-        // 标题栏和操作按钮
         RowLayout {
             Layout.fillWidth: true
             Layout.preferredHeight: 50
@@ -130,7 +195,7 @@ Rectangle {
             }
         }
 
-        // 音乐列表
+        // 闊充箰鍒楄〃
         ListView {
             id: listView
             Layout.fillWidth: true
@@ -149,7 +214,8 @@ Rectangle {
                 color: itemRoot.containsMouse ? "#E8F4FF" : (index % 2 === 0 ? "#FFFFFF" : "#FAFAFA")
 
                 property bool containsMouse: false
-                property bool isPlaying: root.currentPlayingPath === model.path
+                property bool isCurrentTrack: root._isSameTrack(root.currentPlayingPath, model.path)
+                property bool showPauseIcon: isCurrentTrack && root.isPlaying
 
                 Row {
                     anchors.fill: parent
@@ -157,7 +223,7 @@ Rectangle {
                     anchors.rightMargin: 15
                     spacing: 10
 
-                    // 序号
+                    // 搴忓彿
                     Text {
                         text: (index + 1).toString()
                         width: 50
@@ -166,7 +232,6 @@ Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
                     }
 
-                    // 封面（真实封面或默认音乐图标）
                     Rectangle {
                         width: 44
                         height: 44
@@ -200,23 +265,23 @@ Rectangle {
                         }
                     }
 
-                    // 歌曲信息列
+                    // 姝屾洸淇℃伅鍒?
                     Column {
                         width: 240
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: 4
 
                         Text {
-                            text: model.title || model.path.split('/').pop()
+                            text: root.displayTitle(model)
                             font.pixelSize: 14
-                            font.bold: itemRoot.isPlaying
-                            color: itemRoot.isPlaying ? "#4A90E2" : "#333333"
+                            font.bold: itemRoot.isCurrentTrack
+                            color: itemRoot.isCurrentTrack ? "#4A90E2" : "#333333"
                             elide: Text.ElideRight
                             width: parent.width
                         }
 
                         Text {
-                            text: model.artist || "未知艺术家"
+                            text: root.displayArtist(model)
                             font.pixelSize: 11
                             color: "#888888"
                         }
@@ -224,7 +289,7 @@ Rectangle {
 
                     Item { width: 10 }
 
-                    // 时长
+                    // 鏃堕暱
                     Text {
                         text: model.duration || "--:--"
                         width: 80
@@ -233,7 +298,6 @@ Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
                     }
 
-                    // 播放时间
                     Text {
                         text: model.play_time || ""
                         width: 130
@@ -244,7 +308,7 @@ Rectangle {
 
                     Item { width: 10 }
 
-                    // 操作按钮（hover时显示）
+                    // 鎿嶄綔鎸夐挳锛坔over鏃舵樉绀猴級
                     Row {
                         spacing: 8
                         anchors.verticalCenter: parent.verticalCenter
@@ -253,7 +317,6 @@ Rectangle {
 
                         Behavior on opacity { NumberAnimation { duration: 150 } }
 
-                        // 喜欢按钮
                         Rectangle {
                             width: 32
                             height: 32
@@ -262,7 +325,7 @@ Rectangle {
 
                             Text {
                                 anchors.centerIn: parent
-                                text: "♡"
+                                text: "♥"
                                 font.pixelSize: 16
                                 color: favBtnArea.containsMouse ? "#ff0000" : "#999999"
                             }
@@ -273,12 +336,11 @@ Rectangle {
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: {
-                                    // TODO: 添加到喜欢列表
+                                    // TODO: 娣诲姞鍒板枩娆㈠垪琛?
                                 }
                             }
                         }
 
-                        // 播放按钮
                         Rectangle {
                             width: 32
                             height: 32
@@ -287,8 +349,8 @@ Rectangle {
 
                             Text {
                                 anchors.centerIn: parent
-                                text: itemRoot.isPlaying ? "⏸" : "▶"
-                                font.pixelSize: 14
+                                text: itemRoot.showPauseIcon ? "⏸" : "▶"
+                                font.pixelSize: 13
                                 color: playBtnArea.containsMouse ? "white" : "#333333"
                             }
 
@@ -298,12 +360,16 @@ Rectangle {
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: {
-                                    root.playMusic(model.path || "")
+                                    var filePath = model.path || ""
+                                    var title = root.displayTitle(model)
+                                    var artist = root.displayArtist(model)
+                                    var cover = model.cover_art_url || ""
+                                    root.playMusicWithMetadata(filePath, title, artist, cover)
                                 }
                             }
                         }
 
-                        // 删除按钮
+                        // 鍒犻櫎鎸夐挳
                         Rectangle {
                             width: 60
                             height: 28
@@ -330,7 +396,6 @@ Rectangle {
                     }
                 }
 
-                // 整个item的悬停检测
                 MouseArea {
                     anchors.fill: parent
                     hoverEnabled: true
@@ -341,12 +406,16 @@ Rectangle {
                     onReleased: mouse.accepted = false
                     onClicked: mouse.accepted = false
                     onDoubleClicked: {
-                        root.playMusic(model.path || "")
+                        var filePath = model.path || ""
+                        var title = root.displayTitle(model)
+                        var artist = root.displayArtist(model)
+                        var cover = model.cover_art_url || ""
+                        root.playMusicWithMetadata(filePath, title, artist, cover)
                     }
                 }
             }
 
-            // 空状态
+            // 绌虹姸鎬?
             Label {
                 anchors.centerIn: parent
                 text: "暂无播放历史"
@@ -357,7 +426,6 @@ Rectangle {
         }
     }
 
-    // 公共函数：加载播放历史
     function loadHistory(historyData) {
         historyModel.clear()
         root.selectedItems = []
@@ -366,16 +434,19 @@ Rectangle {
         
         for (var i = 0; i < historyData.length; i++) {
             var item = historyData[i]
-            item.uniqueId = i  // 添加唯一ID，避免重复歌曲删除问题
-            
-            // 调试输出
+            if (!item.artist || item.artist.length === 0) {
+                item.artist = item.singer || item.author || item.artist_name || ""
+            }
+            item.title = root.displayTitle(item)
+            item.artist = root.displayArtist(item)
+            // 璋冭瘯杈撳嚭
             console.log("[PlayHistoryList] Item", i, "- title:", item.title, "cover_art_url:", item.cover_art_url)
             
             historyModel.append(item)
         }
     }
 
-    // 清空列表
+    // 娓呯┖鍒楄〃
     function clearHistory() {
         historyModel.clear()
         root.selectedItems = []

@@ -1,4 +1,4 @@
-import QtQuick 2.15
+﻿import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 
@@ -13,6 +13,47 @@ Rectangle {
     signal playMusic(string filename)
     signal removeFavorite(var selectedPaths)
     signal refreshRequested()
+
+    function _looksUnreadable(value) {
+        if (value === undefined || value === null) return true
+        var text = String(value).trim()
+        if (text.length === 0) return true
+        if (/^[\?？\s]+$/.test(text)) return true
+        var suspicious = text.match(/[鍙鍚鍛鍜鍝鎵鎺鏄鏃鏂鏈鏉鏋鏌鏍鐨缁璁妫娓绛鎻锛]/g)
+        return suspicious && suspicious.length >= 3
+    }
+
+    function _baseNameFromPath(path) {
+        if (!path) return ""
+        var value = String(path)
+        var qPos = value.indexOf("?")
+        if (qPos >= 0) value = value.substring(0, qPos)
+        var slash = value.lastIndexOf("/")
+        var name = slash >= 0 ? value.substring(slash + 1) : value
+        var dot = name.lastIndexOf(".")
+        if (dot > 0) name = name.substring(0, dot)
+        try {
+            name = decodeURIComponent(name)
+        } catch (e) {
+        }
+        return name
+    }
+
+    function normalizeText(value, fallbackText) {
+        if (_looksUnreadable(value)) return fallbackText
+        return String(value)
+    }
+
+    function displayTitle(item) {
+        var title = normalizeText(item.title, "")
+        if (title.length > 0) return title
+        var fromPath = normalizeText(_baseNameFromPath(item.path), "")
+        return fromPath.length > 0 ? fromPath : "未知歌曲"
+    }
+
+    function displayArtist(item) {
+        return normalizeText(item.artist, "未知艺术家")
+    }
 
     // 喜欢音乐数据模型
     ListModel {
@@ -142,7 +183,7 @@ Rectangle {
                         spacing: 4
 
                         Text {
-                            text: model.title || model.path.split('/').pop()
+                            text: root.displayTitle(model)
                             font.pixelSize: 14
                             font.bold: itemRoot.isPlaying
                             color: itemRoot.isPlaying ? "#4A90E2" : "#333333"
@@ -151,7 +192,7 @@ Rectangle {
                         }
 
                         Text {
-                            text: model.artist || "未知艺术家"
+                            text: root.displayArtist(model)
                             font.pixelSize: 11
                             color: "#888888"
                         }
@@ -277,6 +318,8 @@ Rectangle {
         for (var i = 0; i < favoritesData.length; i++) {
             var item = favoritesData[i]
             item.uniqueId = i  // 添加唯一ID
+            item.title = root.displayTitle(item)
+            item.artist = root.displayArtist(item)
             
             // 调试输出
             console.log("[FavoriteMusicList] Item", i, "- title:", item.title, "cover_art_url:", item.cover_art_url)

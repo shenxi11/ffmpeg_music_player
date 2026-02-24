@@ -1,15 +1,14 @@
-#include "music_list_widget_net.h"
+﻿#include "music_list_widget_net.h"
 #include "settings_manager.h"
 #include "download_manager.h"
-#include "httprequest.h"
-#include "play_widget.h"
+#include "httprequest_v2.h"
 #include <QVBoxLayout>
 #include <QDebug>
 #include <QMetaObject>
 
 MusicListWidgetNet::MusicListWidgetNet(QWidget *parent) : QWidget(parent)
 {
-    // 直接使用 QML 版本的在线音乐列表
+    // 直接使用 QML 版本的在线音乐列
     listWidget = new MusicListWidgetNetQml(this);
     
     QVBoxLayout* v_layout = new QVBoxLayout(this);
@@ -17,7 +16,7 @@ MusicListWidgetNet::MusicListWidgetNet(QWidget *parent) : QWidget(parent)
     v_layout->addWidget(listWidget);
     setLayout(v_layout);
 
-    // 连接 QML 信号到外部
+    // 连接 QML 信号到外
     connect(listWidget, &MusicListWidgetNetQml::signal_play_click,
             this, &MusicListWidgetNet::on_signal_play_click);
     connect(listWidget, &MusicListWidgetNetQml::signal_remove_click,
@@ -29,7 +28,7 @@ MusicListWidgetNet::MusicListWidgetNet(QWidget *parent) : QWidget(parent)
     connect(this, &MusicListWidgetNet::signal_next, listWidget, &MusicListWidgetNetQml::signal_next);
     connect(this, &MusicListWidgetNet::signal_last, listWidget, &MusicListWidgetNetQml::signal_last);
 
-    // 连接下载管理器的信号，监听下载状态（新版带taskId）
+    // 连接下载管理器的信号，监听下载状态（新版带taskId
     connect(&DownloadManager::instance(), &DownloadManager::downloadStarted,
             this, [](const QString& taskId, const QString& filename) {
         qDebug() << "[MusicListWidgetNet] Download started:" << filename << "TaskID:" << taskId;
@@ -39,7 +38,7 @@ MusicListWidgetNet::MusicListWidgetNet(QWidget *parent) : QWidget(parent)
             this, [](const QString& taskId, const QString& filename, qint64 bytesReceived, qint64 bytesTotal) {
         if (bytesTotal > 0) {
             int progress = (bytesReceived * 100) / bytesTotal;
-            if (progress % 10 == 0) {  // 每10%打印一次，减少日志
+            if (progress % 10 == 0) {  // 0%打印一次，减少日志
                 qDebug() << "[MusicListWidgetNet] Download progress:" << filename << progress << "%";
             }
         }
@@ -62,7 +61,7 @@ MusicListWidgetNet::MusicListWidgetNet(QWidget *parent) : QWidget(parent)
         qDebug() << "MusicListWidgetNet: Received" << musicList.size() << "songs";
         
         // 提取Music对象中的信息并传递给QML组件
-        QStringList songNames;  // 歌名（从路径提取的文件名）
+        QStringList songNames;  // 歌名（从路径提取的文件名
         QStringList relativePaths;  // 相对路径，用于API调用
         QList<double> durations;
         QStringList coverUrls;
@@ -72,7 +71,7 @@ MusicListWidgetNet::MusicListWidgetNet(QWidget *parent) : QWidget(parent)
             QString fullPath = music.getSongPath();
             QString relativePath;
             
-            // 从完整URL中提取相对路径
+            // 从完整URL中提取相对路
             // fullPath = "http://slcdut.xyz:8080/uploads/千里之外/千里之外.mp3"
             // relativePath = "千里之外/千里之外.mp3"
             if (fullPath.startsWith("http://") || fullPath.startsWith("https://")) {
@@ -83,7 +82,7 @@ MusicListWidgetNet::MusicListWidgetNet(QWidget *parent) : QWidget(parent)
                     relativePath = fullPath;  // 降级处理
                 }
             } else {
-                relativePath = fullPath;  // 已经是相对路径
+                relativePath = fullPath;  // 已经是相对路
             }
             
             songNames.append(music.getSongName());      // 歌名
@@ -92,7 +91,7 @@ MusicListWidgetNet::MusicListWidgetNet(QWidget *parent) : QWidget(parent)
             coverUrls.append(music.getPicPath());
             artists.append(music.getSinger());
             
-            // 保存到本地映射（使用相对路径作为key）
+            // 保存到本地映射（使用相对路径作为key
             song_duration[relativePath] = static_cast<double>(music.getDuration());
             song_cover[relativePath] = music.getPicPath();
         }
@@ -100,14 +99,14 @@ MusicListWidgetNet::MusicListWidgetNet(QWidget *parent) : QWidget(parent)
         listWidget->addSongList(songNames, relativePaths, durations, coverUrls, artists);
     });
 
-    // 监听播放状态变化
+    // 监听播放状态变
     connect(this, &MusicListWidgetNet::signal_play_button_click, [=](bool flag, const QString filename){
-        // 通知 listWidget 更新播放状态
+        // 通知 listWidget 更新播放状
         listWidget->setPlayingState(filename, flag);
     });
 
-    request = HttpRequestPool::getInstance().getRequest();
-    connect(request, &HttpRequest::signal_streamurl, this, [=](bool flag, QString file){
+    request = new HttpRequestV2(this);
+    connect(request, &HttpRequestV2::signal_streamurl, this, [=](bool flag, QString file){
         emit signal_play_click(file, currentSongArtist, currentSongCover, true);
     });
 }
@@ -115,14 +114,14 @@ MusicListWidgetNet::MusicListWidgetNet(QWidget *parent) : QWidget(parent)
 void MusicListWidgetNet::on_signal_play_click(const QString name, const QString artist, const QString cover)
 {
     double duration = song_duration[name];
-    // 保存元数据，供后续使用
+    // 保存元数据，供后续使
     currentSongArtist = artist;
     currentSongCover = cover;
     request->get_music_data(name);
 }
 void MusicListWidgetNet::on_signal_download_music(QString songName)
 {
-    // 检查登录状态
+    // 检查登录状
     if (mainWidget) {
         // 使用QMetaObject调用方法，避免包含main_widget.h
         bool isLoggedIn = false;
@@ -155,22 +154,14 @@ void MusicListWidgetNet::on_signal_remove_click(const QString name)
 }
 void MusicListWidgetNet::on_signal_play_button_click(bool flag, const QString filename)
 {
-    qDebug() << "[PLAY_STATE] MusicListWidgetNet::on_signal_play_button_click 收到信号, flag=" << flag << ", filename=" << filename;
-    if(auto sender_ = dynamic_cast<PlayWidget*>(sender()))
-    {
-        qDebug() << "[PLAY_STATE] sender 是 PlayWidget, net_flag=" << sender_->get_net_flag();
-        if(sender_->get_net_flag())
-        {
-            qDebug() << "[PLAY_STATE] 调用 listWidget->setPlayingState(" << filename << "," << flag << ")";
-            listWidget->setPlayingState(filename, flag);
-            emit signal_play_button_click(flag, filename);
-        }
-    } else {
-        qDebug() << "[PLAY_STATE] sender 不是 PlayWidget";
-    }
+    qDebug() << "[PLAY_STATE] MusicListWidgetNet::on_signal_play_button_click flag=" << flag << ", filename=" << filename;
+    // Always forward playback state; QML decides whether the path belongs to this list.
+    emit signal_play_button_click(flag, filename);
 }
 
 void MusicListWidgetNet::on_signal_translate_button_clicked()
 {
     emit signal_translate_button_clicked();
 }
+
+

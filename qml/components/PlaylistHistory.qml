@@ -1,4 +1,4 @@
-import QtQuick 2.14
+﻿import QtQuick 2.14
 import QtQuick.Controls 2.14
 import QtGraphicalEffects 1.14
 
@@ -29,6 +29,47 @@ Rectangle {
     // 当前播放的歌曲路径
     property string currentPlayingPath: ""
     property bool isPaused: false  // 是否处于暂停状态
+
+    function _looksUnreadable(value) {
+        if (value === undefined || value === null) return true
+        var text = String(value).trim()
+        if (text.length === 0) return true
+        if (/^[\?？\s]+$/.test(text)) return true
+        var suspicious = text.match(/[鍙鍚鍛鍜鍝鎵鎺鏄鏃鏂鏈鏉鏋鏌鏍鐨缁璁妫娓绛鎻锛]/g)
+        return suspicious && suspicious.length >= 3
+    }
+
+    function _baseNameFromPath(path) {
+        if (!path) return ""
+        var value = String(path)
+        var qPos = value.indexOf("?")
+        if (qPos >= 0) value = value.substring(0, qPos)
+        var slash = value.lastIndexOf("/")
+        var name = slash >= 0 ? value.substring(slash + 1) : value
+        var dot = name.lastIndexOf(".")
+        if (dot > 0) name = name.substring(0, dot)
+        try {
+            name = decodeURIComponent(name)
+        } catch (e) {
+        }
+        return name
+    }
+
+    function normalizeText(value, fallbackText) {
+        if (_looksUnreadable(value)) return fallbackText
+        return String(value)
+    }
+
+    function displayTitle(item) {
+        var title = normalizeText(item.title, "")
+        if (title.length > 0) return title
+        var fromPath = normalizeText(_baseNameFromPath(item.filePath), "")
+        return fromPath.length > 0 ? fromPath : "未知歌曲"
+    }
+
+    function displayArtist(item) {
+        return normalizeText(item.artist, "未知艺术家")
+    }
     
     // 标题栏
     Rectangle {
@@ -144,7 +185,9 @@ Rectangle {
                         
                         Image {
                             anchors.fill: parent
-                            source: model.cover || "qrc:/new/prefix1/icon/music_icon.png"
+                            source: (model.cover && model.cover.length > 0)
+                                    ? model.cover
+                                    : "qrc:/new/prefix1/icon/Music.png"
                             fillMode: Image.PreserveAspectCrop
                             layer.enabled: true
                             layer.effect: OpacityMask {
@@ -164,7 +207,7 @@ Rectangle {
                         spacing: 4
                         
                         Text {
-                            text: model.title
+                            text: root.displayTitle(model)
                             font.pixelSize: 14
                             font.bold: model.filePath === root.currentPlayingPath
                             color: model.filePath === root.currentPlayingPath ? "#4CAF50" : "#333333"
@@ -173,7 +216,7 @@ Rectangle {
                         }
                         
                         Text {
-                            text: model.artist
+                            text: root.displayArtist(model)
                             font.pixelSize: 12
                             color: "#999999"
                             elide: Text.ElideRight
@@ -313,25 +356,41 @@ Rectangle {
     
     // 添加歌曲到列表
     function addSong(filePath, title, artist, cover) {
-        // 更新当前播放的歌曲
         root.currentPlayingPath = filePath
-        root.isPaused = false  // 新歌曲开始播放，不是暂停状态
-        
-        // 检查是否已存在
+        root.isPaused = false
+
+        var normalizedTitle = normalizeText(title, "")
+        if (normalizedTitle.length === 0) {
+            normalizedTitle = normalizeText(_baseNameFromPath(filePath), "未知歌曲")
+        }
+        var normalizedArtist = normalizeText(artist, "未知艺术家")
+
+        // Existing item: update metadata in-place and keep list order.
         for (var i = 0; i < playlistModel.count; i++) {
             if (playlistModel.get(i).filePath === filePath) {
-                // 已存在，保持在原位置，不移动
-                // 只需要更新currentPlayingPath就会自动高亮
+                var existing = playlistModel.get(i)
+
+                if (normalizedTitle.length > 0) {
+                    playlistModel.setProperty(i, "title", normalizedTitle)
+                }
+                if (normalizedArtist.length > 0 && normalizedArtist !== "未知艺术家") {
+                    playlistModel.setProperty(i, "artist", normalizedArtist)
+                }
+                if (cover && cover.length > 0) {
+                    playlistModel.setProperty(i, "cover", cover)
+                } else if (!existing.cover || existing.cover.length === 0) {
+                    playlistModel.setProperty(i, "cover", "qrc:/new/prefix1/icon/Music.png")
+                }
                 return
             }
         }
-        
-        // 不存在，添加到顶部
-        playlistModel.insert(0, {
+
+        // New item: append to tail to avoid reordering on track switch.
+        playlistModel.append({
             filePath: filePath,
-            title: title,
-            artist: artist,
-            cover: cover
+            title: normalizedTitle,
+            artist: normalizedArtist,
+            cover: (cover && cover.length > 0) ? cover : "qrc:/new/prefix1/icon/Music.png"
         })
     }
     

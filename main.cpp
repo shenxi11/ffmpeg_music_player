@@ -10,6 +10,7 @@
 #include "headers.h"
 #include "plugin_manager.h"
 #include "logger.h"
+#include "user.h"
 
 #ifdef Q_OS_WIN
 #include <Windows.h>  // For SetDllDirectoryW, GetModuleFileNameW

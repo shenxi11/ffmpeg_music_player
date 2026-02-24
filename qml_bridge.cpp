@@ -52,7 +52,7 @@ void UIBridge::initializeComponents()
     m_worker = std::make_shared<Worker>();
     m_takePcm = std::make_shared<TakePcm>();
     m_lrcAnalyze = std::make_shared<LrcAnalyze>();
-    m_httpRequest = new HttpRequest(this);
+    m_httpRequest = new HttpRequestV2(this);
     
     // 移动到线程
     m_worker->moveToThread(m_workerThread);
@@ -128,9 +128,9 @@ void UIBridge::setupConnections()
             m_worker.get(), &Worker::reset_status);
     
     // HTTP 相关
-    connect(m_httpRequest, &HttpRequest::signal_getusername, 
+    connect(m_httpRequest, &HttpRequestV2::signal_getusername, 
             this, &UIBridge::onLoginSuccess);
-    connect(m_httpRequest, &HttpRequest::signal_addSong_list, 
+    connect(m_httpRequest, &HttpRequestV2::signal_addSong_list, 
             this, &UIBridge::onMusicListReceived);
     
     qDebug() << "UIBridge::setupConnections - All connections established";
@@ -437,7 +437,7 @@ void UIBridge::login(const QString& account, const QString& password)
     qDebug() << "UIBridge::login" << account;
     
     if (m_httpRequest) {
-        m_httpRequest->Login(account, password);
+        m_httpRequest->login(account, password);
     }
 }
 
@@ -454,7 +454,7 @@ void UIBridge::registerAccount(const QString& account, const QString& password, 
     qDebug() << "UIBridge::registerAccount" << account << username;
     
     if (m_httpRequest) {
-        m_httpRequest->Register(account, password, username);
+        m_httpRequest->registerUser(account, password, username);
     }
 }
 
