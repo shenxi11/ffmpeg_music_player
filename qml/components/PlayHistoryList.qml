@@ -88,7 +88,7 @@ Rectangle {
         id: historyModel
     }
 
-    // 閫変腑鐨勯」鐩?
+    // 当前多选项（用于批量删除等操作）
     property var selectedItems: []
 
     Rectangle {
@@ -151,7 +151,7 @@ Rectangle {
         }
     }
 
-    // 宸茬櫥褰曠姸鎬佺晫闈?
+    // 登录后展示的播放历史主内容区
     ColumnLayout {
         anchors.fill: parent
         spacing: 10
@@ -195,7 +195,7 @@ Rectangle {
             }
         }
 
-        // 闊充箰鍒楄〃
+        // 播放历史列表
         ListView {
             id: listView
             Layout.fillWidth: true
@@ -223,7 +223,7 @@ Rectangle {
                     anchors.rightMargin: 15
                     spacing: 10
 
-                    // 搴忓彿
+                    // 序号列
                     Text {
                         text: (index + 1).toString()
                         width: 50
@@ -265,7 +265,7 @@ Rectangle {
                         }
                     }
 
-                    // 姝屾洸淇℃伅鍒?
+                    // 歌曲信息列（标题 + 艺术家）
                     Column {
                         width: 240
                         anchors.verticalCenter: parent.verticalCenter
@@ -289,7 +289,7 @@ Rectangle {
 
                     Item { width: 10 }
 
-                    // 鏃堕暱
+                    // 时长列
                     Text {
                         text: model.duration || "--:--"
                         width: 80
@@ -308,7 +308,7 @@ Rectangle {
 
                     Item { width: 10 }
 
-                    // 鎿嶄綔鎸夐挳锛坔over鏃舵樉绀猴級
+                    // 操作按钮区（悬停时显示）
                     Row {
                         spacing: 8
                         anchors.verticalCenter: parent.verticalCenter
@@ -336,7 +336,7 @@ Rectangle {
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: {
-                                    // TODO: 娣诲姞鍒板枩娆㈠垪琛?
+                                    // 预留：添加到喜欢列表
                                 }
                             }
                         }
@@ -369,7 +369,7 @@ Rectangle {
                             }
                         }
 
-                        // 鍒犻櫎鎸夐挳
+                        // 删除按钮
                         Rectangle {
                             width: 60
                             height: 28
@@ -415,7 +415,7 @@ Rectangle {
                 }
             }
 
-            // 绌虹姸鎬?
+            // 空状态提示
             Label {
                 anchors.centerIn: parent
                 text: "暂无播放历史"
@@ -439,14 +439,14 @@ Rectangle {
             }
             item.title = root.displayTitle(item)
             item.artist = root.displayArtist(item)
-            // 璋冭瘯杈撳嚭
+            // 统一归一化字段，避免后端字段不一致导致显示异常
             console.log("[PlayHistoryList] Item", i, "- title:", item.title, "cover_art_url:", item.cover_art_url)
             
             historyModel.append(item)
         }
     }
 
-    // 娓呯┖鍒楄〃
+    // 清空本地列表展示（不触发服务端删除）
     function clearHistory() {
         historyModel.clear()
         root.selectedItems = []

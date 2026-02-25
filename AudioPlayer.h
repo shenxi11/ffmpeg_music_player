@@ -1,4 +1,4 @@
-#ifndef AUDIOPLAYER_H
+﻿#ifndef AUDIOPLAYER_H
 #define AUDIOPLAYER_H
 
 #include <QObject>
@@ -14,126 +14,103 @@
 #include <queue>
 #include "AudioBuffer.h"
 
-/**
- * @brief 音频播放控制器模块
- * 职责：管理音频硬件输出、播放控制和音频时钟同步
- * 注：使用单例模式，全局共享一个音频设备实例以消除启动延迟
- */
 class AudioPlayer : public QObject
 {
     Q_OBJECT
+
 public:
-    // 单例接口
     static AudioPlayer& instance();
-    
-    // 禁止复制和赋值
+
     AudioPlayer(const AudioPlayer&) = delete;
     AudioPlayer& operator=(const AudioPlayer&) = delete;
-    
-    // 播放控制
+
     bool start();
     void pause();
     void resume();
     void stop();
-    
-    // 清空缓冲区（切换歌曲时使用）
+
     void resetBuffer();
-    
-    // 音量控制 (0-100)
+
     void setVolume(int volume);
     int volume() const { return m_volume; }
-    
-    // 写入音频数据（从解码器）
+
     void writeAudioData(const QByteArray& data, qint64 timestampMs, const QString& ownerId = QString());
     void setWriteOwner(const QString& ownerId);
     void clearWriteOwner(const QString& ownerId = QString());
     QString writeOwner() const;
-    
-    // 时钟同步
-    qint64 getCurrentTimestamp() const;  // 获取当前播放时间戳
-    void setCurrentTimestamp(qint64 timestampMs);  // 设置当前时间戳（seek时使用）
-    qint64 getPlaybackPosition() const;  // 获取实际播放位置（用于音视频同步）
-    
-    // 状态查询
+
+    qint64 getCurrentTimestamp() const;
+    void setCurrentTimestamp(qint64 timestampMs);
+    qint64 getPlaybackPosition() const;
+
+    void setPlaybackRate(double rate);
+    double playbackRate() const { return m_playbackRate.load(); }
+
     bool isPlaying() const { return m_isPlaying; }
     bool isPaused() const { return m_isPaused; }
-    
-    // 缓冲区访问
+
     AudioBuffer* getBuffer() const { return m_buffer; }
-    
-    // 缓冲区状态
-    int bufferFillLevel() const;  // 0-100
+    int bufferFillLevel() const;
 
 signals:
-    // 播放状态变化
     void playbackStarted();
     void playbackPaused();
     void playbackResumed();
     void playbackStopped();
-    
-    // 播放进度（用于UI更新）
+
     void positionChanged(qint64 positionMs);
-    
-    // 缓冲状态
+
     void bufferStatusChanged(int fillLevel);
-    void bufferUnderrun();  // 缓冲区饥饿
-    
-    // 错误信号
+    void bufferUnderrun();
+
     void playbackError(const QString& error);
 
 private slots:
     void onPositionUpdateTimer();
 
 private:
-    // 私有构造/析构（单例模式）
     AudioPlayer();
     ~AudioPlayer();
-    
-    void playbackThread();  // 播放线程
+
+    void playbackThread();
     bool initAudioOutput();
     void cleanupAudioOutput();
-    void updateTimestamp(qint64 bytesConsumed);  // 更新时间戳
-    
-    // Qt 音频组件
+    void updateTimestamp(qint64 bytesConsumed);
+
+private:
     QAudioOutput* m_audioOutput;
     QIODevice* m_audioDevice;
     QTimer* m_positionTimer;
-    
-    // 缓冲区
+
     AudioBuffer* m_buffer;
-    
-    // 时间戳队列（用于同步）
+
     struct TimestampedData {
         qint64 timestamp;
         int dataSize;
     };
     std::queue<TimestampedData> m_timestampQueue;
     mutable std::mutex m_timestampMutex;
-    
-    // 写入所有权（防止音频/视频会话同时向同一输出写入）
+
     QString m_writeOwner;
     mutable std::mutex m_ownerMutex;
-    
-    // 播放线程
+
     std::thread m_playThread;
     std::mutex m_playMutex;
     std::condition_variable m_cv;
     std::atomic<bool> m_threadRunning;
     std::atomic<bool> m_stopRequested;
-    
-    // 播放状态
+
     std::atomic<bool> m_isPlaying;
     std::atomic<bool> m_isPaused;
     std::atomic<int> m_volume;
-    
-    // 音频时钟
+    std::atomic<double> m_playbackRate;
+
     qint64 m_currentTimestamp;
     qint64 m_baseTimestamp;
     QElapsedTimer m_playbackTimer;
-    qint64 m_playbackStartTimestamp;  // 播放开始时的时间戳（用于时钟同步）
-    qint64 m_pausedPosition;  // 暂停时的播放位置
-    
-    // 音频格式
+    qint64 m_playbackStartTimestamp;
+    qint64 m_pausedPosition;
+
     int m_sampleRate;
     int m_channels;
 };

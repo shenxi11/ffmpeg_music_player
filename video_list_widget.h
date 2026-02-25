@@ -25,6 +25,7 @@ public:
 signals:
     void signal_open_video_player(const QString& videoUrl, const QString& videoName);
     void videoPlayerWindowReady(VideoPlayerWindow* window);
+    void videoPlaybackStateChanged(bool isPlaying);
 
 public slots:
     void pauseVideoPlayback();

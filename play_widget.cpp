@@ -35,7 +35,7 @@ PlayWidget::PlayWidget(QWidget *parent, QWidget *mainWidget)
              << "size:" << process_slider->size()
              << "visible:" << process_slider->isVisible();
 
-    desk = new DeskLrcQml();
+    desk = new DeskLrcQml(this);
     desk->raise();
     desk->hide();
     
@@ -326,12 +326,44 @@ PlayWidget::PlayWidget(QWidget *parent, QWidget *mainWidget)
     connect(process_slider, &ProcessSliderQml::signal_Slider_Move, this, [this](int seconds){
         qDebug() << "[MVVM-UI] Slider moved to:" << seconds << "seconds";
         qint64 milliseconds = static_cast<qint64>(seconds) * 1000;
-        
-        // 使用ViewModel进行跳转
-        m_playbackViewModel->seekTo(milliseconds);
-        
-        // 同时触发signal_process_Change用于兼容性（如歌词跳转）
-        emit signal_process_Change(milliseconds, true);
+
+        // 用户拖动音频进度条即表示切回音频焦点并进入播放态。
+        emit signal_playState(ProcessSliderQml::Play);
+
+        if (m_playbackViewModel->isPlaying()) {
+            m_playbackViewModel->seekTo(milliseconds);
+        } else if (m_playbackViewModel->isPaused()) {
+            m_playbackViewModel->seekTo(milliseconds);
+            m_playbackViewModel->resume();
+        } else {
+            // Stop态下 seek 不会驱动播放，先恢复当前曲目再定位。
+            QUrl resumeUrl = m_playbackViewModel->currentUrl();
+            if (resumeUrl.isEmpty()) {
+                QString currentPath = m_playbackViewModel->currentFilePath();
+                if (currentPath.isEmpty()) {
+                    currentPath = filePath;
+                }
+
+                if (!currentPath.isEmpty()) {
+                    resumeUrl = currentPath.startsWith("http", Qt::CaseInsensitive)
+                            ? QUrl(currentPath)
+                            : QUrl::fromLocalFile(currentPath);
+                }
+            }
+
+            if (!resumeUrl.isEmpty()) {
+                m_playbackViewModel->play(resumeUrl);
+                QTimer::singleShot(0, this, [this, milliseconds]() {
+                    m_playbackViewModel->seekTo(milliseconds);
+                });
+            } else {
+                // 回退：没有可恢复曲目时仅执行定位。
+                m_playbackViewModel->seekTo(milliseconds);
+            }
+        }
+
+        // 注意：这里不能再通过 signal_process_Change 触发二次 seek，
+        // 否则会导致同一次拖动出现重复 seek，打断 owner handoff。
     });
     
     connect(process_slider, &ProcessSliderQml::signal_up_click, this, [this](){
@@ -932,6 +964,21 @@ PlayWidget::~PlayWidget()
         currentSession->stop();
         currentSession = nullptr;
     }
+
+    // Ensure QQuickWidget-based components are torn down while GUI/OpenGL
+    // context is still valid to avoid shutdown-time render-control asserts.
+    auto shutdownQuickWidget = [](QQuickWidget* widget) {
+        if (!widget) {
+            return;
+        }
+        widget->hide();
+        widget->setSource(QUrl());
+    };
+
+    shutdownQuickWidget(desk);
+    shutdownQuickWidget(lyricDisplay);
+    shutdownQuickWidget(process_slider);
+    shutdownQuickWidget(playlistHistory);
     
     // 清理歌词线程（保留）
     if(b)
@@ -945,6 +992,27 @@ PlayWidget::~PlayWidget()
         }
     }
     
+    if (desk) {
+        delete desk;
+        desk = nullptr;
+    }
+
+    if (lyricDisplay) {
+        delete lyricDisplay;
+        lyricDisplay = nullptr;
+    }
+
+    if (process_slider) {
+        delete process_slider;
+        process_slider = nullptr;
+        controlBar = nullptr;
+    }
+
+    if (playlistHistory) {
+        delete playlistHistory;
+        playlistHistory = nullptr;
+    }
+
     lrc.reset();
     
     qDebug() << "PlayWidget::~PlayWidget() - Cleanup complete";
@@ -1141,5 +1209,3 @@ void PlayWidget::setNetworkMetadata(const QString& title, const QString& artist,
     networkSongArtist = artist;
     networkSongCover = cover;
 }
-
-

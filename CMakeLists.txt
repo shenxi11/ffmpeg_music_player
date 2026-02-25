@@ -242,6 +242,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     avcodec
     avformat
     avutil
+    avfilter
     avdevice
     swscale
     swresample
@@ -282,6 +283,7 @@ if(WIN32)
         "${FFMPEG_DIR}/avcodec-58.dll"
         "${FFMPEG_DIR}/avformat-58.dll"
         "${FFMPEG_DIR}/avutil-56.dll"
+        "${FFMPEG_DIR}/avfilter-7.dll"
         "${FFMPEG_DIR}/avdevice-58.dll"
         "${FFMPEG_DIR}/swscale-5.dll"
         "${FFMPEG_DIR}/swresample-3.dll"

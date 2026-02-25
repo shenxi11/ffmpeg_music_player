@@ -1,10 +1,27 @@
-#include "VideoRendererGL.h"
-#include "VideoBuffer.h"
-#include "AudioPlayer.h"
-#include <QDebug>
+﻿#include "VideoRendererGL.h"
 
-// YUV420P 到 RGB 的 Fragment Shader
-static const char* fragmentShaderSource = R"(
+#include "AudioPlayer.h"
+#include "VideoBuffer.h"
+
+#include <QDebug>
+#include <QOpenGLContext>
+#include <QSurfaceFormat>
+
+namespace {
+
+static const char* kVertexShaderSource = R"(
+#version 330 core
+layout (location = 0) in vec3 aPos;
+layout (location = 1) in vec2 aTexCoord;
+out vec2 TexCoord;
+void main()
+{
+    gl_Position = vec4(aPos, 1.0);
+    TexCoord = aTexCoord;
+}
+)";
+
+static const char* kYuvFragmentShaderSource = R"(
 #version 330 core
 out vec4 FragColor;
 in vec2 TexCoord;
@@ -18,61 +35,129 @@ void main()
     float y = texture(texY, TexCoord).r;
     float u = texture(texU, TexCoord).r - 0.5;
     float v = texture(texV, TexCoord).r - 0.5;
-    
-    // BT.709 YUV to RGB conversion
+
+    // BT.709
     float r = y + 1.5748 * v;
     float g = y - 0.1873 * u - 0.4681 * v;
     float b = y + 1.8556 * u;
-    
+
     FragColor = vec4(r, g, b, 1.0);
 }
 )";
 
-// Vertex Shader
-static const char* vertexShaderSource = R"(
+static const char* kPresentFragmentShaderSource = R"(
 #version 330 core
-layout (location = 0) in vec3 aPos;
-layout (location = 1) in vec2 aTexCoord;
+out vec4 FragColor;
+in vec2 TexCoord;
 
-out vec2 TexCoord;
+uniform sampler2D texRgb;
+uniform vec2 texelSize;
+uniform float sharpenStrength;
+uniform int highQualityScaling;
+
+float cubicWeight(float x)
+{
+    x = abs(x);
+    if (x <= 1.0) {
+        return (1.5 * x - 2.5) * x * x + 1.0;
+    }
+    if (x < 2.0) {
+        return ((-0.5 * x + 2.5) * x - 4.0) * x + 2.0;
+    }
+    return 0.0;
+}
+
+vec3 sampleLinear(vec2 uv)
+{
+    return texture(texRgb, uv).rgb;
+}
+
+vec3 sampleBicubic(vec2 uv)
+{
+    vec2 textureSizeF = vec2(textureSize(texRgb, 0));
+    vec2 xy = uv * textureSizeF - 0.5;
+    vec2 base = floor(xy);
+    vec2 frac = fract(xy);
+
+    vec3 color = vec3(0.0);
+    float weightSum = 0.0;
+
+    for (int j = -1; j <= 2; ++j) {
+        for (int i = -1; i <= 2; ++i) {
+            vec2 samplePixel = base + vec2(float(i), float(j)) + 0.5;
+            vec2 sampleUv = samplePixel / textureSizeF;
+            float w = cubicWeight(float(i) - frac.x) * cubicWeight(float(j) - frac.y);
+            color += texture(texRgb, sampleUv).rgb * w;
+            weightSum += w;
+        }
+    }
+
+    return color / max(weightSum, 1e-5);
+}
 
 void main()
 {
-    gl_Position = vec4(aPos, 1.0);
-    TexCoord = aTexCoord;
+    vec2 uv = vec2(TexCoord.x, 1.0 - TexCoord.y);
+    vec3 color = (highQualityScaling == 1) ? sampleBicubic(uv) : sampleLinear(uv);
+
+    vec3 blur = (
+        sampleLinear(uv + vec2(texelSize.x, 0.0)) +
+        sampleLinear(uv - vec2(texelSize.x, 0.0)) +
+        sampleLinear(uv + vec2(0.0, texelSize.y)) +
+        sampleLinear(uv - vec2(0.0, texelSize.y)) +
+        color
+    ) / 5.0;
+
+    vec3 sharpened = color + sharpenStrength * (color - blur);
+    FragColor = vec4(clamp(sharpened, 0.0, 1.0), 1.0);
 }
 )";
+
+} // namespace
 
 VideoRendererGL::VideoRendererGL(QWidget* parent)
     : QOpenGLWidget(parent)
     , m_playing(false)
     , m_buffering(false)
     , m_bufferingThreshold(15)
+    , m_videoSize(-1, -1)
+    , m_pixelAspectRatio(1.0f)
+    , m_displayMode(0)
     , m_lastPTS(0)
     , m_shaderProgram(nullptr)
+    , m_presentShaderProgram(nullptr)
     , m_textureY(0)
     , m_textureU(0)
     , m_textureV(0)
     , m_vao(0)
     , m_vbo(0)
+    , m_fullscreenVao(0)
+    , m_fullscreenVbo(0)
+    , m_rgbFbo(0)
+    , m_rgbTexture(0)
+    , m_rgbFboWidth(0)
+    , m_rgbFboHeight(0)
     , m_currentFrame(nullptr)
     , m_frameUpdated(false)
+    , m_vertexBufferDirty(true)
     , m_renderTimer(new QTimer(this))
     , m_targetFPS(30)
     , m_frameInterval(33)
     , m_buffer(nullptr)
     , m_glInitialized(false)
+    , m_qualityPreset(Standard1080P)
+    , m_renderMaxWidth(1920)
+    , m_renderMaxHeight(1080)
+    , m_sharpenStrength(0.08f)
+    , m_enableHighQualityScaling(false)
 {
-    qDebug() << "[VideoRendererGL] Created";
-    
-    // 设置OpenGL格式
     QSurfaceFormat format;
     format.setVersion(3, 3);
     format.setProfile(QSurfaceFormat::CoreProfile);
     setFormat(format);
-    
-    // 设置渲染定时器
+
     connect(m_renderTimer, &QTimer::timeout, this, &VideoRendererGL::renderNextFrame);
+    qDebug() << "[VideoRendererGL] Created";
 }
 
 VideoRendererGL::~VideoRendererGL()
@@ -80,136 +165,178 @@ VideoRendererGL::~VideoRendererGL()
     makeCurrent();
     cleanupGL();
     doneCurrent();
-    
+
     if (m_currentFrame) {
         delete m_currentFrame;
         m_currentFrame = nullptr;
     }
-    
+
     qDebug() << "[VideoRendererGL] Destroyed";
 }
 
 void VideoRendererGL::initializeGL()
 {
     initializeOpenGLFunctions();
-    
+
     qDebug() << "[VideoRendererGL] Initializing OpenGL";
-    qDebug() << "  OpenGL Version:" << (const char*)glGetString(GL_VERSION);
-    qDebug() << "  GLSL Version:" << (const char*)glGetString(GL_SHADING_LANGUAGE_VERSION);
-    qDebug() << "  Renderer:" << (const char*)glGetString(GL_RENDERER);
-    
-    // 设置清除颜色（黑色）
+    qDebug() << "  OpenGL Version:" << reinterpret_cast<const char*>(glGetString(GL_VERSION));
+    qDebug() << "  GLSL Version:" << reinterpret_cast<const char*>(glGetString(GL_SHADING_LANGUAGE_VERSION));
+    qDebug() << "  Renderer:" << reinterpret_cast<const char*>(glGetString(GL_RENDERER));
+
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    
-    // 初始化shader
-    if (!initShaders()) {
-        qWarning() << "[VideoRendererGL] Failed to initialize shaders";
+
+    if (!initShaders() || !initPresentShaders()) {
+        qWarning() << "[VideoRendererGL] Failed to initialize shader programs";
         return;
     }
-    
-    // 创建顶点数据（全屏四边形）
-    float vertices[] = {
-        // 位置          // 纹理坐标
-        -1.0f,  1.0f, 0.0f,  0.0f, 0.0f,  // 左上
-        -1.0f, -1.0f, 0.0f,  0.0f, 1.0f,  // 左下
-         1.0f, -1.0f, 0.0f,  1.0f, 1.0f,  // 右下
-         
-        -1.0f,  1.0f, 0.0f,  0.0f, 0.0f,  // 左上
-         1.0f, -1.0f, 0.0f,  1.0f, 1.0f,  // 右下
-         1.0f,  1.0f, 0.0f,  1.0f, 0.0f   // 右上
+
+    const float fullscreenVertices[] = {
+        -1.0f,  1.0f, 0.0f,  0.0f, 0.0f,
+        -1.0f, -1.0f, 0.0f,  0.0f, 1.0f,
+         1.0f, -1.0f, 0.0f,  1.0f, 1.0f,
+        -1.0f,  1.0f, 0.0f,  0.0f, 0.0f,
+         1.0f, -1.0f, 0.0f,  1.0f, 1.0f,
+         1.0f,  1.0f, 0.0f,  1.0f, 0.0f
     };
-    
-    // 创建VAO和VBO
+
+    // Display quad (fit/fill)
     glGenVertexArrays(1, &m_vao);
     glGenBuffers(1, &m_vbo);
-    
     glBindVertexArray(m_vao);
     glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    
-    // 位置属性
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(fullscreenVertices), fullscreenVertices, GL_DYNAMIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), reinterpret_cast<void*>(0));
     glEnableVertexAttribArray(0);
-    
-    // 纹理坐标属性
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), reinterpret_cast<void*>(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
-    
+
+    // Fullscreen quad for offscreen conversion
+    glGenVertexArrays(1, &m_fullscreenVao);
+    glGenBuffers(1, &m_fullscreenVbo);
+    glBindVertexArray(m_fullscreenVao);
+    glBindBuffer(GL_ARRAY_BUFFER, m_fullscreenVbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(fullscreenVertices), fullscreenVertices, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), reinterpret_cast<void*>(0));
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), reinterpret_cast<void*>(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
-    
-    // 创建纹理（初始为空）
+
     glGenTextures(1, &m_textureY);
     glGenTextures(1, &m_textureU);
     glGenTextures(1, &m_textureV);
-    
+
     m_glInitialized = true;
-    qDebug() << "[VideoRendererGL] OpenGL initialized successfully";
+    qDebug() << "[VideoRendererGL] OpenGL initialized";
 }
 
 bool VideoRendererGL::initShaders()
 {
     m_shaderProgram = new QOpenGLShaderProgram(this);
-    
-    // 编译vertex shader
-    if (!m_shaderProgram->addShaderFromSourceCode(QOpenGLShader::Vertex, vertexShaderSource)) {
-        qWarning() << "[VideoRendererGL] Vertex shader compilation failed:" << m_shaderProgram->log();
+    if (!m_shaderProgram->addShaderFromSourceCode(QOpenGLShader::Vertex, kVertexShaderSource)) {
+        qWarning() << "[VideoRendererGL] Vertex shader compile failed:" << m_shaderProgram->log();
         return false;
     }
-    
-    // 编译fragment shader
-    if (!m_shaderProgram->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource)) {
-        qWarning() << "[VideoRendererGL] Fragment shader compilation failed:" << m_shaderProgram->log();
+    if (!m_shaderProgram->addShaderFromSourceCode(QOpenGLShader::Fragment, kYuvFragmentShaderSource)) {
+        qWarning() << "[VideoRendererGL] YUV fragment shader compile failed:" << m_shaderProgram->log();
         return false;
     }
-    
-    // 链接程序
     if (!m_shaderProgram->link()) {
-        qWarning() << "[VideoRendererGL] Shader program linking failed:" << m_shaderProgram->log();
+        qWarning() << "[VideoRendererGL] YUV shader link failed:" << m_shaderProgram->log();
         return false;
     }
-    
-    // 绑定纹理单元
+
     m_shaderProgram->bind();
     m_shaderProgram->setUniformValue("texY", 0);
     m_shaderProgram->setUniformValue("texU", 1);
     m_shaderProgram->setUniformValue("texV", 2);
     m_shaderProgram->release();
-    
-    qDebug() << "[VideoRendererGL] Shaders compiled and linked successfully";
+
+    return true;
+}
+
+bool VideoRendererGL::initPresentShaders()
+{
+    m_presentShaderProgram = new QOpenGLShaderProgram(this);
+    if (!m_presentShaderProgram->addShaderFromSourceCode(QOpenGLShader::Vertex, kVertexShaderSource)) {
+        qWarning() << "[VideoRendererGL] Present vertex shader compile failed:" << m_presentShaderProgram->log();
+        return false;
+    }
+    if (!m_presentShaderProgram->addShaderFromSourceCode(QOpenGLShader::Fragment, kPresentFragmentShaderSource)) {
+        qWarning() << "[VideoRendererGL] Present fragment shader compile failed:" << m_presentShaderProgram->log();
+        return false;
+    }
+    if (!m_presentShaderProgram->link()) {
+        qWarning() << "[VideoRendererGL] Present shader link failed:" << m_presentShaderProgram->log();
+        return false;
+    }
+
+    m_presentShaderProgram->bind();
+    m_presentShaderProgram->setUniformValue("texRgb", 0);
+    m_presentShaderProgram->release();
+
     return true;
 }
 
 void VideoRendererGL::paintGL()
 {
     glClear(GL_COLOR_BUFFER_BIT);
-    
-    // 无锁设计：直接访问m_currentFrame（renderNextFrame在同一线程）
-    if (!m_currentFrame || !m_frameUpdated) {
+    ensureVertexBufferUpdated();
+
+    if (!m_currentFrame || !m_shaderProgram || !m_presentShaderProgram) {
         return;
     }
-    
-    // 上传纹理数据
-    updateTextures(m_currentFrame);
-    m_frameUpdated = false;
-    
-    // 使用shader程序
+
+    if (m_frameUpdated) {
+        updateTextures(m_currentFrame);
+        m_frameUpdated = false;
+    }
+
+    const qreal dpr = devicePixelRatioF();
+    const int screenW = qMax(1, static_cast<int>(width() * dpr));
+    const int screenH = qMax(1, static_cast<int>(height() * dpr));
+    const QSize internalSize = calculateInternalRenderSize(screenW, screenH);
+    ensureRenderTarget(internalSize.width(), internalSize.height());
+
+    if (m_rgbFbo == 0 || m_rgbTexture == 0) {
+        return;
+    }
+
+    // Pass 1: YUV -> RGB (offscreen)
+    glBindFramebuffer(GL_FRAMEBUFFER, m_rgbFbo);
+    glViewport(0, 0, m_rgbFboWidth, m_rgbFboHeight);
+
     m_shaderProgram->bind();
-    
-    // 绑定纹理
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, m_textureY);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, m_textureU);
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_2D, m_textureV);
-    
-    // 绘制四边形
+
+    glBindVertexArray(m_fullscreenVao);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindVertexArray(0);
+    m_shaderProgram->release();
+
+    // Pass 2: upscale/downscale + sharpening (onscreen)
+    glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebufferObject());
+    glViewport(0, 0, screenW, screenH);
+
+    m_presentShaderProgram->bind();
+    m_presentShaderProgram->setUniformValue("texelSize", 1.0f / m_rgbFboWidth, 1.0f / m_rgbFboHeight);
+    m_presentShaderProgram->setUniformValue("sharpenStrength", m_sharpenStrength);
+    m_presentShaderProgram->setUniformValue("highQualityScaling", m_enableHighQualityScaling ? 1 : 0);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, m_rgbTexture);
+
     glBindVertexArray(m_vao);
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glBindVertexArray(0);
-    
-    m_shaderProgram->release();
+    m_presentShaderProgram->release();
 }
 
 void VideoRendererGL::updateTextures(VideoFrame* frame)
@@ -217,39 +344,36 @@ void VideoRendererGL::updateTextures(VideoFrame* frame)
     if (!frame || !frame->data[0]) {
         return;
     }
-    
-    int width = frame->width;
-    int height = frame->height;
-    
-    // 如果视频尺寸变化，更新缓冲区
+
+    const int width = frame->width;
+    const int height = frame->height;
+
     if (m_videoSize.width() != width || m_videoSize.height() != height) {
         m_videoSize = QSize(width, height);
         updateVertexBuffer(this->width(), this->height());
     }
-    
-    // 更新Y平面纹理
+
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, m_textureY);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, frame->data[0]);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    
-    // 更新U平面纹理
+
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, m_textureU);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, width/2, height/2, 0, GL_RED, GL_UNSIGNED_BYTE, frame->data[1]);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, width / 2, height / 2, 0, GL_RED, GL_UNSIGNED_BYTE, frame->data[1]);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    
-    // 更新V平面纹理
+
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_2D, m_textureV);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, width/2, height/2, 0, GL_RED, GL_UNSIGNED_BYTE, frame->data[2]);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, width / 2, height / 2, 0, GL_RED, GL_UNSIGNED_BYTE, frame->data[2]);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -261,55 +385,134 @@ void VideoRendererGL::updateVertexBuffer(int windowWidth, int windowHeight)
     if (windowWidth <= 0 || windowHeight <= 0 || m_videoSize.width() <= 0 || m_videoSize.height() <= 0) {
         return;
     }
-    
-    // 计算视频和窗口的宽高比
-    float videoAspect = (float)m_videoSize.width() / (float)m_videoSize.height();
-    float windowAspect = (float)windowWidth / (float)windowHeight;
-    
-    qDebug() << "[VideoRendererGL] updateVertexBuffer - Video:" << m_videoSize.width() << "x" << m_videoSize.height() 
-             << "Window:" << windowWidth << "x" << windowHeight
-             << "VideoAspect:" << videoAspect << "WindowAspect:" << windowAspect;
-    
+
+    QOpenGLContext* currentCtx = QOpenGLContext::currentContext();
+    if (!currentCtx || currentCtx != context()) {
+        m_vertexBufferDirty = true;
+        return;
+    }
+
+    const float effectiveVideoWidth = static_cast<float>(m_videoSize.width()) * m_pixelAspectRatio;
+    const float videoAspect = effectiveVideoWidth / static_cast<float>(m_videoSize.height());
+    const float windowAspect = static_cast<float>(windowWidth) / static_cast<float>(windowHeight);
+
     float scaleX = 1.0f;
     float scaleY = 1.0f;
-    
-    // 保持宽高比，适应窗口大小
-    if (videoAspect > windowAspect) {
-        // 视频更宽，以宽度为准
-        scaleY = windowAspect / videoAspect;
-        qDebug() << "[VideoRendererGL] Video wider, scaleY:" << scaleY << "Display size:" << windowWidth << "x" << (windowHeight * scaleY);
+
+    if (m_displayMode == 0) {
+        if (videoAspect > windowAspect) {
+            scaleY = windowAspect / videoAspect;
+        } else {
+            scaleX = videoAspect / windowAspect;
+        }
     } else {
-        // 视频更高，以高度为准
-        scaleX = videoAspect / windowAspect;
-        qDebug() << "[VideoRendererGL] Video taller, scaleX:" << scaleX << "Display size:" << (windowWidth * scaleX) << "x" << windowHeight;
+        if (videoAspect > windowAspect) {
+            scaleX = videoAspect / windowAspect;
+        } else {
+            scaleY = windowAspect / videoAspect;
+        }
     }
-    
-    // 更新顶点数据
-    float vertices[] = {
-        // 位置                               // 纹理坐标
-        -scaleX,  scaleY, 0.0f,  0.0f, 0.0f,  // 左上
-        -scaleX, -scaleY, 0.0f,  0.0f, 1.0f,  // 左下
-         scaleX, -scaleY, 0.0f,  1.0f, 1.0f,  // 右下
-         
-        -scaleX,  scaleY, 0.0f,  0.0f, 0.0f,  // 左上
-         scaleX, -scaleY, 0.0f,  1.0f, 1.0f,  // 右下
-         scaleX,  scaleY, 0.0f,  1.0f, 0.0f   // 右上
+
+    const float vertices[] = {
+        -scaleX,  scaleY, 0.0f,  0.0f, 0.0f,
+        -scaleX, -scaleY, 0.0f,  0.0f, 1.0f,
+         scaleX, -scaleY, 0.0f,  1.0f, 1.0f,
+        -scaleX,  scaleY, 0.0f,  0.0f, 0.0f,
+         scaleX, -scaleY, 0.0f,  1.0f, 1.0f,
+         scaleX,  scaleY, 0.0f,  1.0f, 0.0f
     };
-    
-    // 更新VBO
+
     glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
+    m_vertexBufferDirty = false;
 }
 
 void VideoRendererGL::resizeGL(int w, int h)
 {
     glViewport(0, 0, w, h);
-    
-    // 如果有视频尺寸，计算缩放比例以保持宽高比
     if (m_videoSize.width() > 0 && m_videoSize.height() > 0) {
         updateVertexBuffer(w, h);
     }
+}
+
+void VideoRendererGL::ensureVertexBufferUpdated()
+{
+    if (!m_vertexBufferDirty) {
+        return;
+    }
+    if (m_videoSize.width() <= 0 || m_videoSize.height() <= 0) {
+        return;
+    }
+    updateVertexBuffer(this->width(), this->height());
+}
+
+QSize VideoRendererGL::calculateInternalRenderSize(int screenWidth, int screenHeight) const
+{
+    const int safeScreenW = qMax(1, screenWidth);
+    const int safeScreenH = qMax(1, screenHeight);
+
+    const int maxW = qMax(1, m_renderMaxWidth);
+    const int maxH = qMax(1, m_renderMaxHeight);
+
+    if (safeScreenW <= maxW && safeScreenH <= maxH) {
+        return QSize(safeScreenW, safeScreenH);
+    }
+
+    const double scale = qMin(static_cast<double>(maxW) / safeScreenW,
+                              static_cast<double>(maxH) / safeScreenH);
+    return QSize(qMax(1, static_cast<int>(safeScreenW * scale)),
+                 qMax(1, static_cast<int>(safeScreenH * scale)));
+}
+
+void VideoRendererGL::ensureRenderTarget(int width, int height)
+{
+    const int targetW = qMax(1, width);
+    const int targetH = qMax(1, height);
+    if (m_rgbFbo != 0 && m_rgbTexture != 0 && m_rgbFboWidth == targetW && m_rgbFboHeight == targetH) {
+        return;
+    }
+
+    if (m_rgbFbo) {
+        glDeleteFramebuffers(1, &m_rgbFbo);
+        m_rgbFbo = 0;
+    }
+    if (m_rgbTexture) {
+        glDeleteTextures(1, &m_rgbTexture);
+        m_rgbTexture = 0;
+    }
+
+    glGenFramebuffers(1, &m_rgbFbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, m_rgbFbo);
+
+    glGenTextures(1, &m_rgbTexture);
+    glBindTexture(GL_TEXTURE_2D, m_rgbTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, targetW, targetH, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_rgbTexture, 0);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        qWarning() << "[VideoRendererGL] Failed to create render target" << targetW << "x" << targetH;
+        glDeleteFramebuffers(1, &m_rgbFbo);
+        glDeleteTextures(1, &m_rgbTexture);
+        m_rgbFbo = 0;
+        m_rgbTexture = 0;
+        m_rgbFboWidth = 0;
+        m_rgbFboHeight = 0;
+        glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebufferObject());
+        return;
+    }
+
+    m_rgbFboWidth = targetW;
+    m_rgbFboHeight = targetH;
+    glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebufferObject());
+
+    qDebug() << "[VideoRendererGL] Render target resized to" << targetW << "x" << targetH
+             << "preset:" << (m_qualityPreset == Enhanced2K ? "2K" : "1080P");
 }
 
 void VideoRendererGL::cleanupGL()
@@ -318,7 +521,11 @@ void VideoRendererGL::cleanupGL()
         delete m_shaderProgram;
         m_shaderProgram = nullptr;
     }
-    
+    if (m_presentShaderProgram) {
+        delete m_presentShaderProgram;
+        m_presentShaderProgram = nullptr;
+    }
+
     if (m_textureY) {
         glDeleteTextures(1, &m_textureY);
         m_textureY = 0;
@@ -331,7 +538,11 @@ void VideoRendererGL::cleanupGL()
         glDeleteTextures(1, &m_textureV);
         m_textureV = 0;
     }
-    
+    if (m_rgbTexture) {
+        glDeleteTextures(1, &m_rgbTexture);
+        m_rgbTexture = 0;
+    }
+
     if (m_vao) {
         glDeleteVertexArrays(1, &m_vao);
         m_vao = 0;
@@ -340,40 +551,59 @@ void VideoRendererGL::cleanupGL()
         glDeleteBuffers(1, &m_vbo);
         m_vbo = 0;
     }
-    
+    if (m_fullscreenVao) {
+        glDeleteVertexArrays(1, &m_fullscreenVao);
+        m_fullscreenVao = 0;
+    }
+    if (m_fullscreenVbo) {
+        glDeleteBuffers(1, &m_fullscreenVbo);
+        m_fullscreenVbo = 0;
+    }
+    if (m_rgbFbo) {
+        glDeleteFramebuffers(1, &m_rgbFbo);
+        m_rgbFbo = 0;
+    }
+
+    m_rgbFboWidth = 0;
+    m_rgbFboHeight = 0;
     m_glInitialized = false;
 }
 
 void VideoRendererGL::start()
 {
-    qDebug() << "[VideoRendererGL] Start";
-    
     m_playing = true;
     m_renderTimer->start(m_frameInterval);
+    qDebug() << "[VideoRendererGL] Start";
 }
 
 void VideoRendererGL::pause()
 {
-    qDebug() << "[VideoRendererGL] Pause";
-    
     m_playing = false;
     m_buffering = false;
     m_renderTimer->stop();
+    qDebug() << "[VideoRendererGL] Pause";
 }
 
 void VideoRendererGL::stop()
 {
-    qDebug() << "[VideoRendererGL] Stop";
-    
     m_playing = false;
     m_buffering = false;
     m_renderTimer->stop();
+    m_lastPTS = 0;
+
+    if (m_currentFrame) {
+        delete m_currentFrame;
+        m_currentFrame = nullptr;
+    }
+    m_frameUpdated = false;
+    m_videoSize = QSize(-1, -1);
+    qDebug() << "[VideoRendererGL] Stop";
 }
 
 void VideoRendererGL::startBuffering()
 {
-    qDebug() << "[VideoRendererGL] Start buffering (waiting for" << m_bufferingThreshold << "frames)";
     m_buffering = true;
+    qDebug() << "[VideoRendererGL] Start buffering";
 }
 
 void VideoRendererGL::setVideoBuffer(VideoBuffer* buffer)
@@ -383,183 +613,165 @@ void VideoRendererGL::setVideoBuffer(VideoBuffer* buffer)
 
 void VideoRendererGL::setTargetFPS(int fps)
 {
+    if (fps <= 0) {
+        return;
+    }
+
     m_targetFPS = fps;
     m_frameInterval = 1000 / fps;
-    
-    qDebug() << "[VideoRendererGL] Target FPS set to:" << fps << "Interval:" << m_frameInterval << "ms";
-    
+
     if (m_playing) {
         m_renderTimer->setInterval(m_frameInterval);
     }
+
+    qDebug() << "[VideoRendererGL] Target FPS:" << fps;
+}
+
+void VideoRendererGL::setPixelAspectRatio(int num, int den)
+{
+    float newPar = 1.0f;
+    if (num > 0 && den > 0) {
+        newPar = static_cast<float>(num) / static_cast<float>(den);
+    }
+
+    if (newPar < 0.01f || newPar > 100.0f) {
+        qWarning() << "[VideoRendererGL] Invalid pixel aspect ratio" << num << "/" << den;
+        newPar = 1.0f;
+    }
+
+    m_pixelAspectRatio = newPar;
+    if (m_videoSize.width() > 0 && m_videoSize.height() > 0) {
+        updateVertexBuffer(this->width(), this->height());
+        update();
+    }
+}
+
+void VideoRendererGL::setDisplayMode(int mode)
+{
+    const int normalized = (mode == 1) ? 1 : 0;
+    const bool changed = (m_displayMode != normalized);
+
+    m_displayMode = normalized;
+    qDebug() << "[VideoRendererGL] Display mode" << (changed ? "changed:" : "reapplied:")
+             << (m_displayMode == 0 ? "Fit" : "Fill");
+
+    if (m_videoSize.width() > 0 && m_videoSize.height() > 0) {
+        updateVertexBuffer(this->width(), this->height());
+        update();
+    }
+}
+
+void VideoRendererGL::setQualityPreset(int preset)
+{
+    QualityPreset normalized = (preset == static_cast<int>(Enhanced2K)) ? Enhanced2K : Standard1080P;
+    if (m_qualityPreset == normalized) {
+        return;
+    }
+
+    m_qualityPreset = normalized;
+    if (m_qualityPreset == Enhanced2K) {
+        m_renderMaxWidth = 2560;
+        m_renderMaxHeight = 1440;
+        m_sharpenStrength = 0.18f;
+        m_enableHighQualityScaling = true;
+    } else {
+        m_renderMaxWidth = 1920;
+        m_renderMaxHeight = 1080;
+        m_sharpenStrength = 0.08f;
+        m_enableHighQualityScaling = false;
+    }
+
+    if (context()) {
+        makeCurrent();
+        if (m_rgbFbo) {
+            glDeleteFramebuffers(1, &m_rgbFbo);
+            m_rgbFbo = 0;
+        }
+        if (m_rgbTexture) {
+            glDeleteTextures(1, &m_rgbTexture);
+            m_rgbTexture = 0;
+        }
+        m_rgbFboWidth = 0;
+        m_rgbFboHeight = 0;
+        doneCurrent();
+    }
+
+    qDebug() << "[VideoRendererGL] Quality preset set to"
+             << (m_qualityPreset == Enhanced2K ? "Enhanced2K" : "Standard1080P")
+             << "max:" << m_renderMaxWidth << "x" << m_renderMaxHeight
+             << "hqScaling:" << m_enableHighQualityScaling
+             << "sharpen:" << m_sharpenStrength;
+
+    update();
 }
 
 void VideoRendererGL::renderNextFrame()
 {
-    static int callCount = 0;
-    callCount++;
-    
-    if (callCount <= 20) {
-        qDebug() << "[VideoRendererGL] renderNextFrame called, count:" << callCount;
-    }
-    
     if (!m_playing || !m_buffer) {
-        if (callCount <= 20) {
-            qDebug() << "[VideoRendererGL] renderNextFrame blocked - playing:" << m_playing << "buffer:" << (m_buffer != nullptr);
-        }
         return;
     }
-    
-    // 检查缓冲状态：seek后等待缓冲区填充
+
     if (m_buffering) {
-        int bufferSize = m_buffer->size();
-        qDebug() << "[VideoRendererGL] Buffering... buffer size:" << bufferSize << "/" << m_bufferingThreshold;
+        const int bufferSize = m_buffer->size();
         if (bufferSize >= m_bufferingThreshold) {
             m_buffering = false;
-            qDebug() << "[VideoRendererGL] Buffering complete, buffer size:" << bufferSize;
         } else {
-            // 继续等待缓冲
             return;
         }
     }
-    
-    // 使用音频时钟作为主时钟（音视频同步）
-    qint64 audioClock = AudioPlayer::instance().getPlaybackPosition();
-    
-    // 从缓冲区查看下一帧
+
+    qint64 audioClock = 0;
+    if (AudioPlayer::instance().isPlaying()) {
+        audioClock = AudioPlayer::instance().getPlaybackPosition();
+    } else {
+        audioClock = m_lastPTS;
+    }
+
     VideoFrame* frame = m_buffer->peek();
     if (!frame) {
-        static int emptyCounter = 0;
-        if (emptyCounter++ % 10 == 0) {
-            qDebug() << "[VideoRendererGL] No frame in buffer (empty" << emptyCounter << "times)";
-        }
-        return;  // 缓冲区空，等待更多帧
-    }
-    
-    // 调试：打印每一帧的时间信息（前10帧）
-    static int debugCounter = 0;
-    debugCounter++;
-    if (debugCounter <= 10) {  // 前10帧每帧都打印
-        qint64 diff = frame->pts - audioClock;
-        qDebug() << "[VideoRendererGL] Frame" << debugCounter 
-                 << "audioClock:" << audioClock 
-                 << "frame->pts:" << frame->pts 
-                 << "diff:" << diff
-                 << "buffer_size:" << m_buffer->size();
-    } else if (debugCounter % 30 == 0) {  // 之后每30帧打印一次
-        qint64 diff = frame->pts - audioClock;
-        qDebug() << "[VideoRendererGL] audioClock:" << audioClock 
-                 << "frame->pts:" << frame->pts 
-                 << "diff:" << diff
-                 << "buffer_size:" << m_buffer->size();
-    }
-    
-    // 同步逻辑：如果视频帧超前音频时钟超过100ms，等待
-    // 注意：容忍度从40ms增加到100ms，避免因短暂的时间波动导致等待
-    if (frame->pts > audioClock + 100) {
-        static int waitCounter = 0;
-        if (waitCounter++ % 10 == 0) {  // 每10次等待打印一次
-            qDebug() << "[VideoRendererGL] Video ahead of audio, waiting..." << "video PTS:" << frame->pts << "audio clock:" << audioClock;
-        }
         return;
     }
-    
-    // 如果视频严重落后（超过200ms），连续跳过帧直到追上
-    // 注意：阈值从100ms增加到200ms，减少不必要的跳帧
+
+    if (frame->pts > audioClock + 100) {
+        return;
+    }
+
     int skippedCount = 0;
     while (frame && audioClock > frame->pts + 200) {
-        skippedCount++;
-        m_buffer->pop();  // 从缓冲区移除
-        delete frame;     // 释放内存
-        frame = m_buffer->peek();  // 查看下一帧
-        
-        // 安全限制：最多跳过100帧，防止无限循环
+        ++skippedCount;
+        m_buffer->pop();
+        delete frame;
+        frame = m_buffer->peek();
         if (skippedCount >= 100) {
-            qDebug() << "[VideoRendererGL] WARNING: Skipped" << skippedCount << "frames, stopping to prevent infinite loop";
             break;
         }
     }
-    
-    if (skippedCount > 0) {
-        qDebug() << "[VideoRendererGL] Skipped" << skippedCount << "frames to catch up (audio:" << audioClock << "ms)";
-    }
-    
-    // 如果跳帧后没有更多帧，等待
+
     if (!frame) {
-        qDebug() << "[VideoRendererGL] No more frames after skipping" << skippedCount << "frames";
         return;
     }
-    
-    // 从缓冲区获取当前同步的帧
+
     frame = m_buffer->pop();
     if (!frame) {
-        qDebug() << "[VideoRendererGL] ERROR: pop() returned nullptr after peek() succeeded!";
         return;
     }
-    
-    // 前10帧打印pop确认
-    static int popCount = 0;
-    popCount++;
-    if (popCount <= 10) {
-        qDebug() << "[VideoRendererGL] Popped frame" << popCount << "PTS:" << frame->pts;
-    }
-    
-    // 更新视频尺寸
+
     if (m_videoSize.width() != frame->width || m_videoSize.height() != frame->height) {
-        qDebug() << "[VideoRendererGL] Video size changed from" << m_videoSize << "to" << QSize(frame->width, frame->height);
         m_videoSize = QSize(frame->width, frame->height);
         updateVertexBuffer(this->width(), this->height());
-        qDebug() << "[VideoRendererGL] updateVertexBuffer called with window size:" << this->width() << "x" << this->height();
         emit videoSizeChanged(m_videoSize);
-        qDebug() << "[VideoRendererGL] videoSizeChanged signal emitted";
     }
-    
-    // 更新当前帧（无锁设计）
-    if (popCount <= 10) {
-        qDebug() << "[VideoRendererGL] Updating current frame...";
-    }
-    
-    // 先保存旧帧
+
     VideoFrame* oldFrame = m_currentFrame;
-    
-    if (popCount <= 10) {
-        qDebug() << "[VideoRendererGL] Saved old frame:" << oldFrame;
-    }
-    
-    // 设置新帧（原子操作）
     m_currentFrame = frame;
     m_lastPTS = frame->pts;
     m_frameUpdated = true;
-    
-    if (popCount <= 10) {
-        qDebug() << "[VideoRendererGL] New frame set, will delete old frame...";
-    }
-    
-    // 删除旧帧（在这之前先触发update，让paintGL使用新帧）
+
     if (oldFrame) {
-        if (popCount <= 10) {
-            qDebug() << "[VideoRendererGL] Deleting old frame...";
-        }
         delete oldFrame;
         oldFrame = nullptr;
-        if (popCount <= 10) {
-            qDebug() << "[VideoRendererGL] Old frame deleted, pointer nullified";
-        }
     }
-    
-    if (popCount <= 10) {
-        qDebug() << "[VideoRendererGL] Current frame updated";
-    }
-    
-    // 前10帧打印渲染确认
-    static int renderCount = 0;
-    renderCount++;
-    if (renderCount <= 10) {
-        qDebug() << "[VideoRendererGL] Rendered frame" << renderCount << "PTS:" << frame->pts;
-    }
-    
-    // 在锁外调用update()，避免死锁
+
     update();
-    
-    // 发送信号（在锁外）
     emit frameRendered(frame->pts);
 }

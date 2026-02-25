@@ -1,4 +1,4 @@
-#include "PlaybackViewModel.h"
+﻿#include "PlaybackViewModel.h"
 #include <QTime>
 
 PlaybackViewModel::PlaybackViewModel(QObject *parent)
@@ -7,7 +7,7 @@ PlaybackViewModel::PlaybackViewModel(QObject *parent)
 {
     qDebug() << "[MVVM] PlaybackViewModel: Initializing and connecting to AudioService";
     
-    // 连接AudioService的播放状态信号
+    // 连接播放状态相关信号
     connect(m_audioService, &AudioService::playbackStarted,
             this, &PlaybackViewModel::onAudioServicePlaybackStarted);
     connect(m_audioService, &AudioService::playbackPaused,
@@ -17,20 +17,20 @@ PlaybackViewModel::PlaybackViewModel(QObject *parent)
     connect(m_audioService, &AudioService::playbackStopped,
             this, &PlaybackViewModel::onAudioServicePlaybackStopped);
     
-    // 连接进度和时长信号
+    // 连接进度与时长信号
     connect(m_audioService, &AudioService::positionChanged,
             this, &PlaybackViewModel::onAudioServicePositionChanged);
     connect(m_audioService, &AudioService::durationChanged,
             this, &PlaybackViewModel::onAudioServiceDurationChanged);
     
-    // 连接元数据信号
+    // 连接曲目信息信号
     connect(m_audioService, &AudioService::currentTrackChanged,
             this, [this](const QString& title, const QString& artist, qint64 duration) {
                 updateMetadata(title, artist, "", "", m_currentUrl);
                 updateDuration(duration);
             });
     
-    // 连接专辑封面信号
+    // 连接封面变化信号
     connect(m_audioService, &AudioService::albumArtChanged,
             this, [this](const QString& imagePath) {
                 if (m_currentAlbumArt != imagePath) {
@@ -46,7 +46,7 @@ PlaybackViewModel::~PlaybackViewModel()
 {
 }
 
-// ========== 播放控制命令实现 ==========
+// 播放控制命令
 
 void PlaybackViewModel::play(const QUrl& url)
 {
@@ -55,7 +55,7 @@ void PlaybackViewModel::play(const QUrl& url)
     
     qDebug() << "[MVVM-ViewModel] play() called with URL:" << url;
     
-    // 存储文件路径
+    // 统一成本地路径/网络 URL 字符串，便于 UI 与歌词模块使用
     QString filePath;
     if (url.isLocalFile()) {
         filePath = url.toLocalFile();
@@ -67,7 +67,7 @@ void PlaybackViewModel::play(const QUrl& url)
         m_currentFilePath = filePath;
         emit currentFilePathChanged();
         
-        // 通知UI加载歌词
+        // 仅在曲目变化时触发歌词重载
         emit shouldLoadLyrics(filePath);
     }
     
@@ -105,18 +105,36 @@ void PlaybackViewModel::seekTo(qint64 positionMs)
 
 void PlaybackViewModel::togglePlayPause()
 {
+    // Prefer realtime service state over cached ViewModel flags.
+    // Cached flags can lag during cross-media owner handoff/buffering.
+    const bool servicePlaying = m_audioService->isPlaying();
+    const bool servicePaused = m_audioService->isPaused();
+
+    if (servicePaused) {
+        resume();
+        return;
+    }
+
+    if (servicePlaying && !servicePaused) {
+        pause();
+        return;
+    }
+
+    // Fallback to cached state if service has not fully synced yet.
     if (m_isPlaying && !m_isPaused) {
         pause();
-    } else if (m_isPaused) {
+        return;
+    }
+
+    if (m_isPaused) {
         resume();
+        return;
+    }
+
+    if (!m_currentUrl.isEmpty()) {
+        play(m_currentUrl);
     } else {
-        // 如果没有播放，则播放当前URL或列表第一首
-        if (!m_currentUrl.isEmpty()) {
-            play(m_currentUrl);
-        } else {
-            // 可以触发信号让UI层处理
-            setErrorMessage("No audio source loaded");
-        }
+        setErrorMessage("No audio source loaded");
     }
 }
 
@@ -139,7 +157,7 @@ void PlaybackViewModel::setVolume(int volume)
     }
 }
 
-// ========== AudioService事件处理 ==========
+// AudioService 信号处理
 
 void PlaybackViewModel::onAudioServicePlaybackStarted(const QString& sessionId, const QUrl& url)
 {
@@ -163,7 +181,7 @@ void PlaybackViewModel::onAudioServicePlaybackStarted(const QString& sessionId, 
     updatePausedState(false);
     updateMetadata("", "", "", "", url);
     
-    // 通知UI开始旋转动画
+    // 通知 UI 启动封面旋转动画
     emit shouldStartRotation();
     
     emit playbackStarted();
@@ -173,17 +191,17 @@ void PlaybackViewModel::onAudioServicePlaybackPaused()
 {
     qDebug() << "[MVVM-ViewModel] onAudioServicePlaybackPaused";
     
-    updatePlayingState(false);  // 暂停时，isPlaying应该为false，UI显示播放图标
+    updatePlayingState(false);  // 暂停时播放态应为 false（按钮显示“播放”）
     updatePausedState(true);
     
-    // 通知UI停止旋转动画
+    // 暂停时停止封面旋转动画
     emit shouldStopRotation();
 }
 
 void PlaybackViewModel::onAudioServicePlaybackResumed()
 {
     qDebug() << "[MVVM-ViewModel] onAudioServicePlaybackResumed";
-    updatePlayingState(true);   // 恢复播放时，isPlaying应该为true，UI显示暂停图标
+    updatePlayingState(true);   // 恢复播放后进入播放态（按钮显示“暂停”）
     updatePausedState(false);
 }
 
@@ -195,7 +213,7 @@ void PlaybackViewModel::onAudioServicePlaybackStopped()
     updatePausedState(false);
     updatePosition(0);
     
-    // 通知UI停止旋转动画
+    // 停止时同步停止封面旋转动画
     emit shouldStopRotation();
     
     emit playbackStopped();
@@ -211,7 +229,7 @@ void PlaybackViewModel::onAudioServiceDurationChanged(qint64 duration)
     updateDuration(duration);
 }
 
-// ========== 内部状态更新 ==========
+// ViewModel 内部状态更新
 
 void PlaybackViewModel::updatePlayingState(bool playing)
 {
@@ -283,7 +301,7 @@ void PlaybackViewModel::updateMetadata(const QString& title, const QString& arti
     }
 }
 
-// ========== 辅助函数 ==========
+// 工具函数
 
 QString PlaybackViewModel::formatTime(qint64 milliseconds)
 {
@@ -307,3 +325,4 @@ QString PlaybackViewModel::formatTime(qint64 milliseconds)
             .arg(seconds, 2, 10, QChar('0'));
     }
 }
+

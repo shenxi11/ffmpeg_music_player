@@ -1,5 +1,6 @@
 #include "AudioPlayer.h"
 #include <QAudioFormat>
+#include <QtGlobal>
 
 AudioPlayer& AudioPlayer::instance()
 {
@@ -17,6 +18,7 @@ AudioPlayer::AudioPlayer()
       m_isPlaying(false),
       m_isPaused(true),  // 初始为暂停状态
       m_volume(75),
+      m_playbackRate(1.0),
       m_currentTimestamp(0),
       m_baseTimestamp(0),
       m_playbackStartTimestamp(0),
@@ -90,7 +92,9 @@ void AudioPlayer::pause()
     if (!m_isPlaying || m_isPaused) return;
     
     // 保存当前播放位置
-    m_pausedPosition = m_playbackStartTimestamp + m_playbackTimer.elapsed();
+    const double rate = m_playbackRate.load();
+    const qint64 scaledElapsed = static_cast<qint64>(m_playbackTimer.elapsed() * rate);
+    m_pausedPosition = m_playbackStartTimestamp + scaledElapsed;
     
     m_isPaused = true;
     m_cv.notify_all();
@@ -148,6 +152,7 @@ void AudioPlayer::resetBuffer()
         m_currentTimestamp = 0;
         m_baseTimestamp = 0;
         m_playbackStartTimestamp = 0;
+        m_pausedPosition = 0;
     }
     
     qDebug() << "AudioPlayer: Buffer reset (ready for new song)";
@@ -161,6 +166,24 @@ void AudioPlayer::setWriteOwner(const QString& ownerId)
 
     std::lock_guard<std::mutex> lock(m_ownerMutex);
     if (m_writeOwner != ownerId) {
+        const QString previousOwner = m_writeOwner;
+        const bool isHandoff = !previousOwner.isEmpty() && previousOwner != ownerId;
+        if (isHandoff) {
+            if (m_buffer) {
+                m_buffer->clear();
+            }
+            std::lock_guard<std::mutex> tsLock(m_timestampMutex);
+            while (!m_timestampQueue.empty()) {
+                m_timestampQueue.pop();
+            }
+            m_currentTimestamp = 0;
+            m_baseTimestamp = 0;
+            m_playbackStartTimestamp = 0;
+            m_pausedPosition = 0;
+            m_playbackRate = 1.0;
+            qDebug() << "AudioPlayer: Owner handoff" << previousOwner << "->" << ownerId
+                     << ", cleared shared audio buffer/state and reset playback rate";
+        }
         m_writeOwner = ownerId;
         qDebug() << "AudioPlayer: Write owner set to" << m_writeOwner;
     }
@@ -194,18 +217,37 @@ void AudioPlayer::setVolume(int volume)
     qDebug() << "AudioPlayer: Volume set to" << m_volume;
 }
 
+void AudioPlayer::setPlaybackRate(double rate)
+{
+    const double clampedRate = qBound(0.5, rate, 2.0);
+    const double currentRate = m_playbackRate.load();
+    if (qFuzzyCompare(currentRate, clampedRate)) {
+        return;
+    }
+
+    const qint64 positionBeforeChange = getPlaybackPosition();
+    m_playbackRate = clampedRate;
+
+    if (m_isPlaying && !m_isPaused) {
+        m_playbackStartTimestamp = positionBeforeChange;
+        m_playbackTimer.restart();
+    } else if (m_isPlaying && m_isPaused) {
+        m_pausedPosition = positionBeforeChange;
+    }
+
+    qDebug() << "AudioPlayer: Playback rate changed to" << clampedRate << "x";
+}
+
 void AudioPlayer::writeAudioData(const QByteArray& data, qint64 timestampMs, const QString& ownerId)
 {
     if (!m_buffer || data.isEmpty()) return;
+    if (ownerId.isEmpty()) {
+        return;
+    }
 
     {
         std::lock_guard<std::mutex> lock(m_ownerMutex);
-        if (!ownerId.isEmpty() && m_writeOwner.isEmpty()) {
-            m_writeOwner = ownerId;
-            qDebug() << "AudioPlayer: Write owner auto-set to" << m_writeOwner;
-        }
-
-        if (!ownerId.isEmpty() && !m_writeOwner.isEmpty() && ownerId != m_writeOwner) {
+        if (m_writeOwner.isEmpty() || ownerId != m_writeOwner) {
             static int droppedPacketCount = 0;
             droppedPacketCount++;
             if (droppedPacketCount % 200 == 1) {
@@ -457,23 +499,26 @@ qint64 AudioPlayer::getPlaybackPosition() const
         return m_pausedPosition;
     }
     
-    qint64 elapsedMs = m_playbackTimer.elapsed();
-    return m_playbackStartTimestamp + elapsedMs;
+    const double rate = m_playbackRate.load();
+    qint64 scaledElapsed = static_cast<qint64>(m_playbackTimer.elapsed() * rate);
+    return m_playbackStartTimestamp + scaledElapsed;
 }
 
 void AudioPlayer::onPositionUpdateTimer()
 {
     if (m_isPlaying && !m_isPaused) {
         // 使用系统时钟计算播放位置（保证均匀更新）
+        const double rate = m_playbackRate.load();
         qint64 elapsedMs = m_playbackTimer.elapsed();
-        qint64 estimatedPosition = m_playbackStartTimestamp + elapsedMs;
+        qint64 estimatedPosition = m_playbackStartTimestamp + static_cast<qint64>(elapsedMs * rate);
         
         emit positionChanged(estimatedPosition);
         
         // 调试：每10次（约1秒）打印一次位置
         static int debugCount = 0;
         if (++debugCount % 10 == 0) {
-            qDebug() << "AudioPlayer: Position update:" << estimatedPosition << "ms (elapsed:" << elapsedMs << "ms)";
+            qDebug() << "AudioPlayer: Position update:" << estimatedPosition << "ms (elapsed:" << elapsedMs
+                     << "ms, rate:" << rate << "x)";
         }
     }
 }

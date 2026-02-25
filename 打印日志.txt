@@ -1,685 +1,630 @@
-20:19:44: Starting E:\FFmpeg_whisper\ffmpeg_music_player_build\Debug\ffmpeg_music_player.exe...
-[2026-02-24 20:19:46.774] [DEBUG] Logger initialized. Log file: "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/debug.log"
 
-[2026-02-24 20:19:46.774] [DEBUG] =========================================
+16:46:07: Starting E:\FFmpeg_whisper\ffmpeg_music_player_build\Debug\ffmpeg_music_player.exe...
+[2026-02-25 16:46:09.106] [DEBUG] Logger initialized. Log file: "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/debug.log"
 
-[2026-02-24 20:19:46.774] [DEBUG] FFmpeg Music Player Starting...
+[2026-02-25 16:46:09.107] [DEBUG] =========================================
 
-[2026-02-24 20:19:46.774] [DEBUG] Log file: "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/debug.log"
+[2026-02-25 16:46:09.107] [DEBUG] FFmpeg Music Player Starting...
 
-[2026-02-24 20:19:46.774] [DEBUG] DLL search path (resource): "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/resource"
+[2026-02-25 16:46:09.107] [DEBUG] Log file: "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/debug.log"
 
-[2026-02-24 20:19:46.775] [DEBUG] Resource directory exists: true
+[2026-02-25 16:46:09.108] [DEBUG] DLL search path (resource): "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/resource"
 
-[2026-02-24 20:19:46.775] [DEBUG] =========================================
+[2026-02-25 16:46:09.108] [DEBUG] Resource directory exists: true
 
-Loading plugins from: "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/plugin"
-PluginManager initialized
-Loading plugins from: "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/plugin"
-Found 2 plugin files
-Attempting to load plugin: "audio_converter_plugin.dll"
-AudioConverterPlugin constructor
-Initializing AudioConverterPlugin...
-AudioConverterPlugin initialized successfully
-Plugin loaded successfully: "音频转换器" Version: "1.0.0"
-Attempting to load plugin: "whisper_translate_plugin.dll"
-WhisperTranslatePlugin: Constructor called
-WhisperTranslatePlugin: Initializing...
-WhisperTranslatePlugin: Initialized successfully
-Plugin loaded successfully: "Whisper 翻译" Version: "1.0.0"
-Successfully loaded 2 plugins
-Loaded 2 plugins
-Loading plugins from: "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/plugin"
-Found 2 plugin files
-Attempting to load plugin: "audio_converter_plugin.dll"
-Plugin loaded successfully: "音频转换器" Version: "1.0.0"
-Attempting to load plugin: "whisper_translate_plugin.dll"
-Plugin loaded successfully: "Whisper 翻译" Version: "1.0.0"
-Successfully loaded 2 plugins
-Loaded 2 plugins from "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/plugin"
-SearchBoxQml: Initializing...
-SearchBoxQml: Current QML import paths: ("qrc:/", "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug", "qrc:/qt-project.org/imports", "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/qml")
-SearchBoxQml: Loading QML from qrc:/qml/components/SearchBox.qml
-SearchBoxQml: QML loaded successfully, status = QQuickWidget::Ready
-SearchBoxQml: Root item found, size: 250 x 60
-SearchBoxQml: QML signals connected successfully
-SearchBoxQml: Initialization complete
-UserWidgetQml: Initializing...
-UserWidgetQml: Loading QML from qrc:/qml/components/UserWidget.qml
-UserWidgetQml: QML loaded successfully
-UserWidgetQml: Initializing popup window...
-UserWidgetQml: Popup window loaded
-UserWidgetQml: Popup window signals connected
-UserWidgetQml: Initialization complete
-LoginWidgetQml: Initializing...
-[NetworkManager] Initialized with HTTP/2 support
-[NetworkService] Initialized
-[NetworkService] Base URL set to: "http://slcdut.xyz:8080/"
-[HttpRequestV2] Initialized with new network layer
-LoginWidgetQml: QML loaded successfully
-LoginWidgetQml: Initialization complete
-[NetworkService] Base URL set to: "http://slcdut.xyz:8080/"
-[HttpRequestV2] Initialized with new network layer
-[DownloadManager] Initialized with thread pool, max threads: 3
-[DownloadManager] Loaded 14 tasks
-[LocalMusicCache] Initialized with 1 songs
-[LocalAndDownloadWidget] Initializing...
-[LocalAndDownloadWidget] Initial refresh of active tasks
-[DownloadingList] Component completed
-[DownloadingList] Initial refresh
-[DownloadingList] Model reset, count: 0
-[DownloadedMusicList] Model reset, count: 0
-[DownloadedMusicList] Component completed
-[DownloadedMusicList] Initial refresh
-[DownloadingList] Model reset, count: 0
-[DownloadedMusicList] Model reset, count: 0
-[LocalAndDownloadWidget] Root object loaded successfully
-[LocalAndDownloadWidget] Signals connected
-[LocalAndDownloadWidget] Initialized successfully
-[NetworkService] Base URL set to: "http://slcdut.xyz:8080/"
-[HttpRequestV2] Initialized with new network layer
-PlayHistoryWidget: Created
-PlayHistoryWidget: Signals connected
-FavoriteMusicWidget: Created
-FavoriteMusicWidget: Signals connected
-[MainWidget] Creating PlayWidget...
-AudioService: Pre-warming AudioPlayer singleton...
-AudioPlayer: Audio device OPENED and ready (hot state)
-  Sample Rate: 44100
-  Channels: 2
-  Buffer Size: 65536
-  Device will remain open until destruction
-AudioPlayer created in thread: 0x7478
-AudioPlayer: Playback thread started and ready
-AudioPlayer: Audio device is HOT and ready (no startup delay)
-AudioService: AudioPlayer ready, all songs will have ZERO startup delay
-[MVVM] PlaybackViewModel: Initializing and connecting to AudioService
-[MVVM] PlaybackViewModel: All signals connected successfully
-[MVVM-UI] PlayWidget: Initializing with ViewModel-only architecture
-AudioPlayer: Playback thread started: 0x8b8c
-ProcessSliderQml: Loading QML from qrc:/qml/components/ProcessSlider.qml
-  QML source set in 69 ms
-  Resize mode set in 69 ms
-ProcessSliderQml: QML loaded successfully in 69 ms
-ProcessSliderQml: Root object found, connecting signals...
-ProcessSliderQml: All signals connected in 69 ms (total)
-ProcessSliderQml: Constructor completed in 69 ms (total)
-ProcessSliderQml created at position: QPoint(0,490) size: QSize(1000, 70) visible: false
-qrc:/qml/components/DeskLyric.qml:292:17: QML Rectangle: Detected anchors on an item that is managed by a layout. This is undefined behavior; use Layout.alignment instead.
-qrc:/qml/components/DeskLyric.qml:292:17: QML Rectangle: Detected anchors on an item that is managed by a layout. This is undefined behavior; use Layout.alignment instead.
-DeskLyric.qml loaded successfully
-DeskLrcQml: QML signals connected
-PlaylistHistoryQml: Created, root object: true
-PlaylistHistoryQml: Signals connected
-[NetworkService] Base URL set to: "http://slcdut.xyz:8080/"
-[HttpRequestV2] Initialized with new network layer
-[MVVM-UI] AudioService initialized
-Initializing LyricDisplay...
-LyricDisplay.qml loaded successfully
-LyricDisplay initialized, size: QSize(550, 350) position: QPoint(400,100)
-[MVVM-UI] Connecting ViewModel signals to UI...
-[MVVM-UI] ViewModel signals connected successfully
-[MainWidget] PlayWidget created successfully
-[MainWidget] Creating VideoListWidget...
-[NetworkService] Base URL set to: "http://slcdut.xyz:8080/"
-[HttpRequestV2] Initialized with new network layer
-[MainWidget] VideoListWidget created successfully
-[NetworkService] Base URL set to: "http://slcdut.xyz:8080/"
-[HttpRequestV2] Initialized with new network layer
-[NetworkManager] DNS prewarmed for: "slcdut.xyz" Addresses: (QHostAddress("192.168.1.208"))
-[NetworkManager] DNS prewarmed for: "slcdut.xyz" Addresses: (QHostAddress("192.168.1.208"))
-[NetworkManager] DNS prewarmed for: "slcdut.xyz" Addresses: (QHostAddress("192.168.1.208"))
-[NetworkManager] DNS prewarmed for: "slcdut.xyz" Addresses: (QHostAddress("192.168.1.208"))
-[NetworkManager] DNS prewarmed for: "slcdut.xyz" Addresses: (QHostAddress("192.168.1.208"))
-[NetworkManager] DNS prewarmed for: "slcdut.xyz" Addresses: (QHostAddress("192.168.1.208"))
-showPopup called
-popupMenu visible = true
-UserWidgetQml: Mouse pressed, showing popup
-UserWidgetQml: Showing popup window...
-UserWidgetQml: Setting popup position to 1410 451
-UserWidgetQml: Popup window shown
-hidePopup called
-尝试登录: root
-LoginWidgetQml: Login requested for account: "root"
-[HttpRequestV2] Login: "root"
-[NetworkManager] Request started: "749fc2c8-0e30-485d-844f-bca689de91d6" "POST" "http://slcdut.xyz:8080/users/login"
-[NetworkManager] Request finished: "749fc2c8-0e30-485d-844f-bca689de91d6" Status: 200 Elapsed: 43 ms Size: 342 bytes Retry: 0
-[HttpRequestV2] Login response received in 43 ms
-[MainWidget] Login state changed: true
-PlayHistoryWidget: Set logged in: true account: "root"
-FavoriteMusicWidget: Set user account: "root"
-[MainWidget] Favorite music button visibility: true
-LoginWidgetQml: Login successful, username: "SL"
-[HttpRequestV2] Login successful, username: "SL"
-MusicListWidgetLocal::{ctor}::<lambda_8d3264bdd330e960acba9c4eb3076553>::operator () login
-[HttpRequestV2] User's favorite songs: 7
-[NetworkManager] Request started: "c5afcb0f-ae13-4316-8812-1e7f9bba6b3c" "GET" "http://slcdut.xyz:8080/user/history?user_account=root&limit=50"
-[NetworkManager] Request finished: "c5afcb0f-ae13-4316-8812-1e7f9bba6b3c" Status: 200 Elapsed: 13 ms Size: 2725 bytes Retry: 0
-[ResponseCache] Cached: "http://slcdut.xyz:8080/user/history?user_account=root&limit=50" TTL: -30 s Size: 2725 bytes
-[NetworkService] Cached response for: "http://slcdut.xyz:8080/user/history?user_account=root&limit=50"
-[HttpRequestV2] History received: 13 
-[PlayHistoryList] Loading 13 items
-[PlayHistoryList] Item 0 - title: 床边故事 cover_art_url: http://slcdut.xyz:8080/uploads/床边故事/床边故事_cover.png
-[PlayHistoryList] Item 1 - title: 告白气球 cover_art_url: http://slcdut.xyz:8080/uploads/告白气球/告白气球_cover.png
-[PlayHistoryList] Item 2 - title: 给我一首歌的时间 cover_art_url: http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间_cover.png
-[PlayHistoryList] Item 3 - title: 断了的弦 cover_art_url: http://slcdut.xyz:8080/uploads/断了的弦/断了的弦_cover.png
-[PlayHistoryList] Item 4 - title: 发如雪 cover_art_url: http://slcdut.xyz:8080/uploads/发如雪/发如雪_cover.png
-[PlayHistoryList] Item 5 - title: 白色风车 cover_art_url: http://slcdut.xyz:8080/uploads/白色风车/白色风车_cover.png
-[PlayHistoryList] Item 6 - title: 东风破 cover_art_url: http://slcdut.xyz:8080/uploads/东风破/东风破_cover.png
-[PlayHistoryList] Item 7 - title: 搁浅 cover_art_url: http://slcdut.xyz:8080/uploads/搁浅/搁浅_cover.png
-[PlayHistoryList] Item 8 - title: 周杰伦 - 七里香_EM cover_art_url: 
-[PlayHistoryList] Item 9 - title: 告白气球 cover_art_url: 
-[PlayHistoryList] Item 10 - title: 爱情废柴 cover_art_url: http://slcdut.xyz:8080/uploads/爱情废柴/爱情废柴_cover.png
-[PlayHistoryList] Item 11 - title: 发如雪 cover_art_url: 
-[PlayHistoryList] Item 12 - title: 爱情废柴 cover_art_url: 
-PlayHistoryWidget: Loaded 13 history items
-[PlayHistory] Cover loaded: qrc:/new/prefix1/icon/Music.png
-[PlayHistory] Cover loaded: qrc:/new/prefix1/icon/Music.png
-[PlayHistory] Cover loaded: http://slcdut.xyz:8080/uploads/告白气球/告白气球_cover.png
-[PlayHistory] Cover loaded: http://slcdut.xyz:8080/uploads/发如雪/发如雪_cover.png
-[PlayHistory] Cover loaded: http://slcdut.xyz:8080/uploads/床边故事/床边故事_cover.png
-[PlayHistory] Cover loaded: http://slcdut.xyz:8080/uploads/东风破/东风破_cover.png
-[PlayHistory] Cover loaded: http://slcdut.xyz:8080/uploads/白色风车/白色风车_cover.png
-[PlayHistory] Cover loaded: http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间_cover.png
-[PlayHistory] Cover loaded: http://slcdut.xyz:8080/uploads/搁浅/搁浅_cover.png
-[PlayHistory] Cover loaded: http://slcdut.xyz:8080/uploads/爱情废柴/爱情废柴_cover.png
-[PlayHistory] Cover loaded: http://slcdut.xyz:8080/uploads/断了的弦/断了的弦_cover.png
-[PlayHistoryWidget] Play music with metadata: "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3" title: "床边故事" artist: "周杰伦" cover: "http://slcdut.xyz:8080/uploads/床边故事/床边故事_cover.png"
-检测到网络路径，跳过存在性检 "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
-[MVVM-UI] _play_click: Playing via ViewModel: "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
-[MVVM-ViewModel] play() called with URL: QUrl("http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3")
-[MVVM-UI] Should load lyrics for: "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
-[HttpRequestV2] Getting lyrics from: "http://slcdut.xyz:8080/uploads/床边故事/lrc"
-[NetworkManager] Request started: "793aa185-556b-4442-95ef-cbea8186141d" "GET" "http://slcdut.xyz:8080/uploads/床边故事/lrc"
-AudioService: Added to playlist tail at index 0 total 1
-AudioDecoder created in thread: 0x7478
-[TIMING] AudioService::play - createSession: 0.4608 ms
-AudioSession: Extracted title from URL: "床边故事"
-AudioSession: Loading network URL: "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
-[TIMING]   avformat_open_input: 5.0888 ms
-[TIMING]   avformat_find_stream_info: 1.2021 ms
-Audio stream found at index: 0
-[TIMING] AudioDecoder::openFile: 6.4203 ms
-Decoder setup successfully. Sample rate: 44100 Channels: 2
-[TIMING] AudioDecoder::setupDecoder: 0.1055 ms
-Resampler setup successfully
-[TIMING] AudioDecoder::setupResampler: 0.129 ms
-AudioDecoder: Extracted title from metadata: "床边故事"
-AudioDecoder: Extracted artist from metadata: "周杰伦"
-Album cover extracted to: "file:///C:/Users/SL/AppData/Local/Temp/album_cover_1771935650951.jpg"
-[TIMING] AudioDecoder::initDecoder TOTAL: 8.1728 ms
-AudioDecoder initialized successfully. Duration: 226246 ms
-AudioSession: Using title from file metadata: "床边故事"
-AudioSession: Using artist from file metadata: "周杰伦"
-[TIMING] AudioSession::loadSource (initDecoder): 8.4953 ms result: true
-[TIMING] AudioService::play - loadSource: 8.662 ms
-AudioPlayer: Volume set to 100
-[MVVM-ViewModel] onAudioServicePlaybackStarted, URL: QUrl("http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3")
-[MVVM-ViewModel] isPlaying changed to: true
-[MVVM-UI] isPlaying changed: true
-Desktop lyric playing state updated to: true
-[ProcessSliderQml] setState called with state: 1
-[ProcessSlider.qml] setPlayState called, state: 1 old playState: 0
-[MainWidget] Music started, pausing video
-[PLAY_STATE] MusicListWidgetLocal::on_signal_play_button_click 收到信号, flag= true , filename= "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
-[PLAY_STATE] sender 是PlayWidget, net_flag= true
-[PLAY_STATE] MusicListWidgetNet::on_signal_play_button_click flag= true , filename= "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
-[PlaylistHistory] updatePlayingState - path: "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3" isPlaying: true
-[MVVM-UI] Playback started
-Desktop lyric playing state updated to: true
-[ProcessSliderQml] setState called with state: 1
-[ProcessSlider.qml] setPlayState called, state: 1 old playState: 1
-[MainWidget] Music started, pausing video
-[PLAY_STATE] MusicListWidgetLocal::on_signal_play_button_click 收到信号, flag= true , filename= "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
-[PLAY_STATE] sender 是PlayWidget, net_flag= true
-[PLAY_STATE] MusicListWidgetNet::on_signal_play_button_click flag= true , filename= "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
-[MainWidget] playbackStarted signal received! sessionId: "session_1" url: QUrl("http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3")
-[MainWidget] Extracted filePath: "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
-[MainWidget] About to call setCurrentPlayingPath on both widgets...
-[PlayHistoryWidget] Setting currentPlayingPath to: "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
-[PlayHistoryWidget] Verified currentPlayingPath is now: "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
-[FavoriteMusicWidget] Setting currentPlayingPath to: "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
-[FavoriteMusicWidget] Verified currentPlayingPath is now: "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
-[MainWidget] setCurrentPlayingPath calls completed
-[MainWidget] Using cached network artist: "周杰伦"
-[MainWidget] ========== ADDING TO PLAY HISTORY ==========
-[MainWidget] userAccount: "root"
-[MainWidget] filePath: "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
-[MainWidget] title: "床边故事"
-[MainWidget] artist: "周杰伦"
-[MainWidget] album: ""
-[MainWidget] duration: "0" seconds
-[MainWidget] isLocal: false
-[MainWidget] =============================================
-[NetworkManager] Request started: "a2391362-cc33-42b4-a900-39a42466d52b" "POST" "http://slcdut.xyz:8080/user/history/add?user_account=root"
-AudioPlayer: Write owner set to "session_1"
-AudioDecoder: Decode thread launched
-[TIMING] AudioSession::play - startDecode call: 5.5314 ms
-[TIMING] AudioService::play - play() call: 5.7144 ms
-[TIMING] AudioService::play - TOTAL: 14.8372 ms
-[MVVM-ViewModel] AudioService play succeeded
-AudioDecoder: Decode thread started in std::thread
-AudioDecoder::decode thread started in std::thread
-[mp3float @ 0000022da3f21740] Could not update timestamps for skipped samples.
-AudioDecoder: First PTS set to 0 ms
-[NetworkManager] Request finished: "793aa185-556b-4442-95ef-cbea8186141d" Status: 200 Elapsed: 19 ms Size: 3196 bytes Retry: 0
-[ResponseCache] Cached: "http://slcdut.xyz:8080/uploads/床边故事/lrc" TTL: -3600 s Size: 3196 bytes
-[NetworkService] Cached response for: "http://slcdut.xyz:8080/uploads/床边故事/lrc"
-[HttpRequestV2] Lyrics received: 88 lines
-Sending first lyric to desktop: "欢迎来访爱听音乐网 www.v9v8.com"
-DeskLrcQml::setLyricText called with: "欢迎来访爱听音乐网 www.v9v8.com"
-DeskLyric.qml: setLyricText called with: 欢迎来访爱听音乐网 www.v9v8.com
-Setting desktop song name: "床边故事"
-DeskLrcQml::setSongName called with: "床边故事"
-DeskLyric.qml: setSongName called with: 床边故事
-[MVVM-UI] Duration changed: 226246 ms
-[MVVM-UI] Title changed: "床边故事"
-[MVVM-UI] Artist changed: "周杰伦"
-AudioSession: Using title from file metadata: "床边故事"
-AudioSession: Using artist from file metadata: "周杰伦"
-[MVVM-UI] Album art changed: "file:///C:/Users/SL/AppData/Local/Temp/album_cover_1771935650951.jpg"
-slot_updateBackground called with: "file:///C:/Users/SL/AppData/Local/Temp/album_cover_1771935650951.jpg"
-Converted URL to local path: "C:/Users/SL/AppData/Local/Temp/album_cover_1771935650951.jpg"
-Original pixmap size: QSize(300, 300)
-AudioDecoder: Decoded 100 frames, current timestamp: 2586 ms
-Cropped pixmap size: QSize(1000, 600)
-Background updated successfully, pixmap size: QSize(1000, 600)
-backgroundLabel visible: false geometry: QRect(0,0 100x30)
-RotatingCircleImage: Converted URL to local path: "C:/Users/SL/AppData/Local/Temp/album_cover_1771935650951.jpg"
-RotatingCircleImage: Image loaded successfully, size: QSize(300, 300)
-PlaylistHistory::addSong - "床边故事" "周杰伦"
-AudioDecoder: Decoded 200 frames, current timestamp: 5198 ms
-[MVVM-UI] Added to playlist history: "床边故事" "周杰伦"
-[PlaylistHistory] setCurrentPlayingPath: "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
-AudioSession: Decode started
-AudioPlayer: Start playback (device already hot, ZERO startup delay)
-AudioPlayer: First audio data write
-AudioSession: Initial playback started (onDataDecoded), fill level: 40 %
-AudioService: Buffering finished
-[MVVM-UI] Buffering finished
-AudioPlayer: Received 100 data packets, size: 4608 buffer level: 447676
-AudioSession: Buffer full ( 86 %), pausing decoder
-AudioBuffer: Expanded to 1048576 bytes
-AudioPlayer: Received 200 data packets, size: 4608 buffer level: 908476
-AudioDecoder: Resuming from pause
-AudioSession: Buffer low ( 0 %), resuming decoder
-AudioPlayer: Playback paused at position: 1 ms
-AudioService: Buffering started (network may be slow)
-[MVVM-UI] Buffering started
-AudioSession: Buffering started, fill level: 0 %
-AudioSession: Buffer full ( 87 %), pausing decoder
-AudioPlayer: Playback resumed from position: 1 ms
-AudioSession: Buffer filled, resuming playback
-AudioService: Buffering finished
-[MVVM-UI] Buffering finished
-AudioDecoder: Resuming from pause
-AudioSession: Buffer low ( 8 %), resuming decoder
-AudioPlayer: Playback paused at position: 2 ms
-AudioService: Buffering started (network may be slow)
-[MVVM-UI] Buffering started
-AudioSession: Buffering started, fill level: 8 %
-AudioSession: Buffer full ( 91 %), pausing decoder
-AudioDecoder: Paused, waiting for resume signal
-AudioPlayer: Playback resumed from position: 2 ms
-AudioSession: Buffer filled, resuming playback
-AudioService: Buffering finished
-[MVVM-UI] Buffering finished
-AudioDecoder: Resuming from pause
-AudioSession: Buffer low ( 13 %), resuming decoder
-AudioDecoder: Resumed
-AudioSession: Buffer full ( 91 %), pausing decoder
-AudioDecoder: Paused, waiting for resume signal
-AudioDecoder: Resuming from pause
-AudioSession: Buffer low ( 16 %), resuming decoder
-AudioDecoder: Resumed
-AudioSession: Buffer full ( 92 %), pausing decoder
-AudioDecoder: Paused, waiting for resume signal
-AudioDecoder: Resuming from pause
-AudioSession: Buffer low ( 20 %), resuming decoder
-AudioDecoder: Resumed
-AudioSession: Buffer full ( 92 %), pausing decoder
-AudioDecoder: Paused, waiting for resume signal
-AudioDecoder: Resuming from pause
-AudioSession: Buffer low ( 22 %), resuming decoder
-AudioDecoder: Resumed
-AudioSession: Buffer full ( 93 %), pausing decoder
-AudioDecoder: Paused, waiting for resume signal
-AudioDecoder: Resuming from pause
-AudioSession: Buffer low ( 26 %), resuming decoder
-AudioDecoder: Resumed
-AudioSession: Buffer full ( 94 %), pausing decoder
-AudioDecoder: Resuming from pause
-AudioSession: Buffer low ( 29 %), resuming decoder
-AudioSession: Buffer full ( 94 %), pausing decoder
-AudioDecoder: Resuming from pause
-AudioSession: Buffer low ( 32 %), resuming decoder
-AudioSession: Buffer full ( 94 %), pausing decoder
-AudioDecoder: Resuming from pause
-AudioSession: Buffer low ( 36 %), resuming decoder
-AudioSession: Buffer full ( 95 %), pausing decoder
-AudioDecoder: Resuming from pause
-AudioSession: Buffer low ( 39 %), resuming decoder
-AudioSession: Playback started
-AudioSession: Decode paused
-AudioSession: Playback paused
-[MVVM-ViewModel] onAudioServicePlaybackPaused
-[MVVM-ViewModel] isPlaying changed to: false
-[MVVM-UI] isPlaying changed: false
-Desktop lyric playing state updated to: false
-[ProcessSliderQml] setState called with state: 2
-[ProcessSlider.qml] setPlayState called, state: 2 old playState: 1
-[PLAY_STATE] MusicListWidgetLocal::on_signal_play_button_click 收到信号, flag= false , filename= "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
-[PLAY_STATE] sender 是PlayWidget, net_flag= true
-[PLAY_STATE] MusicListWidgetNet::on_signal_play_button_click flag= false , filename= "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
-[PlaylistHistory] updatePlayingState - path: "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3" isPlaying: false
-AudioSession: Decode paused
-AudioSession: Playback resumed
-[MVVM-ViewModel] onAudioServicePlaybackResumed
-[MVVM-ViewModel] isPlaying changed to: true
-[MVVM-UI] isPlaying changed: true
-Desktop lyric playing state updated to: true
-[ProcessSliderQml] setState called with state: 1
-[ProcessSlider.qml] setPlayState called, state: 1 old playState: 2
-[MainWidget] Music started, pausing video
-[PLAY_STATE] MusicListWidgetLocal::on_signal_play_button_click 收到信号, flag= true , filename= "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
-[PLAY_STATE] sender 是PlayWidget, net_flag= true
-[PLAY_STATE] MusicListWidgetNet::on_signal_play_button_click flag= true , filename= "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
-[PlaylistHistory] updatePlayingState - path: "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3" isPlaying: true
-AudioSession: Playback paused
-[MVVM-ViewModel] onAudioServicePlaybackPaused
-[MVVM-ViewModel] isPlaying changed to: false
-[MVVM-UI] isPlaying changed: false
-Desktop lyric playing state updated to: false
-[ProcessSliderQml] setState called with state: 2
-[ProcessSlider.qml] setPlayState called, state: 2 old playState: 1
-[PLAY_STATE] MusicListWidgetLocal::on_signal_play_button_click 收到信号, flag= false , filename= "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
-[PLAY_STATE] sender 是PlayWidget, net_flag= true
-[PLAY_STATE] MusicListWidgetNet::on_signal_play_button_click flag= false , filename= "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
-[PlaylistHistory] updatePlayingState - path: "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3" isPlaying: false
-AudioSession: Buffer full ( 95 %), pausing decoder
-AudioSession: Decode paused
-AudioSession: Playback resumed
-[MVVM-ViewModel] onAudioServicePlaybackResumed
-[MVVM-ViewModel] isPlaying changed to: true
-[MVVM-UI] isPlaying changed: true
-Desktop lyric playing state updated to: true
-[ProcessSliderQml] setState called with state: 1
-[ProcessSlider.qml] setPlayState called, state: 1 old playState: 2
-[MainWidget] Music started, pausing video
-[PLAY_STATE] MusicListWidgetLocal::on_signal_play_button_click 收到信号, flag= true , filename= "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
-[PLAY_STATE] sender 是PlayWidget, net_flag= true
-[PLAY_STATE] MusicListWidgetNet::on_signal_play_button_click flag= true , filename= "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3"
-[PlaylistHistory] updatePlayingState - path: "http://slcdut.xyz:8080/uploads/床边故事/床边故事.mp3" isPlaying: true
-AudioSession: Decode paused
-AudioSession: Decode paused
-AudioSession: Decode paused
-AudioSession: Decode paused
-AudioSession: Decode paused
-AudioSession: Decode paused
-AudioSession: Decode paused
-AudioSession: Decode paused
-AudioSession: Decode paused
-AudioDecoder: Paused, waiting for resume signal
-[NetworkManager] Request finished: "a2391362-cc33-42b4-a900-39a42466d52b" Status: 200 Elapsed: 174 ms Size: 42 bytes Retry: 0
-AudioPlayer: Position update: 1099 ms (elapsed: 1097 ms)
-AudioPlayer: Position update: 2190 ms (elapsed: 2188 ms)
-AudioDecoder: Resuming from pause
-AudioSession: Buffer low ( 57 %), resuming decoder
-AudioDecoder: Resumed
-AudioDecoder: Decoded 300 frames, current timestamp: 7811 ms
-AudioSession: Buffer full ( 86 %), pausing decoder
-AudioPlayer: Received 300 data packets, size: 4608 buffer level: 918716
-AudioSession: Decode paused
-AudioDecoder: Paused, waiting for resume signal
-AudioPlayer: Position update: 3289 ms (elapsed: 3287 ms)
-AudioDecoder: Resuming from pause
-AudioSession: Buffer low ( 57 %), resuming decoder
-AudioDecoder: Resumed
-AudioPlayer: Position update: 4379 ms (elapsed: 4377 ms)
-AudioSession: Buffer full ( 86 %), pausing decoder
-AudioSession: Decode paused
-AudioDecoder: Paused, waiting for resume signal
-[PlayHistoryWidget] Play music with metadata: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3" title: "给我一首歌的时间" artist: "周杰伦" cover: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间_cover.png"
-检测到网络路径，跳过存在性检 "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
-[MVVM-UI] _play_click: Playing via ViewModel: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
-[MVVM-ViewModel] play() called with URL: QUrl("http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3")
-[MVVM-UI] Should load lyrics for: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
-[HttpRequestV2] Getting lyrics from: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/lrc"
-[NetworkManager] Request started: "2baf489a-6ff9-40ca-8ebb-2f8209a211ba" "GET" "http://slcdut.xyz:8080/uploads/给我一首歌的时间/lrc"
-AudioService: Added to playlist tail at index 1 total 2
-AudioDecoder created in thread: 0x7478
-[TIMING] AudioService::play - createSession: 0.2026 ms
-AudioSession: Extracted title from URL: "给我一首歌的时间"
-AudioSession: Loading network URL: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
-[TIMING]   avformat_open_input: 43.2814 ms
-[TIMING]   avformat_find_stream_info: 0.9451 ms
-Audio stream found at index: 0
-[TIMING] AudioDecoder::openFile: 44.3575 ms
-Decoder setup successfully. Sample rate: 44100 Channels: 2
-[TIMING] AudioDecoder::setupDecoder: 0.1105 ms
-Resampler setup successfully
-[TIMING] AudioDecoder::setupResampler: 0.096 ms
-AudioDecoder: Extracted title from metadata: "给我一首歌的时间"
-AudioDecoder: Extracted artist from metadata: "周杰伦"
-Album cover extracted to: "file:///C:/Users/SL/AppData/Local/Temp/album_cover_1771935656275.jpg"
-[TIMING] AudioDecoder::initDecoder TOTAL: 45.6928 ms
-AudioDecoder initialized successfully. Duration: 253596 ms
-AudioSession: Using title from file metadata: "给我一首歌的时间"
-AudioSession: Using artist from file metadata: "周杰伦"
-[TIMING] AudioSession::loadSource (initDecoder): 45.9774 ms result: true
-[TIMING] AudioService::play - loadSource: 46.0946 ms
-AudioDecoder: Resumed
-AudioDecoder: Stop requested during pause
-AudioDecoder::decode thread finished, m_decoding reset to false
-AudioDecoder: Decode thread stopped synchronously
-AudioPlayer: Playback stopped (device and thread still hot)
-AudioPlayer: Write owner cleared from "session_1"
-AudioService: Destroyed old session "session_1"
-AudioPlayer: Buffer reset (ready for new song)
-AudioService: Shared AudioPlayer buffer reset
-AudioPlayer: Volume set to 100
-[MVVM-ViewModel] onAudioServicePlaybackStarted, URL: QUrl("http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3")
-[MVVM-UI] Album art changed: ""
-slot_updateBackground called with: ""
-Failed to load album cover for background: ""
-Using default background image
-Original pixmap size: QSize(200, 200)
-Cropped pixmap size: QSize(1000, 600)
-Background updated successfully, pixmap size: QSize(1000, 600)
-backgroundLabel visible: false geometry: QRect(0,0 100x30)
-Failed to load image for RotatingCircleImage: ""
-  Tried local path: ""
-PlaylistHistory::addSong - "给我一首歌的时间" "周杰伦"
-[MVVM-UI] Added to playlist history: "给我一首歌的时间" "周杰伦"
-[PlaylistHistory] setCurrentPlayingPath: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
-[MVVM-UI] Playback started
-Desktop lyric playing state updated to: true
-[ProcessSliderQml] setState called with state: 1
-[ProcessSlider.qml] setPlayState called, state: 1 old playState: 1
-[MainWidget] Music started, pausing video
-[PLAY_STATE] MusicListWidgetLocal::on_signal_play_button_click 收到信号, flag= true , filename= "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
-[PLAY_STATE] sender 是PlayWidget, net_flag= true
-[PLAY_STATE] MusicListWidgetNet::on_signal_play_button_click flag= true , filename= "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
-[MainWidget] playbackStarted signal received! sessionId: "session_2" url: QUrl("http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3")
-[MainWidget] Extracted filePath: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
-[MainWidget] About to call setCurrentPlayingPath on both widgets...
-[PlayHistoryWidget] Setting currentPlayingPath to: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
-[PlayHistoryWidget] Verified currentPlayingPath is now: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
-[FavoriteMusicWidget] Setting currentPlayingPath to: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
-[FavoriteMusicWidget] Verified currentPlayingPath is now: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
-[MainWidget] setCurrentPlayingPath calls completed
-[MainWidget] Using cached network artist: "周杰伦"
-[MainWidget] ========== ADDING TO PLAY HISTORY ==========
-[MainWidget] userAccount: "root"
-[MainWidget] filePath: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
-[MainWidget] title: "给我一首歌的时间"
-[MainWidget] artist: "周杰伦"
-[MainWidget] album: ""
-[MainWidget] duration: "0" seconds
-[MainWidget] isLocal: false
-[MainWidget] =============================================
-[NetworkManager] Request started: "bba32031-53a7-4596-996b-03ddf93ead99" "POST" "http://slcdut.xyz:8080/user/history/add?user_account=root"
-AudioPlayer: Write owner set to "session_2"
-AudioDecoder: Decode thread launched
-[TIMING] AudioSession::play - startDecode call: 80.6745 ms
-[TIMING] AudioService::play - play() call: 82.2465 ms
-[TIMING] AudioService::play - TOTAL: 128.544 ms
-[MVVM-ViewModel] AudioService play succeeded
-AudioDecoder: Decode thread started in std::thread
-AudioDecoder::decode thread started in std::thread
-[mp3float @ 0000022da3f20e00] Could not update timestamps for skipped samples.
-AudioDecoder: First PTS set to 0 ms
-[NetworkManager] Request finished: "2baf489a-6ff9-40ca-8ebb-2f8209a211ba" Status: 200 Elapsed: 131 ms Size: 3048 bytes Retry: 0
-[ResponseCache] Cached: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/lrc" TTL: -3600 s Size: 3048 bytes
-[NetworkService] Cached response for: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/lrc"
-[HttpRequestV2] Lyrics received: 71 lines
-AudioDecoder: Decoded 400 frames, current timestamp: 758 ms
-Sending first lyric to desktop: "欢迎来访爱听音乐网 www.v9v8.com"
-DeskLrcQml::setLyricText called with: "欢迎来访爱听音乐网 www.v9v8.com"
-DeskLyric.qml: setLyricText called with: 欢迎来访爱听音乐网 www.v9v8.com
-Setting desktop song name: "给我一首歌的时间"
-DeskLrcQml::setSongName called with: "给我一首歌的时间"
-DeskLyric.qml: setSongName called with: 给我一首歌的时间
-[MVVM-UI] Duration changed: 253596 ms
-[MVVM-UI] Title changed: "给我一首歌的时间"
-[MVVM-UI] Artist changed: "周杰伦"
-AudioSession: Using title from file metadata: "给我一首歌的时间"
-AudioSession: Using artist from file metadata: "周杰伦"
-[MVVM-UI] Album art changed: "file:///C:/Users/SL/AppData/Local/Temp/album_cover_1771935656275.jpg"
-slot_updateBackground called with: "file:///C:/Users/SL/AppData/Local/Temp/album_cover_1771935656275.jpg"
-Converted URL to local path: "C:/Users/SL/AppData/Local/Temp/album_cover_1771935656275.jpg"
-Original pixmap size: QSize(300, 300)
-AudioDecoder: Decoded 500 frames, current timestamp: 3370 ms
-Cropped pixmap size: QSize(1000, 600)
-Background updated successfully, pixmap size: QSize(1000, 600)
-backgroundLabel visible: false geometry: QRect(0,0 100x30)
-RotatingCircleImage: Converted URL to local path: "C:/Users/SL/AppData/Local/Temp/album_cover_1771935656275.jpg"
-RotatingCircleImage: Image loaded successfully, size: QSize(300, 300)
-PlaylistHistory::addSong - "给我一首歌的时间" "周杰伦"
-[MVVM-UI] Added to playlist history: "给我一首歌的时间" "周杰伦"
-[PlaylistHistory] setCurrentPlayingPath: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
-AudioSession: Playback stopped
-AudioSession: Decode started
-AudioPlayer: Received 400 data packets, size: 4608 buffer level: 129212
-AudioPlayer: Start playback (device already hot, ZERO startup delay)
-AudioSession: Initial playback started (onDataDecoded), fill level: 40 %
-AudioService: Buffering finished
-[MVVM-UI] Buffering finished
-AudioPlayer: Received 500 data packets, size: 4608 buffer level: 585916
-AudioPlayer: Playback paused at position: 1 ms
-AudioService: Buffering started (network may be slow)
-[MVVM-UI] Buffering started
-AudioSession: Buffering started, fill level: 0 %
-AudioPlayer: Playback resumed from position: 1 ms
-AudioSession: Buffer filled, resuming playback
-AudioService: Buffering finished
-[MVVM-UI] Buffering finished
-AudioSession: Buffer full ( 86 %), pausing decoder
-AudioDecoder: Paused, waiting for resume signal
-AudioDecoder: Resuming from pause
-AudioSession: Buffer low ( 2 %), resuming decoder
-AudioDecoder: Resumed
-AudioPlayer: Playback paused at position: 1 ms
-AudioService: Buffering started (network may be slow)
-[MVVM-UI] Buffering started
-AudioSession: Buffering started, fill level: 2 %
-AudioPlayer: Playback resumed from position: 1 ms
-AudioService: Buffering finished
-[MVVM-UI] Buffering finished
-AudioSession: Buffering finished, fill level: 25 %
-AudioSession: Playback started
-AudioSession: Playback paused
-[MVVM-ViewModel] onAudioServicePlaybackPaused
-[MVVM-ViewModel] isPlaying changed to: false
-[MVVM-UI] isPlaying changed: false
-Desktop lyric playing state updated to: false
-[ProcessSliderQml] setState called with state: 2
-[ProcessSlider.qml] setPlayState called, state: 2 old playState: 1
-[PLAY_STATE] MusicListWidgetLocal::on_signal_play_button_click 收到信号, flag= false , filename= "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
-[PLAY_STATE] sender 是PlayWidget, net_flag= true
-[PLAY_STATE] MusicListWidgetNet::on_signal_play_button_click flag= false , filename= "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
-[PlaylistHistory] updatePlayingState - path: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3" isPlaying: false
-AudioSession: Playback resumed
-[MVVM-ViewModel] onAudioServicePlaybackResumed
-[MVVM-ViewModel] isPlaying changed to: true
-[MVVM-UI] isPlaying changed: true
-Desktop lyric playing state updated to: true
-[ProcessSliderQml] setState called with state: 1
-[ProcessSlider.qml] setPlayState called, state: 1 old playState: 2
-[MainWidget] Music started, pausing video
-[PLAY_STATE] MusicListWidgetLocal::on_signal_play_button_click 收到信号, flag= true , filename= "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
-[PLAY_STATE] sender 是PlayWidget, net_flag= true
-[PLAY_STATE] MusicListWidgetNet::on_signal_play_button_click flag= true , filename= "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
-[PlaylistHistory] updatePlayingState - path: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3" isPlaying: true
-AudioSession: Buffer full ( 87 %), pausing decoder
-AudioSession: Decode paused
-AudioSession: Playback paused
-[MVVM-ViewModel] onAudioServicePlaybackPaused
-[MVVM-ViewModel] isPlaying changed to: false
-[MVVM-UI] isPlaying changed: false
-Desktop lyric playing state updated to: false
-[ProcessSliderQml] setState called with state: 2
-[ProcessSlider.qml] setPlayState called, state: 2 old playState: 1
-[PLAY_STATE] MusicListWidgetLocal::on_signal_play_button_click 收到信号, flag= false , filename= "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
-[PLAY_STATE] sender 是PlayWidget, net_flag= true
-[PLAY_STATE] MusicListWidgetNet::on_signal_play_button_click flag= false , filename= "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
-[PlaylistHistory] updatePlayingState - path: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3" isPlaying: false
-AudioSession: Playback resumed
-[MVVM-ViewModel] onAudioServicePlaybackResumed
-[MVVM-ViewModel] isPlaying changed to: true
-[MVVM-UI] isPlaying changed: true
-AudioDecoder: Paused, waiting for resume signal
-Desktop lyric playing state updated to: true
-[ProcessSliderQml] setState called with state: 1
-[ProcessSlider.qml] setPlayState called, state: 1 old playState: 2
-[MainWidget] Music started, pausing video
-[PLAY_STATE] MusicListWidgetLocal::on_signal_play_button_click 收到信号, flag= true , filename= "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
-[PLAY_STATE] sender 是PlayWidget, net_flag= true
-[PLAY_STATE] MusicListWidgetNet::on_signal_play_button_click flag= true , filename= "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
-[PlaylistHistory] updatePlayingState - path: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3" isPlaying: true
-AudioSession: Decode paused
-[NetworkManager] Request finished: "bba32031-53a7-4596-996b-03ddf93ead99" Status: 200 Elapsed: 160 ms Size: 42 bytes Retry: 0
-AudioPlayer: Position update: 433 ms (elapsed: 432 ms)
-LyricDisplay.qml: emitting currentLrcChanged with: 词：周杰伦
-AudioPlayer: Position update: 1525 ms (elapsed: 1524 ms)
-Playlist toggle: true
-MainWidget size: QSize(1000, 600)
-PlaylistHistory position: 600 60 size: 400 465
-AudioDecoder: Resuming from pause
-AudioSession: Buffer low ( 58 %), resuming decoder
-AudioDecoder: Resumed
-AudioDecoder: Decoded 600 frames, current timestamp: 5982 ms
-AudioPlayer: Received 600 data packets, size: 4608 buffer level: 702652
-AudioSession: Buffer full ( 86 %), pausing decoder
-AudioSession: Decode paused
-AudioDecoder: Paused, waiting for resume signal
-Playlist toggle: false
-AudioPlayer: Position update: 2620 ms (elapsed: 2619 ms)
-LyricDisplay.qml: emitting currentLrcChanged with: 编曲：林迈可
-AudioPlayer: Position update: 3714 ms (elapsed: 3713 ms)
-AudioDecoder: Resuming from pause
-AudioSession: Buffer low ( 58 %), resuming decoder
-AudioDecoder: Resumed
-AudioDecoder: Decoded 700 frames, current timestamp: 8594 ms
-AudioPlayer: Received 700 data packets, size: 4608 buffer level: 831676
-AudioSession: Buffer full ( 86 %), pausing decoder
-AudioDecoder: Paused, waiting for resume signal
-AudioSession: Decode paused
-LyricDisplay.qml: emitting currentLrcChanged with: 制作人：周杰伦
-AudioPlayer: Position update: 4814 ms (elapsed: 4813 ms)
-[TIMING] slot_play_click START "20:21:01.609"
-[MVVM-UI] slot_play_click: Using ViewModel togglePlayPause
-AudioPlayer: Playback paused at position: 5132 ms
-[TIMING] slot_play_click END "20:21:01.610"
-AudioSession: Decode paused
-AudioSession: Playback paused
-[MVVM-ViewModel] onAudioServicePlaybackPaused
-[MVVM-ViewModel] isPlaying changed to: false
-[MVVM-UI] isPlaying changed: false
-Desktop lyric playing state updated to: false
-[ProcessSliderQml] setState called with state: 2
-[ProcessSlider.qml] setPlayState called, state: 2 old playState: 1
-[PLAY_STATE] MusicListWidgetLocal::on_signal_play_button_click 收到信号, flag= false , filename= "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
-[PLAY_STATE] sender 是PlayWidget, net_flag= true
-[PLAY_STATE] MusicListWidgetNet::on_signal_play_button_click flag= false , filename= "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3"
-[PlaylistHistory] updatePlayingState - path: "http://slcdut.xyz:8080/uploads/给我一首歌的时间/给我一首歌的时间.mp3" isPlaying: false
+[2026-02-25 16:46:09.110] [DEBUG] =========================================
+
+[2026-02-25 16:46:09.430] [DEBUG] Loading plugins from: "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/plugin"
+
+[2026-02-25 16:46:09.431] [DEBUG] PluginManager initialized
+
+[2026-02-25 16:46:09.432] [DEBUG] Loading plugins from: "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/plugin"
+
+[2026-02-25 16:46:09.432] [DEBUG] Found 2 plugin files
+
+[2026-02-25 16:46:09.433] [DEBUG] Attempting to load plugin: "audio_converter_plugin.dll"
+
+[2026-02-25 16:46:09.435] [DEBUG] AudioConverterPlugin constructor
+
+[2026-02-25 16:46:09.435] [DEBUG] Initializing AudioConverterPlugin...
+
+[2026-02-25 16:46:09.435] [DEBUG] AudioConverterPlugin initialized successfully
+
+[2026-02-25 16:46:09.437] [DEBUG] Plugin loaded successfully: "音频转换器" Version: "1.0.0"
+
+[2026-02-25 16:46:09.438] [DEBUG] Attempting to load plugin: "whisper_translate_plugin.dll"
+
+[2026-02-25 16:46:09.442] [DEBUG] WhisperTranslatePlugin: Constructor called
+
+[2026-02-25 16:46:09.442] [DEBUG] WhisperTranslatePlugin: Initializing...
+
+[2026-02-25 16:46:09.443] [DEBUG] WhisperTranslatePlugin: Initialized successfully
+
+[2026-02-25 16:46:09.443] [DEBUG] Plugin loaded successfully: "Whisper 翻译" Version: "1.0.0"
+
+[2026-02-25 16:46:09.444] [DEBUG] Successfully loaded 2 plugins
+
+[2026-02-25 16:46:09.444] [DEBUG] Loaded 2 plugins
+
+[2026-02-25 16:46:09.446] [DEBUG] Loading plugins from: "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/plugin"
+
+[2026-02-25 16:46:09.446] [DEBUG] Found 2 plugin files
+
+[2026-02-25 16:46:09.447] [DEBUG] Attempting to load plugin: "audio_converter_plugin.dll"
+
+[2026-02-25 16:46:09.448] [DEBUG] Plugin loaded successfully: "音频转换器" Version: "1.0.0"
+
+[2026-02-25 16:46:09.448] [DEBUG] Attempting to load plugin: "whisper_translate_plugin.dll"
+
+[2026-02-25 16:46:09.449] [DEBUG] Plugin loaded successfully: "Whisper 翻译" Version: "1.0.0"
+
+[2026-02-25 16:46:09.450] [DEBUG] Successfully loaded 2 plugins
+
+[2026-02-25 16:46:09.451] [DEBUG] Loaded 2 plugins from "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/plugin"
+
+[2026-02-25 16:46:09.453] [DEBUG] SearchBoxQml: Initializing...
+
+[2026-02-25 16:46:09.462] [DEBUG] SearchBoxQml: Current QML import paths: ("qrc:/", "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug", "qrc:/qt-project.org/imports", "E:/FFmpeg_whisper/ffmpeg_music_player_build/Debug/qml")
+
+[2026-02-25 16:46:09.463] [DEBUG] SearchBoxQml: Loading QML from qrc:/qml/components/SearchBox.qml
+
+[2026-02-25 16:46:09.992] [DEBUG] SearchBoxQml: QML loaded successfully, status = QQuickWidget::Ready
+
+[2026-02-25 16:46:09.993] [DEBUG] SearchBoxQml: Root item found, size: 250 x 60
+
+[2026-02-25 16:46:09.994] [DEBUG] SearchBoxQml: QML signals connected successfully
+
+[2026-02-25 16:46:09.994] [DEBUG] SearchBoxQml: Initialization complete
+
+[2026-02-25 16:46:09.995] [DEBUG] UserWidgetQml: Initializing...
+
+[2026-02-25 16:46:09.996] [DEBUG] UserWidgetQml: Loading QML from qrc:/qml/components/UserWidget.qml
+
+[2026-02-25 16:46:10.622] [DEBUG] UserWidgetQml: QML loaded successfully
+
+[2026-02-25 16:46:10.623] [DEBUG] UserWidgetQml: Initializing popup window...
+
+[2026-02-25 16:46:10.724] [DEBUG] UserWidgetQml: Popup window loaded
+
+[2026-02-25 16:46:10.724] [DEBUG] UserWidgetQml: Popup window signals connected
+
+[2026-02-25 16:46:10.724] [DEBUG] UserWidgetQml: Initialization complete
+
+[2026-02-25 16:46:10.739] [DEBUG] LoginWidgetQml: Initializing...
+
+[2026-02-25 16:46:10.796] [DEBUG] [NetworkManager] Initialized with HTTP/2 support
+
+[2026-02-25 16:46:10.797] [DEBUG] [NetworkService] Initialized
+
+[2026-02-25 16:46:10.797] [DEBUG] [NetworkService] Base URL set to: "http://slcdut.xyz:8080/"
+
+[2026-02-25 16:46:10.799] [DEBUG] [HttpRequestV2] Initialized with new network layer
+
+[2026-02-25 16:46:10.918] [DEBUG] LoginWidgetQml: QML loaded successfully
+
+[2026-02-25 16:46:10.918] [DEBUG] LoginWidgetQml: Initialization complete
+
+[2026-02-25 16:46:10.954] [DEBUG] [NetworkService] Base URL set to: "http://slcdut.xyz:8080/"
+
+[2026-02-25 16:46:10.955] [DEBUG] [HttpRequestV2] Initialized with new network layer
+
+[2026-02-25 16:46:10.955] [DEBUG] [DownloadManager] Initialized with thread pool, max threads: 3
+
+[2026-02-25 16:46:10.962] [DEBUG] [DownloadManager] Loaded 15 tasks
+
+[2026-02-25 16:46:10.962] [DEBUG] [LocalMusicCache] Initialized with 1 songs
+
+[2026-02-25 16:46:10.964] [DEBUG] [LocalAndDownloadWidget] Initializing...
+
+[2026-02-25 16:46:10.972] [DEBUG] [LocalAndDownloadWidget] Initial refresh of active tasks
+
+[2026-02-25 16:46:11.097] [DEBUG] [DownloadingList] Component completed
+
+[2026-02-25 16:46:11.099] [DEBUG] [DownloadingList] Initial refresh
+
+[2026-02-25 16:46:11.099] [DEBUG] [DownloadingList] Model reset, count: 0
+
+[2026-02-25 16:46:11.100] [DEBUG] [DownloadedMusicList] Model reset, count: 0
+
+[2026-02-25 16:46:11.100] [DEBUG] [DownloadedMusicList] Component completed
+
+[2026-02-25 16:46:11.100] [DEBUG] [DownloadedMusicList] Initial refresh
+
+[2026-02-25 16:46:11.102] [DEBUG] [DownloadingList] Model reset, count: 0
+
+[2026-02-25 16:46:11.102] [DEBUG] [DownloadedMusicList] Model reset, count: 0
+
+[2026-02-25 16:46:11.116] [DEBUG] [LocalAndDownloadWidget] Root object loaded successfully
+
+[2026-02-25 16:46:11.117] [DEBUG] [LocalAndDownloadWidget] Signals connected
+
+[2026-02-25 16:46:11.117] [DEBUG] [LocalAndDownloadWidget] Initialized successfully
+
+[2026-02-25 16:46:11.154] [DEBUG] [NetworkService] Base URL set to: "http://slcdut.xyz:8080/"
+
+[2026-02-25 16:46:11.154] [DEBUG] [HttpRequestV2] Initialized with new network layer
+
+[2026-02-25 16:46:11.201] [DEBUG] PlayHistoryWidget: Created
+
+[2026-02-25 16:46:11.203] [DEBUG] PlayHistoryWidget: Signals connected
+
+[2026-02-25 16:46:11.237] [DEBUG] FavoriteMusicWidget: Created
+
+[2026-02-25 16:46:11.237] [DEBUG] FavoriteMusicWidget: Signals connected
+
+[2026-02-25 16:46:11.248] [DEBUG] [MainWidget] Creating PlayWidget...
+
+[2026-02-25 16:46:11.248] [DEBUG] AudioService: Pre-warming AudioPlayer singleton...
+
+[2026-02-25 16:46:12.127] [DEBUG] AudioPlayer: Audio device OPENED and ready (hot state)
+
+[2026-02-25 16:46:12.127] [DEBUG]   Sample Rate: 44100
+
+[2026-02-25 16:46:12.128] [DEBUG]   Channels: 2
+
+[2026-02-25 16:46:12.128] [DEBUG]   Buffer Size: 65536
+
+[2026-02-25 16:46:12.129] [DEBUG]   Device will remain open until destruction
+
+[2026-02-25 16:46:12.129] [DEBUG] AudioPlayer created in thread: 0x13d0
+
+[2026-02-25 16:46:12.130] [DEBUG] AudioPlayer: Playback thread started: 0x43cc
+
+[2026-02-25 16:46:12.131] [DEBUG] AudioPlayer: Playback thread started and ready
+
+[2026-02-25 16:46:12.131] [DEBUG] AudioPlayer: Audio device is HOT and ready (no startup delay)
+
+[2026-02-25 16:46:12.131] [DEBUG] AudioService: AudioPlayer ready, all songs will have ZERO startup delay
+
+[2026-02-25 16:46:12.132] [DEBUG] [MVVM] PlaybackViewModel: Initializing and connecting to AudioService
+
+[2026-02-25 16:46:12.132] [DEBUG] [MVVM] PlaybackViewModel: All signals connected successfully
+
+[2026-02-25 16:46:12.132] [DEBUG] [MVVM-UI] PlayWidget: Initializing with ViewModel-only architecture
+
+[2026-02-25 16:46:12.134] [DEBUG] ProcessSliderQml: Loading QML from qrc:/qml/components/ProcessSlider.qml
+
+[2026-02-25 16:46:12.203] [DEBUG]   QML source set in 69 ms
+
+[2026-02-25 16:46:12.204] [DEBUG]   Resize mode set in 70 ms
+
+[2026-02-25 16:46:12.204] [DEBUG] ProcessSliderQml: QML loaded successfully in 70 ms
+
+[2026-02-25 16:46:12.205] [DEBUG] ProcessSliderQml: Root object found, connecting signals...
+
+[2026-02-25 16:46:12.206] [DEBUG] ProcessSliderQml: All signals connected in 71 ms (total)
+
+[2026-02-25 16:46:12.207] [DEBUG] ProcessSliderQml: Constructor completed in 72 ms (total)
+
+[2026-02-25 16:46:12.207] [DEBUG] ProcessSliderQml created at position: QPoint(0,490) size: QSize(1000, 70) visible: false
+
+[2026-02-25 16:46:12.325] [DEBUG] DeskLyric.qml loaded successfully
+
+[2026-02-25 16:46:12.325] [DEBUG] DeskLrcQml: QML signals connected
+
+[2026-02-25 16:46:12.427] [DEBUG] PlaylistHistoryQml: Created, root object: true
+
+[2026-02-25 16:46:12.427] [DEBUG] PlaylistHistoryQml: Signals connected
+
+[2026-02-25 16:46:12.430] [DEBUG] [NetworkService] Base URL set to: "http://slcdut.xyz:8080/"
+
+[2026-02-25 16:46:12.430] [DEBUG] [HttpRequestV2] Initialized with new network layer
+
+[2026-02-25 16:46:12.430] [DEBUG] [MVVM-UI] AudioService initialized
+
+[2026-02-25 16:46:12.432] [DEBUG] Initializing LyricDisplay...
+
+[2026-02-25 16:46:12.450] [DEBUG] LyricDisplay.qml loaded successfully
+
+[2026-02-25 16:46:12.450] [DEBUG] LyricDisplay initialized, size: QSize(550, 350) position: QPoint(400,100)
+
+[2026-02-25 16:46:12.467] [DEBUG] [MVVM-UI] Connecting ViewModel signals to UI...
+
+[2026-02-25 16:46:12.467] [DEBUG] [MVVM-UI] ViewModel signals connected successfully
+
+[2026-02-25 16:46:12.469] [DEBUG] [MainWidget] PlayWidget created successfully
+
+[2026-02-25 16:46:12.470] [DEBUG] [MainWidget] Creating VideoListWidget...
+
+[2026-02-25 16:46:12.525] [DEBUG] [NetworkService] Base URL set to: "http://slcdut.xyz:8080/"
+
+[2026-02-25 16:46:12.525] [DEBUG] [HttpRequestV2] Initialized with new network layer
+
+[2026-02-25 16:46:12.526] [DEBUG] [MainWidget] VideoListWidget created successfully
+
+[2026-02-25 16:46:12.526] [DEBUG] [NetworkService] Base URL set to: "http://slcdut.xyz:8080/"
+
+[2026-02-25 16:46:12.527] [DEBUG] [HttpRequestV2] Initialized with new network layer
+
+[2026-02-25 16:46:12.898] [DEBUG] [NetworkManager] DNS prewarmed for: "slcdut.xyz" Addresses: (QHostAddress("192.168.1.208"))
+
+[2026-02-25 16:46:12.899] [DEBUG] [NetworkManager] DNS prewarmed for: "slcdut.xyz" Addresses: (QHostAddress("192.168.1.208"))
+
+[2026-02-25 16:46:12.901] [DEBUG] [NetworkManager] DNS prewarmed for: "slcdut.xyz" Addresses: (QHostAddress("192.168.1.208"))
+
+[2026-02-25 16:46:12.904] [DEBUG] [NetworkManager] DNS prewarmed for: "slcdut.xyz" Addresses: (QHostAddress("192.168.1.208"))
+
+[2026-02-25 16:46:12.905] [DEBUG] [NetworkManager] DNS prewarmed for: "slcdut.xyz" Addresses: (QHostAddress("192.168.1.208"))
+
+[2026-02-25 16:46:12.905] [DEBUG] [NetworkManager] DNS prewarmed for: "slcdut.xyz" Addresses: (QHostAddress("192.168.1.208"))
+
+[2026-02-25 16:47:52.188] [DEBUG] [MainWidget] Showing online video list
+
+[2026-02-25 16:47:52.257] [DEBUG] [VideoListWidget] Refresh requested, fetching video list...
+
+[2026-02-25 16:47:52.257] [DEBUG] [NetworkManager] Request started: "869c5d74-6a2a-43ad-b7b2-cab02a45b862" "GET" "http://slcdut.xyz:8080/videos"
+
+[2026-02-25 16:47:52.401] [DEBUG] [NetworkManager] Request finished: "869c5d74-6a2a-43ad-b7b2-cab02a45b862" Status: 200 Elapsed: 143 ms Size: 56 bytes Retry: 0
+
+[2026-02-25 16:47:52.402] [DEBUG] [ResponseCache] Cached: "http://slcdut.xyz:8080/videos" TTL: -300 s Size: 56 bytes
+
+[2026-02-25 16:47:52.402] [DEBUG] [NetworkService] Cached response for: "http://slcdut.xyz:8080/videos"
+
+[2026-02-25 16:47:52.403] [DEBUG] [HttpRequestV2] Video list: 1
+
+[2026-02-25 16:47:52.403] [DEBUG] [VideoListWidget] Received 1 videos
+
+[2026-02-25 16:47:53.482] [DEBUG] [VideoListWidget] Video selected: "an_hao" ( "an_hao.mp4" )
+
+[2026-02-25 16:47:53.483] [DEBUG] [NetworkManager] Request started: "56313dad-e42d-4858-bf74-76dbdbb2123f" "POST" "http://slcdut.xyz:8080/video/stream"
+
+[2026-02-25 16:47:53.530] [DEBUG] [NetworkManager] Request finished: "56313dad-e42d-4858-bf74-76dbdbb2123f" Status: 200 Elapsed: 46 ms Size: 50 bytes Retry: 0
+
+[2026-02-25 16:47:53.530] [DEBUG] [HttpRequestV2] Video stream URL: "http://slcdut.xyz:8080/video/an_hao.mp4"
+
+[2026-02-25 16:47:53.531] [DEBUG] [VideoListWidget] Received video stream URL: "http://slcdut.xyz:8080/video/an_hao.mp4"
+
+[2026-02-25 16:47:53.533] [DEBUG] [VideoRendererGL] Created
+
+[2026-02-25 16:47:53.534] [DEBUG] [VideoRendererGL] Display mode reapplied: Fit
+
+[2026-02-25 16:47:53.581] [DEBUG] [MainWidget] VideoPlayerWindow linked from VideoListWidget: VideoPlayerWindow(0x20b0f20f8a0)
+
+[2026-02-25 16:47:53.582] [DEBUG] [VideoPlayerWindow] Loading video: "http://slcdut.xyz:8080/video/an_hao.mp4"
+
+[2026-02-25 16:47:53.582] [DEBUG] [VideoRendererGL] Display mode reapplied: Fit
+
+[2026-02-25 16:47:53.583] [DEBUG] [MediaSession] Created
+
+[2026-02-25 16:47:53.583] [DEBUG] [MediaSession] Loading source: QUrl("file:http://slcdut.xyz:8080/video/an_hao.mp4")
+
+[2026-02-25 16:47:53.622] [DEBUG] [MediaSession] Stream indices - Audio: 1 Video: 0
+
+[2026-02-25 16:47:53.622] [DEBUG] [MediaSession] Duration: 270745 ms
+
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'http://slcdut.xyz:8080/video/an_hao.mp4':
+  Metadata:
+    major_brand     : isom
+    minor_version   : 512
+    compatible_brands: isomiso2avc1mp41
+    comment         : vid:v0200fg10000cai8ei3c77u4h52hidog
+    encoder         : Lavf58.45.100
+  Duration: 00:04:30.75, start: 0.000000, bitrate: 1930 kb/s
+  Stream #0:0(und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(tv, bt709), 720x1280 [SAR 1:1 DAR 9:16], 1789 kb/s, 59.68 fps, 60 tbr, 15360 tbn, 120 tbc (default)
+    Metadata:
+      handler_name    : VideoHandler
+      vendor_id       : [0][0][0][0]
+  Stream #0:1(und): Audio: aac (LC) (mp4a / 0x6134706D), 44100 Hz, stereo, fltp, 128 kb/s (default)
+    Metadata:
+      handler_name    : SoundHandler
+      vendor_id       : [0][0][0][0]
+[2026-02-25 16:47:53.623] [DEBUG] [MediaSession] Initializing audio decoder for stream 1
+
+[2026-02-25 16:47:53.627] [DEBUG] [MediaSession] Audio filter graph rebuilt, playbackRate: 1 chain: "aresample=44100,atempo=1.000,aformat=sample_fmts=s16:channel_layouts=stereo:sample_rates=44100"
+
+[2026-02-25 16:47:53.628] [DEBUG] [MediaSession] Audio decoder initialized successfully
+
+[2026-02-25 16:47:53.628] [DEBUG] [MediaSession] Audio stream - codec: aac sample_rate: 44100
+
+[2026-02-25 16:47:53.629] [DEBUG] [MediaSession] Creating VideoSession for stream 0
+
+[2026-02-25 16:47:53.630] [DEBUG] [VideoSession] Created
+
+[2026-02-25 16:47:53.630] [DEBUG] [VideoBuffer] Created with capacity: 30
+
+[2026-02-25 16:47:53.630] [DEBUG] [VideoDecoder] Created
+
+[2026-02-25 16:47:53.631] [DEBUG] [VideoSession] Initialized - Size: QSize(720, 1280) Codec: h264 SAR: 1 / 1
+
+[2026-02-25 16:47:53.632] [DEBUG] [VideoDecoder] Initialized - Codec: h264 Size: QSize(720, 1280) Time base: 1 / 15360
+
+[2026-02-25 16:47:53.632] [DEBUG] [MediaSession] Video stream - codec: h264 resolution: 720 x 1280
+
+[2026-02-25 16:47:53.633] [DEBUG] [VideoPlayerWindow] Duration: 270745 ms
+
+[2026-02-25 16:47:53.634] [DEBUG] [VideoRendererGL] Target FPS: 60
+
+[2026-02-25 16:47:53.635] [DEBUG] [VideoSession] Set renderer FPS to 60 ( 60 / 1 )
+
+[2026-02-25 16:47:53.635] [DEBUG] [VideoSession] Set renderer PAR to 1 / 1
+
+[2026-02-25 16:47:53.636] [DEBUG] [VideoSession] VideoRenderer set and connected to buffer
+
+[2026-02-25 16:47:53.636] [DEBUG] [VideoPlayerWindow] VideoRenderer connected to VideoSession
+
+[2026-02-25 16:47:53.636] [DEBUG] [VideoPlayerWindow] Quality preset selected: Standard1080P
+
+[2026-02-25 16:47:53.637] [DEBUG] [VideoPlayerWindow] Playback rate selected: 1 x
+
+[2026-02-25 16:47:53.721] [DEBUG] [VideoRendererGL] Initializing OpenGL
+
+[2026-02-25 16:47:53.723] [DEBUG]   OpenGL Version: 3.3.0 NVIDIA 591.86
+
+[2026-02-25 16:47:53.723] [DEBUG]   GLSL Version: 3.30 NVIDIA via Cg compiler
+
+[2026-02-25 16:47:53.725] [DEBUG]   Renderer: NVIDIA GeForce RTX 3050 Laptop GPU/PCIe/SSE2
+
+[2026-02-25 16:47:53.727] [DEBUG] [VideoRendererGL] OpenGL initialized
+
+[2026-02-25 16:47:56.713] [DEBUG] [VideoPlayerWindow] Play
+
+[2026-02-25 16:47:56.715] [DEBUG] [MainWidget] Video started, pausing music
+
+[2026-02-25 16:47:56.715] [DEBUG] [MediaSession] Play
+
+[2026-02-25 16:47:56.716] [DEBUG] AudioPlayer: Write owner set to "0208d96d-9296-4cf2-960d-99b11b4d686c"
+
+[2026-02-25 16:47:56.716] [DEBUG] [VideoSession] Start
+
+[2026-02-25 16:47:56.716] [DEBUG] [VideoDecoder] Start
+
+[2026-02-25 16:47:56.717] [DEBUG] [VideoRendererGL] Start
+
+[2026-02-25 16:47:56.717] [DEBUG] [MediaSession] Video playback started
+
+[2026-02-25 16:47:56.717] [DEBUG] [MediaSession] Starting demux thread
+
+[2026-02-25 16:47:56.718] [DEBUG] AudioPlayer: Buffer reset (ready for new song)
+
+[2026-02-25 16:47:56.718] [DEBUG] [MediaSession] Demux loop started
+
+[2026-02-25 16:47:56.718] [DEBUG] AudioPlayer: Start playback (device already hot, ZERO startup delay)
+
+[2026-02-25 16:47:56.718] [DEBUG] [MediaSession] Stream indices - Audio: 1 Video: 0
+
+[2026-02-25 16:47:56.721] [DEBUG] [MediaSession] Audio playback started (fresh clock)
+
+[2026-02-25 16:47:56.721] [DEBUG] [MediaSession] VideoSession: valid
+
+[2026-02-25 16:47:56.722] [DEBUG] [VideoPlayerWindow] State changed: 1
+
+[2026-02-25 16:47:56.728] [DEBUG] [MediaSession] Video packet 1 sent to decoder
+
+[2026-02-25 16:47:56.733] [DEBUG] [MediaSession] Video packet 2 sent to decoder
+
+[2026-02-25 16:47:56.737] [DEBUG] [MediaSession] Video packet 3 sent to decoder
+
+[2026-02-25 16:47:56.737] [DEBUG] AudioPlayer: Timestamp set to 0 ms, clock resynced
+
+[2026-02-25 16:47:56.737] [DEBUG] [MediaSession] Seek completed - clock synced to actual PTS: 0 ms
+
+[2026-02-25 16:47:56.741] [DEBUG] [MediaSession] Video packet 4 sent to decoder
+
+[2026-02-25 16:47:56.742] [DEBUG] AudioPlayer: First audio data write
+
+[2026-02-25 16:47:56.744] [DEBUG] [MediaSession] Video packet 5 sent to decoder
+
+[2026-02-25 16:47:56.747] [DEBUG] [MediaSession] Video packet 6 sent to decoder
+
+[2026-02-25 16:47:56.749] [DEBUG] [VideoRendererGL] Display mode reapplied: Fit
+
+[2026-02-25 16:47:56.749] [DEBUG] [MediaSession] Video packet 7 sent to decoder
+
+[2026-02-25 16:47:56.751] [DEBUG] [VideoRendererGL] Render target resized to 720 x 340 preset: 1080P
+
+[2026-02-25 16:47:56.753] [DEBUG] [MediaSession] Video packet 8 sent to decoder
+
+[2026-02-25 16:47:56.755] [DEBUG] [MediaSession] Video packet 9 sent to decoder
+
+[2026-02-25 16:47:56.759] [DEBUG] [MediaSession] Video packet 10 sent to decoder
+
+[2026-02-25 16:47:57.801] [DEBUG] AudioPlayer: Position update: 1064 ms (elapsed: 1064 ms, rate: 1 x)
+
+[2026-02-25 16:47:58.567] [DEBUG] [MediaSession] Decoded 100 audio frames
+
+[2026-02-25 16:47:58.614] [DEBUG] AudioPlayer: Received 100 data packets, size: 4096 buffer level: 61440
+
+[2026-02-25 16:47:58.893] [DEBUG] AudioPlayer: Position update: 2155 ms (elapsed: 2155 ms, rate: 1 x)
+
+[2026-02-25 16:47:59.989] [DEBUG] AudioPlayer: Position update: 3251 ms (elapsed: 3251 ms, rate: 1 x)
+
+[2026-02-25 16:48:00.867] [DEBUG] [MediaSession] Decoded 200 audio frames
+
+[2026-02-25 16:48:00.882] [DEBUG] AudioPlayer: Received 200 data packets, size: 4096 buffer level: 69632
+
+[2026-02-25 16:48:01.082] [DEBUG] AudioPlayer: Position update: 4344 ms (elapsed: 4344 ms, rate: 1 x)
+
+[2026-02-25 16:48:02.175] [DEBUG] AudioPlayer: Position update: 5438 ms (elapsed: 5438 ms, rate: 1 x)
+
+[2026-02-25 16:48:03.201] [DEBUG] [MediaSession] Decoded 300 audio frames
+
+[2026-02-25 16:48:03.203] [DEBUG] AudioPlayer: Received 300 data packets, size: 4096 buffer level: 69632
+
+[2026-02-25 16:48:03.272] [DEBUG] AudioPlayer: Position update: 6535 ms (elapsed: 6535 ms, rate: 1 x)
+
+[2026-02-25 16:48:03.300] [DEBUG] [VideoPlayerWindow] Slider pressed
+
+[2026-02-25 16:48:04.362] [DEBUG] AudioPlayer: Position update: 7624 ms (elapsed: 7624 ms, rate: 1 x)
+
+[2026-02-25 16:48:04.668] [DEBUG] [VideoPlayerWindow] Seek to: 256124 ms
+
+[2026-02-25 16:48:04.669] [DEBUG] [MediaSession] Seek to: 256124 ms
+
+[2026-02-25 16:48:04.669] [DEBUG] [MediaSession] Waiting for demux thread to stop...
+
+[2026-02-25 16:48:04.680] [DEBUG] [MediaSession] Demux loop finished - Audio packets: 365 Video packets: 507
+
+[2026-02-25 16:48:04.681] [DEBUG] [MediaSession] Demux thread stopped
+
+[2026-02-25 16:48:04.682] [DEBUG] AudioPlayer: Buffer reset (ready for new song)
+
+[2026-02-25 16:48:04.687] [DEBUG] [MediaSession] Audio filter graph rebuilt, playbackRate: 1 chain: "aresample=44100,atempo=1.000,aformat=sample_fmts=s16:channel_layouts=stereo:sample_rates=44100"
+
+[2026-02-25 16:48:04.687] [DEBUG] [MediaSession] Audio buffers flushed, waiting for first frame to sync clock
+
+[2026-02-25 16:48:04.688] [DEBUG] [VideoSession] Flush buffers
+
+[2026-02-25 16:48:04.688] [DEBUG] [VideoDecoder] Flush
+
+[2026-02-25 16:48:04.696] [DEBUG] [VideoBuffer] Cleared 24 frames
+
+[2026-02-25 16:48:04.696] [DEBUG] [MediaSession] Video buffers flushed
+
+[2026-02-25 16:48:04.697] [DEBUG] [VideoRendererGL] Start buffering
+
+[2026-02-25 16:48:04.697] [DEBUG] [MediaSession] Restarting demux thread after seek
+
+[2026-02-25 16:48:04.698] [DEBUG] [MediaSession] Demux loop started
+
+[2026-02-25 16:48:04.699] [DEBUG] [MediaSession] Stream indices - Audio: 1 Video: 0
+
+[2026-02-25 16:48:04.700] [DEBUG] [MediaSession] VideoSession: valid
+
+[2026-02-25 16:48:04.739] [DEBUG] AudioPlayer: Timestamp set to 255674 ms, clock resynced
+
+[2026-02-25 16:48:04.740] [DEBUG] [MediaSession] Seek completed - clock synced to actual PTS: 255674 ms
+
+[2026-02-25 16:48:04.749] [DEBUG] [MediaSession] Video packet 1 sent to decoder
+
+[2026-02-25 16:48:04.753] [DEBUG] [MediaSession] Video packet 2 sent to decoder
+
+[2026-02-25 16:48:04.757] [DEBUG] [MediaSession] Video packet 3 sent to decoder
+
+[2026-02-25 16:48:04.760] [DEBUG] [MediaSession] Video packet 4 sent to decoder
+
+[2026-02-25 16:48:04.763] [DEBUG] [MediaSession] Video packet 5 sent to decoder
+
+[2026-02-25 16:48:04.767] [DEBUG] [MediaSession] Video packet 6 sent to decoder
+
+[2026-02-25 16:48:04.771] [DEBUG] [MediaSession] Video packet 7 sent to decoder
+
+[2026-02-25 16:48:04.775] [DEBUG] [MediaSession] Video packet 8 sent to decoder
+
+[2026-02-25 16:48:04.779] [DEBUG] [MediaSession] Video packet 9 sent to decoder
+
+[2026-02-25 16:48:04.783] [DEBUG] [MediaSession] Video packet 10 sent to decoder
+
+[2026-02-25 16:48:05.190] [DEBUG] [MediaSession] Decoded 400 audio frames
+
+[2026-02-25 16:48:05.240] [DEBUG] AudioPlayer: Received 400 data packets, size: 4096 buffer level: 53248
+
+[2026-02-25 16:48:05.444] [DEBUG] hidePopup called
+
+[2026-02-25 16:48:05.456] [DEBUG] AudioPlayer: Position update: 256391 ms (elapsed: 717 ms, rate: 1 x)
+
+[2026-02-25 16:48:06.002] [DEBUG] [VideoPlayerWindow] Closing window, cleaning up resources...
+
+[2026-02-25 16:48:06.002] [DEBUG] [MediaSession] Stop
+
+[2026-02-25 16:48:06.003] [DEBUG] [MediaSession] Stopping demux thread
+
+[2026-02-25 16:48:06.005] [DEBUG] [MediaSession] Demux loop finished - Audio packets: 70 Video packets: 98
+
+[2026-02-25 16:48:06.005] [DEBUG] AudioPlayer: Playback stopped (device and thread still hot)
+
+[2026-02-25 16:48:06.006] [DEBUG] AudioPlayer: Write owner cleared from "0208d96d-9296-4cf2-960d-99b11b4d686c"
+
+[2026-02-25 16:48:06.007] [DEBUG] [VideoSession] Stop
+
+[2026-02-25 16:48:06.007] [DEBUG] [VideoDecoder] Stop
+
+[2026-02-25 16:48:06.007] [DEBUG] [VideoRendererGL] Stop
+
+[2026-02-25 16:48:06.014] [DEBUG] [VideoBuffer] Cleared 23 frames
+
+[2026-02-25 16:48:06.015] [DEBUG] [VideoPlayerWindow] State changed: 0
+
+[2026-02-25 16:48:06.017] [DEBUG] [MediaSession] Destroying...
+
+[2026-02-25 16:48:06.017] [DEBUG] [MediaSession] Stop
+
+[2026-02-25 16:48:06.017] [DEBUG] [VideoSession] Stop
+
+[2026-02-25 16:48:06.018] [DEBUG] [VideoDecoder] Stop
+
+[2026-02-25 16:48:06.018] [DEBUG] [VideoRendererGL] Stop
+
+[2026-02-25 16:48:06.019] [DEBUG] [VideoBuffer] Cleared 0 frames
+
+[2026-02-25 16:48:06.019] [DEBUG] [MediaSession] Unloading source
+
+[2026-02-25 16:48:06.020] [DEBUG] [VideoSession] Destroying...
+
+[2026-02-25 16:48:06.020] [DEBUG] [VideoSession] Stop
+
+[2026-02-25 16:48:06.021] [DEBUG] [VideoDecoder] Stop
+
+[2026-02-25 16:48:06.021] [DEBUG] [VideoRendererGL] Stop
+
+[2026-02-25 16:48:06.022] [DEBUG] [VideoBuffer] Cleared 0 frames
+
+[2026-02-25 16:48:06.022] [DEBUG] [VideoDecoder] Destroying...
+
+[2026-02-25 16:48:06.024] [DEBUG] [VideoDecoder] Destroyed
+
+[2026-02-25 16:48:06.024] [DEBUG] [VideoBuffer] Destroying...
+
+[2026-02-25 16:48:06.024] [DEBUG] [VideoBuffer] Cleared 0 frames
+
+[2026-02-25 16:48:06.026] [DEBUG] [VideoBuffer] Destroyed
+
+[2026-02-25 16:48:06.026] [DEBUG] [VideoSession] Destroyed
+
+[2026-02-25 16:48:06.028] [DEBUG] [MediaSession] Destroyed
+
+[2026-02-25 16:48:06.028] [DEBUG] [VideoRendererGL] Stop
+
+[2026-02-25 16:48:06.030] [DEBUG] [VideoPlayerWindow] Window closed, all resources cleaned
+
+[2026-02-25 16:48:07.525] [DEBUG] MainWidget::~MainWidget() - Starting cleanup...
+
+[2026-02-25 16:48:07.525] [DEBUG] AudioPlayer: Buffer reset (ready for new song)
+
+[2026-02-25 16:48:07.527] [DEBUG] MainWidget: Deleting PlayWidget...
+
+[2026-02-25 16:48:07.527] [DEBUG] PlayWidget::~PlayWidget() - Starting cleanup...
+
+[2026-02-25 16:48:07.535] [DEBUG] PlayWidget: Stopping lyric thread b...
+
+[2026-02-25 16:48:07.585] [DEBUG] PlayWidget::~PlayWidget() - Cleanup complete
+
+[2026-02-25 16:48:07.593] [DEBUG] MainWidget: Deleting VideoPlayerWindow...
+
+[2026-02-25 16:48:07.594] [DEBUG] [VideoPlayerWindow] Closing window, cleaning up resources...
+
+[2026-02-25 16:48:07.594] [DEBUG] [VideoRendererGL] Stop
+
+[2026-02-25 16:48:07.595] [DEBUG] [VideoPlayerWindow] Window closed, all resources cleaned
+
+[2026-02-25 16:48:07.595] [DEBUG] [VideoPlayerWindow] Destructor
+
+[2026-02-25 16:48:07.597] [DEBUG] [VideoRendererGL] Destroyed
+
+[2026-02-25 16:48:07.614] [DEBUG] [VideoListWidget] Destroyed
+
+[2026-02-25 16:48:07.624] [DEBUG] MainWidget: Waiting for thread pool...
+
+[2026-02-25 16:48:07.625] [DEBUG] MainWidget: Unloading plugins...
+
+[2026-02-25 16:48:07.625] [DEBUG] Unloading all plugins...
+
+[2026-02-25 16:48:07.626] [DEBUG] WhisperTranslatePlugin: Cleaning up...
+
+[2026-02-25 16:48:07.626] [DEBUG] WhisperTranslatePlugin: Cleaned up
+
+[2026-02-25 16:48:07.626] [DEBUG] Plugin unloaded: "Whisper 翻译"
+
+[2026-02-25 16:48:07.627] [DEBUG] Cleaning up AudioConverterPlugin...
+
+[2026-02-25 16:48:07.627] [DEBUG] AudioConverterPlugin cleaned up
+
+[2026-02-25 16:48:07.627] [DEBUG] Plugin unloaded: "音频转换器"
+
+[2026-02-25 16:48:07.629] [DEBUG] All plugins unloaded
+
+[2026-02-25 16:48:07.630] [DEBUG] MainWidget::~MainWidget() - Cleanup complete
+
+[2026-02-25 16:48:07.702] [DEBUG] Application exiting, ensuring cleanup...
+
+[2026-02-25 16:48:07.702] [DEBUG] Application cleanup complete
+

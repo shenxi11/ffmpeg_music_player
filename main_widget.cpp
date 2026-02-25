@@ -2,6 +2,7 @@
 #include "plugin_manager.h"
 #include "searchbox_qml.h"
 #include "AudioService.h"
+#include "AudioPlayer.h"
 #include "VideoPlayerWindow.h"
 #include "user.h"
 #include <QCoreApplication>
@@ -258,7 +259,7 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     VideoPlayerBtn->setFixedSize(200, 50);
     VideoPlayerBtn->setObjectName("VideoPlayerBtn");
     VideoPlayerBtn->move(0, this->height() - 350);
-    VideoPlayerBtn->setCheckable(false);
+    VideoPlayerBtn->setCheckable(true);
     VideoPlayerBtn->setStyleSheet(
         "QPushButton {"
         "    background: transparent;"
@@ -277,23 +278,12 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
         "}"
     );
     
-    connect(VideoPlayerBtn, &QPushButton::clicked, this, [=]() {
-        qDebug() << "[MainWidget] Showing online video list";
-        
-        main_list->hide();
-        localAndDownloadWidget->hide();
-        net_list->hide();
-        playHistoryWidget->hide();
-        favoriteMusicWidget->hide();
-        videoListWidget->show();
-        videoListWidget->raise();
-    });
-
     QButtonGroup* leftButtons = new QButtonGroup(this);
     leftButtons->addButton(localList);
     leftButtons->addButton(NetList);
     leftButtons->addButton(PlayHistoryBtn);
     leftButtons->addButton(FavoriteMusicBtn);
+    leftButtons->addButton(VideoPlayerBtn);
     leftButtons->setExclusive(true);
 
     QWidget* textWidget = new QWidget(leftWidget);
@@ -490,6 +480,53 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
         }
     });
 
+    connect(VideoPlayerBtn, &QPushButton::toggled, this, [=](bool checked) {
+        if (checked) {
+            qDebug() << "[MainWidget] Showing online video list";
+
+            main_list->hide();
+            localAndDownloadWidget->hide();
+            net_list->hide();
+            playHistoryWidget->hide();
+            favoriteMusicWidget->hide();
+            if (videoListWidget) {
+                videoListWidget->show();
+                videoListWidget->raise();
+            }
+
+            VideoPlayerBtn->setStyleSheet(
+                "QPushButton {"
+                "    background: rgba(49, 194, 124, 0.15);"
+                "    color: #31C27C;"
+                "    border: none;"
+                "    border-left: 3px solid #31C27C;"
+                "    text-align: left;"
+                "    padding-left: 17px;"
+                "    font-size: 14px;"
+                "    font-weight: 600;"
+                "}"
+            );
+        } else {
+            VideoPlayerBtn->setStyleSheet(
+                "QPushButton {"
+                "    background: transparent;"
+                "    color: #333333;"
+                "    border: none;"
+                "    text-align: left;"
+                "    padding-left: 20px;"
+                "    font-size: 14px;"
+                "    font-weight: 500;"
+                "}"
+                "QPushButton:hover {"
+                "    background: rgba(0, 0, 0, 0.03);"
+                "}"
+                "QPushButton:pressed {"
+                "    background: rgba(49, 194, 124, 0.1);"
+                "}"
+            );
+        }
+    });
+
     localList->setChecked(true);
 
     qDebug() << "[MainWidget] Creating PlayWidget...";
@@ -502,14 +539,24 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
 
     qDebug() << "[MainWidget] PlayWidget created successfully";
 
-    connect(w, &PlayWidget::signal_playState, this, [=](ProcessSliderQml::State state){
+    connect(w, &PlayWidget::signal_playState, this, [this](ProcessSliderQml::State state){
         if (state == ProcessSliderQml::Play) {
+            if (m_mediaFocusSwitching) {
+                return;
+            }
+            if (m_activeMedia == ActiveMedia::Audio) {
+                return;
+            }
+
             qDebug() << "[MainWidget] Music started, pausing video";
+            m_mediaFocusSwitching = true;
+            m_activeMedia = ActiveMedia::Audio;
             if (videoListWidget) {
                 videoListWidget->pauseVideoPlayback();
             } else if (videoPlayerWindow) {
                 videoPlayerWindow->pausePlayback();
             }
+            m_mediaFocusSwitching = false;
         }
     });
 
@@ -523,6 +570,23 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     connect(videoListWidget, &VideoListWidget::videoPlayerWindowReady, this, [this](VideoPlayerWindow* window) {
         videoPlayerWindow = window;
         qDebug() << "[MainWidget] VideoPlayerWindow linked from VideoListWidget:" << window;
+    });
+    connect(videoListWidget, &VideoListWidget::videoPlaybackStateChanged, this, [this](bool isPlaying) {
+        if (!isPlaying || m_mediaFocusSwitching) {
+            if (!isPlaying && m_activeMedia == ActiveMedia::Video) {
+                m_activeMedia = ActiveMedia::None;
+            }
+            return;
+        }
+        if (m_activeMedia == ActiveMedia::Video) {
+            return;
+        }
+
+        qDebug() << "[MainWidget] Video started, pausing music";
+        m_mediaFocusSwitching = true;
+        m_activeMedia = ActiveMedia::Video;
+        AudioService::instance().pause();
+        m_mediaFocusSwitching = false;
     });
 
     qDebug() << "[MainWidget] VideoListWidget created successfully";
@@ -947,6 +1011,9 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     });
     
     connect(&AudioService::instance(), &AudioService::playbackStarted, this, [=](const QString& sessionId, const QUrl& url) {
+        if (!m_mediaFocusSwitching) {
+            m_activeMedia = ActiveMedia::Audio;
+        }
         qDebug() << "[MainWidget] playbackStarted signal received! sessionId:" << sessionId << "url:" << url;
         
         QString filePath = url.toLocalFile();
@@ -1003,7 +1070,16 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
                                 QString::number(durationMs / 1000), isLocal);
     });
     
+    connect(&AudioService::instance(), &AudioService::playbackPaused, this, [this]() {
+        if (!m_mediaFocusSwitching && m_activeMedia == ActiveMedia::Audio) {
+            m_activeMedia = ActiveMedia::None;
+        }
+    });
+
     connect(&AudioService::instance(), &AudioService::playbackStopped, this, [=]() {
+        if (!m_mediaFocusSwitching && m_activeMedia == ActiveMedia::Audio) {
+            m_activeMedia = ActiveMedia::None;
+        }
         qDebug() << "[MainWidget] playbackStopped signal received, clearing currentPlayingPath";
         playHistoryWidget->setCurrentPlayingPath("");
         favoriteMusicWidget->setCurrentPlayingPath("");
@@ -1078,32 +1154,47 @@ void MainWidget::resizeEvent(QResizeEvent *event)
 MainWidget::~MainWidget()
 {
     qDebug() << "MainWidget::~MainWidget() - Starting cleanup...";
+
+    m_mediaFocusSwitching = true;
+    if (videoListWidget) {
+        videoListWidget->pauseVideoPlayback();
+    }
+    if (videoPlayerWindow) {
+        videoPlayerWindow->pausePlayback();
+    }
+    AudioService::instance().stop();
+    AudioPlayer::instance().stop();
+    AudioPlayer::instance().clearWriteOwner();
+    AudioPlayer::instance().resetBuffer();
+    m_mediaFocusSwitching = false;
     
     if(w) {
         qDebug() << "MainWidget: Deleting PlayWidget...";
-        w->deleteLater();
+        delete w;
         w = nullptr;
     }
     
-    QCoreApplication::processEvents();
-    QThread::msleep(100);
-    
     if(list) {
-        list->deleteLater();
+        delete list;
         list = nullptr;
     }
     
     if(loginWidget) {
         loginWidget->close();
-        loginWidget->deleteLater();
+        delete loginWidget;
         loginWidget = nullptr;
     }
     
     if(videoPlayerWindow) {
         qDebug() << "MainWidget: Deleting VideoPlayerWindow...";
         videoPlayerWindow->close();
-        videoPlayerWindow->deleteLater();
+        delete videoPlayerWindow;
         videoPlayerWindow = nullptr;
+    }
+
+    if (videoListWidget) {
+        delete videoListWidget;
+        videoListWidget = nullptr;
     }
     
     qDebug() << "MainWidget: Waiting for thread pool...";

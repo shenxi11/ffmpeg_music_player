@@ -1,4 +1,4 @@
-#include "play_widget.h"
+﻿#include "play_widget.h"
 #include <QFontMetrics>
 #include <QDebug>
 #include <QIcon>
@@ -17,25 +17,12 @@
 #include <string>     // For std::wstring
 #endif
 
-// 自定义日志处理函数（过滤无用日志）
-void customLogHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg)
-{
-    if (msg.contains("pa_stream_begin_write, error = 无效参数"))
-    {
-        // 忽略这条日志
-        return;
-    }
-
-    // 继续处理其他日志
-    QTextStream(stderr) << msg << endl;
-}
-
 int main(int argc, char *argv[])
 {
-    // 在创建 QApplication 之前先设置 DLL 搜索路径
+    // Windows 下先设置 DLL 搜索目录，避免运行期找不到依赖库
 #ifdef Q_OS_WIN
-    // 将 resource 目录添加到 DLL 搜索路径
-    // 注意：这里直接使用相对路径，因为 QCoreApplication 还未创建
+    // 获取当前可执行文件所在目录
+    // 资源与第三方 DLL 统一放在 exe 同级的 resource 目录
     wchar_t exePath[MAX_PATH];
     GetModuleFileNameW(NULL, exePath, MAX_PATH);
     std::wstring exeDir = exePath;
@@ -45,23 +32,23 @@ int main(int argc, char *argv[])
     }
     std::wstring resourceDir = exeDir + L"\\resource";
     
-    // 使用 SetDllDirectory 添加搜索路径
+    // 把 resource 目录加入系统 DLL 搜索路径
     SetDllDirectoryW(resourceDir.c_str());
     
-    // 或者使用 AddDllDirectory（Windows 8+）
+    // 如果需要更精细的目录管理，可改用 AddDllDirectory
     // AddDllDirectory(resourceDir.c_str());
 #endif
     
     QApplication a(argc, argv);
 
-    // 初始化日志系统 - 日志文件保存在程序目录
+    // 初始化文件日志，便于定位运行时问题
     QString logPath = QCoreApplication::applicationDirPath() + "/debug.log";
     initLogger(logPath);
     qDebug() << "=========================================";
     qDebug() << "FFmpeg Music Player Starting...";
     qDebug() << "Log file:" << logPath;
     
-    // 记录 DLL 搜索路径
+    // 打印运行时 DLL 搜索信息，便于排查依赖加载失败
 #ifdef Q_OS_WIN
     QString resourceDirQt = QCoreApplication::applicationDirPath() + "/resource";
     qDebug() << "DLL search path (resource):" << resourceDirQt;
@@ -69,7 +56,7 @@ int main(int argc, char *argv[])
 #endif
     qDebug() << "=========================================";
 
-    // 设置应用程序信息，用于QSettings
+    // 设置组织与应用名（影响配置文件路径等 Qt 行为）
     a.setOrganizationName("MusicPlayer");
     a.setApplicationName("FFmpegMusicPlayer");
 
@@ -77,14 +64,13 @@ int main(int argc, char *argv[])
 
     setlocale(LC_ALL, "chs");
 
-    qInstallMessageHandler(customLogHandler);
     qRegisterMetaType<std::map<int, std::string>>("std::map<int, std::string>");
     QLoggingCategory::setFilterRules("qt.audio.debug=false");
     qRegisterMetaType<std::vector<std::pair<qint64,qint64>>>("std::vector<std::pair<qint64,qint64> >");
 
     auto user = User::getInstance();
 
-    // 加载插件
+    // 从应用目录加载插件
     QString pluginDir = QCoreApplication::applicationDirPath() + "/plugin";
     qDebug() << "Loading plugins from:" << pluginDir;
     
@@ -92,19 +78,25 @@ int main(int argc, char *argv[])
     int loadedPlugins = pluginManager.loadPlugins(pluginDir);
     qDebug() << "Loaded" << loadedPlugins << "plugins";
 
-    MainWidget w;
+    int result = 0;
+    {
+        MainWidget w;
 
-    w.show();
-    w.Update_paint();
+        w.show();
+        w.Update_paint();
 
-    //qDebug()<<"启动";
-    int result = a.exec();
+        // qDebug() << "started";
+        result = a.exec();
+    }
     
-    // 确保应用退出前完成所有清理
+    // 应用退出前等待线程池任务收敛，减少资源竞争与崩溃概率
     qDebug() << "Application exiting, ensuring cleanup...";
-    QThreadPool::globalInstance()->waitForDone(5000);  // 等待所有线程池任务完成
+    QThreadPool::globalInstance()->waitForDone(5000);  // 最多等待 5 秒
     qDebug() << "Application cleanup complete";
     
-    cleanupLogger();  // 关闭日志文件
+    cleanupLogger();  // 释放日志资源并刷新缓冲
     return result;
 }
+
+
+

@@ -49,6 +49,12 @@ signals:
     void loginRequired();  // 需要登录的信号
     
 private:
+    enum class ActiveMedia {
+        None,
+        Audio,
+        Video
+    };
+
     PlayWidget* w;
     MusicListWidget* list;
     MusicListWidgetLocal* main_list;
@@ -72,6 +78,8 @@ private:
     // 网络音乐元数据缓存（用于添加播放历史）
     QString m_networkMusicArtist;
     QString m_networkMusicCover;
+    bool m_mediaFocusSwitching = false;
+    ActiveMedia m_activeMedia = ActiveMedia::None;
 
     QPoint pos_ = QPoint(0, 0);
     bool dragging = false;

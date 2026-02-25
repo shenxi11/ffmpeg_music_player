@@ -277,7 +277,7 @@ Item {
                 // 歌曲名标签
                 Text {
                     id: songNameLabel
-                    width: parent.width
+                    Layout.fillWidth: true
                     text: root.songName || "正在播放..."
                     color: Qt.lighter(root.lyricColor, 1.2)
                     font.family: root.lyricFontFamily
@@ -290,9 +290,9 @@ Item {
                 
                 // 分隔线
                 Rectangle {
-                    width: parent.width * 0.8
+                    Layout.alignment: Qt.AlignHCenter
+                    Layout.preferredWidth: lyricColumn.width * 0.8
                     height: 1
-                    anchors.horizontalCenter: parent.horizontalCenter
                     color: Qt.rgba(1, 1, 1, 0.3)
                     visible: root.songName !== ""
                 }
@@ -300,7 +300,7 @@ Item {
                 // 歌词标签
                 Text {
                     id: lyricLabel
-                    width: parent.width
+                    Layout.fillWidth: true
                     Layout.fillHeight: true
                     text: root.lyricText
                     color: root.lyricColor

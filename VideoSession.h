@@ -89,6 +89,7 @@ private:
     
     // 流信息
     AVStream* m_stream;
+    AVRational m_sampleAspectRatio;
 };
 
 #endif // VIDEOSESSION_H

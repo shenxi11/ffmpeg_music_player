@@ -65,10 +65,7 @@ void VideoListWidget::onVideoStreamUrlReceived(const QString& videoUrl)
         emit videoPlayerWindowReady(videoPlayerWindow);
         
         connect(videoPlayerWindow, &VideoPlayerWindow::playStateChanged, this, [this](bool isPlaying){
-            if (isPlaying && m_playWidget) {
-                qDebug() << "[VideoListWidget] Video started, pausing music";
-                AudioService::instance().pause();
-            }
+            emit videoPlaybackStateChanged(isPlaying);
         });
     }
     
@@ -93,4 +90,3 @@ void VideoListWidget::showEvent(QShowEvent* event)
     QWidget::showEvent(event);
     onRefreshRequested();
 }
-
