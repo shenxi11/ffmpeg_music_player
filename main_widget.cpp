@@ -25,45 +25,18 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     qDebug() << "Loaded" << loadedCount << "plugins from" << pluginPath;
 
     topWidget = new QWidget(this);
-    topWidget->setStyleSheet("QWidget { background: transparent; }");
+    topWidget->setObjectName("TopBar");
     
     QPushButton* minimizeButton = new QPushButton(topWidget);
-    minimizeButton->setStyleSheet(
-        "QPushButton {"
-        "    border-image: url(:/new/prefix1/icon/square_unselected.png);"
-        "    background: transparent;"
-        "}"
-        "QPushButton:hover {"
-        "    background: rgba(63, 81, 181, 0.1);"
-        "    border-radius: 15px;"
-        "}"
-    );
+    minimizeButton->setObjectName("WindowToggleButton");
     minimizeButton->setFixedSize(30, 30);
 
     QPushButton* maximizeButton = new QPushButton(topWidget);
-    maximizeButton->setStyleSheet(
-        "QPushButton {"
-        "    border-image: url(:/new/prefix1/icon/minus_sign.png);"
-        "    background: transparent;"
-        "}"
-        "QPushButton:hover {"
-        "    background: rgba(63, 81, 181, 0.1);"
-        "    border-radius: 15px;"
-        "}"
-    );
+    maximizeButton->setObjectName("WindowMinimizeButton");
     maximizeButton->setFixedSize(30, 30);
 
     QPushButton* closeButton = new QPushButton(topWidget);
-    closeButton->setStyleSheet(
-        "QPushButton {"
-        "    border-image: url(:/new/prefix1/icon/close1.png);"
-        "    background: transparent;"
-        "}"
-        "QPushButton:hover {"
-        "    background: rgba(244, 67, 54, 0.2);"
-        "    border-radius: 15px;"
-        "}"
-    );
+    closeButton->setObjectName("WindowCloseButton");
     closeButton->setFixedSize(30, 30);
 
     connect(minimizeButton, &QPushButton::clicked, this, [=](){
@@ -85,23 +58,7 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     
     menuButton = new QPushButton(QStringLiteral(u"\u83dc\u5355"), this);
     menuButton->setFixedSize(50, 50);
-    menuButton->setStyleSheet(
-        "QPushButton {"
-        "    background: transparent;"
-        "    border: none;"
-        "    font-size: 22px;"
-        "    color: #666666;"
-        "    border-radius: 25px;"
-        "    font-weight: bold;"
-        "}"
-        "QPushButton:hover {"
-        "    background: rgba(49, 194, 124, 0.1);"
-        "    color: #31C27C;"
-        "}"
-        "QPushButton:pressed {"
-        "    background: rgba(49, 194, 124, 0.2);"
-        "}"
-    );
+    menuButton->setObjectName("MainMenuButton");
     
     mainMenu = nullptr;
 
@@ -170,69 +127,28 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
 
     QWidget* leftWidget = new QWidget(this);
     leftWidget->setFixedSize(200, this->height() - 100);
-    leftWidget->setStyleSheet(
-        "QWidget {"
-        "    background: #F2F3F5;"
-        "    border-radius: 0px;"
-        "}"
-    );
+    leftWidget->setObjectName("MainLeftPanel");
 
     QPushButton* localList = new QPushButton(QStringLiteral(u"\u672c\u5730\u4e0e\u4e0b\u8f7d"), leftWidget);
     localList->setFixedSize(200,50);
     localList->move(0,this->height()- 500);
     localList->setCheckable(true);
-    localList->setStyleSheet(
-        "QPushButton {"
-        "    background: transparent;"
-        "    color: #333333;"
-        "    border: none;"
-        "    text-align: left;"
-        "    padding-left: 20px;"
-        "    font-size: 14px;"
-        "    font-weight: 500;"
-        "}"
-        "QPushButton:hover {"
-        "    background: rgba(0, 0, 0, 0.03);"
-        "}"
-    );
+    localList->setObjectName("SideNavButton");
+    localList->setProperty("sideNav", true);
 
     QPushButton* NetList = new QPushButton(QStringLiteral(u"\u5728\u7ebf\u97f3\u4e50"), leftWidget);
     NetList->setFixedSize(200,50);
     NetList->move(0,this->height()- 450);
     NetList->setCheckable(true);
-    NetList->setStyleSheet(
-        "QPushButton {"
-        "    background: transparent;"
-        "    color: #333333;"
-        "    border: none;"
-        "    text-align: left;"
-        "    padding-left: 20px;"
-        "    font-size: 14px;"
-        "    font-weight: 500;"
-        "}"
-        "QPushButton:hover {"
-        "    background: rgba(0, 0, 0, 0.03);"
-        "}"
-    );
+    NetList->setObjectName("SideNavButton");
+    NetList->setProperty("sideNav", true);
 
     QPushButton* PlayHistoryBtn = new QPushButton(QStringLiteral(u"\u6700\u8fd1\u64ad\u653e"), leftWidget);
     PlayHistoryBtn->setFixedSize(200, 50);
     PlayHistoryBtn->move(0, this->height() - 400);
     PlayHistoryBtn->setCheckable(true);
-    PlayHistoryBtn->setStyleSheet(
-        "QPushButton {"
-        "    background: transparent;"
-        "    color: #333333;"
-        "    border: none;"
-        "    text-align: left;"
-        "    padding-left: 20px;"
-        "    font-size: 14px;"
-        "    font-weight: 500;"
-        "}"
-        "QPushButton:hover {"
-        "    background: rgba(0, 0, 0, 0.03);"
-        "}"
-    );
+    PlayHistoryBtn->setObjectName("SideNavButton");
+    PlayHistoryBtn->setProperty("sideNav", true);
     
     QPushButton* FavoriteMusicBtn = new QPushButton(QStringLiteral(u"\u6211\u559c\u6b22\u7684\u97f3\u4e50"), leftWidget);
     FavoriteMusicBtn->setFixedSize(200, 50);
@@ -240,43 +156,14 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     FavoriteMusicBtn->setCheckable(true);
     FavoriteMusicBtn->setObjectName("FavoriteMusicBtn");
     FavoriteMusicBtn->setVisible(false);
-    FavoriteMusicBtn->setStyleSheet(
-        "QPushButton {"
-        "    background: transparent;"
-        "    color: #333333;"
-        "    border: none;"
-        "    text-align: left;"
-        "    padding-left: 20px;"
-        "    font-size: 14px;"
-        "    font-weight: 500;"
-        "}"
-        "QPushButton:hover {"
-        "    background: rgba(0, 0, 0, 0.03);"
-        "}"
-    );
+    FavoriteMusicBtn->setProperty("sideNav", true);
     
     QPushButton* VideoPlayerBtn = new QPushButton(QStringLiteral(u"\u89c6\u9891\u64ad\u653e"), leftWidget);
     VideoPlayerBtn->setFixedSize(200, 50);
     VideoPlayerBtn->setObjectName("VideoPlayerBtn");
     VideoPlayerBtn->move(0, this->height() - 350);
     VideoPlayerBtn->setCheckable(true);
-    VideoPlayerBtn->setStyleSheet(
-        "QPushButton {"
-        "    background: transparent;"
-        "    color: #333333;"
-        "    border: none;"
-        "    text-align: left;"
-        "    padding-left: 20px;"
-        "    font-size: 14px;"
-        "    font-weight: 500;"
-        "}"
-        "QPushButton:hover {"
-        "    background: rgba(0, 0, 0, 0.03);"
-        "}"
-        "QPushButton:pressed {"
-        "    background: rgba(49, 194, 124, 0.1);"
-        "}"
-    );
+    VideoPlayerBtn->setProperty("sideNav", true);
     
     QButtonGroup* leftButtons = new QButtonGroup(this);
     leftButtons->addButton(localList);
@@ -299,7 +186,7 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     font.setPointSize(16);
     font.setBold(true);
     textLabel->setFont(font);
-    textLabel->setStyleSheet("color: #333333;");
+    textLabel->setObjectName("BrandTitleLabel");
     textLabel->adjustSize();
 
     QHBoxLayout* layout_text = new QHBoxLayout(textWidget);
@@ -317,33 +204,6 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
             playHistoryWidget->hide();
             favoriteMusicWidget->hide();
             if (videoListWidget) videoListWidget->hide();
-            localList->setStyleSheet(
-                "QPushButton {"
-                "    background: rgba(49, 194, 124, 0.15);"
-                "    color: #31C27C;"
-                "    border: none;"
-                "    border-left: 3px solid #31C27C;"
-                "    text-align: left;"
-                "    padding-left: 17px;"
-                "    font-size: 14px;"
-                "    font-weight: 600;"
-                "}"
-            );
-        } else {
-            localList->setStyleSheet(
-                "QPushButton {"
-                "    background: transparent;"
-                "    color: #333333;"
-                "    border: none;"
-                "    text-align: left;"
-                "    padding-left: 20px;"
-                "    font-size: 14px;"
-                "    font-weight: 500;"
-                "}"
-                "QPushButton:hover {"
-                "    background: rgba(0, 0, 0, 0.03);"
-                "}"
-            );
         }
     });
 
@@ -356,35 +216,6 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
             playHistoryWidget->hide();
             favoriteMusicWidget->hide();
             if (videoListWidget) videoListWidget->hide();
-            NetList->setStyleSheet(
-                "QPushButton {"
-                "    background: rgba(49, 194, 124, 0.15);"
-                "    color: #31C27C;"
-                "    border: none;"
-                "    border-left: 3px solid #31C27C;"
-                "    text-align: left;"
-                "    padding-left: 17px;"
-                "    font-size: 14px;"
-                "    font-weight: 600;"
-                "}"
-            );
-        }
-        else
-        {
-            NetList->setStyleSheet(
-                "QPushButton {"
-                "    background: transparent;"
-                "    color: #333333;"
-                "    border: none;"
-                "    text-align: left;"
-                "    padding-left: 20px;"
-                "    font-size: 14px;"
-                "    font-weight: 500;"
-                "}"
-                "QPushButton:hover {"
-                "    background: rgba(0, 0, 0, 0.03);"
-                "}"
-            );
         }
     });
     
@@ -402,36 +233,6 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
                 QString userAccount = User::getInstance()->get_account();
                 request->getPlayHistory(userAccount, 50);
             }
-            
-            PlayHistoryBtn->setStyleSheet(
-                "QPushButton {"
-                "    background: rgba(49, 194, 124, 0.15);"
-                "    color: #31C27C;"
-                "    border: none;"
-                "    border-left: 3px solid #31C27C;"
-                "    text-align: left;"
-                "    padding-left: 17px;"
-                "    font-size: 14px;"
-                "    font-weight: 600;"
-                "}"
-            );
-        }
-        else
-        {
-            PlayHistoryBtn->setStyleSheet(
-                "QPushButton {"
-                "    background: transparent;"
-                "    color: #333333;"
-                "    border: none;"
-                "    text-align: left;"
-                "    padding-left: 20px;"
-                "    font-size: 14px;"
-                "    font-weight: 500;"
-                "}"
-                "QPushButton:hover {"
-                "    background: rgba(0, 0, 0, 0.03);"
-                "}"
-            );
         }
     });
     
@@ -447,36 +248,6 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
             
             QString userAccount = User::getInstance()->get_account();
             request->getFavorites(userAccount);
-            
-            FavoriteMusicBtn->setStyleSheet(
-                "QPushButton {"
-                "    background: rgba(49, 194, 124, 0.15);"
-                "    color: #31C27C;"
-                "    border: none;"
-                "    border-left: 3px solid #31C27C;"
-                "    text-align: left;"
-                "    padding-left: 17px;"
-                "    font-size: 14px;"
-                "    font-weight: 600;"
-                "}"
-            );
-        }
-        else
-        {
-            FavoriteMusicBtn->setStyleSheet(
-                "QPushButton {"
-                "    background: transparent;"
-                "    color: #333333;"
-                "    border: none;"
-                "    text-align: left;"
-                "    padding-left: 20px;"
-                "    font-size: 14px;"
-                "    font-weight: 500;"
-                "}"
-                "QPushButton:hover {"
-                "    background: rgba(0, 0, 0, 0.03);"
-                "}"
-            );
         }
     });
 
@@ -493,37 +264,6 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
                 videoListWidget->show();
                 videoListWidget->raise();
             }
-
-            VideoPlayerBtn->setStyleSheet(
-                "QPushButton {"
-                "    background: rgba(49, 194, 124, 0.15);"
-                "    color: #31C27C;"
-                "    border: none;"
-                "    border-left: 3px solid #31C27C;"
-                "    text-align: left;"
-                "    padding-left: 17px;"
-                "    font-size: 14px;"
-                "    font-weight: 600;"
-                "}"
-            );
-        } else {
-            VideoPlayerBtn->setStyleSheet(
-                "QPushButton {"
-                "    background: transparent;"
-                "    color: #333333;"
-                "    border: none;"
-                "    text-align: left;"
-                "    padding-left: 20px;"
-                "    font-size: 14px;"
-                "    font-weight: 500;"
-                "}"
-                "QPushButton:hover {"
-                "    background: rgba(0, 0, 0, 0.03);"
-                "}"
-                "QPushButton:pressed {"
-                "    background: rgba(49, 194, 124, 0.1);"
-                "}"
-            );
         }
     });
 
@@ -1205,3 +945,4 @@ MainWidget::~MainWidget()
     
     qDebug() << "MainWidget::~MainWidget() - Cleanup complete";
 }
+

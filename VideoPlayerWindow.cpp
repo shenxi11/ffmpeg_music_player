@@ -7,6 +7,8 @@
 #include <QApplication>
 #include <QScreen>
 #include <QTimer>
+#include <QStyle>
+#include <QFontMetrics>
 
 
 VideoPlayerWindow::VideoPlayerWindow(QWidget *parent)
@@ -49,36 +51,31 @@ void VideoPlayerWindow::setupUI()
     
     QWidget* titleBar = new QWidget(this);
     titleBar->setFixedHeight(40);
-    titleBar->setStyleSheet(
-        "QWidget {"
-        "    background: #2C2C2E;"
-        "}"
-    );
+    titleBar->setObjectName("VideoTitleBar");
+    titleBar->setAttribute(Qt::WA_StyledBackground, true);
+    titleBar->setStyleSheet("background:#171A20; border-bottom:1px solid #262A33;");
     
     QHBoxLayout* titleLayout = new QHBoxLayout(titleBar);
     titleLayout->setContentsMargins(15, 0, 15, 0);
     
     m_fileNameLabel = new QLabel(QStringLiteral(u"\u672a\u52a0\u8f7d\u89c6\u9891"), titleBar);
-    m_fileNameLabel->setStyleSheet(
-        "QLabel {"
-        "    color: #FFFFFF;"
-        "    font-size: 14px;"
-        "    font-weight: 500;"
-        "}"
-    );
+    m_fileNameLabel->setObjectName("VideoFileNameLabel");
+    m_fileNameLabel->setStyleSheet("color:#F4F6FA; font-size:14px; font-weight:600;");
     
     QPushButton* closeBtn = new QPushButton("X", titleBar);
     closeBtn->setFixedSize(30, 30);
+    closeBtn->setObjectName("VideoTitleCloseButton");
     closeBtn->setStyleSheet(
         "QPushButton {"
-        "    background: transparent;"
-        "    color: #FFFFFF;"
-        "    border: none;"
-        "    font-size: 16px;"
-        "    border-radius: 15px;"
+        "  background: transparent;"
+        "  border: none;"
+        "  color: #F4F6FA;"
+        "  border-radius: 12px;"
+        "  font-size: 16px;"
         "}"
         "QPushButton:hover {"
-        "    background: rgba(255, 59, 48, 0.8);"
+        "  background: rgba(255, 76, 76, 0.85);"
+        "  color: #FFFFFF;"
         "}"
     );
     connect(closeBtn, &QPushButton::clicked, this, &VideoPlayerWindow::close);
@@ -98,11 +95,9 @@ void VideoPlayerWindow::setupUI()
     
     QWidget* controlBar = new QWidget(this);
     controlBar->setFixedHeight(100);
-    controlBar->setStyleSheet(
-        "QWidget {"
-        "    background: #1C1C1E;"
-        "}"
-    );
+    controlBar->setObjectName("VideoControlBar");
+    controlBar->setAttribute(Qt::WA_StyledBackground, true);
+    controlBar->setStyleSheet("background:#171A20; border-top:1px solid #262A33;");
     
     QVBoxLayout* controlLayout = new QVBoxLayout(controlBar);
     controlLayout->setContentsMargins(20, 10, 20, 10);
@@ -111,23 +106,12 @@ void VideoPlayerWindow::setupUI()
     m_progressSlider = new QSlider(Qt::Horizontal, controlBar);
     m_progressSlider->setRange(0, 1000);
     m_progressSlider->setValue(0);
+    m_progressSlider->setObjectName("VideoProgressSlider");
     m_progressSlider->setStyleSheet(
-        "QSlider::groove:horizontal {"
-        "    background: #3A3A3C;"
-        "    height: 4px;"
-        "    border-radius: 2px;"
-        "}"
-        "QSlider::handle:horizontal {"
-        "    background: #31C27C;"
-        "    width: 14px;"
-        "    height: 14px;"
-        "    margin: -5px 0;"
-        "    border-radius: 7px;"
-        "}"
-        "QSlider::sub-page:horizontal {"
-        "    background: #31C27C;"
-        "    border-radius: 2px;"
-        "}"
+        "QSlider::groove:horizontal { height: 4px; border-radius: 2px; background: #3A414E; }"
+        "QSlider::sub-page:horizontal { border-radius: 2px; background: #EC4141; }"
+        "QSlider::handle:horizontal { width: 12px; height: 12px; margin: -4px 0;"
+        "border-radius: 6px; border: 1px solid #EC4141; background: #FFFFFF; }"
     );
     
     connect(m_progressSlider, &QSlider::sliderPressed, this, &VideoPlayerWindow::onSliderPressed);
@@ -139,82 +123,44 @@ void VideoPlayerWindow::setupUI()
     
     m_playPauseBtn = new QPushButton(QStringLiteral(u"\u64ad\u653e"), controlBar);
     m_playPauseBtn->setFixedSize(50, 50);
+    m_playPauseBtn->setObjectName("VideoPlayPauseButton");
+    m_playPauseBtn->setProperty("accent", true);
+    m_playPauseBtn->setEnabled(false);
     m_playPauseBtn->setStyleSheet(
         "QPushButton {"
-        "    background: #31C27C;"
-        "    color: white;"
-        "    border: none;"
-        "    border-radius: 25px;"
-        "    font-size: 20px;"
-        "    font-weight: bold;"
+        "  min-width: 50px; min-height: 50px; max-width: 50px; max-height: 50px;"
+        "  border-radius: 25px; border: 1px solid #DE3B3B; background: #EC4141; color: #FFFFFF;"
+        "  font-size: 18px; font-weight: 700;"
         "}"
-        "QPushButton:hover {"
-        "    background: #28A869;"
-        "}"
-        "QPushButton:pressed {"
-        "    background: #229D5F;"
-        "}"
-        "QPushButton:disabled {"
-        "    background: #3A3A3C;"
-        "    color: #666666;"
-        "}"
+        "QPushButton:hover { background: #FF5757; border-color: #EC4141; }"
+        "QPushButton:pressed { background: #D93636; border-color: #C53030; }"
+        "QPushButton:disabled { background: #7F3E3E; border-color: #7F3E3E; color: #E9CACA; }"
     );
-    m_playPauseBtn->setEnabled(false);
     connect(m_playPauseBtn, &QPushButton::clicked, this, &VideoPlayerWindow::onPlayPauseClicked);
     
     m_openFileBtn = new QPushButton(QStringLiteral(u"\u6253\u5f00\u89c6\u9891"), controlBar);
     m_openFileBtn->setFixedHeight(40);
+    m_openFileBtn->setObjectName("VideoActionButton");
     m_openFileBtn->setStyleSheet(
-        "QPushButton {"
-        "    background: #2C2C2E;"
-        "    color: #FFFFFF;"
-        "    border: 1px solid #3A3A3C;"
-        "    border-radius: 8px;"
-        "    padding: 0 20px;"
-        "    font-size: 13px;"
-        "    font-weight: 500;"
-        "}"
-        "QPushButton:hover {"
-        "    background: #3A3A3C;"
-        "    border-color: #31C27C;"
-        "}"
-        "QPushButton:pressed {"
-        "    background: #48484A;"
-        "}"
+        "QPushButton { border: 1px solid #3A414E; border-radius: 8px; background: #262B33; color: #EDF1F7; padding: 0 14px; }"
+        "QPushButton:hover { border-color: #EC4141; background: #2D3440; }"
+        "QPushButton:pressed { background: #232830; }"
     );
     connect(m_openFileBtn, &QPushButton::clicked, this, &VideoPlayerWindow::onOpenFileClicked);
 
     // 显示“下一步动作”：当前默认是 Fit，因此按钮显示“填充”
     m_displayModeBtn = new QPushButton(QStringLiteral(u"\u586b\u5145"), controlBar);
     m_displayModeBtn->setFixedHeight(40);
+    m_displayModeBtn->setObjectName("VideoActionButton");
     m_displayModeBtn->setStyleSheet(
-        "QPushButton {"
-        "    background: #2C2C2E;"
-        "    color: #FFFFFF;"
-        "    border: 1px solid #3A3A3C;"
-        "    border-radius: 8px;"
-        "    padding: 0 16px;"
-        "    font-size: 13px;"
-        "    font-weight: 500;"
-        "}"
-        "QPushButton:hover {"
-        "    background: #3A3A3C;"
-        "    border-color: #31C27C;"
-        "}"
-        "QPushButton:pressed {"
-        "    background: #48484A;"
-        "}"
+        "QPushButton { border: 1px solid #3A414E; border-radius: 8px; background: #262B33; color: #EDF1F7; padding: 0 14px; }"
+        "QPushButton:hover { border-color: #EC4141; background: #2D3440; }"
+        "QPushButton:pressed { background: #232830; }"
     );
     connect(m_displayModeBtn, &QPushButton::clicked, this, &VideoPlayerWindow::onDisplayModeClicked);
 
     QLabel* qualityLabel = new QLabel(QStringLiteral(u"\u753b\u8d28"), controlBar);
-    qualityLabel->setStyleSheet(
-        "QLabel {"
-        "    color: #AEAEB2;"
-        "    font-size: 13px;"
-        "    font-weight: 500;"
-        "}"
-    );
+    qualityLabel->setProperty("secondary", true);
 
     m_qualityPresetBox = new QComboBox(controlBar);
     m_qualityPresetBox->addItem(QStringLiteral(u"\u6807\u51c6 1080P"), static_cast<int>(VideoRendererGL::Standard1080P));
@@ -222,41 +168,22 @@ void VideoPlayerWindow::setupUI()
     m_qualityPresetBox->setCurrentIndex(0);
     m_qualityPresetBox->setEnabled(false);
     m_qualityPresetBox->setFixedHeight(36);
+    m_qualityPresetBox->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+    const int qualityTextWidth = QFontMetrics(m_qualityPresetBox->font()).horizontalAdvance(QStringLiteral(u"\u6807\u51c6 1080P"));
+    m_qualityPresetBox->setMinimumWidth(qualityTextWidth + 56);
+    m_qualityPresetBox->setObjectName("VideoControlCombo");
     m_qualityPresetBox->setStyleSheet(
-        "QComboBox {"
-        "    background: #2C2C2E;"
-        "    color: #FFFFFF;"
-        "    border: 1px solid #3A3A3C;"
-        "    border-radius: 8px;"
-        "    padding: 0 10px;"
-        "    min-width: 110px;"
-        "    font-size: 13px;"
-        "}"
-        "QComboBox:hover {"
-        "    border-color: #31C27C;"
-        "}"
-        "QComboBox::drop-down {"
-        "    border: none;"
-        "    width: 18px;"
-        "}"
-        "QComboBox QAbstractItemView {"
-        "    background: #2C2C2E;"
-        "    color: #FFFFFF;"
-        "    border: 1px solid #3A3A3C;"
-        "    selection-background-color: #31C27C;"
-        "}"
+        "QComboBox { border: 1px solid #3A414E; border-radius: 8px; background: #262B33; color: #EDF1F7; padding: 0 28px 0 10px; }"
+        "QComboBox:hover { border-color: #EC4141; }"
+        "QComboBox::drop-down { border: none; width: 22px; }"
+        "QComboBox QAbstractItemView { border: 1px solid #3A414E; border-radius: 8px; background: #262B33; color: #EDF1F7;"
+        "selection-background-color: #EC4141; selection-color: #FFFFFF; }"
     );
     connect(m_qualityPresetBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &VideoPlayerWindow::onQualityPresetChanged);
 
     QLabel* rateLabel = new QLabel(QStringLiteral(u"\u500d\u901f"), controlBar);
-    rateLabel->setStyleSheet(
-        "QLabel {"
-        "    color: #AEAEB2;"
-        "    font-size: 13px;"
-        "    font-weight: 500;"
-        "}"
-    );
+    rateLabel->setProperty("secondary", true);
 
     m_playbackRateBox = new QComboBox(controlBar);
     m_playbackRateBox->addItem("0.5x", 0.5);
@@ -268,42 +195,21 @@ void VideoPlayerWindow::setupUI()
     m_playbackRateBox->setCurrentIndex(2);
     m_playbackRateBox->setEnabled(false);
     m_playbackRateBox->setFixedHeight(36);
+    m_playbackRateBox->setObjectName("VideoControlCombo");
     m_playbackRateBox->setStyleSheet(
-        "QComboBox {"
-        "    background: #2C2C2E;"
-        "    color: #FFFFFF;"
-        "    border: 1px solid #3A3A3C;"
-        "    border-radius: 8px;"
-        "    padding: 0 10px;"
-        "    min-width: 84px;"
-        "    font-size: 13px;"
-        "}"
-        "QComboBox:hover {"
-        "    border-color: #31C27C;"
-        "}"
-        "QComboBox::drop-down {"
-        "    border: none;"
-        "    width: 18px;"
-        "}"
-        "QComboBox QAbstractItemView {"
-        "    background: #2C2C2E;"
-        "    color: #FFFFFF;"
-        "    border: 1px solid #3A3A3C;"
-        "    selection-background-color: #31C27C;"
-        "}"
+        "QComboBox { border: 1px solid #3A414E; border-radius: 8px; background: #262B33; color: #EDF1F7; padding: 0 28px 0 10px; }"
+        "QComboBox:hover { border-color: #EC4141; }"
+        "QComboBox::drop-down { border: none; width: 22px; }"
+        "QComboBox QAbstractItemView { border: 1px solid #3A414E; border-radius: 8px; background: #262B33; color: #EDF1F7;"
+        "selection-background-color: #EC4141; selection-color: #FFFFFF; }"
     );
     connect(m_playbackRateBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &VideoPlayerWindow::onPlaybackRateChanged);
     
     m_timeLabel = new QLabel("00:00 / 00:00", controlBar);
-    m_timeLabel->setStyleSheet(
-        "QLabel {"
-        "    color: #AEAEB2;"
-        "    font-size: 13px;"
-        "    font-weight: 500;"
-        "}"
-    );
+    m_timeLabel->setProperty("secondary", true);
     m_timeLabel->setMinimumWidth(120);
+    m_timeLabel->setStyleSheet("color:#B8BEC9;");
     
     buttonLayout->addWidget(m_playPauseBtn);
     buttonLayout->addWidget(m_timeLabel);
@@ -324,11 +230,27 @@ void VideoPlayerWindow::setupUI()
     
     setLayout(mainLayout);
     
-    setStyleSheet(
-        "QWidget#VideoPlayerWindow {"
-        "    background: #000000;"
-        "}"
-    );
+    setObjectName("VideoPlayerWindow");
+    setAttribute(Qt::WA_StyledBackground, true);
+    setStyleSheet("QWidget#VideoPlayerWindow { background:#0F1115; }");
+
+    // 强制重刷样式，确保对象名选择器和本地样式立即生效
+    auto repolishWidget = [](QWidget* w) {
+        if (!w || !w->style()) return;
+        w->style()->unpolish(w);
+        w->style()->polish(w);
+        w->update();
+    };
+    repolishWidget(this);
+    repolishWidget(titleBar);
+    repolishWidget(controlBar);
+    repolishWidget(closeBtn);
+    repolishWidget(m_playPauseBtn);
+    repolishWidget(m_openFileBtn);
+    repolishWidget(m_displayModeBtn);
+    repolishWidget(m_qualityPresetBox);
+    repolishWidget(m_playbackRateBox);
+    repolishWidget(m_progressSlider);
 }
 
 void VideoPlayerWindow::loadVideo(const QString& filePath)
@@ -733,3 +655,4 @@ void VideoPlayerWindow::onDurationChanged(qint64 durationMs)
     
     qDebug() << "[VideoPlayerWindow] Duration:" << durationMs << "ms";
 }
+

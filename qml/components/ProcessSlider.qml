@@ -1,4 +1,4 @@
-import QtQuick 2.14
+﻿import QtQuick 2.14
 import QtQuick.Controls 2.14
 import QtQuick.Controls.impl 2.14
 import QtQuick.Templates 2.14 as T
@@ -10,7 +10,7 @@ Item {
     width: 1000
     height: 70
     
-    // 清理：当组件销毁时，确保音量窗口和播放模式窗口也关闭
+    // 娓呯悊锛氬綋缁勪欢閿€姣佹椂锛岀‘淇濋煶閲忕獥鍙ｅ拰鎾斁妯″紡绐楀彛涔熷叧闂?
     Component.onDestruction: {
         if (volumeWindowLoader.active) {
             volumeWindowLoader.active = false
@@ -20,14 +20,14 @@ Item {
         }
     }
     
-    // 属性
+    // 灞炴€?
     property int currentTime: 0
     property int maxTime: 0
     property bool sliderPressed: false
-    property string songName: "暂无歌曲"
+    property string songName: "鏆傛棤姝屾洸"
     property string picPath: "qrc:/new/prefix1/icon/pian.png"
     
-    // 播放控制属性（对应 ControlBar）
+    // 鎾斁鎺у埗灞炴€э紙瀵瑰簲 ControlBar锛?
     property int playState: 0  // 0: Stop, 1: Play, 2: Pause
     property bool loopState: false
     property bool isUp: false
@@ -37,12 +37,12 @@ Item {
     property bool deskChecked: false
     property int playMode: 2  // 0: Sequential, 1: RepeatOne, 2: RepeatAll, 3: Shuffle
     
-    // 信号
+    // 淇″彿
     signal seekTo(int seconds)
-    signal sliderPressedSignal()  // 改名避免与 sliderPressed 属性冲突
-    signal sliderReleasedSignal() // 改名避免冲突
+    signal sliderPressedSignal()  // 鏀瑰悕閬垮厤涓?sliderPressed 灞炴€у啿绐?
+    signal sliderReleasedSignal() // 鏀瑰悕閬垮厤鍐茬獊
     signal upClicked()
-    signal playFinished()  // 播放完成信号
+    signal playFinished()  // 鎾斁瀹屾垚淇″彿
     signal stop()
     signal nextSong()
     signal lastSong()
@@ -51,9 +51,9 @@ Item {
     signal playClicked()
     signal rePlay()
     signal deskToggled(bool checked)
-    signal loopToggled(bool isLooping)  // 改参数名避免冲突
+    signal loopToggled(bool isLooping)  // 鏀瑰弬鏁板悕閬垮厤鍐茬獊
     
-    // 函数
+    // 鍑芥暟
     function formatTime(seconds) {
         var mins = Math.floor(seconds / 60)
         var secs = seconds % 60
@@ -63,7 +63,7 @@ Item {
     function setCurrentTime(seconds) {
         if (!sliderPressed) {
             root.currentTime = seconds
-            // 检测播放是否完成
+            // 妫€娴嬫挱鏀炬槸鍚﹀畬鎴?
             if (seconds >= root.maxTime && root.maxTime > 0) {
                 root.playFinished()
             }
@@ -82,7 +82,7 @@ Item {
         root.picPath = path
     }
     
-    // 播放控制函数
+    // 鎾斁鎺у埗鍑芥暟
     function setPlayState(state) {
         console.log("[ProcessSlider.qml] setPlayState called, state:", state, "old playState:", root.playState)
         root.playState = state
@@ -107,28 +107,28 @@ Item {
     function handlePlayFinished() {
         console.log("handlePlayFinished called, loopState:", root.loopState)
         if (root.loopState) {
-            // 循环播放 - 重新播放
+            // 寰幆鎾斁 - 閲嶆柊鎾斁
             root.rePlay()
         } else {
-            // 停止播放 - 仅重置 UI 状态，不触发 seek
-            root.currentTime = 0  // 重置进度条到开头
-            root.playState = 0    // Stop 状态
-            root.stop()           // 发送停止信号
-            // 注意：不调用 seekTo(0)，避免触发播放
-            // 下次点击播放按钮时，会自动从头开始
+            // 鍋滄鎾斁 - 浠呴噸缃?UI 鐘舵€侊紝涓嶈Е鍙?seek
+            root.currentTime = 0  // 閲嶇疆杩涘害鏉″埌寮€澶?
+            root.playState = 0    // Stop 鐘舵€?
+            root.stop()           // 鍙戦€佸仠姝俊鍙?
+            // 娉ㄦ剰锛氫笉璋冪敤 seekTo(0)锛岄伩鍏嶈Е鍙戞挱鏀?
+            // 涓嬫鐐瑰嚮鎾斁鎸夐挳鏃讹紝浼氳嚜鍔ㄤ粠澶村紑濮?
         }
     }
     
     Rectangle {
         anchors.fill: parent
-        // 设置为透明背景
+        // 璁剧疆涓洪€忔槑鑳屾櫙
         color: "transparent"
         
         Column {
             anchors.fill: parent
             spacing: 0
             
-            // 进度条区域
+            // 杩涘害鏉″尯鍩?
             Rectangle {
                 width: parent.width
                 height: 20
@@ -172,7 +172,7 @@ Item {
                             }
                         }
                         
-                        // 当 currentTime 改变时更新 slider（除非用户正在拖动）
+                        // 褰?currentTime 鏀瑰彉鏃舵洿鏂?slider锛堥櫎闈炵敤鎴锋鍦ㄦ嫋鍔級
                         Connections {
                             target: root
                             function onCurrentTimeChanged() {
@@ -194,7 +194,7 @@ Item {
                             Rectangle {
                                 width: progressSlider.visualPosition * parent.width
                                 height: parent.height
-                                color: "#31C27C"  // QQ音乐绿色
+                                color: "#EC4141"  // QQ闊充箰缁胯壊
                                 radius: 2
                             }
                         }
@@ -205,8 +205,8 @@ Item {
                             width: 12
                             height: 12
                             radius: 6
-                            color: progressSlider.pressed ? "#31C27C" : "#FFFFFF"
-                            border.color: "#31C27C"
+                            color: progressSlider.pressed ? "#EC4141" : "#FFFFFF"
+                            border.color: "#EC4141"
                             border.width: 2
                         }
                     }
@@ -224,13 +224,13 @@ Item {
                 }
             }
             
-            // 控制栏区域
+            // 鎺у埗鏍忓尯鍩?
             Rectangle {
                 width: parent.width
                 height: 50
                 color: "transparent"
                 
-                // 居中布局
+                // 灞呬腑甯冨眬
                 Item {
                     anchors.centerIn: parent
                     width: parent.width - 40
@@ -240,7 +240,7 @@ Item {
                         anchors.fill: parent
                         spacing: 0
                         
-                        // 左侧：封面+歌曲名
+                        // 宸︿晶锛氬皝闈?姝屾洸鍚?
                         Rectangle {
                             Layout.preferredWidth: 250
                             Layout.fillHeight: true
@@ -286,14 +286,14 @@ Item {
                             }
                         }
                         
-                        Item { Layout.fillWidth: true }  // 弹性空间
+                        Item { Layout.fillWidth: true }  // 寮规€х┖闂?
                         
-                        // 中间：控制按钮组
+                        // 涓棿锛氭帶鍒舵寜閽粍
                         Row {
                             spacing: 20
                             Layout.alignment: Qt.AlignVCenter
                             
-                            // 循环按钮 - 根据模式绘制不同图标
+                            // 寰幆鎸夐挳 - 鏍规嵁妯″紡缁樺埗涓嶅悓鍥炬爣
                             Item {
                                 width: 32
                                 height: 32
@@ -323,21 +323,21 @@ Item {
                                         var centerY = height / 2
                                         var size = 18
                                         
-                                        ctx.strokeStyle = hovered ? "#31C27C" : iconColor
+                                        ctx.strokeStyle = hovered ? "#EC4141" : iconColor
                                         ctx.lineWidth = 2
                                         ctx.lineCap = "round"
                                         ctx.lineJoin = "round"
                                         
-                                        // 根据播放模式绘制不同图标
+                                        // 鏍规嵁鎾斁妯″紡缁樺埗涓嶅悓鍥炬爣
                                         if (root.playMode === 0) {
-                                            // Sequential - 顺序播放箭头
+                                            // Sequential - 椤哄簭鎾斁绠ご
                                             ctx.beginPath()
                                             ctx.moveTo(centerX - size/3, centerY - size/3)
                                             ctx.lineTo(centerX + size/3, centerY)
                                             ctx.lineTo(centerX - size/3, centerY + size/3)
                                             ctx.stroke()
                                         } else if (root.playMode === 1) {
-                                            // RepeatOne - 单曲循环（循环箭头 + "1"）
+                                            // RepeatOne - 鍗曟洸寰幆锛堝惊鐜澶?+ "1"锛?
                                             ctx.beginPath()
                                             ctx.arc(centerX, centerY, size/2.5, -Math.PI/4, Math.PI*5/4, false)
                                             ctx.stroke()
@@ -347,12 +347,12 @@ Item {
                                             ctx.lineTo(centerX + size/2.5 + 2, centerY - size/2.5 + 2)
                                             ctx.stroke()
                                             ctx.font = "10px Arial"
-                                            ctx.fillStyle = hovered ? "#31C27C" : iconColor
+                                            ctx.fillStyle = hovered ? "#EC4141" : iconColor
                                             ctx.textAlign = "center"
                                             ctx.textBaseline = "middle"
                                             ctx.fillText("1", centerX, centerY)
                                         } else if (root.playMode === 2) {
-                                            // RepeatAll - 列表循环（双箭头循环）
+                                            // RepeatAll - 鍒楄〃寰幆锛堝弻绠ご寰幆锛?
                                             ctx.beginPath()
                                             ctx.arc(centerX, centerY, size/2, -Math.PI/4, Math.PI*5/4, false)
                                             ctx.stroke()
@@ -367,7 +367,7 @@ Item {
                                             ctx.lineTo(centerX - size/2 + 3, centerY + size/2 - 3)
                                             ctx.stroke()
                                         } else {
-                                            // Shuffle - 随机播放（交叉箭头）
+                                            // Shuffle - 闅忔満鎾斁锛堜氦鍙夌澶达級
                                             ctx.beginPath()
                                             ctx.moveTo(centerX - size/3, centerY - size/3)
                                             ctx.lineTo(centerX + size/3, centerY + size/3)
@@ -401,7 +401,7 @@ Item {
                                     }
                                 }
                                 
-                                // Loader 用于创建独立播放模式窗口
+                                // Loader 鐢ㄤ簬鍒涘缓鐙珛鎾斁妯″紡绐楀彛
                                 Loader {
                                     id: playModePopupLoader
                                     active: false
@@ -431,7 +431,7 @@ Item {
                                 }
                             }
                             
-                            // 上一首 - 绘制上一曲图标
+                            // 涓婁竴棣?- 缁樺埗涓婁竴鏇插浘鏍?
                             Item {
                                 width: 32
                                 height: 32
@@ -452,12 +452,12 @@ Item {
                                         var centerX = width / 2
                                         var centerY = height / 2
                                         
-                                        ctx.fillStyle = hovered ? "#31C27C" : iconColor
+                                        ctx.fillStyle = hovered ? "#EC4141" : iconColor
                                         
-                                        // 左侧竖线
+                                        // 宸︿晶绔栫嚎
                                         ctx.fillRect(centerX - 10, centerY - 8, 2, 16)
                                         
-                                        // 左三角形
+                                        // 宸︿笁瑙掑舰
                                         ctx.beginPath()
                                         ctx.moveTo(centerX - 5, centerY)
                                         ctx.lineTo(centerX + 3, centerY - 8)
@@ -465,7 +465,7 @@ Item {
                                         ctx.closePath()
                                         ctx.fill()
                                         
-                                        // 右三角形
+                                        // 鍙充笁瑙掑舰
                                         ctx.beginPath()
                                         ctx.moveTo(centerX + 3, centerY)
                                         ctx.lineTo(centerX + 11, centerY - 8)
@@ -485,7 +485,7 @@ Item {
                                 }
                             }
                             
-                            // 播放/暂停按钮（保持原样）
+                            // 鎾斁/鏆傚仠鎸夐挳锛堜繚鎸佸師鏍凤級
                             Rectangle {
                                 width: 42
                                 height: 42
@@ -497,7 +497,7 @@ Item {
                                     width: 38
                                     height: 38
                                     radius: 19
-                                    color: playMouseArea.containsMouse ? "#2ABD7C" : "#31C27C"
+                                    color: playMouseArea.containsMouse ? "#FF5757" : "#EC4141"
                                     
                                     Image {
                                         anchors.centerIn: parent
@@ -524,7 +524,7 @@ Item {
                                 }
                             }
                             
-                            // 下一首 - 绘制下一曲图标
+                            // 涓嬩竴棣?- 缁樺埗涓嬩竴鏇插浘鏍?
                             Item {
                                 width: 32
                                 height: 32
@@ -545,9 +545,9 @@ Item {
                                         var centerX = width / 2
                                         var centerY = height / 2
                                         
-                                        ctx.fillStyle = hovered ? "#31C27C" : iconColor
+                                        ctx.fillStyle = hovered ? "#EC4141" : iconColor
                                         
-                                        // 左三角形
+                                        // 宸︿笁瑙掑舰
                                         ctx.beginPath()
                                         ctx.moveTo(centerX - 11, centerY - 8)
                                         ctx.lineTo(centerX - 11, centerY + 8)
@@ -555,7 +555,7 @@ Item {
                                         ctx.closePath()
                                         ctx.fill()
                                         
-                                        // 右三角形
+                                        // 鍙充笁瑙掑舰
                                         ctx.beginPath()
                                         ctx.moveTo(centerX - 3, centerY - 8)
                                         ctx.lineTo(centerX - 3, centerY + 8)
@@ -563,7 +563,7 @@ Item {
                                         ctx.closePath()
                                         ctx.fill()
                                         
-                                        // 右侧竖线
+                                        // 鍙充晶绔栫嚎
                                         ctx.fillRect(centerX + 8, centerY - 8, 2, 16)
                                     }
                                 }
@@ -578,7 +578,7 @@ Item {
                                 }
                             }
                             
-                            // 音量按钮 - 绘制音量图标
+                            // 闊抽噺鎸夐挳 - 缁樺埗闊抽噺鍥炬爣
                             Item {
                                 width: 32
                                 height: 32
@@ -599,12 +599,12 @@ Item {
                                         var centerX = width / 2
                                         var centerY = height / 2
                                         
-                                        ctx.fillStyle = hovered ? "#31C27C" : iconColor
-                                        ctx.strokeStyle = hovered ? "#31C27C" : iconColor
+                                        ctx.fillStyle = hovered ? "#EC4141" : iconColor
+                                        ctx.strokeStyle = hovered ? "#EC4141" : iconColor
                                         ctx.lineWidth = 2
                                         ctx.lineCap = "round"
                                         
-                                        // 扬声器
+                                        // 鎵０鍣?
                                         ctx.beginPath()
                                         ctx.moveTo(centerX - 8, centerY - 4)
                                         ctx.lineTo(centerX - 4, centerY - 4)
@@ -615,7 +615,7 @@ Item {
                                         ctx.closePath()
                                         ctx.fill()
                                         
-                                        // 音波
+                                        // 闊虫尝
                                         ctx.beginPath()
                                         ctx.arc(centerX + 2, centerY, 6, -Math.PI/4, Math.PI/4, false)
                                         ctx.stroke()
@@ -645,7 +645,7 @@ Item {
                                     }
                                 }
                                 
-                                // Loader 用于创建独立音量窗口
+                                // Loader 鐢ㄤ簬鍒涘缓鐙珛闊抽噺绐楀彛
                                 Loader {
                                     id: volumeWindowLoader
                                     active: false
@@ -676,14 +676,14 @@ Item {
                             }
                         }
                         
-                        Item { Layout.fillWidth: true }  // 弹性空间
+                        Item { Layout.fillWidth: true }  // 寮规€х┖闂?
                         
-                        // 右侧：功能按钮组
+                        // 鍙充晶锛氬姛鑳芥寜閽粍
                         Row {
                             spacing: 15
                             Layout.alignment: Qt.AlignVCenter
                             
-                            // 桌面歌词 - 绘制桌面窗口+歌词图标
+                            // 妗岄潰姝岃瘝 - 缁樺埗妗岄潰绐楀彛+姝岃瘝鍥炬爣
                             Item {
                                 width: 32
                                 height: 32
@@ -704,17 +704,17 @@ Item {
                                         var centerX = width / 2
                                         var centerY = height / 2
                                         
-                                        var color = hovered ? "#31C27C" : (root.deskChecked ? "#31C27C" : iconColor)
+                                        var color = hovered ? "#EC4141" : (root.deskChecked ? "#EC4141" : iconColor)
                                         ctx.strokeStyle = color
                                         ctx.fillStyle = color
                                         ctx.lineWidth = 2
                                         ctx.lineCap = "round"
                                         ctx.lineJoin = "round"
                                         
-                                        // 绘制显示器外框
+                                        // 缁樺埗鏄剧ず鍣ㄥ妗?
                                         ctx.strokeRect(centerX - 10, centerY - 8, 20, 14)
                                         
-                                        // 绘制底座
+                                        // 缁樺埗搴曞骇
                                         ctx.beginPath()
                                         ctx.moveTo(centerX - 6, centerY + 6)
                                         ctx.lineTo(centerX - 6, centerY + 9)
@@ -722,7 +722,7 @@ Item {
                                         ctx.lineTo(centerX + 6, centerY + 6)
                                         ctx.stroke()
                                         
-                                        // 绘制窗口内的歌词文字（两行）
+                                        // 缁樺埗绐楀彛鍐呯殑姝岃瘝鏂囧瓧锛堜袱琛岋級
                                         ctx.lineWidth = 1.5
                                         ctx.fillRect(centerX - 7, centerY - 4, 10, 1.5)
                                         ctx.fillRect(centerX - 7, centerY + 1, 14, 1.5)
@@ -743,7 +743,7 @@ Item {
                                 }
                             }
                             
-                            // 播放列表 - 绘制列表图标
+                            // 鎾斁鍒楄〃 - 缁樺埗鍒楄〃鍥炬爣
                             Item {
                                 width: 32
                                 height: 32
@@ -764,10 +764,10 @@ Item {
                                         var centerX = width / 2
                                         var centerY = height / 2
                                         
-                                        var color = hovered ? "#31C27C" : (root.mlistChecked ? "#31C27C" : iconColor)
+                                        var color = hovered ? "#EC4141" : (root.mlistChecked ? "#EC4141" : iconColor)
                                         ctx.fillStyle = color
                                         
-                                        // 绘制三行列表
+                                        // 缁樺埗涓夎鍒楄〃
                                         for (var i = 0; i < 3; i++) {
                                             var y = centerY - 7 + i * 7
                                             ctx.fillRect(centerX - 8, y, 16, 2)
@@ -795,3 +795,4 @@ Item {
         }
     }
 }
+

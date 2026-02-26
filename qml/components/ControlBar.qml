@@ -1,4 +1,4 @@
-import QtQuick 2.14
+﻿import QtQuick 2.14
 import QtQuick.Controls 2.14
 
 Item {
@@ -6,7 +6,7 @@ Item {
     width: 250
     height: 70
     
-    // 属性
+    // 灞炴€?
     property int playState: 0  // 0: Stop, 1: Play, 2: Pause
     property bool loopState: false
     property bool isUp: false
@@ -15,7 +15,7 @@ Item {
     property bool mlistChecked: false
     property bool deskChecked: false
     
-    // 信号
+    // 淇″彿
     signal stop()
     signal nextSong()
     signal lastSong()
@@ -30,7 +30,7 @@ Item {
         anchors.centerIn: parent
         spacing: 8
         
-        // 循环播放按钮
+        // 寰幆鎾斁鎸夐挳
         Rectangle {
             width: 28
             height: 28
@@ -61,7 +61,7 @@ Item {
             }
         }
         
-        // 上一首按钮
+        // 涓婁竴棣栨寜閽?
         Rectangle {
             width: 28
             height: 28
@@ -87,7 +87,7 @@ Item {
             }
         }
         
-        // 播放/暂停按钮（大一点，带绿色圆形背景）
+        // 鎾斁/鏆傚仠鎸夐挳锛堝ぇ涓€鐐癸紝甯︾豢鑹插渾褰㈣儗鏅級
         Rectangle {
             width: 36
             height: 36
@@ -99,7 +99,7 @@ Item {
                 width: 32
                 height: 32
                 radius: 16
-                color: playMouseArea.containsMouse ? "#1ED760" : "#1DB954"
+                color: playMouseArea.containsMouse ? "#FF5757" : "#EC4141"
                 
                 Image {
                     anchors.centerIn: parent
@@ -126,7 +126,7 @@ Item {
             }
         }
         
-        // 下一首按钮
+        // 涓嬩竴棣栨寜閽?
         Rectangle {
             width: 28
             height: 28
@@ -152,7 +152,7 @@ Item {
             }
         }
         
-        // 音量按钮
+        // 闊抽噺鎸夐挳
         Rectangle {
             width: 28
             height: 28
@@ -179,7 +179,7 @@ Item {
                 }
             }
             
-            // 音量滑块
+            // 闊抽噺婊戝潡
             Rectangle {
                 id: volumeSliderBg
                 width: 100
@@ -208,7 +208,7 @@ Item {
             }
         }
         
-        // 桌面歌词按钮
+        // 妗岄潰姝岃瘝鎸夐挳
         Rectangle {
             width: 28
             height: 28
@@ -238,7 +238,7 @@ Item {
             }
         }
         
-        // 播放列表按钮
+        // 鎾斁鍒楄〃鎸夐挳
         Rectangle {
             width: 28
             height: 28
@@ -269,7 +269,7 @@ Item {
         }
     }
     
-    // 公开给 C++ 调用的函数
+    // 鍏紑缁?C++ 璋冪敤鐨勫嚱鏁?
     function setPlayState(state) {
         root.playState = state
     }
@@ -294,3 +294,4 @@ Item {
         root.rePlay()
     }
 }
+

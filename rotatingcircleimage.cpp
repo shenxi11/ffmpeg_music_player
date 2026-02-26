@@ -5,6 +5,9 @@ RotatingCircleImage::RotatingCircleImage(QWidget *parent)
         : QWidget(parent), angle(0), rotatedImage(QPixmap()) {
 
         image = QPixmap(":/new/prefix1/icon/maxresdefault.jpg");
+        setAttribute(Qt::WA_TranslucentBackground, true);
+        setAutoFillBackground(false);
+        setStyleSheet("background: transparent;");
 
         timer = new QTimer(this);
         connect(timer, &QTimer::timeout, this, &RotatingCircleImage::scheduleRotateTask);
@@ -69,6 +72,7 @@ void RotatingCircleImage::scheduleRotateTask() {
 
 }
 void RotatingCircleImage::paintEvent(QPaintEvent *event) {
+    Q_UNUSED(event);
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
     painter.setRenderHint(QPainter::SmoothPixmapTransform);
@@ -87,7 +91,6 @@ void RotatingCircleImage::paintEvent(QPaintEvent *event) {
         painter.drawPixmap(innerRect, rotatedImage);
     }
 
-    QWidget::paintEvent(event);
 }
 void RotatingCircleImage::on_signal_stop_rotate(bool flag) {
     if (flag) {

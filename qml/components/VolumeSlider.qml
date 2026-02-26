@@ -1,4 +1,4 @@
-import QtQuick 2.14
+﻿import QtQuick 2.14
 import QtQuick.Window 2.14
 import QtQuick.Controls 2.14
 import QtGraphicalEffects 1.14
@@ -11,11 +11,11 @@ Window {
     color: "transparent"
     
     property int volumeValue: 60
-    property bool ignoreNextFocusLoss: false  // 标志：忽略下一次焦点丢失
+    property bool ignoreNextFocusLoss: false  // 鏍囧織锛氬拷鐣ヤ笅涓€娆＄劍鐐逛涪澶?
     
     signal volumeChanged(int value)
     
-    // 监听应用程序退出信号
+    // 鐩戝惉搴旂敤绋嬪簭閫€鍑轰俊鍙?
     Connections {
         target: Qt.application
         function onAboutToQuit() {
@@ -23,16 +23,16 @@ Window {
         }
     }
     
-    // 失去焦点时关闭（点击窗口外部）
+    // 澶卞幓鐒︾偣鏃跺叧闂紙鐐瑰嚮绐楀彛澶栭儴锛?
     onActiveChanged: {
         if (!active && !ignoreNextFocusLoss) {
-            // 延迟检查，避免与按钮点击冲突
+            // 寤惰繜妫€鏌ワ紝閬垮厤涓庢寜閽偣鍑诲啿绐?
             closeTimer.restart()
         }
         ignoreNextFocusLoss = false
     }
     
-    // 延迟关闭定时器
+    // 寤惰繜鍏抽棴瀹氭椂鍣?
     Timer {
         id: closeTimer
         interval: 150
@@ -43,13 +43,13 @@ Window {
         }
     }
     
-    // 背景容器
+    // 鑳屾櫙瀹瑰櫒
     Rectangle {
         anchors.fill: parent
         radius: 30
-        color: "#CC2C2C2C"  // 半透明深色背景
+        color: "#CC2C2C2C"  // 鍗婇€忔槑娣辫壊鑳屾櫙
         
-        // 阴影效果
+        // 闃村奖鏁堟灉
         layer.enabled: true
         layer.effect: DropShadow {
             horizontalOffset: 0
@@ -64,7 +64,7 @@ Window {
             anchors.margins: 15
             spacing: 8
             
-            // 音量百分比显示
+            // 闊抽噺鐧惧垎姣旀樉绀?
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: Math.round(volumeSlider.value) + "%"
@@ -73,7 +73,7 @@ Window {
                 color: "#FFFFFF"
             }
             
-            // 垂直音量滑块
+            // 鍨傜洿闊抽噺婊戝潡
             Slider {
                 id: volumeSlider
                 width: parent.width
@@ -94,13 +94,13 @@ Window {
                     width: 6
                     height: volumeSlider.availableHeight
                     radius: 3
-                    color: "#40FFFFFF"  // 半透明白色
+                    color: "#40FFFFFF"  // 鍗婇€忔槑鐧借壊
                     
                     Rectangle {
                         y: volumeSlider.visualPosition * parent.height
                         width: parent.width
                         height: parent.height - y
-                        color: "#1DB954"  // 绿色填充
+                        color: "#EC4141"  // 缁胯壊濉厖
                         radius: 3
                     }
                 }
@@ -111,18 +111,18 @@ Window {
                     width: 18
                     height: 18
                     radius: 9
-                    color: volumeSlider.pressed ? "#1DB954" : "#FFFFFF"
-                    border.color: "#1DB954"
+                    color: volumeSlider.pressed ? "#EC4141" : "#FFFFFF"
+                    border.color: "#EC4141"
                     border.width: 2
                     
-                    // 悬停和按下效果
+                    // 鎮仠鍜屾寜涓嬫晥鏋?
                     scale: volumeSlider.pressed ? 1.3 : (volumeSlider.hovered ? 1.2 : 1.0)
                     
                     Behavior on scale {
                         NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
                     }
                     
-                    // 阴影
+                    // 闃村奖
                     layer.enabled: true
                     layer.effect: DropShadow {
                         horizontalOffset: 0
@@ -136,3 +136,4 @@ Window {
         }
     }
 }
+

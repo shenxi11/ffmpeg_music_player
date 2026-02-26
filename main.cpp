@@ -6,16 +6,35 @@
 #include <QThread>
 #include <QDir>
 #include <QStandardPaths>
+#include <QFile>
 #include "main_widget.h"
 #include "headers.h"
 #include "plugin_manager.h"
 #include "logger.h"
+#include "settings_manager.h"
 #include "user.h"
 
 #ifdef Q_OS_WIN
 #include <Windows.h>  // For SetDllDirectoryW, GetModuleFileNameW
 #include <string>     // For std::wstring
 #endif
+
+namespace {
+QString resolvePrintLogPath()
+{
+    const QString envPath = qEnvironmentVariable("PRINT_LOG_PATH").trimmed();
+    if (!envPath.isEmpty()) {
+        return QDir::cleanPath(QDir::fromNativeSeparators(envPath));
+    }
+
+    const QString settingsPath = SettingsManager::instance().logPath().trimmed();
+    if (!settingsPath.isEmpty()) {
+        return QDir::cleanPath(settingsPath);
+    }
+
+    return QDir::current().absoluteFilePath(QStringLiteral("打印日志.txt"));
+}
+}
 
 int main(int argc, char *argv[])
 {
@@ -41,12 +60,12 @@ int main(int argc, char *argv[])
     
     QApplication a(argc, argv);
 
-    // 初始化文件日志，便于定位运行时问题
-    QString logPath = QCoreApplication::applicationDirPath() + "/debug.log";
+    // Initialize asynchronous file logger.
+    const QString logPath = resolvePrintLogPath();
     initLogger(logPath);
     qDebug() << "=========================================";
     qDebug() << "FFmpeg Music Player Starting...";
-    qDebug() << "Log file:" << logPath;
+    qDebug() << "Log file:" << currentLogFilePath();
     
     // 打印运行时 DLL 搜索信息，便于排查依赖加载失败
 #ifdef Q_OS_WIN
@@ -59,6 +78,14 @@ int main(int argc, char *argv[])
     // 设置组织与应用名（影响配置文件路径等 Qt 行为）
     a.setOrganizationName("MusicPlayer");
     a.setApplicationName("FFmpegMusicPlayer");
+
+    QFile themeFile(":/styles/netease.qss");
+    if (themeFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        a.setStyleSheet(QString::fromUtf8(themeFile.readAll()));
+        qDebug() << "Loaded NetEase theme stylesheet";
+    } else {
+        qWarning() << "Failed to load NetEase theme stylesheet";
+    }
 
     a.setWindowIcon(QIcon("qrc:/new/prefix1/icon/netease.png"));
 

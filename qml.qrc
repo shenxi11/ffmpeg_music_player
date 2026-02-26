@@ -26,5 +26,6 @@
         <file>qml/components/DownloadingList.qml</file>
         <file>qml/components/PlayHistoryList.qml</file>
         <file>qml/components/FavoriteMusicList.qml</file>
+        <file>styles/netease.qss</file>
     </qresource>
 </RCC>

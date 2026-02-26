@@ -98,7 +98,13 @@ PlayWidget::PlayWidget(QWidget *parent, QWidget *mainWidget)
     init_LyricDisplay();
 
     QWidget* rotate_widget = new QWidget(this);
+    rotate_widget->setAttribute(Qt::WA_TranslucentBackground, true);
+    rotate_widget->setAutoFillBackground(false);
+    rotate_widget->setStyleSheet("background: transparent;");
     rotatingCircle = new RotatingCircleImage(rotate_widget);
+    rotatingCircle->setAttribute(Qt::WA_TranslucentBackground, true);
+    rotatingCircle->setAutoFillBackground(false);
+    rotatingCircle->setStyleSheet("background: transparent;");
     rotate_widget->move(100, 100);
     rotate_widget->resize(300, 300);
     rotatingCircle->resize(300, 300);
@@ -406,11 +412,15 @@ PlayWidget::PlayWidget(QWidget *parent, QWidget *mainWidget)
     
     // 连接歌词点击跳转信号
     connect(lyricDisplay, &LyricDisplayQml::signal_lyric_seek, this, &PlayWidget::slot_lyric_seek);
+    connect(lyricDisplay, &LyricDisplayQml::signal_lyric_drag_start, this, &PlayWidget::slot_lyric_drag_start);
+    connect(lyricDisplay, &LyricDisplayQml::signal_lyric_drag_preview, this, &PlayWidget::slot_lyric_preview);
+    connect(lyricDisplay, &LyricDisplayQml::signal_lyric_drag_end, this, &PlayWidget::slot_lyric_drag_end);
 
 
     nameLabel = new QLabel(this);
     nameLabel->move(400, 50);
-    nameLabel->setStyleSheet("QLabel { color: white; font-size: 28px; }");
+    nameLabel->setAttribute(Qt::WA_TranslucentBackground, true);
+    nameLabel->setStyleSheet("QLabel { color: white; font-size: 28px; background: transparent; }");
     nameLabel->setWordWrap(true);
     nameLabel->setFixedSize(550, 30);
     nameLabel->setAlignment(Qt::AlignCenter);
@@ -632,6 +642,19 @@ void PlayWidget::set_isUp(bool flag){
     
     qDebug() << "PlayWidget::set_isUp called with flag:" << flag;
     qDebug() << "Call stack trace - isUp:" << flag;
+
+    // 展开时如果还没有封面背景，使用深色兜底，避免出现白底。
+    if (flag && backgroundLabel && (!backgroundLabel->pixmap() || backgroundLabel->pixmap()->isNull())) {
+        QPixmap fallback(qMax(width(), 1), qMax(height(), 1));
+        fallback.fill(Qt::transparent);
+        QPainter painter(&fallback);
+        QLinearGradient gradient(0, 0, fallback.width(), fallback.height());
+        gradient.setColorAt(0.0, QColor("#0D1218"));
+        gradient.setColorAt(0.5, QColor("#151B24"));
+        gradient.setColorAt(1.0, QColor("#10151D"));
+        painter.fillRect(fallback.rect(), gradient);
+        backgroundLabel->setPixmap(fallback);
+    }
     
     // 控制歌词显示状
     if (lyricDisplay) {
@@ -1136,7 +1159,7 @@ void PlayWidget::slot_lyric_drag_end() {
     lyricUpdateConnection = connect(&AudioService::instance(), &AudioService::positionChanged, 
             this, [this](qint64 positionMs) {
         int targetLine = -1;
-        int timeInMs = static_cast<int>(positionMs);
+        int timeInMs = static_cast<int>(positionMs) + 1000;
         
         for (auto it = lyrics.begin(); it != lyrics.end(); ++it) {
             if (it->first <= timeInMs) {
@@ -1172,9 +1195,16 @@ void PlayWidget::slot_lyric_preview(int timeMs) {
         if (root) {
             QVariant totalDuration = root->property("totalDuration");
             if (totalDuration.isValid() && totalDuration.toInt() > 0) {
-                double previewRatio = static_cast<double>(timeMs) / totalDuration.toInt();
-                // 只更新视觉位置，不触发跳
-                root->setProperty("previewValue", previewRatio);
+                const int maxSeconds = totalDuration.toInt();
+                int previewSeconds = timeMs / 1000;
+                if (previewSeconds < 0) {
+                    previewSeconds = 0;
+                }
+                if (previewSeconds > maxSeconds) {
+                    previewSeconds = maxSeconds;
+                }
+                // 只更新视觉显示，不触发实际 seek。
+                root->setProperty("currentTime", previewSeconds);
             }
         }
     }

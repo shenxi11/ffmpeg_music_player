@@ -1,4 +1,4 @@
-#ifndef SETTINGS_MANAGER_H
+﻿#ifndef SETTINGS_MANAGER_H
 #define SETTINGS_MANAGER_H
 
 #include <QObject>
@@ -6,10 +6,10 @@
 #include <QString>
 #include <QStandardPaths>
 #include <QDebug>
+#include <QDir>
 
 /**
- * @brief 全局设置管理器（单例模式）
- * 负责保存和读取应用程序设置
+ * @brief Global settings manager (singleton)
  */
 class SettingsManager : public QObject
 {
@@ -17,6 +17,7 @@ class SettingsManager : public QObject
     Q_PROPERTY(QString downloadPath READ downloadPath WRITE setDownloadPath NOTIFY downloadPathChanged)
     Q_PROPERTY(bool downloadLyrics READ downloadLyrics WRITE setDownloadLyrics NOTIFY downloadLyricsChanged)
     Q_PROPERTY(bool downloadCover READ downloadCover WRITE setDownloadCover NOTIFY downloadCoverChanged)
+    Q_PROPERTY(QString logPath READ logPath WRITE setLogPath NOTIFY logPathChanged)
 
 public:
     static SettingsManager& instance()
@@ -25,28 +26,28 @@ public:
         return instance;
     }
 
-    // 下载路径
     QString downloadPath() const { return m_downloadPath; }
     void setDownloadPath(const QString& path);
 
-    // 是否下载歌词
     bool downloadLyrics() const { return m_downloadLyrics; }
     void setDownloadLyrics(bool enable);
 
-    // 是否下载专辑图片
     bool downloadCover() const { return m_downloadCover; }
     void setDownloadCover(bool enable);
+
+    QString logPath() const { return m_logPath; }
+    void setLogPath(const QString& path);
 
 signals:
     void downloadPathChanged();
     void downloadLyricsChanged();
     void downloadCoverChanged();
+    void logPathChanged();
 
 private:
     SettingsManager();
     ~SettingsManager() = default;
 
-    // 禁用拷贝和赋值
     SettingsManager(const SettingsManager&) = delete;
     SettingsManager& operator=(const SettingsManager&) = delete;
 
@@ -54,6 +55,7 @@ private:
     QString m_downloadPath;
     bool m_downloadLyrics;
     bool m_downloadCover;
+    QString m_logPath;
 };
 
 #endif // SETTINGS_MANAGER_H

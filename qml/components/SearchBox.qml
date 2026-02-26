@@ -91,3 +91,4 @@ Rectangle {
         searchInput.text = ""
     }
 }
+

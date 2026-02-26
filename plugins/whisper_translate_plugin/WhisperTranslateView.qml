@@ -1,4 +1,4 @@
-import QtQuick 2.14
+﻿import QtQuick 2.14
 import QtQuick.Controls 2.14
 import QtQuick.Layouts 1.14
 import QtGraphicalEffects 1.14
@@ -8,10 +8,10 @@ Item {
     width: 820
     height: 780
     
-    // 窗口拖动相关
+    // 绐楀彛鎷栧姩鐩稿叧
     property point clickPos: Qt.point(0, 0)
     
-    // 主容器 - 带圆角和阴影
+    // 涓诲鍣?- 甯﹀渾瑙掑拰闃村奖
     Rectangle {
         id: mainContainer
         anchors.fill: parent
@@ -19,7 +19,7 @@ Item {
         radius: 15
         color: "transparent"
         
-        // 阴影效果
+        // 闃村奖鏁堟灉
         layer.enabled: true
         layer.effect: DropShadow {
             transparentBorder: true
@@ -30,7 +30,7 @@ Item {
             color: "#40000000"
         }
         
-        // 背景渐变
+        // 鑳屾櫙娓愬彉
         Rectangle {
             anchors.fill: parent
             radius: parent.radius
@@ -39,7 +39,7 @@ Item {
                 GradientStop { position: 1.0; color: "#fcb69f" }
             }
             
-            // 自定义标题栏
+            // 鑷畾涔夋爣棰樻爮
             Rectangle {
                 id: titleBar
                 width: parent.width
@@ -77,22 +77,22 @@ Item {
                     spacing: 10
                     
                     Label {
-                        text: "🎤"
+                        text: "馃帳"
                         font.pixelSize: 20
                         color: "white"
                     }
                     
                     Label {
-                        text: "Whisper 语音转文字"
+                        text: "Whisper 璇煶杞枃瀛?
                         font.pixelSize: 16
                         font.bold: true
                         color: "white"
                         Layout.fillWidth: true
                     }
                     
-                    // 最小化按钮
+                    // 鏈€灏忓寲鎸夐挳
                     Button {
-                        text: "−"
+                        text: "鈭?
                         font.pixelSize: 18
                         Layout.preferredWidth: 30
                         Layout.preferredHeight: 30
@@ -112,9 +112,9 @@ Item {
                         }
                     }
                     
-                    // 关闭按钮
+                    // 鍏抽棴鎸夐挳
                     Button {
-                        text: "×"
+                        text: "脳"
                         font.pixelSize: 20
                         Layout.preferredWidth: 30
                         Layout.preferredHeight: 30
@@ -136,7 +136,7 @@ Item {
                 }
             }
             
-            // 内容区域
+            // 鍐呭鍖哄煙
             ScrollView {
                 id: scrollView
                 anchors.fill: parent
@@ -150,7 +150,7 @@ Item {
             width: scrollView.availableWidth
             spacing: 25
             
-            // 音频文件卡片
+            // 闊抽鏂囦欢鍗＄墖
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 100
@@ -173,7 +173,7 @@ Item {
                     spacing: 12
                     
                     Label {
-                        text: "🎧 音频文件"
+                        text: "馃帶 闊抽鏂囦欢"
                         font.pixelSize: 16
                         font.bold: true
                         color: "#2d3748"
@@ -186,7 +186,7 @@ Item {
                         TextField {
                             id: audioFileField
                             text: backend.audioFile
-                            placeholderText: "选择要转录的音频文件..."
+                            placeholderText: "閫夋嫨瑕佽浆褰曠殑闊抽鏂囦欢..."
                             readOnly: true
                             Layout.fillWidth: true
                             font.pixelSize: 14
@@ -200,7 +200,7 @@ Item {
                         }
                         
                         Button {
-                            text: "选择"
+                            text: "閫夋嫨"
                             font.pixelSize: 14
                             font.bold: true
                             onClicked: backend.selectAudioFile()
@@ -229,7 +229,7 @@ Item {
                 }
             }
             
-            // 模型设置卡片
+            // 妯″瀷璁剧疆鍗＄墖
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 260
@@ -252,7 +252,7 @@ Item {
                     spacing: 15
                     
                     Label {
-                        text: "🔧 模型设置"
+                        text: "馃敡 妯″瀷璁剧疆"
                         font.pixelSize: 16
                         font.bold: true
                         color: "#2d3748"
@@ -265,7 +265,7 @@ Item {
                         columnSpacing: 15
                         
                         Label {
-                            text: "模型:"
+                            text: "妯″瀷:"
                             font.pixelSize: 14
                             color: "#4a5568"
                         }
@@ -276,7 +276,7 @@ Item {
                             
                             ComboBox {
                                 id: modelCombo
-                                model: backend.availableModels.length > 0 ? backend.availableModels : ["请先扫描模型"]
+                                model: backend.availableModels.length > 0 ? backend.availableModels : ["璇峰厛鎵弿妯″瀷"]
                                 currentIndex: backend.availableModels.indexOf(backend.modelPath)
                                 Layout.fillWidth: true
                                 font.pixelSize: 13
@@ -284,7 +284,7 @@ Item {
                                 delegate: ItemDelegate {
                                     width: modelCombo.width
                                     text: {
-                                        if (modelData === "请先扫描模型") return modelData
+                                        if (modelData === "璇峰厛鎵弿妯″瀷") return modelData
                                         var path = modelData
                                         return path.substring(path.lastIndexOf('/') + 1)
                                     }
@@ -292,16 +292,16 @@ Item {
                                 }
                                 
                                 displayText: {
-                                    if (currentText === "请先扫描模型") return currentText
+                                    if (currentText === "璇峰厛鎵弿妯″瀷") return currentText
                                     if (currentText) {
                                         var path = currentText
                                         return path.substring(path.lastIndexOf('/') + 1)
                                     }
-                                    return "选择模型..."
+                                    return "閫夋嫨妯″瀷..."
                                 }
                                 
                                 onCurrentTextChanged: {
-                                    if (currentText && currentText !== "请先扫描模型" && currentText !== backend.modelPath) {
+                                    if (currentText && currentText !== "璇峰厛鎵弿妯″瀷" && currentText !== backend.modelPath) {
                                         backend.modelPath = currentText
                                     }
                                 }
@@ -315,7 +315,7 @@ Item {
                             }
                             
                             Button {
-                                text: "📁"
+                                text: "馃搧"
                                 onClicked: backend.selectModelFile()
                                 font.pixelSize: 16
                                 Layout.preferredWidth: 45
@@ -330,7 +330,7 @@ Item {
                             }
                             
                             Button {
-                                text: "🔄"
+                                text: "馃攧"
                                 onClicked: backend.scanForModels()
                                 font.pixelSize: 16
                                 Layout.preferredWidth: 45
@@ -346,7 +346,7 @@ Item {
                         }
                         
                         Label {
-                            text: "语言:"
+                            text: "璇█:"
                             font.pixelSize: 14
                             color: "#4a5568"
                         }
@@ -371,7 +371,7 @@ Item {
                         }
                         
                         Label {
-                            text: "输出格式:"
+                            text: "杈撳嚭鏍煎紡:"
                             font.pixelSize: 14
                             color: "#4a5568"
                         }
@@ -398,7 +398,7 @@ Item {
                 }
             }
             
-            // 进度卡片
+            // 杩涘害鍗＄墖
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 80
@@ -422,7 +422,7 @@ Item {
                     spacing: 10
                     
                     Label {
-                        text: "⏳ 识别进度"
+                        text: "鈴?璇嗗埆杩涘害"
                         font.pixelSize: 14
                         font.bold: true
                         color: "#2d3748"
@@ -462,13 +462,13 @@ Item {
                 }
             }
             
-            // 状态文本
+            // 鐘舵€佹枃鏈?
             Label {
                 text: backend.statusText
                 font.pixelSize: 14
                 font.bold: true
-                color: backend.statusText.startsWith("错误") ? "#e53e3e" : 
-                       backend.statusText.includes("完成") ? "#38a169" : "#ff6b6b"
+                color: backend.statusText.startsWith("閿欒") ? "#e53e3e" : 
+                       backend.statusText.includes("瀹屾垚") ? "#EC4141" : "#ff6b6b"
                 Layout.alignment: Qt.AlignHCenter
                 
                 Behavior on color {
@@ -476,14 +476,14 @@ Item {
                 }
             }
             
-            // 操作按钮
+            // 鎿嶄綔鎸夐挳
             RowLayout {
                 Layout.alignment: Qt.AlignHCenter
                 spacing: 15
                 
                 Button {
                     id: startButton
-                    text: backend.isProcessing ? "⏸️ 停止" : "▶️ 开始转录"
+                    text: backend.isProcessing ? "鈴革笍 鍋滄" : "鈻讹笍 寮€濮嬭浆褰?
                     enabled: backend.audioFile !== "" && backend.modelPath !== ""
                     onClicked: {
                         if (backend.isProcessing) {
@@ -522,7 +522,7 @@ Item {
                 }
                 
                 Button {
-                    text: "🗑️ 清空"
+                    text: "馃棏锔?娓呯┖"
                     onClicked: backend.clearText()
                     enabled: !backend.isProcessing && backend.transcribedText !== ""
                     font.pixelSize: 15
@@ -545,7 +545,7 @@ Item {
                 }
                 
                 Button {
-                    text: "💾 保存"
+                    text: "馃捑 淇濆瓨"
                     onClicked: backend.saveTranscription()
                     enabled: backend.transcribedText !== ""
                     font.pixelSize: 15
@@ -555,7 +555,7 @@ Item {
                     
                     background: Rectangle {
                         radius: 10
-                        color: parent.enabled ? (parent.hovered ? "#48bb78" : "#38a169") : "#cbd5e0"
+                        color: parent.enabled ? (parent.hovered ? "#FF5757" : "#EC4141") : "#cbd5e0"
                     }
                     
                     contentItem: Text {
@@ -568,7 +568,7 @@ Item {
                 }
             }
             
-            // 转录结果卡片
+            // 杞綍缁撴灉鍗＄墖
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 300
@@ -592,7 +592,7 @@ Item {
                     spacing: 12
                     
                     Label {
-                        text: "📝 转录结果"
+                        text: "馃摑 杞綍缁撴灉"
                         font.pixelSize: 16
                         font.bold: true
                         color: "#2d3748"
@@ -606,7 +606,7 @@ Item {
                         TextArea {
                             id: resultText
                             text: backend.transcribedText
-                            placeholderText: "转录结果将显示在这里...\n\n💡 提示: 请先选择音频文件和模型，然后点击'开始转录'"
+                            placeholderText: "杞綍缁撴灉灏嗘樉绀哄湪杩欓噷...\n\n馃挕 鎻愮ず: 璇峰厛閫夋嫨闊抽鏂囦欢鍜屾ā鍨嬶紝鐒跺悗鐐瑰嚮'寮€濮嬭浆褰?"
                             wrapMode: TextArea.Wrap
                             selectByMouse: true
                             font.pixelSize: 14
@@ -635,10 +635,11 @@ Item {
         target: backend
         function onTranscriptionFinished(success, message) {
             if (success) {
-                console.log("✅ 转录成功:", message)
+                console.log("鉁?杞綍鎴愬姛:", message)
             } else {
-                console.log("❌ 转录失败:", message)
+                console.log("鉂?杞綍澶辫触:", message)
             }
         }
     }
 }
+

@@ -1,8 +1,8 @@
-import QtQuick 2.15
+﻿import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 
-// 本地和下载 - 多Tab界面
+// 鏈湴鍜屼笅杞?- 澶歍ab鐣岄潰
 Rectangle {
     id: root
     color: "#f5f5f5"
@@ -15,7 +15,7 @@ Rectangle {
         anchors.fill: parent
         spacing: 0
 
-        // Tab栏
+        // Tab鏍?
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 50
@@ -28,7 +28,7 @@ Rectangle {
                 spacing: 40
 
                 Repeater {
-                    model: ["本地音乐", "下载音乐", "正在下载"]
+                    model: ["\u672c\u5730\u97f3\u4e50", "\u4e0b\u8f7d\u97f3\u4e50", "\u6b63\u5728\u4e0b\u8f7d"]
                     
                     Rectangle {
                         width: 100
@@ -57,43 +57,44 @@ Rectangle {
             }
         }
 
-        // 分隔线
+        // 鍒嗛殧绾?
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 1
             color: "#e0e0e0"
         }
 
-        // Tab内容区
+        // Tab鍐呭鍖?
         StackLayout {
             id: stackLayout
             Layout.fillWidth: true
             Layout.fillHeight: true
             currentIndex: tabBar.currentIndex
 
-            // Tab 1: 本地音乐
+            // Tab 1: 鏈湴闊充箰
             LocalMusicList {
                 onPlayMusic: root.playMusic(filename)
                 onDeleteMusic: root.deleteMusic(filename)
                 onAddToFavorite: root.addToFavorite(path, title, artist, duration)
             }
 
-            // Tab 2: 下载音乐
+            // Tab 2: 涓嬭浇闊充箰
             DownloadedMusicList {
                 onPlayMusic: root.playMusic(filename)
                 onDeleteMusic: root.deleteMusic(filename)
                 onAddToFavorite: root.addToFavorite(path, title, artist, duration)
             }
 
-            // Tab 3: 正在下载
+            // Tab 3: 姝ｅ湪涓嬭浇
             DownloadingList {
             }
         }
     }
 
-    // Tab控制器（隐藏）
+    // Tab鎺у埗鍣紙闅愯棌锛?
     QtObject {
         id: tabBar
         property int currentIndex: 0
     }
 }
+

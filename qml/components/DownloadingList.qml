@@ -6,6 +6,10 @@ import QtQuick.Layouts 1.15
 Rectangle {
     id: root
     color: "#f5f5f5"
+    property int colNameWidth: 250
+    property int colProgressWidth: 200
+    property int colSizeWidth: 100
+    property int colStateWidth: 80
     
     // 当可见性改变时刷新
     onVisibleChanged: {
@@ -60,7 +64,7 @@ Rectangle {
                     font.pixelSize: 14
                     font.bold: true
                     color: "#333333"
-                    Layout.preferredWidth: 250
+                    Layout.preferredWidth: root.colNameWidth
                 }
 
                 Text {
@@ -68,7 +72,7 @@ Rectangle {
                     font.pixelSize: 14
                     font.bold: true
                     color: "#333333"
-                    Layout.preferredWidth: 200
+                    Layout.preferredWidth: root.colProgressWidth
                 }
 
                 Text {
@@ -76,7 +80,7 @@ Rectangle {
                     font.pixelSize: 14
                     font.bold: true
                     color: "#333333"
-                    Layout.preferredWidth: 100
+                    Layout.preferredWidth: root.colSizeWidth
                 }
 
                 Text {
@@ -84,7 +88,7 @@ Rectangle {
                     font.pixelSize: 14
                     font.bold: true
                     color: "#333333"
-                    Layout.preferredWidth: 80
+                    Layout.preferredWidth: root.colStateWidth
                 }
 
                 Text {
@@ -120,7 +124,7 @@ Rectangle {
 
                     // 文件名
                     Column {
-                        Layout.preferredWidth: 250
+                        Layout.preferredWidth: root.colNameWidth
                         spacing: 4
 
                         Text {
@@ -128,7 +132,7 @@ Rectangle {
                             font.pixelSize: 14
                             color: "#333333"
                             elide: Text.ElideMiddle
-                            width: 250
+                            width: root.colNameWidth
                         }
 
                         Text {
@@ -136,32 +140,32 @@ Rectangle {
                             font.pixelSize: 12
                             color: "#ff0000"
                             visible: model.state === 4  // Failed
-                            width: 250
+                            width: root.colNameWidth
                             elide: Text.ElideRight
                         }
                     }
 
                     // 进度条
                     Column {
-                        Layout.preferredWidth: 200
+                        Layout.preferredWidth: root.colProgressWidth
                         spacing: 4
 
                         ProgressBar {
-                            width: 200
+                            width: root.colProgressWidth
                             height: 20
                             from: 0
                             to: 100
                             value: model.progress || 0
 
                             background: Rectangle {
-                                implicitWidth: 200
+                                implicitWidth: root.colProgressWidth
                                 implicitHeight: 20
                                 color: "#e0e0e0"
                                 radius: 3
                             }
 
                             contentItem: Item {
-                                implicitWidth: 200
+                                implicitWidth: root.colProgressWidth
                                 implicitHeight: 18
 
                                 Rectangle {
@@ -182,7 +186,7 @@ Rectangle {
 
                     // 文件大小
                     Text {
-                        Layout.preferredWidth: 100
+                        Layout.preferredWidth: root.colSizeWidth
                         text: formatSize(model.downloadedSize || 0) + " / " + formatSize(model.totalSize || 0)
                         font.pixelSize: 12
                         color: "#666666"
@@ -190,7 +194,7 @@ Rectangle {
 
                     // 状态
                     Text {
-                        Layout.preferredWidth: 80
+                        Layout.preferredWidth: root.colStateWidth
                         text: model.stateText || ""
                         font.pixelSize: 12
                         color: getStateColor(model.state || 0)

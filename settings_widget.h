@@ -1,4 +1,4 @@
-#ifndef SETTINGS_WIDGET_H
+﻿#ifndef SETTINGS_WIDGET_H
 #define SETTINGS_WIDGET_H
 
 #include <QQuickWidget>
@@ -6,12 +6,11 @@
 #include <QQmlEngine>
 #include <QQuickItem>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QDebug>
+
 #include "settings_manager.h"
 
-/**
- * @brief 设置窗口的QML包装类
- */
 class SettingsWidget : public QQuickWidget
 {
     Q_OBJECT
@@ -21,9 +20,11 @@ public:
 
 private slots:
     void onChooseDownloadPath();
+    void onChooseLogPath();
     void onDownloadPathChanged();
     void onDownloadLyricsChanged();
     void onDownloadCoverChanged();
+    void onLogPathChanged();
 };
 
 #endif // SETTINGS_WIDGET_H

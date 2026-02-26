@@ -452,3 +452,4 @@ Rectangle {
         root.selectedItems = []
     }
 }
+

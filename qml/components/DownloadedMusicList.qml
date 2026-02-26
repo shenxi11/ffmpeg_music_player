@@ -6,6 +6,10 @@ import QtQuick.Layouts 1.15
 Rectangle {
     id: root
     color: "#f5f5f5"
+    property int colCoverWidth: 44
+    property int colNameWidth: 240
+    property int colSizeWidth: 120
+    property int colTimeWidth: 150
 
     signal playMusic(string filename)
     signal deleteMusic(string filename)
@@ -60,11 +64,19 @@ Rectangle {
                 spacing: 10
 
                 Text {
+                    text: "\u5c01\u9762"
+                    font.pixelSize: 14
+                    font.bold: true
+                    color: "#333333"
+                    Layout.preferredWidth: root.colCoverWidth
+                }
+
+                Text {
                     text: "文件名"
                     font.pixelSize: 14
                     font.bold: true
                     color: "#333333"
-                    Layout.preferredWidth: 300
+                    Layout.preferredWidth: root.colNameWidth
                 }
 
                 Text {
@@ -72,7 +84,7 @@ Rectangle {
                     font.pixelSize: 14
                     font.bold: true
                     color: "#333333"
-                    Layout.preferredWidth: 120
+                    Layout.preferredWidth: root.colSizeWidth
                 }
 
                 Text {
@@ -80,7 +92,7 @@ Rectangle {
                     font.pixelSize: 14
                     font.bold: true
                     color: "#333333"
-                    Layout.preferredWidth: 150
+                    Layout.preferredWidth: root.colTimeWidth
                 }
 
                 Text {
@@ -126,7 +138,7 @@ Rectangle {
 
                     // 专辑图片
                     Rectangle {
-                        Layout.preferredWidth: 44
+                        Layout.preferredWidth: root.colCoverWidth
                         Layout.preferredHeight: 44
                         radius: 4
                         color: "#E0E0E0"
@@ -142,7 +154,7 @@ Rectangle {
 
                     // 文件名
                     Text {
-                        Layout.preferredWidth: 240
+                        Layout.preferredWidth: root.colNameWidth
                         text: model.filename || ""
                         font.pixelSize: 14
                         font.bold: model.isPlaying
@@ -152,7 +164,7 @@ Rectangle {
 
                     // 文件大小
                     Text {
-                        Layout.preferredWidth: 120
+                        Layout.preferredWidth: root.colSizeWidth
                         text: formatSize(model.totalSize || 0)
                         font.pixelSize: 13
                         color: "#666666"
@@ -160,7 +172,7 @@ Rectangle {
 
                     // 下载时间（使用创建时间）
                     Text {
-                        Layout.preferredWidth: 150
+                        Layout.preferredWidth: root.colTimeWidth
                         text: Qt.formatDateTime(new Date(), "yyyy-MM-dd hh:mm")
                         font.pixelSize: 13
                         color: "#666666"
@@ -171,7 +183,7 @@ Rectangle {
                         Layout.fillWidth: true
                         spacing: 10
                         opacity: itemArea.containsMouse || playBtnArea.containsMouse || favBtnArea.containsMouse || deleteBtnArea.containsMouse ? 1.0 : 0.0
-                        visible: opacity > 0
+                        enabled: opacity > 0
                         
                         Behavior on opacity { NumberAnimation { duration: 150 } }
 

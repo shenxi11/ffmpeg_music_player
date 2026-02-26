@@ -210,7 +210,7 @@ Rectangle {
                             text: root.displayTitle(model)
                             font.pixelSize: 14
                             font.bold: model.filePath === root.currentPlayingPath
-                            color: model.filePath === root.currentPlayingPath ? "#4CAF50" : "#333333"
+                            color: model.filePath === root.currentPlayingPath ? "#EC4141" : "#333333"
                             elide: Text.ElideRight
                             width: parent.width
                         }
@@ -245,7 +245,7 @@ Rectangle {
                                 
                                 var isCurrentSong = model.filePath === root.currentPlayingPath
                                 var isPlaying = isCurrentSong && !root.isPaused
-                                ctx.fillStyle = isCurrentSong ? "#4CAF50" : "#666666"
+                                ctx.fillStyle = isCurrentSong ? "#EC4141" : "#666666"
                                 
                                 if (isPlaying) {
                                     // 绘制暂停图标（两条竖线）
@@ -399,3 +399,4 @@ Rectangle {
         playlistModel.clear()
     }
 }
+

@@ -7,6 +7,10 @@ import QtQuick.Dialogs 1.3
 Rectangle {
     id: root
     color: "#f5f5f5"
+    property int colCoverWidth: 44
+    property int colTitleWidth: 240
+    property int colDurationWidth: 80
+    property int colArtistWidth: 120
 
     signal playMusic(string filename)
     signal deleteMusic(string filename)
@@ -74,7 +78,7 @@ Rectangle {
                     font.pixelSize: 14
                     font.bold: true
                     color: "#333333"
-                    Layout.preferredWidth: 50
+                    Layout.preferredWidth: root.colCoverWidth
                 }
 
                 Text {
@@ -82,7 +86,7 @@ Rectangle {
                     font.pixelSize: 14
                     font.bold: true
                     color: "#333333"
-                    Layout.preferredWidth: 240
+                    Layout.preferredWidth: root.colTitleWidth
                 }
 
                 Text {
@@ -90,7 +94,7 @@ Rectangle {
                     font.pixelSize: 14
                     font.bold: true
                     color: "#333333"
-                    Layout.preferredWidth: 80
+                    Layout.preferredWidth: root.colDurationWidth
                 }
 
                 Text {
@@ -98,7 +102,7 @@ Rectangle {
                     font.pixelSize: 14
                     font.bold: true
                     color: "#333333"
-                    Layout.preferredWidth: 120
+                    Layout.preferredWidth: root.colArtistWidth
                 }
 
                 Text {
@@ -145,7 +149,7 @@ Rectangle {
 
                     // 封面
                     Rectangle {
-                        Layout.preferredWidth: 44
+                        Layout.preferredWidth: root.colCoverWidth
                         Layout.preferredHeight: 44
                         radius: 4
                         color: "#E0E0E0"
@@ -161,7 +165,7 @@ Rectangle {
 
                     // 歌曲名
                     Text {
-                        Layout.preferredWidth: 240
+                        Layout.preferredWidth: root.colTitleWidth
                         text: model.fileName || ""
                         font.pixelSize: 14
                         font.bold: model.isPlaying
@@ -171,7 +175,7 @@ Rectangle {
 
                     // 时长
                     Text {
-                        Layout.preferredWidth: 80
+                        Layout.preferredWidth: root.colDurationWidth
                         text: model.duration || "0:00"
                         font.pixelSize: 13
                         color: "#666666"
@@ -179,7 +183,7 @@ Rectangle {
 
                     // 艺术家
                     Text {
-                        Layout.preferredWidth: 120
+                        Layout.preferredWidth: root.colArtistWidth
                         text: model.artist || "未知艺术家"
                         font.pixelSize: 13
                         color: "#666666"
@@ -191,7 +195,7 @@ Rectangle {
                         Layout.fillWidth: true
                         spacing: 10
                         opacity: itemArea.containsMouse || playBtnArea.containsMouse || favBtnArea.containsMouse || deleteBtnArea.containsMouse ? 1.0 : 0.0
-                        visible: opacity > 0
+                        enabled: opacity > 0
                         
                         Behavior on opacity { NumberAnimation { duration: 150 } }
 

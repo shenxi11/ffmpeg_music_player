@@ -1,4 +1,4 @@
-import QtQuick 2.12
+﻿import QtQuick 2.12
 
 Item {
     id: root
@@ -7,7 +7,7 @@ Item {
     property real rotationAngle: 0
     property bool isRotating: false
     
-    // 外层黑色圆环
+    // 澶栧眰榛戣壊鍦嗙幆
     Rectangle {
         id: outerCircle
         anchors.centerIn: parent
@@ -16,7 +16,7 @@ Item {
         radius: width / 2
         color: "black"
         
-        // 内层旋转图片
+        // 鍐呭眰鏃嬭浆鍥剧墖
         Item {
             id: innerCircle
             anchors.centerIn: parent
@@ -25,7 +25,7 @@ Item {
             rotation: root.rotationAngle
             clip: true
             
-            // 圆形遮罩
+            // 鍦嗗舰閬僵
             Rectangle {
                 id: mask
                 anchors.fill: parent
@@ -33,7 +33,7 @@ Item {
                 visible: false
             }
             
-            // 专辑封面图片
+            // 涓撹緫灏侀潰鍥剧墖
             Image {
                 id: albumImage
                 anchors.fill: parent
@@ -44,7 +44,7 @@ Item {
                 asynchronous: true
                 cache: false
                 
-                // 圆形裁剪
+                // 鍦嗗舰瑁佸壀
                 layer.enabled: true
                 layer.effect: ShaderEffect {
                     property variant source: albumImage
@@ -64,23 +64,23 @@ Item {
         }
     }
     
-    // 旋转动画
+    // 鏃嬭浆鍔ㄧ敾
     RotationAnimator {
         id: rotationAnimator
         target: innerCircle
         from: innerCircle.rotation
         to: innerCircle.rotation + 360
-        duration: 12000  // 12秒转一圈
+        duration: 12000  // 12绉掕浆涓€鍦?
         loops: Animation.Infinite
         running: root.isRotating
         
         onStopped: {
-            // 保持当前角度
+            // 淇濇寔褰撳墠瑙掑害
             root.rotationAngle = innerCircle.rotation % 360
         }
     }
     
-    // 公共方法
+    // 鍏叡鏂规硶
     function startRotation() {
         isRotating = true
     }
@@ -90,7 +90,7 @@ Item {
     }
     
     function setImage(imagePath) {
-        // 处理路径格式
+        // 澶勭悊璺緞鏍煎紡
         if (imagePath.startsWith("file:///")) {
             root.imageSource = imagePath
         } else if (imagePath.startsWith("qrc:/")) {
@@ -103,3 +103,4 @@ Item {
         console.log("RotatingCircle: Image set to:", root.imageSource)
     }
 }
+

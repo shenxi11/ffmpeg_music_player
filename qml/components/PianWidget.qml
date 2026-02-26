@@ -1,4 +1,4 @@
-import QtQuick 2.14
+﻿import QtQuick 2.14
 import QtQuick.Controls 2.14
 
 Item {
@@ -8,7 +8,7 @@ Item {
     
     signal upClicked()
     
-    property string songName: "暂无歌曲"
+    property string songName: "鏆傛棤姝屾洸"
     property string picPath: "qrc:/new/prefix1/icon/pian.png"
     
     Rectangle {
@@ -20,7 +20,7 @@ Item {
             anchors.margins: 2
             spacing: 5
             
-            // 封面图片
+            // 灏侀潰鍥剧墖
             Image {
                 id: coverImage
                 width: 76  // 80 - 4 (margins)
@@ -31,7 +31,7 @@ Item {
                 antialiasing: true
             }
             
-            // 歌曲名称
+            // 姝屾洸鍚嶇О
             Text {
                 id: nameText
                 width: 65  // 150 - 80 - 5 = 65
@@ -56,7 +56,7 @@ Item {
         }
     }
     
-    // 公开给 C++ 调用的函数
+    // 鍏紑缁?C++ 璋冪敤鐨勫嚱鏁?
     function setName(name) {
         root.songName = name
     }
@@ -65,3 +65,4 @@ Item {
         root.picPath = path
     }
 }
+

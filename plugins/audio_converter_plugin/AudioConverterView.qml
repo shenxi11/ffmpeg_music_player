@@ -1,4 +1,4 @@
-import QtQuick 2.14
+﻿import QtQuick 2.14
 import QtQuick.Controls 2.14
 import QtQuick.Layouts 1.14
 import QtGraphicalEffects 1.14
@@ -8,10 +8,10 @@ Item {
     width: 820
     height: 680
     
-    // 窗口拖动相关
+    // 绐楀彛鎷栧姩鐩稿叧
     property point clickPos: Qt.point(0, 0)
     
-    // 主容器 - 带圆角和阴影
+    // 涓诲鍣?- 甯﹀渾瑙掑拰闃村奖
     Rectangle {
         id: mainContainer
         anchors.fill: parent
@@ -19,7 +19,7 @@ Item {
         radius: 15
         color: "transparent"
         
-        // 阴影效果
+        // 闃村奖鏁堟灉
         layer.enabled: true
         layer.effect: DropShadow {
             transparentBorder: true
@@ -30,7 +30,7 @@ Item {
             color: "#40000000"
         }
         
-        // 背景渐变
+        // 鑳屾櫙娓愬彉
         Rectangle {
             anchors.fill: parent
             radius: parent.radius
@@ -39,13 +39,13 @@ Item {
                 GradientStop { position: 1.0; color: "#e8eef5" }
             }
             
-            // 自定义标题栏
+            // 鑷畾涔夋爣棰樻爮
             Rectangle {
                 id: titleBar
                 width: parent.width
                 height: 45
                 radius: parent.radius
-                color: "#667eea"
+                color: "#EC4141"
                 
                 Rectangle {
                     anchors.bottom: parent.bottom
@@ -77,22 +77,22 @@ Item {
                     spacing: 10
                     
                     Label {
-                        text: "🎵"
+                        text: "馃幍"
                         font.pixelSize: 20
                         color: "white"
                     }
                     
                     Label {
-                        text: "音频格式转换器"
+                        text: "闊抽鏍煎紡杞崲鍣?
                         font.pixelSize: 16
                         font.bold: true
                         color: "white"
                         Layout.fillWidth: true
                     }
                     
-                    // 最小化按钮
+                    // 鏈€灏忓寲鎸夐挳
                     Button {
-                        text: "−"
+                        text: "鈭?
                         font.pixelSize: 18
                         Layout.preferredWidth: 30
                         Layout.preferredHeight: 30
@@ -112,9 +112,9 @@ Item {
                         }
                     }
                     
-                    // 关闭按钮
+                    // 鍏抽棴鎸夐挳
                     Button {
-                        text: "×"
+                        text: "脳"
                         font.pixelSize: 20
                         Layout.preferredWidth: 30
                         Layout.preferredHeight: 30
@@ -136,7 +136,7 @@ Item {
                 }
             }
             
-            // 内容区域
+            // 鍐呭鍖哄煙
             ScrollView {
                 id: scrollView
                 anchors.fill: parent
@@ -150,7 +150,7 @@ Item {
             width: scrollView.availableWidth
             spacing: 25
             
-            // 输入文件卡片
+            // 杈撳叆鏂囦欢鍗＄墖
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 100
@@ -173,7 +173,7 @@ Item {
                     spacing: 12
                     
                     Label {
-                        text: "📂 输入文件"
+                        text: "馃搨 杈撳叆鏂囦欢"
                         font.pixelSize: 16
                         font.bold: true
                         color: "#2d3748"
@@ -186,7 +186,7 @@ Item {
                         TextField {
                             id: inputFileField
                             text: backend.inputFile
-                            placeholderText: "点击右侧按钮选择音频文件..."
+                            placeholderText: "鐐瑰嚮鍙充晶鎸夐挳閫夋嫨闊抽鏂囦欢..."
                             readOnly: true
                             Layout.fillWidth: true
                             font.pixelSize: 14
@@ -194,20 +194,20 @@ Item {
                             background: Rectangle {
                                 radius: 8
                                 color: "#f7fafc"
-                                border.color: inputFileField.activeFocus ? "#667eea" : "#e2e8f0"
+                                border.color: inputFileField.activeFocus ? "#EC4141" : "#e2e8f0"
                                 border.width: 2
                             }
                         }
                         
                         Button {
-                            text: "浏览"
+                            text: "娴忚"
                             font.pixelSize: 14
                             font.bold: true
                             onClicked: backend.selectInputFile()
                             
                             background: Rectangle {
                                 radius: 8
-                                color: parent.hovered ? "#5568d3" : "#667eea"
+                                color: parent.hovered ? "#5568d3" : "#EC4141"
                                 
                                 Behavior on color {
                                     ColorAnimation { duration: 200 }
@@ -229,7 +229,7 @@ Item {
                 }
             }
             
-            // 输出设置卡片
+            // 杈撳嚭璁剧疆鍗＄墖
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 280
@@ -252,7 +252,7 @@ Item {
                     spacing: 15
                     
                     Label {
-                        text: "⚙️ 输出设置"
+                        text: "鈿欙笍 杈撳嚭璁剧疆"
                         font.pixelSize: 16
                         font.bold: true
                         color: "#2d3748"
@@ -265,7 +265,7 @@ Item {
                         columnSpacing: 15
                         
                         Label {
-                            text: "格式:"
+                            text: "鏍煎紡:"
                             font.pixelSize: 14
                             color: "#4a5568"
                         }
@@ -285,13 +285,13 @@ Item {
                             background: Rectangle {
                                 radius: 8
                                 color: formatCombo.pressed ? "#f7fafc" : "white"
-                                border.color: formatCombo.activeFocus ? "#667eea" : "#e2e8f0"
+                                border.color: formatCombo.activeFocus ? "#EC4141" : "#e2e8f0"
                                 border.width: 2
                             }
                         }
                         
                         Label {
-                            text: "比特率:"
+                            text: "姣旂壒鐜?"
                             font.pixelSize: 14
                             color: "#4a5568"
                         }
@@ -313,7 +313,7 @@ Item {
                                 background: Rectangle {
                                     radius: 8
                                     color: "#f7fafc"
-                                    border.color: bitrateSpinBox.activeFocus ? "#667eea" : "#e2e8f0"
+                                    border.color: bitrateSpinBox.activeFocus ? "#EC4141" : "#e2e8f0"
                                     border.width: 2
                                 }
                             }
@@ -326,7 +326,7 @@ Item {
                         }
                         
                         Label {
-                            text: "采样率:"
+                            text: "閲囨牱鐜?"
                             font.pixelSize: 14
                             color: "#4a5568"
                         }
@@ -345,13 +345,13 @@ Item {
                             background: Rectangle {
                                 radius: 8
                                 color: sampleRateCombo.pressed ? "#f7fafc" : "white"
-                                border.color: sampleRateCombo.activeFocus ? "#667eea" : "#e2e8f0"
+                                border.color: sampleRateCombo.activeFocus ? "#EC4141" : "#e2e8f0"
                                 border.width: 2
                             }
                         }
                         
                         Label {
-                            text: "输出文件:"
+                            text: "杈撳嚭鏂囦欢:"
                             font.pixelSize: 14
                             color: "#4a5568"
                         }
@@ -363,7 +363,7 @@ Item {
                             TextField {
                                 id: outputFileField
                                 text: backend.outputFile
-                                placeholderText: "输出文件路径..."
+                                placeholderText: "杈撳嚭鏂囦欢璺緞..."
                                 readOnly: true
                                 Layout.fillWidth: true
                                 font.pixelSize: 14
@@ -371,13 +371,13 @@ Item {
                                 background: Rectangle {
                                     radius: 8
                                     color: "#f7fafc"
-                                    border.color: outputFileField.activeFocus ? "#667eea" : "#e2e8f0"
+                                    border.color: outputFileField.activeFocus ? "#EC4141" : "#e2e8f0"
                                     border.width: 2
                                 }
                             }
                             
                             Button {
-                                text: "另存为"
+                                text: "鍙﹀瓨涓?
                                 font.pixelSize: 13
                                 onClicked: backend.selectOutputFile()
                                 
@@ -401,7 +401,7 @@ Item {
                 }
             }
             
-            // 进度条
+            // 杩涘害鏉?
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 80
@@ -425,7 +425,7 @@ Item {
                     spacing: 10
                     
                     Label {
-                        text: "⏳ 转换进度"
+                        text: "鈴?杞崲杩涘害"
                         font.pixelSize: 14
                         font.bold: true
                         color: "#2d3748"
@@ -449,7 +449,7 @@ Item {
                                 height: parent.height
                                 radius: 4
                                 gradient: Gradient {
-                                    GradientStop { position: 0.0; color: "#667eea" }
+                                    GradientStop { position: 0.0; color: "#EC4141" }
                                     GradientStop { position: 1.0; color: "#764ba2" }
                                 }
                             }
@@ -465,13 +465,13 @@ Item {
                 }
             }
             
-            // 状态文本
+            // 鐘舵€佹枃鏈?
             Label {
                 text: backend.statusText
                 font.pixelSize: 14
                 font.bold: true
-                color: backend.statusText.startsWith("错误") ? "#e53e3e" : 
-                       backend.statusText.includes("完成") ? "#38a169" : "#667eea"
+                color: backend.statusText.startsWith("閿欒") ? "#e53e3e" : 
+                       backend.statusText.includes("瀹屾垚") ? "#EC4141" : "#EC4141"
                 Layout.alignment: Qt.AlignHCenter
                 
                 Behavior on color {
@@ -479,14 +479,14 @@ Item {
                 }
             }
             
-            // 操作按钮
+            // 鎿嶄綔鎸夐挳
             RowLayout {
                 Layout.alignment: Qt.AlignHCenter
                 spacing: 15
                 
                 Button {
                     id: startButton
-                    text: backend.isConverting ? "⏸️ 停止转换" : "▶️ 开始转换"
+                    text: backend.isConverting ? "鈴革笍 鍋滄杞崲" : "鈻讹笍 寮€濮嬭浆鎹?
                     enabled: backend.inputFile !== "" && backend.outputFile !== ""
                     onClicked: {
                         if (backend.isConverting) {
@@ -506,7 +506,7 @@ Item {
                         gradient: Gradient {
                             GradientStop { 
                                 position: 0.0
-                                color: startButton.enabled ? (startButton.hovered ? "#5568d3" : "#667eea") : "#cbd5e0"
+                                color: startButton.enabled ? (startButton.hovered ? "#5568d3" : "#EC4141") : "#cbd5e0"
                             }
                             GradientStop { 
                                 position: 1.0
@@ -529,7 +529,7 @@ Item {
                 }
                 
                 Button {
-                    text: "🗑️ 清空"
+                    text: "馃棏锔?娓呯┖"
                     onClicked: backend.clearAll()
                     enabled: !backend.isConverting
                     font.pixelSize: 15
@@ -569,10 +569,11 @@ Item {
         target: backend
         function onConversionFinished(success, message) {
             if (success) {
-                console.log("✅ 转换成功:", message)
+                console.log("鉁?杞崲鎴愬姛:", message)
             } else {
-                console.log("❌ 转换失败:", message)
+                console.log("鉂?杞崲澶辫触:", message)
             }
         }
     }
 }
+

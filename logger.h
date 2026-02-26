@@ -1,12 +1,15 @@
-#ifndef LOGGER_H
+﻿#ifndef LOGGER_H
 #define LOGGER_H
 
 #include <QString>
 
-// 初始化日志系统
-void initLogger(const QString& logFilePath);
+// Initialize logger. If path is empty, logger will use a default path.
+void initLogger(const QString& logFilePath = QString());
 
-// 清理日志系统
+// Shutdown logger and flush pending logs.
 void cleanupLogger();
+
+// Current log file path after initialization.
+QString currentLogFilePath();
 
 #endif // LOGGER_H

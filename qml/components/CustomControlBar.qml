@@ -1,4 +1,4 @@
-import QtQuick 2.14
+﻿import QtQuick 2.14
 
 Item {
     id: root
@@ -19,7 +19,7 @@ Item {
     property real progress: 0.0
     property int currentSeconds: 0
     property int totalSeconds: 0
-    property string songName: "暂无播放"
+    property string songName: "鏆傛棤鎾斁"
     property string artist: ""
     property string coverUrl: ""
     property int loopMode: 0
@@ -72,7 +72,7 @@ Item {
             }
             
             Text {
-                text: root.artist || "未知艺术家"
+                text: root.artist || "鏈煡鑹烘湳瀹?
                 font.family: "Microsoft YaHei"
                 font.pixelSize: 12
                 color: "#B3FFFFFF"
@@ -99,7 +99,7 @@ Item {
                 color: prevBtn.containsMouse ? "#40FFFFFF" : "transparent"
                 
                 Text {
-                    text: "⏮"
+                    text: "鈴?
                     font.pixelSize: 20
                     color: "white"
                     anchors.centerIn: parent
@@ -121,7 +121,7 @@ Item {
                 color: playBtn.containsMouse ? "#F2FFFFFF" : "#D9FFFFFF"
                 
                 Text {
-                    text: root.isPlaying ? "⏸" : "▶"
+                    text: root.isPlaying ? "鈴? : "鈻?
                     font.pixelSize: 20
                     color: "#667eea"
                     anchors.centerIn: parent
@@ -146,7 +146,7 @@ Item {
                 color: nextBtn.containsMouse ? "#40FFFFFF" : "transparent"
                 
                 Text {
-                    text: "⏭"
+                    text: "鈴?
                     font.pixelSize: 20
                     color: "white"
                     anchors.centerIn: parent
@@ -254,7 +254,7 @@ Item {
             
             Text {
                 anchors.centerIn: parent
-                text: root.loopMode === 0 ? "🔁" : root.loopMode === 1 ? "🔂" : "🔀"
+                text: root.loopMode === 0 ? "馃攣" : root.loopMode === 1 ? "馃攤" : "馃攢"
                 font.pixelSize: 16
             }
             
@@ -276,7 +276,7 @@ Item {
             
             Text {
                 anchors.centerIn: parent
-                text: "词"
+                text: "璇?
                 font.family: "Microsoft YaHei"
                 font.pixelSize: 14
                 font.bold: true
@@ -297,7 +297,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             
             Text {
-                text: root.volume > 0.5 ? "🔊" : root.volume > 0 ? "🔉" : "🔇"
+                text: root.volume > 0.5 ? "馃攰" : root.volume > 0 ? "馃攭" : "馃攪"
                 font.pixelSize: 16
                 anchors.verticalCenter: parent.verticalCenter
             }
@@ -363,7 +363,7 @@ Item {
             
             Text {
                 anchors.centerIn: parent
-                text: "☰"
+                text: "鈽?
                 font.pixelSize: 16
                 color: "white"
             }
@@ -410,3 +410,4 @@ Item {
         root.loopMode = mode
     }
 }
+

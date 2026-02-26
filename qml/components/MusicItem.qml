@@ -1,4 +1,4 @@
-import QtQuick 2.14
+﻿import QtQuick 2.14
 import QtQuick.Controls 2.14
 import QtGraphicalEffects 1.14
 
@@ -8,13 +8,13 @@ Rectangle {
     height: 60
     color: "transparent"
 
-    property string songName: "未知歌曲"
-    property string artist: "未知歌手"
+    property string songName: "鏈煡姝屾洸"
+    property string artist: "鏈煡姝屾墜"
     property string duration: "0:00"
     property string cover: ""
     property string filePath: ""
     property bool isNet: false
-    property bool isPlaying: false  // 播放状态
+    property bool isPlaying: false  // 鎾斁鐘舵€?
 
     signal playRequested(string songName)
     signal removeRequested(string songName)
@@ -35,7 +35,7 @@ Rectangle {
         anchors.rightMargin: 10
         spacing: 15
 
-        // 封面图片
+        // 灏侀潰鍥剧墖
         Rectangle {
             width: 44
             height: 44
@@ -66,7 +66,7 @@ Rectangle {
             }
         }
 
-        // 歌曲信息
+        // 姝屾洸淇℃伅
         Column {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 4
@@ -81,15 +81,15 @@ Rectangle {
                 width: parent.width
             }
             Text { 
-                text: root.artist !== "" ? root.artist : "未知艺术家"
+                text: root.artist !== "" ? root.artist : "鏈煡鑹烘湳瀹?
                 font.pixelSize: 11
                 color: "#888888"
             }
         }
 
-        Item { width: 50 }  // 弹性空间
+        Item { width: 50 }  // 寮规€х┖闂?
 
-        // 时长
+        // 鏃堕暱
         Text {
             text: root.duration
             anchors.verticalCenter: parent.verticalCenter
@@ -98,7 +98,7 @@ Rectangle {
             width: 50
         }
 
-        // 操作按钮，hover 时显示
+        // 鎿嶄綔鎸夐挳锛宧over 鏃舵樉绀?
         Row {
             id: buttonRow
             spacing: 8
@@ -108,7 +108,7 @@ Rectangle {
             
             Behavior on opacity { NumberAnimation { duration: 150 } }
 
-            // 播放按钮
+            // 鎾斁鎸夐挳
             Rectangle {
                 width: 32
                 height: 32
@@ -117,7 +117,7 @@ Rectangle {
                 
                 Text {
                     anchors.centerIn: parent
-                    text: root.isPlaying ? "⏸" : "▶"
+                    text: root.isPlaying ? "鈴? : "鈻?
                     font.pixelSize: 14
                     color: playBtnArea.containsMouse ? "white" : "#333333"
                 }
@@ -131,7 +131,7 @@ Rectangle {
                 }
             }
 
-            // 删除按钮（本地音乐）
+            // 鍒犻櫎鎸夐挳锛堟湰鍦伴煶涔愶級
             Rectangle {
                 width: 60
                 height: 28
@@ -141,7 +141,7 @@ Rectangle {
                 
                 Text {
                     anchors.centerIn: parent
-                    text: "删除"
+                    text: "鍒犻櫎"
                     font.pixelSize: 12
                     color: removeBtnArea.containsMouse ? "white" : "#666666"
                 }
@@ -155,7 +155,7 @@ Rectangle {
                 }
             }
 
-            // 下载按钮（网络音乐）
+            // 涓嬭浇鎸夐挳锛堢綉缁滈煶涔愶級
             Rectangle {
                 width: 60
                 height: 28
@@ -165,7 +165,7 @@ Rectangle {
                 
                 Text {
                     anchors.centerIn: parent
-                    text: "下载"
+                    text: "涓嬭浇"
                     font.pixelSize: 12
                     color: downloadBtnArea.containsMouse ? "white" : "#666666"
                 }
@@ -186,12 +186,12 @@ Rectangle {
         anchors.fill: parent
         hoverEnabled: true
         onClicked: {
-            // 点击整体项视为播放
+            // 鐐瑰嚮鏁翠綋椤硅涓烘挱鏀?
             root.playRequested(root.songName)
         }
     }
 
-    // 提供给 C++ 调用的方法
+    // 鎻愪緵缁?C++ 璋冪敤鐨勬柟娉?
     function setPlayingState(playing) {
         root.isPlaying = playing
     }
@@ -200,3 +200,4 @@ Rectangle {
         root.playRequested(root.filePath)
     }
 }
+
