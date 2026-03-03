@@ -66,10 +66,40 @@ set(FFMPEG_INCLUDE_DIR "${FFMPEG_DIR}/../include")
 set(FFMPEG_LIB_DIR "${FFMPEG_DIR}/../lib")
 
 # 包含目录
-include_directories(
+# ????????
+set(SRC_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/src")
+
+# ????????
+file(GLOB_RECURSE PROJECT_SOURCES CONFIGURE_DEPENDS
+    "${SRC_ROOT}/*.cpp"
+    "${SRC_ROOT}/*.h"
+)
+
+# ?????????????????
+list(FILTER PROJECT_SOURCES EXCLUDE REGEX ".*/PlayViewModel\.cpp$")
+list(FILTER PROJECT_SOURCES EXCLUDE REGEX ".*/main_qml\.cpp$")
+
+# include ?????? include + ????
+set(PROJECT_INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}
+    ${SRC_ROOT}
+)
+
+file(GLOB_RECURSE MODULE_DIRS LIST_DIRECTORIES true
+    "${SRC_ROOT}/*"
+)
+foreach(dir ${MODULE_DIRS})
+    if(IS_DIRECTORY "${dir}")
+        list(APPEND PROJECT_INCLUDE_DIRS "${dir}")
+    endif()
+endforeach()
+list(REMOVE_DUPLICATES PROJECT_INCLUDE_DIRS)
+
+include_directories(
+    ${PROJECT_INCLUDE_DIRS}
     ${FFMPEG_INCLUDE_DIR}
 )
+
 
 # 链接目录
 link_directories(
@@ -77,118 +107,7 @@ link_directories(
 )
 
 # 源文件
-set(PROJECT_SOURCES
-    main.cpp
-    controlbar_qml.h
-    pianwidget_qml.h
-    process_slider_qml.h
-    playlist_history_qml.h
-    playlist_history_qml.cpp
-    play_history_widget.h
-    play_history_widget.cpp
-    favorite_music_widget.h
-    favorite_music_widget.cpp
-    desk_lrc_widget.cpp
-    desk_lrc_widget.h
-    desk_lrc_settings.cpp
-    desk_lrc_settings.h
-    downloadthread.cpp
-    downloadthread.h
-    download_manager.cpp
-    download_manager.h
-    download_task_model.cpp
-    download_task_model.h
-    local_music_cache.h
-    local_music_cache.cpp
-    local_music_model.cpp
-    local_music_model.h
-    headers.h
-    logger.cpp
-    logger.h
-    
-    # 新网络层（方案B重构）
-    network/network_types.h
-    network/network_manager.h
-    network/network_manager.cpp
-    network/response_cache.h
-    network/response_cache.cpp
-    network/network_service.h
-    network/network_service.cpp
-    
-    # HttpRequest重构示例（V2）
-    httprequest_v2.h
-    httprequest_v2.cpp
-    user.h
-    user.cpp
-    local_and_download_widget.cpp
-    local_and_download_widget.h
-    loginwidget.cpp
-    loginwidget.h
-    loginwidget_qml.h
-    lrc_analyze.cpp
-    lrc_analyze.h
-    main_widget.cpp
-    main_widget.h
-    main_menu.cpp
-    main_menu.h
-    mini_controlbar.cpp
-    mini_controlbar.h
-    music.h
-    music.cpp
-    music_item.cpp
-    music_item.h
-    music_item_qml.h
-    music_list_widget_qml.h
-    music_list_widget_net_qml.h
-    music_list_widget_net_qml.cpp
-    music_list_widget.cpp
-    music_list_widget.h
-    music_list_widget_local.cpp
-    music_list_widget_local.h
-    music_list_widget_net.cpp
-    music_list_widget_net.h
-    video_list_widget.cpp
-    video_list_widget.h
-    video_list_widget_qml.cpp
-    video_list_widget_qml.h
-    play_widget.cpp
-    play_widget.h
-    plugin_interface.h
-    plugin_manager.cpp
-    plugin_manager.h
-    rotatingcircleimage.cpp
-    rotatingcircleimage.h
-    searchbox_qml.h
-    settings_manager.cpp
-    settings_manager.h
-    settings_widget.cpp
-    settings_widget.h
-    take_pcm.cpp
-    take_pcm.h
-    user_widget.cpp
-    user_widget.h
-    userwidget_qml.h
-    VideoPlayerWindow.h
-    VideoPlayerWindow.cpp
-    MediaService.h
-    MediaService.cpp
-    MediaSession.h
-    MediaSession.cpp
-    VideoSession.h
-    VideoSession.cpp
-    VideoDecoder.h
-    VideoDecoder.cpp
-    VideoBuffer.h
-    VideoBuffer.cpp
-    VideoRenderer.h
-    VideoRenderer.cpp
-    VideoRendererGL.h
-    VideoRendererGL.cpp
-    worker.cpp
-    worker.h
-)
-
-# 资源文件
+# ????
 set(PROJECT_RESOURCES
     pic.qrc
     qml.qrc
@@ -200,20 +119,10 @@ set(PROJECT_TRANSLATIONS
 )
 
 # 创建可执行文件（Qt5）
+
 add_executable(${PROJECT_NAME}
     ${PROJECT_SOURCES}
     ${PROJECT_RESOURCES}
-    lyricdisplay_qml.h
-    desklrc_qml.h
-    AudioBuffer.h AudioBuffer.cpp
-    AudioDecoder.h AudioDecoder.cpp
-    AudioPlayer.h AudioPlayer.cpp
-    AudioSession.h AudioSession.cpp
-    AudioService.h AudioService.cpp
-    
-    # ViewModel 层（MVVM架构）
-    viewmodels/BaseViewModel.h viewmodels/BaseViewModel.cpp
-    viewmodels/PlaybackViewModel.h viewmodels/PlaybackViewModel.cpp
 )
 
 
@@ -224,6 +133,7 @@ if(Qt5_LinguistTools_FOUND AND PROJECT_TRANSLATIONS)
 endif()
 
 # 链接 Qt5 库
+
 target_link_libraries(${PROJECT_NAME} PRIVATE
     Qt5::Core
     Qt5::Gui
@@ -238,6 +148,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 )
 
 # 链接 FFmpeg 库
+
 target_link_libraries(${PROJECT_NAME} PRIVATE
     avcodec
     avformat
@@ -249,12 +160,15 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 )
 
 # 链接 OpenGL 库
+
 find_package(OpenGL REQUIRED)
+
 target_link_libraries(${PROJECT_NAME} PRIVATE
     OpenGL::GL
 )
 
 # 设置输出目录（使用 CMake 默认路径）
+
 set_target_properties(${PROJECT_NAME} PROPERTIES
     WIN32_EXECUTABLE TRUE
 )
@@ -278,6 +192,7 @@ install(TARGETS ${PROJECT_NAME}
 )
 
 # 复制 FFmpeg DLL 到输出目录（Windows）
+
 if(WIN32)
     set(FFMPEG_DLLS
         "${FFMPEG_DIR}/avcodec-58.dll"
@@ -301,7 +216,8 @@ if(WIN32)
     
     # 自动部署 Qt5 DLL
     # 使用 windeployqt 工具自动复制所有需要的 Qt DLL 和插件
-    find_program(WINDEPLOYQT_EXECUTABLE windeployqt HINTS "${Qt5_DIR}/../../../bin")
+    
+find_program(WINDEPLOYQT_EXECUTABLE windeployqt HINTS "${Qt5_DIR}/../../../bin")
     if(WINDEPLOYQT_EXECUTABLE)
         message(STATUS "Found windeployqt: ${WINDEPLOYQT_EXECUTABLE}")
         

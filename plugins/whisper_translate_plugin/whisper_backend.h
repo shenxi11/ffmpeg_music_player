@@ -9,7 +9,7 @@
 #include <atomic>
 #include <mutex>
 #include <condition_variable>
-#include "../../take_pcm.h"
+#include "take_pcm.h"
 
 // 前向声明
 struct whisper_context;

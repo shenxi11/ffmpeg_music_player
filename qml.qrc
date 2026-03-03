@@ -1,31 +1,35 @@
-<RCC>
+﻿<RCC>
     <qresource prefix="/">
-        <file>qml/components/SearchBox.qml</file>
-        <file>qml/components/LoginWindow.qml</file>
-        <file>qml/components/UserWidget.qml</file>
-        <file>qml/components/UserPopupWindow.qml</file>
-        <file>qml/components/MusicItem.qml</file>
-        <file>qml/components/MusicListWidget.qml</file>
-        <file>qml/components/MusicListWidgetNet.qml</file>
-        <file>qml/components/ControlBar.qml</file>
-        <file>qml/components/PianWidget.qml</file>
-        <file>qml/components/ProcessSlider.qml</file>
-        <file>qml/components/VolumeSlider.qml</file>
+        <file>qml/components/search/SearchBox.qml</file>
+        <file>qml/components/auth/LoginWindow.qml</file>
+        <file>qml/components/user/UserWidget.qml</file>
+        <file>qml/components/user/UserPopupWindow.qml</file>
+        <file>qml/components/library/MusicItem.qml</file>
+        <file>qml/components/library/MusicListWidget.qml</file>
+        <file>qml/components/library/MusicListWidgetNet.qml</file>
+        <file>qml/components/playback/ControlBar.qml</file>
+        <file>qml/components/playback/CustomControlBar.qml</file>
+        <file>qml/components/playback/PianWidget.qml</file>
+        <file>qml/components/playback/ProcessSlider.qml</file>
+        <file>qml/components/playback/VolumeSlider.qml</file>
         <file>qml/components/qmldir</file>
-        <file>qml/components/LyricDisplay.qml</file>
-        <file>qml/components/DeskLyric.qml</file>
-        <file>qml/components/DeskLyricSettings.qml</file>
-        <file>qml/components/VideoPlayerWidget.qml</file>
-        <file>qml/components/PlaylistHistory.qml</file>
-        <file>qml/components/PlayModePopup.qml</file>
-        <file>qml/components/VideoListWidget.qml</file>
-        <file>qml/components/Settings.qml</file>
-        <file>qml/components/LocalAndDownloadWidget.qml</file>
-        <file>qml/components/LocalMusicList.qml</file>
-        <file>qml/components/DownloadedMusicList.qml</file>
-        <file>qml/components/DownloadingList.qml</file>
-        <file>qml/components/PlayHistoryList.qml</file>
-        <file>qml/components/FavoriteMusicList.qml</file>
+        <file>qml/components/lyrics/LyricDisplay.qml</file>
+        <file>qml/components/lyrics/DeskLyric.qml</file>
+        <file>qml/components/lyrics/DeskLyricSettings.qml</file>
+        <file>qml/components/video/VideoPlayerWidget.qml</file>
+        <file>qml/components/playback/PlaylistHistory.qml</file>
+        <file>qml/components/playback/PlayModePopup.qml</file>
+        <file>qml/components/playback/PlayWidget.qml</file>
+        <file>qml/components/playback/RotatingCircle.qml</file>
+        <file>qml/components/video/VideoListWidget.qml</file>
+        <file>qml/components/settings/Settings.qml</file>
+        <file>qml/components/library/LocalAndDownloadWidget.qml</file>
+        <file>qml/components/library/LocalMusicList.qml</file>
+        <file>qml/components/library/DownloadedMusicList.qml</file>
+        <file>qml/components/library/DownloadingList.qml</file>
+        <file>qml/components/playback/PlayHistoryList.qml</file>
+        <file>qml/components/playback/FavoriteMusicList.qml</file>
         <file>styles/netease.qss</file>
     </qresource>
 </RCC>
+
