@@ -186,7 +186,7 @@ private:
     bool m_isPaused = false;
     qint64 m_position = 0;
     qint64 m_duration = 0;
-    int m_volume = 100;
+    int m_volume = 50;
     
     // 曲目元数据
     QString m_currentTitle;

@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
     const QString logPath = resolvePrintLogPath();
     initLogger(logPath);
     qDebug() << "=========================================";
-    qDebug() << "FFmpeg Music Player Starting...";
+    qDebug() << "YunMusic Starting...";
     qDebug() << "Log file:" << currentLogFilePath();
     
     // 打印运行时 DLL 搜索信息，便于排查依赖加载失败
@@ -79,6 +79,7 @@ int main(int argc, char *argv[])
     // 设置组织与应用名（影响配置文件路径等 Qt 行为）
     a.setOrganizationName("MusicPlayer");
     a.setApplicationName("FFmpegMusicPlayer");
+    a.setApplicationDisplayName(QStringLiteral(u"\u4e91\u97f3\u4e50"));
 
     QFile themeFile(":/styles/netease.qss");
     if (themeFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -88,7 +89,7 @@ int main(int argc, char *argv[])
         qWarning() << "Failed to load NetEase theme stylesheet";
     }
 
-    a.setWindowIcon(QIcon("qrc:/new/prefix1/icon/netease.png"));
+    a.setWindowIcon(QIcon("qrc:/new/prefix1/icon/netease.ico"));
 
     setlocale(LC_ALL, "chs");
 

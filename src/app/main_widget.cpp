@@ -10,6 +10,7 @@
 #include <QApplication>
 #include <QCoreApplication>
 #include <QFileInfo>
+#include <QIcon>
 #include <QTimer>
 
 namespace {
@@ -77,6 +78,8 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     resize(1000,600);
     setWindowFlags(Qt::CustomizeWindowHint);
     setAttribute(Qt::WA_QuitOnClose, true);
+    setWindowTitle(QStringLiteral(u"\u4e91\u97f3\u4e50"));
+    setWindowIcon(QIcon("qrc:/new/prefix1/icon/netease.ico"));
     
     setObjectName("MainWidget");
 
@@ -258,7 +261,7 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     icolabel->setScaledContents(true);
     icolabel->setFixedSize(40, 40);
 
-    QLabel *textLabel = new QLabel(QStringLiteral(u"\u7f51\u6613\u4e91\u97f3\u4e50"), textWidget);
+    QLabel *textLabel = new QLabel(QStringLiteral(u"\u4e91\u97f3\u4e50"), textWidget);
     QFont font;
     font.setFamily("Microsoft YaHei");
     font.setPointSize(16);

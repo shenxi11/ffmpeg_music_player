@@ -40,7 +40,7 @@ LoginWidget::LoginWidget(QWidget *parent) : QWidget(parent)
         "}"
     );
 
-    QLabel *titleLabel = new QLabel("🎵 网易云音乐", titleBar);
+    QLabel *titleLabel = new QLabel("🎵 云音乐", titleBar);
     titleLabel->setStyleSheet(
         "QLabel {"
         "    color: white;"

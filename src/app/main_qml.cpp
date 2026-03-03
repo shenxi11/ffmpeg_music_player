@@ -58,7 +58,7 @@ int main(int argc, char *argv[])
     const QString logPath = resolvePrintLogPath();
     initLogger(logPath);
     qDebug() << "=========================================";
-    qDebug() << "FFmpeg Music Player (QML Version) Starting...";
+    qDebug() << "YunMusic (QML Version) Starting...";
     qDebug() << "Log file:" << currentLogFilePath();
 
 #ifdef Q_OS_WIN
@@ -70,7 +70,8 @@ int main(int argc, char *argv[])
 
     app.setOrganizationName("MusicPlayer");
     app.setApplicationName("FFmpegMusicPlayer");
-    app.setWindowIcon(QIcon("qrc:/new/prefix1/icon/netease.png"));
+    app.setApplicationDisplayName(QStringLiteral(u"\u4e91\u97f3\u4e50"));
+    app.setWindowIcon(QIcon("qrc:/new/prefix1/icon/netease.ico"));
 
     setlocale(LC_ALL, "chs");
 

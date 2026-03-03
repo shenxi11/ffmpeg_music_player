@@ -2,9 +2,10 @@
 
 #include "settings_manager.h"
 
+#include <QAbstractSpinBox>
 #include <QEventLoop>
-#include <QFormLayout>
 #include <QFrame>
+#include <QGridLayout>
 #include <QHBoxLayout>
 #include <QJsonDocument>
 #include <QJsonParseError>
@@ -41,69 +42,115 @@ ServerWelcomeDialog::ServerWelcomeDialog(QWidget* parent)
     , m_networkManager(new QNetworkAccessManager(this))
 {
     setObjectName(QStringLiteral("ServerWelcomeDialog"));
-    setWindowTitle(QStringLiteral(u"欢迎使用 CloudMusic 私域播放器"));
+    setWindowTitle(QStringLiteral(u"\u6b22\u8fce\u4f7f\u7528 \u4e91\u97f3\u4e50"));
     setModal(true);
-    setFixedSize(640, 420);
+    setFixedSize(760, 500);
 
     setStyleSheet(QStringLiteral(
         "QDialog#ServerWelcomeDialog {"
         "  background: qlineargradient(x1:0,y1:0,x2:1,y2:1,"
-        "              stop:0 #f7f9fc, stop:0.55 #f2f5fa, stop:1 #eef2f8);"
+        "              stop:0 #fff7f7, stop:0.45 #fffafa, stop:1 #f8f9fc);"
         "}"
         "QFrame#MainCard {"
         "  background: #ffffff;"
-        "  border: 1px solid #e8edf5;"
+        "  border: 1px solid #f1d8d8;"
         "  border-radius: 16px;"
         "}"
+        "QFrame#BrandLogoWrap {"
+        "  background: #ec4141;"
+        "  border: none;"
+        "  border-radius: 14px;"
+        "}"
+        "QFrame#InfoPanel {"
+        "  background: qlineargradient(x1:0,y1:0,x2:0,y2:1,"
+        "              stop:0 #fff1f1, stop:1 #ffe9e9);"
+        "  border: 1px solid #f8cdcd;"
+        "  border-radius: 14px;"
+        "}"
+        "QFrame#StatusPanel {"
+        "  background: #fff4f4;"
+        "  border: 1px solid #f8cdcd;"
+        "  border-radius: 12px;"
+        "}"
+        "QDialog#ServerWelcomeDialog QLabel {"
+        "  background: transparent;"
+        "}"
         "QLabel#TitleLabel {"
-        "  color: #1f2733;"
-        "  font-size: 22px;"
+        "  color: #1f2329;"
+        "  font-size: 24px;"
         "  font-weight: 700;"
         "}"
         "QLabel#SubTitleLabel {"
-        "  color: #6b7785;"
+        "  color: #6f7785;"
         "  font-size: 13px;"
         "}"
+        "QLabel#BadgeLabel {"
+        "  color: #ffffff;"
+        "  background: #ec4141;"
+        "  border-radius: 10px;"
+        "  padding: 3px 10px;"
+        "  font-size: 11px;"
+        "  font-weight: 700;"
+        "}"
+        "QLabel#SectionTitle {"
+        "  color: #4f5663;"
+        "  font-size: 12px;"
+        "  font-weight: 700;"
+        "}"
         "QLabel#TipLabel {"
-        "  color: #7a8696;"
+        "  color: #6f7785;"
         "  font-size: 12px;"
         "}"
         "QLineEdit, QSpinBox {"
-        "  min-height: 36px;"
-        "  border: 1px solid #dce3ee;"
-        "  border-radius: 10px;"
-        "  padding: 0 10px;"
-        "  background: #ffffff;"
-        "  color: #1f2733;"
+        "  min-height: 44px;"
+        "  border: 1px solid #f1d8d8;"
+        "  border-radius: 12px;"
+        "  padding: 0 14px;"
+        "  background: #fff8f8;"
+        "  color: #1f2329;"
+        "  font-size: 14px;"
+        "}"
+        "QLineEdit:hover, QSpinBox:hover {"
+        "  border: 1px solid #efbebe;"
         "}"
         "QLineEdit:focus, QSpinBox:focus {"
-        "  border: 1px solid #e64545;"
+        "  border: 1px solid #ec4141;"
+        "}"
+        "QSpinBox::up-button, QSpinBox::down-button {"
+        "  width: 0px;"
+        "  border: none;"
         "}"
         "QPushButton {"
-        "  min-height: 36px;"
-        "  border-radius: 10px;"
-        "  padding: 0 16px;"
-        "  font-size: 13px;"
+        "  min-height: 46px;"
+        "  border-radius: 12px;"
+        "  padding: 0 18px;"
+        "  font-size: 14px;"
+        "  font-weight: 600;"
         "}"
         "QPushButton#CancelButton {"
-        "  border: 1px solid #d7deea;"
+        "  border: 1px solid #e1e1e1;"
         "  background: #ffffff;"
-        "  color: #4d5a69;"
+        "  color: #4a515c;"
         "}"
         "QPushButton#CancelButton:hover {"
-        "  background: #f4f7fc;"
+        "  background: #f8f8f8;"
+        "}"
+        "QPushButton#CancelButton:pressed {"
+        "  background: #f3f3f3;"
         "}"
         "QPushButton#PrimaryButton {"
         "  border: none;"
-        "  background: #e64545;"
+        "  background: #ec4141;"
         "  color: #ffffff;"
-        "  font-weight: 600;"
         "}"
         "QPushButton#PrimaryButton:hover {"
-        "  background: #d93b3b;"
+        "  background: #f15a5a;"
+        "}"
+        "QPushButton#PrimaryButton:pressed {"
+        "  background: #d83939;"
         "}"
         "QPushButton#PrimaryButton:disabled {"
-        "  background: #f3a5a5;"
+        "  background: #f3a1a1;"
         "  color: #fff5f5;"
         "}"
     ));
@@ -111,86 +158,146 @@ ServerWelcomeDialog::ServerWelcomeDialog(QWidget* parent)
     QFrame* card = new QFrame(this);
     card->setObjectName(QStringLiteral("MainCard"));
 
-    QLabel* logoLabel = new QLabel(card);
-    logoLabel->setFixedSize(52, 52);
+    QFrame* logoWrap = new QFrame(card);
+    logoWrap->setObjectName(QStringLiteral("BrandLogoWrap"));
+    logoWrap->setFixedSize(56, 56);
+
+    QLabel* logoLabel = new QLabel(logoWrap);
+    logoLabel->setFixedSize(34, 34);
+    logoLabel->move((logoWrap->width() - logoLabel->width()) / 2,
+                    (logoWrap->height() - logoLabel->height()) / 2);
     const QPixmap logo(QStringLiteral(":/new/prefix1/icon/netease.png"));
     if (!logo.isNull()) {
-        logoLabel->setPixmap(logo.scaled(52, 52, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        logoLabel->setPixmap(logo.scaled(34, 34, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     }
 
-    QLabel* titleLabel = new QLabel(QStringLiteral(u"CloudMusic 私域流媒体客户端"), card);
+    QLabel* titleLabel = new QLabel(QStringLiteral(u"\u4e91\u97f3\u4e50 \u79c1\u57df\u6d41\u5a92\u4f53\u5ba2\u6237\u7aef"), card);
     titleLabel->setObjectName(QStringLiteral("TitleLabel"));
-    QFont titleFont = titleLabel->font();
-    titleFont.setPointSize(20);
-    titleFont.setBold(true);
-    titleLabel->setFont(titleFont);
 
     QLabel* subtitleLabel = new QLabel(
-        QStringLiteral(u"启动前先完成服务端连通性验证。验证通过后进入主界面，后续登录/注册流程保持不变。"), card);
+        QStringLiteral(u"\u9996\u6b21\u542f\u52a8\u8bf7\u5148\u9a8c\u8bc1\u670d\u52a1\u5668\u53ef\u8fde\u901a\u6027\uff0c\u9a8c\u8bc1\u901a\u8fc7\u540e\u518d\u8fdb\u5165\u4e3b\u754c\u9762\u3002"), card);
     subtitleLabel->setObjectName(QStringLiteral("SubTitleLabel"));
     subtitleLabel->setWordWrap(true);
 
+    QLabel* badgeLabel = new QLabel(QStringLiteral(u"\u7f51\u6613\u4e91\u98ce\u683c"), card);
+    badgeLabel->setObjectName(QStringLiteral("BadgeLabel"));
+    badgeLabel->setFixedHeight(22);
+    badgeLabel->setAlignment(Qt::AlignCenter);
+
+    QFrame* infoPanel = new QFrame(card);
+    infoPanel->setObjectName(QStringLiteral("InfoPanel"));
+    infoPanel->setFixedWidth(250);
+    QVBoxLayout* infoLayout = new QVBoxLayout(infoPanel);
+    infoLayout->setContentsMargins(14, 14, 14, 14);
+    infoLayout->setSpacing(8);
+    QLabel* infoTitle = new QLabel(QStringLiteral(u"\u4f7f\u7528\u63d0\u793a"), infoPanel);
+    infoTitle->setObjectName(QStringLiteral("SectionTitle"));
+    QLabel* infoLine1 = new QLabel(QStringLiteral(u"\u2022 \u652f\u6301 IP\u3001\u57df\u540d\u6216 host:port \u8f93\u5165"), infoPanel);
+    QLabel* infoLine2 = new QLabel(QStringLiteral(u"\u2022 \u5c06\u4f9d\u6b21\u9a8c\u8bc1 /client/ping \u4e0e /client/bootstrap"), infoPanel);
+    QLabel* infoLine3 = new QLabel(QStringLiteral(u"\u2022 \u9a8c\u8bc1\u6210\u529f\u540e\u81ea\u52a8\u4fdd\u5b58\u670d\u52a1\u7aef\u914d\u7f6e"), infoPanel);
+    infoLine1->setObjectName(QStringLiteral("TipLabel"));
+    infoLine2->setObjectName(QStringLiteral("TipLabel"));
+    infoLine3->setObjectName(QStringLiteral("TipLabel"));
+    infoLine1->setWordWrap(true);
+    infoLine2->setWordWrap(true);
+    infoLine3->setWordWrap(true);
+    infoLayout->addWidget(infoTitle);
+    infoLayout->addWidget(infoLine1);
+    infoLayout->addWidget(infoLine2);
+    infoLayout->addWidget(infoLine3);
+    infoLayout->addStretch();
+
+    QLabel* hostLabel = new QLabel(QStringLiteral(u"\u670d\u52a1\u5668\u5730\u5740"), card);
+    hostLabel->setObjectName(QStringLiteral("SectionTitle"));
     m_hostEdit = new QLineEdit(card);
-    m_hostEdit->setPlaceholderText(QStringLiteral(u"例如：192.168.1.208"));
+    m_hostEdit->setPlaceholderText(QStringLiteral(u"\u4f8b\u5982\uff1a192.168.1.208 \u6216 music.local"));
     m_hostEdit->setText(SettingsManager::instance().serverHost());
 
+    QLabel* portLabel = new QLabel(QStringLiteral(u"\u7aef\u53e3"), card);
+    portLabel->setObjectName(QStringLiteral("SectionTitle"));
     m_portSpin = new QSpinBox(card);
     m_portSpin->setRange(1, 65535);
     m_portSpin->setValue(SettingsManager::instance().serverPort());
+    m_portSpin->setButtonSymbols(QAbstractSpinBox::NoButtons);
+    m_portSpin->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
 
-    QLabel* tipLabel = new QLabel(QStringLiteral(u"支持输入 IP、域名，或 host:port（将自动拆分）。"), card);
+    QLabel* tipLabel = new QLabel(
+        QStringLiteral(u"\u53ef\u76f4\u63a5\u8f93\u5165 host:port\uff0c\u7cfb\u7edf\u4f1a\u81ea\u52a8\u62c6\u5206\u5e76\u586b\u5145\u7aef\u53e3\u3002"), card);
     tipLabel->setObjectName(QStringLiteral("TipLabel"));
     tipLabel->setWordWrap(true);
 
-    QFormLayout* formLayout = new QFormLayout();
-    formLayout->setLabelAlignment(Qt::AlignRight | Qt::AlignVCenter);
-    formLayout->setHorizontalSpacing(12);
-    formLayout->setVerticalSpacing(10);
-    formLayout->addRow(QStringLiteral(u"服务端 IP"), m_hostEdit);
-    formLayout->addRow(QStringLiteral(u"端口"), m_portSpin);
-
     QFrame* statusFrame = new QFrame(card);
-    statusFrame->setStyleSheet(QStringLiteral(
-        "QFrame { background: #f6f9ff; border: 1px solid #dce8ff; border-radius: 10px; }"));
+    statusFrame->setObjectName(QStringLiteral("StatusPanel"));
     QVBoxLayout* statusLayout = new QVBoxLayout(statusFrame);
-    statusLayout->setContentsMargins(12, 10, 12, 10);
+    statusLayout->setContentsMargins(14, 12, 14, 12);
     statusLayout->setSpacing(4);
-    m_statusLabel = new QLabel(QStringLiteral(u"将依次验证 /client/ping 与 /client/bootstrap"), statusFrame);
+    statusFrame->setMinimumHeight(72);
+    m_statusLabel = new QLabel(
+        QStringLiteral(u"\u51c6\u5907\u5b8c\u6210\u8fde\u901a\u9a8c\u8bc1\uff1a/client/ping \u2192 /client/bootstrap"), statusFrame);
     m_statusLabel->setWordWrap(true);
+    m_statusLabel->setObjectName(QStringLiteral("TipLabel"));
     statusLayout->addWidget(m_statusLabel);
 
-    m_verifyButton = new QPushButton(QStringLiteral(u"验证并进入"), card);
+    m_verifyButton = new QPushButton(QStringLiteral(u"\u9a8c\u8bc1\u5e76\u8fdb\u5165"), card);
     m_verifyButton->setObjectName(QStringLiteral("PrimaryButton"));
     m_verifyButton->setDefault(true);
-    m_cancelButton = new QPushButton(QStringLiteral(u"退出"), card);
+    m_cancelButton = new QPushButton(QStringLiteral(u"\u9000\u51fa"), card);
     m_cancelButton->setObjectName(QStringLiteral("CancelButton"));
+    m_verifyButton->setMinimumWidth(138);
+    m_cancelButton->setMinimumWidth(104);
 
     QHBoxLayout* buttonLayout = new QHBoxLayout();
+    buttonLayout->setSpacing(10);
     buttonLayout->addStretch();
     buttonLayout->addWidget(m_cancelButton);
     buttonLayout->addWidget(m_verifyButton);
 
     QHBoxLayout* brandLayout = new QHBoxLayout();
-    brandLayout->setSpacing(12);
-    brandLayout->addWidget(logoLabel, 0, Qt::AlignTop);
+    brandLayout->setSpacing(14);
+    brandLayout->addWidget(logoWrap, 0, Qt::AlignTop);
     QVBoxLayout* textLayout = new QVBoxLayout();
-    textLayout->setSpacing(4);
+    textLayout->setSpacing(6);
     textLayout->addWidget(titleLabel);
     textLayout->addWidget(subtitleLabel);
+    QHBoxLayout* badgeLayout = new QHBoxLayout();
+    badgeLayout->addWidget(badgeLabel, 0, Qt::AlignLeft);
+    badgeLayout->addStretch();
+    textLayout->addLayout(badgeLayout);
     brandLayout->addLayout(textLayout, 1);
 
+    QGridLayout* formGrid = new QGridLayout();
+    formGrid->setHorizontalSpacing(12);
+    formGrid->setVerticalSpacing(10);
+    formGrid->addWidget(hostLabel, 0, 0);
+    formGrid->addWidget(m_hostEdit, 1, 0);
+    formGrid->addWidget(portLabel, 0, 1);
+    formGrid->addWidget(m_portSpin, 1, 1);
+    formGrid->setColumnStretch(0, 3);
+    formGrid->setColumnStretch(1, 1);
+
+    QWidget* rightPane = new QWidget(card);
+    QVBoxLayout* rightLayout = new QVBoxLayout(rightPane);
+    rightLayout->setContentsMargins(0, 0, 0, 0);
+    rightLayout->setSpacing(10);
+    rightLayout->addLayout(formGrid);
+    rightLayout->addWidget(tipLabel);
+    rightLayout->addWidget(statusFrame);
+    rightLayout->addStretch();
+    rightLayout->addLayout(buttonLayout);
+
+    QHBoxLayout* contentLayout = new QHBoxLayout();
+    contentLayout->setSpacing(14);
+    contentLayout->addWidget(infoPanel);
+    contentLayout->addWidget(rightPane, 1);
+
     QVBoxLayout* cardLayout = new QVBoxLayout(card);
-    cardLayout->setContentsMargins(20, 18, 20, 18);
-    cardLayout->setSpacing(12);
+    cardLayout->setContentsMargins(22, 20, 22, 20);
+    cardLayout->setSpacing(14);
     cardLayout->addLayout(brandLayout);
-    cardLayout->addWidget(tipLabel);
-    cardLayout->addLayout(formLayout);
-    cardLayout->addWidget(statusFrame);
-    cardLayout->addStretch();
-    cardLayout->addLayout(buttonLayout);
+    cardLayout->addLayout(contentLayout, 1);
 
     QVBoxLayout* rootLayout = new QVBoxLayout(this);
-    rootLayout->setContentsMargins(20, 20, 20, 20);
+    rootLayout->setContentsMargins(24, 24, 24, 24);
     rootLayout->addWidget(card);
 
     connect(m_verifyButton, &QPushButton::clicked, this, &ServerWelcomeDialog::onVerifyClicked);
@@ -203,17 +310,17 @@ ServerWelcomeDialog::ServerWelcomeDialog(QWidget* parent)
 void ServerWelcomeDialog::onVerifyClicked()
 {
     setUiBusy(true);
-    setStatusMessage(QStringLiteral(u"正在验证服务端，请稍候..."), false);
+    setStatusMessage(QStringLiteral(u"\u6b63\u5728\u9a8c\u8bc1\u670d\u52a1\u5668\uff0c\u8bf7\u7a0d\u5019..."), false);
 
     QString errorMessage;
     if (verifyServer(&errorMessage)) {
-        setStatusMessage(QStringLiteral(u"服务端验证通过，正在进入主界面。"), false);
+        setStatusMessage(QStringLiteral(u"\u670d\u52a1\u5668\u9a8c\u8bc1\u901a\u8fc7\uff0c\u6b63\u5728\u8fdb\u5165\u4e3b\u754c\u9762..."), false);
         accept();
         return;
     }
 
     setStatusMessage(errorMessage.isEmpty()
-                         ? QStringLiteral(u"服务端验证失败，请检查地址、端口与服务状态。")
+                         ? QStringLiteral(u"\u670d\u52a1\u5668\u9a8c\u8bc1\u5931\u8d25\uff0c\u8bf7\u68c0\u67e5\u5730\u5740\u3001\u7aef\u53e3\u4e0e\u670d\u52a1\u72b6\u6001\u3002")
                          : errorMessage,
                      true);
     setUiBusy(false);
@@ -225,7 +332,7 @@ bool ServerWelcomeDialog::verifyServer(QString* errorMessage)
     const QString host = normalizeHostInput(m_hostEdit->text(), &port);
     if (host.isEmpty()) {
         if (errorMessage) {
-            *errorMessage = QStringLiteral(u"请输入有效的服务端 IP 地址。");
+            *errorMessage = QStringLiteral(u"\u8bf7\u8f93\u5165\u6709\u6548\u7684\u670d\u52a1\u5668 IP \u6216\u57df\u540d\u3002");
         }
         return false;
     }
@@ -243,7 +350,7 @@ bool ServerWelcomeDialog::verifyServer(QString* errorMessage)
         if (errorMessage) {
             const QString message = extractResponseMessage(pingRoot);
             *errorMessage = message.isEmpty()
-                    ? QStringLiteral(u"连通性检查失败，请确认服务端网关可访问。")
+                    ? QStringLiteral(u"\u8fde\u901a\u6027\u68c0\u67e5\u5931\u8d25\uff0c\u8bf7\u786e\u8ba4\u670d\u52a1\u7aef\u7f51\u5173\u53ef\u8bbf\u95ee\u3002")
                     : message;
         }
         return false;
@@ -252,7 +359,7 @@ bool ServerWelcomeDialog::verifyServer(QString* errorMessage)
     const QString pingStatus = pingData.value("status").toString().trimmed().toLower();
     if (!pingStatus.isEmpty() && pingStatus != "ok") {
         if (errorMessage) {
-            *errorMessage = QStringLiteral(u"服务端 /client/ping 返回状态异常。");
+            *errorMessage = QStringLiteral(u"\u670d\u52a1\u7aef /client/ping \u8fd4\u56de\u72b6\u6001\u5f02\u5e38\u3002");
         }
         return false;
     }
@@ -266,7 +373,7 @@ bool ServerWelcomeDialog::verifyServer(QString* errorMessage)
         if (errorMessage) {
             const QString message = extractResponseMessage(bootstrapRoot);
             *errorMessage = message.isEmpty()
-                    ? QStringLiteral(u"服务端引导检查失败，请稍后重试。")
+                    ? QStringLiteral(u"\u670d\u52a1\u7aef\u5f15\u5bfc\u68c0\u67e5\u5931\u8d25\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5\u3002")
                     : message;
         }
         return false;
@@ -275,7 +382,7 @@ bool ServerWelcomeDialog::verifyServer(QString* errorMessage)
     const QJsonObject bootstrapData = bootstrapRoot.value("data").toObject();
     if (bootstrapData.isEmpty()) {
         if (errorMessage) {
-            *errorMessage = QStringLiteral(u"服务端引导响应缺少 data 字段。");
+            *errorMessage = QStringLiteral(u"\u670d\u52a1\u7aef\u5f15\u5bfc\u54cd\u5e94\u7f3a\u5c11 data \u5b57\u6bb5\u3002");
         }
         return false;
     }
@@ -286,7 +393,7 @@ bool ServerWelcomeDialog::verifyServer(QString* errorMessage)
         const bool dbReady = checks.value("database").toBool(false);
         const bool redisReady = checks.value("redis").toBool(false);
         if (errorMessage) {
-            *errorMessage = QStringLiteral(u"服务端尚未就绪（database=%1, redis=%2），请稍后重试。")
+            *errorMessage = QStringLiteral(u"\u670d\u52a1\u7aef\u5c1a\u672a\u5c31\u7eea\uff08database=%1, redis=%2\uff09\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5\u3002")
                     .arg(dbReady ? QStringLiteral("true") : QStringLiteral("false"),
                          redisReady ? QStringLiteral("true") : QStringLiteral("false"));
         }
@@ -329,14 +436,14 @@ bool ServerWelcomeDialog::getJson(const QString& fullUrl, QJsonObject* root, QSt
 
     if (timedOut) {
         if (errorMessage) {
-            *errorMessage = QStringLiteral(u"请求超时：%1").arg(fullUrl);
+            *errorMessage = QStringLiteral(u"\u8bf7\u6c42\u8d85\u65f6\uff1a%1").arg(fullUrl);
         }
         return false;
     }
 
     if (networkError != QNetworkReply::NoError) {
         if (errorMessage) {
-            *errorMessage = QStringLiteral(u"请求失败：%1（%2）").arg(fullUrl, networkErrorText);
+            *errorMessage = QStringLiteral(u"\u8bf7\u6c42\u5931\u8d25\uff1a%1\uff08%2\uff09").arg(fullUrl, networkErrorText);
         }
         return false;
     }
@@ -345,7 +452,7 @@ bool ServerWelcomeDialog::getJson(const QString& fullUrl, QJsonObject* root, QSt
     const QJsonDocument doc = QJsonDocument::fromJson(body, &parseError);
     if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
         if (errorMessage) {
-            *errorMessage = QStringLiteral(u"服务端响应不是有效 JSON：%1").arg(fullUrl);
+            *errorMessage = QStringLiteral(u"\u670d\u52a1\u7aef\u54cd\u5e94\u4e0d\u662f\u6709\u6548 JSON\uff1a%1").arg(fullUrl);
         }
         return false;
     }
@@ -404,6 +511,9 @@ void ServerWelcomeDialog::setUiBusy(bool busy)
     }
     if (m_verifyButton) {
         m_verifyButton->setEnabled(!busy);
+        m_verifyButton->setText(busy
+                                ? QStringLiteral(u"\u9a8c\u8bc1\u4e2d...")
+                                : QStringLiteral(u"\u9a8c\u8bc1\u5e76\u8fdb\u5165"));
     }
     if (m_cancelButton) {
         m_cancelButton->setEnabled(!busy);
@@ -415,10 +525,13 @@ void ServerWelcomeDialog::setStatusMessage(const QString& message, bool isError)
     if (!m_statusLabel) {
         return;
     }
-    m_statusLabel->setText(message);
+    const QString prefix = isError
+            ? QStringLiteral(u"\u3010\u9a8c\u8bc1\u5931\u8d25\u3011")
+            : QStringLiteral(u"\u3010\u7cfb\u7edf\u63d0\u793a\u3011");
+    m_statusLabel->setText(prefix + QStringLiteral(" ") + message);
     if (isError) {
-        m_statusLabel->setStyleSheet(QStringLiteral("color: #d84a4a;"));
+        m_statusLabel->setStyleSheet(QStringLiteral("color: #D64848; font-size: 12px;"));
     } else {
-        m_statusLabel->setStyleSheet(QStringLiteral("color: #2e7d32;"));
+        m_statusLabel->setStyleSheet(QStringLiteral("color: #1F8E49; font-size: 12px;"));
     }
 }

@@ -53,7 +53,7 @@ Rectangle {
                     }
                     
                     Text {
-                        text: "网易云音乐"
+                        text: "云音乐"
                         font.family: "Microsoft YaHei"
                         font.pixelSize: 18
                         font.bold: true

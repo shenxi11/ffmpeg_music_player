@@ -10,10 +10,17 @@ Window {
     flags: Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
     color: "transparent"
     
-    property int volumeValue: 60
+    property int volumeValue: 50
+    property bool suppressInitialSignal: true
     property bool ignoreNextFocusLoss: false  // 鏍囧織锛氬拷鐣ヤ笅涓€娆＄劍鐐逛涪澶?
     
     signal volumeChanged(int value)
+
+    Component.onCompleted: {
+        Qt.callLater(function() {
+            volumeWindow.suppressInitialSignal = false
+        })
+    }
     
     // 鐩戝惉搴旂敤绋嬪簭閫€鍑轰俊鍙?
     Connections {
@@ -85,7 +92,9 @@ Window {
                 
                 onValueChanged: {
                     volumeWindow.volumeValue = Math.round(value)
-                    volumeWindow.volumeChanged(Math.round(value))
+                    if (!volumeWindow.suppressInitialSignal) {
+                        volumeWindow.volumeChanged(Math.round(value))
+                    }
                 }
                 
                 background: Rectangle {

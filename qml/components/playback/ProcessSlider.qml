@@ -119,6 +119,11 @@ Item {
     function setPicPath(path) {
         root.picPath = path
     }
+
+    function setVolumeValue(value) {
+        var normalized = Math.max(0, Math.min(100, Math.round(value)))
+        root.volumeValue = normalized
+    }
     
     // 鎾斁鎺у埗鍑芥暟
     function setPlayState(state) {

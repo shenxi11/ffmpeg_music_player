@@ -129,6 +129,13 @@ public:
             QMetaObject::invokeMethod(root, "setPicPath", Q_ARG(QVariant, path));
         }
     }
+
+    void setVolume(int value) {
+        QQuickItem* root = rootObject();
+        if (root) {
+            QMetaObject::invokeMethod(root, "setVolumeValue", Q_ARG(QVariant, value));
+        }
+    }
     
     // 鎾斁鎺у埗鏂规硶锛堝搴?ControlBar锛?
     void setState(State state) {

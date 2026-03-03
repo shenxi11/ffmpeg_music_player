@@ -117,7 +117,7 @@ AudioService::AudioService(QObject* parent)
       m_sessionCounter(0),
       m_currentIndex(-1),
       m_playMode(Sequential),
-      m_globalVolume(100),
+      m_globalVolume(50),
       m_disableHlsGlobally(false),
       m_hasPendingSeek(false),
       m_pendingSeekPositionMs(0)

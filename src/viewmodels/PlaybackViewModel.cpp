@@ -6,6 +6,7 @@ PlaybackViewModel::PlaybackViewModel(QObject *parent)
     , m_audioService(&AudioService::instance())
 {
     qDebug() << "[MVVM] PlaybackViewModel: Initializing and connecting to AudioService";
+    m_volume = m_audioService->volume();
     
     // 连接播放状态相关信号
     connect(m_audioService, &AudioService::playbackStarted,

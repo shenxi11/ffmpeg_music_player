@@ -17,7 +17,7 @@ AudioPlayer::AudioPlayer()
       m_threadRunning(false),
       m_isPlaying(false),
       m_isPaused(true),  // 鍒濆涓烘殏鍋滅姸鎬?
-      m_volume(75),
+      m_volume(50),
       m_playbackRate(1.0),
       m_currentTimestamp(0),
       m_baseTimestamp(0),

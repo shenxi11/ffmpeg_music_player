@@ -27,6 +27,7 @@ PlayWidget::PlayWidget(QWidget *parent, QWidget *mainWidget)
     process_slider->setFixedSize(1000, 70);
     process_slider->move(0, 490);
     process_slider->setMaxSeconds(0);
+    process_slider->setVolume(m_playbackViewModel->volume());
     
     // controlBar 现在指向 process_slider（它包含了所有控制功能）
     controlBar = process_slider;
@@ -516,6 +517,11 @@ PlayWidget::PlayWidget(QWidget *parent, QWidget *mainWidget)
     connect(process_slider, &ProcessSliderQml::signal_volumeChanged, this, [this](int volume) {
         qDebug() << "[MVVM-UI] Volume changed to:" << volume;
         m_playbackViewModel->setVolume(volume);
+    });
+    connect(m_playbackViewModel, &PlaybackViewModel::volumeChanged, this, [this]() {
+        if (process_slider) {
+            process_slider->setVolume(m_playbackViewModel->volume());
+        }
     });
     
     // ========== 上一下一==========

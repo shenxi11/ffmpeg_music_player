@@ -113,6 +113,10 @@ set(PROJECT_RESOURCES
     qml.qrc
 )
 
+if(WIN32)
+    list(APPEND PROJECT_RESOURCES app_icon.rc)
+endif()
+
 # 翻译文件
 set(PROJECT_TRANSLATIONS
     untitled_zh_CN.ts
