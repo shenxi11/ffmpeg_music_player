@@ -1,4 +1,4 @@
-#ifndef MUSIC_LIST_WIDGET_NET_QML_H
+﻿#ifndef MUSIC_LIST_WIDGET_NET_QML_H
 #define MUSIC_LIST_WIDGET_NET_QML_H
 
 #include <QQuickWidget>

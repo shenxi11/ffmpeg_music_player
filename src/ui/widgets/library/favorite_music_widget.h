@@ -1,4 +1,4 @@
-#ifndef FAVORITE_MUSIC_WIDGET_H
+﻿#ifndef FAVORITE_MUSIC_WIDGET_H
 #define FAVORITE_MUSIC_WIDGET_H
 
 #include <QQuickWidget>

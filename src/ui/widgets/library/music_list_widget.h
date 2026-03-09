@@ -1,4 +1,4 @@
-#ifndef MUSICLISTWIDGET_H
+﻿#ifndef MUSICLISTWIDGET_H
 #define MUSICLISTWIDGET_H
 
 #include <QObject>

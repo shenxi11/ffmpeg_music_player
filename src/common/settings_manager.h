@@ -7,6 +7,8 @@
 #include <QStandardPaths>
 #include <QDebug>
 #include <QDir>
+#include <QPoint>
+#include <QByteArray>
 
 /**
  * @brief Global settings manager (singleton)
@@ -65,6 +67,14 @@ public:
     void setAutoLoginEnabled(bool enabled);
     void clearAccountCache();
 
+    bool hasServerWelcomeWindowPos() const { return m_hasServerWelcomeWindowPos; }
+    QPoint serverWelcomeWindowPos() const { return m_serverWelcomeWindowPos; }
+    void setServerWelcomeWindowPos(const QPoint& pos);
+
+    QByteArray pluginWindowGeometry(const QString& pluginId) const;
+    void setPluginWindowGeometry(const QString& pluginId, const QByteArray& geometry);
+    void clearPluginWindowGeometry(const QString& pluginId);
+
 signals:
     void downloadPathChanged();
     void downloadLyricsChanged();
@@ -94,6 +104,8 @@ private:
     QString m_cachedPassword;
     QString m_cachedUsername;
     bool m_autoLoginEnabled = false;
+    bool m_hasServerWelcomeWindowPos = false;
+    QPoint m_serverWelcomeWindowPos;
 };
 
 #endif // SETTINGS_MANAGER_H

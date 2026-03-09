@@ -1,4 +1,4 @@
-#include "music_list_widget.h"
+﻿#include "music_list_widget.h"
 
 MusicListWidget::MusicListWidget(QWidget *parent)
     :QListWidget(parent)

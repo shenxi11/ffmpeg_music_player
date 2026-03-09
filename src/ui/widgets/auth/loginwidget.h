@@ -1,4 +1,4 @@
-#ifndef LOGINWIDGET_H
+﻿#ifndef LOGINWIDGET_H
 #define LOGINWIDGET_H
 
 #include "httprequest_v2.h"

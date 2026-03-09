@@ -20,6 +20,9 @@ public:
 
     void setCacheDirectory(const QString& directoryPath);
     QString cacheDirectory() const;
+    bool clearCache(QString* errorMessage = nullptr,
+                    qint64* removedBytes = nullptr,
+                    qint64* removedFiles = nullptr);
 
     // Keep compatibility with existing service call path.
     // In segmented cache mode this may return localhost proxy URL.
@@ -71,7 +74,8 @@ private:
                             const QString& cacheKey,
                             qint64 chunkIndex,
                             qint64 startByte,
-                            qint64 endByte);
+                            qint64 endByte,
+                            QNetworkRequest::Priority priority = QNetworkRequest::LowPriority);
 
     void ensureTrackMeta(const QUrl& url, const QString& cacheKey);
     void updateTrackMeta(const QString& cacheKey, qint64 contentLength, qint64 durationMs);

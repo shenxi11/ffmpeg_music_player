@@ -1,14 +1,28 @@
-﻿import QtQuick 2.15
+import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import "../../theme/Theme.js" as Theme
 
-// 喜欢音乐列表
 Rectangle {
     id: root
-    color: "#f5f5f5"
+    color: Theme.bgBase
 
     property string userAccount: ""
-    property string currentPlayingPath: ""  // 当前播放的音乐路径
+    property string currentPlayingPath: ""
+    property int sideMargin: width >= 1200 ? 20 : 14
+    property int innerMargin: width >= 1200 ? 16 : 12
+    property int colGap: width >= 1200 ? 10 : 8
+    property int colIndexWidth: 42
+    property int colCoverWidth: 44
+    property int colDurationWidth: width >= 1280 ? 88 : (width >= 960 ? 80 : 70)
+    property int colTimeWidth: width >= 1280 ? 150 : (width >= 960 ? 130 : 104)
+    property int colActionWidth: 86
+    property string listIconPrefix: "qrc:/design/design_exports/netease_ui_pack_20260309/icon/ui/list/"
+    property string playerIconPrefix: "qrc:/design/design_exports/netease_ui_pack_20260309/icon/ui/player/"
+    property int colTitleWidth: Math.max(140,
+                                         width - sideMargin * 2 - innerMargin * 2
+                                         - colIndexWidth - colCoverWidth - colDurationWidth
+                                         - colTimeWidth - colActionWidth - colGap * 4)
 
     signal playMusic(string filename)
     signal removeFavorite(var selectedPaths)
@@ -19,8 +33,7 @@ Rectangle {
         var text = String(value).trim()
         if (text.length === 0) return true
         if (/^[\?？\s]+$/.test(text)) return true
-        var suspicious = text.match(/[鍙鍚鍛鍜鍝鎵鎺鏄鏃鏂鏈鏉鏋鏌鏍鐨缁璁妫娓绛鎻锛]/g)
-        return suspicious && suspicious.length >= 3
+        return text.indexOf("\uFFFD") >= 0
     }
 
     function _baseNameFromPath(path) {
@@ -55,191 +68,207 @@ Rectangle {
         return normalizeText(item.artist, "未知艺术家")
     }
 
-    // 喜欢音乐数据模型
     ListModel {
         id: favoriteModel
     }
 
-    // 选中的项目
     property var selectedItems: []
 
     ColumnLayout {
         anchors.fill: parent
         spacing: 10
 
-        // 标题栏和操作按钮
-        RowLayout {
+        Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 50
-            Layout.leftMargin: 20
-            Layout.rightMargin: 20
-            spacing: 10
+            Layout.preferredHeight: 54
+            Layout.leftMargin: root.sideMargin
+            Layout.rightMargin: root.sideMargin
+            radius: 12
+            color: Theme.glassLight
+            border.width: 1
+            border.color: Theme.glassBorder
 
-            Text {
-                text: "我喜欢的音乐"
-                font.pixelSize: 20
-                font.bold: true
-                color: "#333333"
-                Layout.fillWidth: true
-            }
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 14
+                anchors.rightMargin: 12
+                spacing: 10
 
-            Button {
-                text: "刷新"
-                
-                background: Rectangle {
-                    color: parent.pressed ? "#3a8ee6" : 
-                           parent.hovered ? "#66b1ff" : "#409EFF"
-                    radius: 4
+                Text {
+                    text: "我喜欢的音乐"
+                    font.pixelSize: 19
+                    font.weight: Font.DemiBold
+                    color: Theme.textPrimary
+                    Layout.fillWidth: true
                 }
 
-                contentItem: Text {
-                    text: parent.text
-                    color: "white"
-                    font.pixelSize: 13
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                }
+                Rectangle {
+                    width: 84
+                    height: 32
+                    radius: 16
+                    color: refreshArea.containsMouse ? Theme.accent : "transparent"
+                    border.width: 1
+                    border.color: Theme.accent
 
-                onClicked: {
-                    root.refreshRequested()
+                    Text {
+                        anchors.centerIn: parent
+                        text: "刷新"
+                        font.pixelSize: 12
+                        color: refreshArea.containsMouse ? "#FFFFFF" : Theme.accent
+                    }
+
+                    MouseArea {
+                        id: refreshArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.refreshRequested()
+                    }
                 }
             }
         }
 
-        // 列表表头（固定显示）
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 36
-            Layout.leftMargin: 20
-            Layout.rightMargin: 20
-            color: "#F0F2F5"
-            radius: 4
+            Layout.preferredHeight: 38
+            Layout.leftMargin: root.sideMargin
+            Layout.rightMargin: root.sideMargin
+            radius: 10
+            color: Theme.glassLight
+            border.width: 1
+            border.color: Theme.glassBorder
 
             Row {
                 anchors.fill: parent
-                anchors.leftMargin: 15
-                anchors.rightMargin: 15
-                spacing: 10
+                anchors.leftMargin: root.innerMargin
+                anchors.rightMargin: root.innerMargin
+                spacing: root.colGap
 
                 Text {
-                    text: "序号"
-                    width: 50
+                    text: "#"
+                    width: root.colIndexWidth
                     font.pixelSize: 12
-                    color: "#666666"
+                    color: Theme.textSecondary
                     anchors.verticalCenter: parent.verticalCenter
                 }
 
                 Item {
-                    width: 44
+                    width: root.colCoverWidth
                     height: 1
                 }
 
                 Text {
                     text: "音频信息"
-                    width: 240
+                    width: root.colTitleWidth
                     font.pixelSize: 12
-                    color: "#666666"
+                    color: Theme.textSecondary
                     anchors.verticalCenter: parent.verticalCenter
                 }
 
-                Item { width: 10 }
-
                 Text {
                     text: "时长"
-                    width: 80
+                    width: root.colDurationWidth
                     font.pixelSize: 12
-                    color: "#666666"
+                    color: Theme.textSecondary
                     anchors.verticalCenter: parent.verticalCenter
                 }
 
                 Text {
                     text: "添加时间"
-                    width: 130
+                    width: root.colTimeWidth
                     font.pixelSize: 12
-                    color: "#666666"
+                    color: Theme.textSecondary
                     anchors.verticalCenter: parent.verticalCenter
                 }
 
                 Item {
-                    width: 74
+                    width: root.colActionWidth
                     height: 1
                 }
             }
         }
 
-        // 音乐列表
         ListView {
             id: listView
             Layout.fillWidth: true
             Layout.fillHeight: true
-            Layout.leftMargin: 20
-            Layout.rightMargin: 20
-            spacing: 2
+            Layout.leftMargin: root.sideMargin
+            Layout.rightMargin: root.sideMargin
+            spacing: 6
             clip: true
-
             model: favoriteModel
 
             delegate: Rectangle {
                 id: itemRoot
                 width: listView.width
-                height: 60
-                color: itemRoot.containsMouse ? "#E8F4FF" : (index % 2 === 0 ? "#FFFFFF" : "#FAFAFA")
-
+                height: 62
+                radius: 10
                 property bool containsMouse: false
                 property bool isPlaying: root.currentPlayingPath === model.path
 
+                color: isPlaying
+                       ? "#FDECEC"
+                       : (containsMouse ? "#F8FAFF" : (index % 2 === 0 ? Theme.bgCard : "#FCFCFD"))
+                border.width: isPlaying ? 1 : 0
+                border.color: isPlaying ? Theme.accent : "transparent"
+
+                Rectangle {
+                    visible: itemRoot.isPlaying
+                    width: 3
+                    radius: 2
+                    color: Theme.accent
+                    anchors.left: parent.left
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    anchors.margins: 10
+                }
+
                 Row {
                     anchors.fill: parent
-                    anchors.leftMargin: 15
-                    anchors.rightMargin: 15
-                    spacing: 10
+                    anchors.leftMargin: root.innerMargin
+                    anchors.rightMargin: root.innerMargin
+                    spacing: root.colGap
 
-                    // 序号
                     Text {
                         text: (index + 1).toString()
-                        width: 50
+                        width: root.colIndexWidth
                         font.pixelSize: 13
-                        color: "#666666"
+                        color: Theme.textSecondary
                         anchors.verticalCenter: parent.verticalCenter
                     }
 
-                    // 封面（真实封面或默认音乐图标）
                     Rectangle {
-                        width: 44
+                        width: root.colCoverWidth
                         height: 44
                         anchors.verticalCenter: parent.verticalCenter
-                        radius: 4
-                        color: "#E0E0E0"
+                        radius: 6
+                        color: "#E9ECF5"
+                        border.width: 1
+                        border.color: "#D9DFEA"
 
                         Image {
-                            id: coverImage
                             anchors.fill: parent
                             anchors.margins: 2
                             source: {
                                 var url = model.cover_art_url || ""
-                                if (url && url.length > 0) {
-                                    return url
-                                }
-                                return "qrc:/new/prefix1/icon/Music.png"
+                                return url && url.length > 0 ? url : "qrc:/new/prefix1/icon/Music.png"
                             }
                             fillMode: Image.PreserveAspectCrop
                             asynchronous: true
                             cache: true
                             sourceSize.width: 44
                             sourceSize.height: 44
-                            
+
                             onStatusChanged: {
                                 if (status === Image.Error) {
-                                    console.log("[FavoriteMusic] Failed to load cover:", source)
                                     source = "qrc:/new/prefix1/icon/Music.png"
                                 }
                             }
                         }
                     }
 
-                    // 歌曲信息列
                     Column {
-                        width: 240
+                        width: root.colTitleWidth
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: 4
 
@@ -247,7 +276,7 @@ Rectangle {
                             text: root.displayTitle(model)
                             font.pixelSize: 14
                             font.bold: itemRoot.isPlaying
-                            color: itemRoot.isPlaying ? "#4A90E2" : "#333333"
+                            color: itemRoot.isPlaying ? Theme.accent : Theme.textPrimary
                             elide: Text.ElideRight
                             width: parent.width
                         }
@@ -255,53 +284,62 @@ Rectangle {
                         Text {
                             text: root.displayArtist(model)
                             font.pixelSize: 11
-                            color: "#888888"
+                            color: Theme.textSecondary
+                            elide: Text.ElideRight
+                            width: parent.width
                         }
                     }
 
-                    Item { width: 10 }
-
-                    // 时长
                     Text {
                         text: model.duration || "--:--"
-                        width: 80
+                        width: root.colDurationWidth
                         font.pixelSize: 12
-                        color: "#666666"
+                        color: Theme.textSecondary
                         anchors.verticalCenter: parent.verticalCenter
                     }
 
-                    // 添加时间
                     Text {
                         text: model.added_at || ""
-                        width: 130
+                        width: root.colTimeWidth
                         font.pixelSize: 12
-                        color: "#999999"
+                        color: Theme.textSecondary
                         anchors.verticalCenter: parent.verticalCenter
                     }
 
-                    Item { width: 10 }
-
-                    // 操作按钮（hover时显示）
                     Row {
+                        width: root.colActionWidth
                         spacing: 8
                         anchors.verticalCenter: parent.verticalCenter
-                        opacity: itemRoot.containsMouse ? 1.0 : 0.0
+                        opacity: itemRoot.containsMouse ? 1.0 : 0.02
                         visible: opacity > 0
 
-                        Behavior on opacity { NumberAnimation { duration: 150 } }
+                        Behavior on opacity {
+                            NumberAnimation { duration: 120 }
+                        }
 
-                        // 播放按钮
                         Rectangle {
                             width: 32
                             height: 32
                             radius: 16
-                            color: playBtnArea.containsMouse ? "#4A90E2" : "#DDDDDD"
+                            color: playBtnArea.containsMouse || itemRoot.isPlaying ? Theme.accent : "transparent"
+                            border.width: 1
+                            border.color: itemRoot.isPlaying ? Theme.accent : "#D6DCE8"
 
-                            Text {
+                            Image {
                                 anchors.centerIn: parent
-                                text: itemRoot.isPlaying ? "⏸" : "▶"
-                                font.pixelSize: 14
-                                color: playBtnArea.containsMouse ? "white" : "#333333"
+                                width: 18
+                                height: 18
+                                source: {
+                                    if (itemRoot.isPlaying) {
+                                        return playBtnArea.containsMouse
+                                                ? root.playerIconPrefix + "player_btn_pause_hover.svg"
+                                                : root.playerIconPrefix + "player_btn_pause_default.svg"
+                                    }
+                                    return playBtnArea.containsMouse
+                                            ? root.playerIconPrefix + "player_btn_play_hover.svg"
+                                            : root.playerIconPrefix + "player_btn_play_default.svg"
+                                }
+                                fillMode: Image.PreserveAspectFit
                             }
 
                             MouseArea {
@@ -309,24 +347,26 @@ Rectangle {
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    root.playMusic(model.path || "")
-                                }
+                                onClicked: root.playMusic(model.path || "")
                             }
                         }
 
-                        // 取消喜欢按钮（红色心形）
                         Rectangle {
                             width: 32
                             height: 32
                             radius: 16
-                            color: removeBtnArea.containsMouse ? "#ffe0e6" : "transparent"
+                            color: removeBtnArea.containsMouse ? Theme.accentSoft : "transparent"
+                            border.width: 1
+                            border.color: removeBtnArea.containsMouse ? Theme.accent : "#D6DCE8"
 
-                            Text {
+                            Image {
                                 anchors.centerIn: parent
-                                text: "♥"
-                                font.pixelSize: 16
-                                color: removeBtnArea.containsMouse ? "#ff0000" : "#ff4d4f"
+                                width: 18
+                                height: 18
+                                source: removeBtnArea.containsMouse
+                                        ? root.listIconPrefix + "list_icon_favorite_hover.svg"
+                                        : root.listIconPrefix + "list_icon_favorite_active.svg"
+                                fillMode: Image.PreserveAspectFit
                             }
 
                             MouseArea {
@@ -334,15 +374,12 @@ Rectangle {
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    root.removeFavorite([model.path])
-                                }
+                                onClicked: root.removeFavorite([model.path])
                             }
                         }
                     }
                 }
 
-                // 整个item的悬停检测
                 MouseArea {
                     anchors.fill: parent
                     hoverEnabled: true
@@ -352,47 +389,40 @@ Rectangle {
                     onPressed: mouse.accepted = false
                     onReleased: mouse.accepted = false
                     onClicked: mouse.accepted = false
-                    onDoubleClicked: {
-                        root.playMusic(model.path || "")
-                    }
+                    onDoubleClicked: root.playMusic(model.path || "")
                 }
             }
 
-            // 空状态
+            ScrollBar.vertical: ScrollBar {
+                policy: ScrollBar.AsNeeded
+                width: 8
+            }
+
             Label {
                 anchors.centerIn: parent
                 text: "暂无喜欢的音乐"
                 font.pixelSize: 16
-                color: "#AAAAAA"
+                color: Theme.textSecondary
                 visible: listView.count === 0
             }
         }
     }
 
-    // 公共函数：加载喜欢音乐
     function loadFavorites(favoritesData) {
         favoriteModel.clear()
         root.selectedItems = []
-        
-        console.log("[FavoriteMusicList] Loading", favoritesData.length, "items")
-        
+
         for (var i = 0; i < favoritesData.length; i++) {
             var item = favoritesData[i]
-            item.uniqueId = i  // 添加唯一ID
+            item.uniqueId = i
             item.title = root.displayTitle(item)
             item.artist = root.displayArtist(item)
-            
-            // 调试输出
-            console.log("[FavoriteMusicList] Item", i, "- title:", item.title, "cover_art_url:", item.cover_art_url)
-            
             favoriteModel.append(item)
         }
     }
 
-    // 清空列表
     function clearFavorites() {
         favoriteModel.clear()
         root.selectedItems = []
     }
 }
-

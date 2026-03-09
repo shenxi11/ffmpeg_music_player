@@ -10,7 +10,7 @@ FavoriteMusicWidget::FavoriteMusicWidget(QWidget *parent)
     
     qDebug() << "FavoriteMusicWidget: Created";
     
-    // 杩炴帴QML淇″彿
+    // 获取 QML 根对象并连接收藏列表交互信号。
     QQuickItem* root = rootObject();
     if (root) {
         connect(root, SIGNAL(playMusic(QString)),

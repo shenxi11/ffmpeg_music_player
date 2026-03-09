@@ -1,4 +1,4 @@
-#include "rotatingcircleimage.h"
+﻿#include "rotatingcircleimage.h"
 #include <QUrl>
 
 RotatingCircleImage::RotatingCircleImage(QWidget *parent)

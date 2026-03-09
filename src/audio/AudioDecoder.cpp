@@ -46,7 +46,7 @@ AudioDecoder::~AudioDecoder()
 {
     stopDecode();
     
-    // 绛夊緟瑙ｇ爜绾跨▼缁撴潫
+    
     if (m_decodeThread.joinable()) {
         m_decodeThread.join();
     }
@@ -94,7 +94,7 @@ bool AudioDecoder::initDecoder(const QString& filePath)
 {
     auto t_start = std::chrono::high_resolution_clock::now();
     
-    cleanup(); // 娓呯悊鏃ц祫婧?
+    cleanup(); 
     
     m_filePath = filePath;
     m_seekGeneration = 0;
@@ -132,8 +132,9 @@ bool AudioDecoder::initDecoder(const QString& filePath)
     qDebug() << "[TIMING] AudioDecoder::setupResampler:" 
              << std::chrono::duration<double, std::milli>(t3 - t2).count() << "ms";
     
-    // 鑾峰彇闊抽鏃堕暱
-    m_duration = m_formatCtx->duration * av_q2d(av_make_q(1, AV_TIME_BASE)) * 1000; // 杞崲涓烘绉?
+    
+    // FFmpeg 时长单位为 AV_TIME_BASE，将其转换为毫秒。
+    m_duration = m_formatCtx->duration * av_q2d(av_make_q(1, AV_TIME_BASE)) * 1000;
 
     // 建立稳定的时间基准：优先使用 stream start_time，避免 seek 后时间轴漂移。
     if (m_formatCtx && m_audioStreamIndex >= 0) {
@@ -149,15 +150,15 @@ bool AudioDecoder::initDecoder(const QString& filePath)
     m_firstPtsSet = true;
     qDebug() << "AudioDecoder: Timestamp baseline set to" << m_firstPts << "ms";
     
-    // 鍙戦€佸厓鏁版嵁
+    
     int sampleRate = m_codecCtx->sample_rate;
-    int channels = 2; // 閲嶉噰鏍峰悗鐨勯€氶亾鏁?
+    int channels = 2; 
     emit metadataReady(m_duration, sampleRate, channels);
 
-    // 鎻愬彇闊抽鏍囩锛堟爣棰樸€佽壓鏈锛?
+    
     extractAudioTags();
 
-    // 鎻愬彇灏侀潰
+    
     extractAlbumArt();
     
     auto t_end = std::chrono::high_resolution_clock::now();
@@ -171,7 +172,7 @@ bool AudioDecoder::initDecoder(const QString& filePath)
 void AudioDecoder::startDecode()
 {
     if (m_decoding) {
-        // 妫€鏌ユ槸鍚︾湡鐨勯渶瑕乺esume
+        
         bool wasPaused = m_paused.load();
         if (wasPaused) {
             qDebug() << "AudioDecoder: Resuming from pause";
@@ -187,10 +188,10 @@ void AudioDecoder::startDecode()
     m_decoding = true;
     m_paused = false;
     m_stopRequested = false;
-    m_firstPtsSet = false;  // 閲嶇疆鍩哄噯鏃堕棿鎴虫爣蹇?
+    m_firstPtsSet = false;  
     clearIoDeadline();
     
-    // 鍚姩鐙珛鐨勮В鐮佺嚎绋?
+    
     if (m_decodeThread.joinable()) {
         m_decodeThread.join();
     }
@@ -223,7 +224,7 @@ void AudioDecoder::stopDecode()
     m_seekEofRetryCount = 0;
     m_cv.notify_all();
     
-    // 绔嬪嵆绛夊緟瑙ｇ爜绾跨▼缁撴潫锛堢‘淇濆悓姝ュ仠姝級
+    
     if (m_decodeThread.joinable()) {
         m_decodeThread.join();
         qDebug() << "AudioDecoder: Decode thread stopped synchronously";
@@ -283,7 +284,13 @@ void AudioDecoder::decode()
 
             qDebug() << "AudioDecoder: Processing seek request at" << targetMs << "ms";
             const bool likelyFlacNetwork = m_networkSource.load() && m_filePath.toLower().contains(".flac");
-            setIoDeadlineMs(likelyFlacNetwork ? 8000 : 1600);
+            const bool localProxySource = m_networkSource.load()
+                    && (m_filePath.startsWith("http://127.0.0.1", Qt::CaseInsensitive)
+                        || m_filePath.startsWith("http://localhost", Qt::CaseInsensitive));
+            const int seekDeadlineMs = localProxySource
+                    ? (likelyFlacNetwork ? 2400 : 1500)
+                    : (likelyFlacNetwork ? 5000 : 1600);
+            setIoDeadlineMs(seekDeadlineMs);
             int seekFlags = AVSEEK_FLAG_BACKWARD;
             if (m_networkSource.load()) {
                 seekFlags |= AVSEEK_FLAG_ANY;
@@ -356,16 +363,23 @@ void AudioDecoder::decode()
             continue;
         }
         
-        // 璇诲彇闊抽鍖?
+        
         const bool likelyFlacNetwork = m_networkSource.load() && m_filePath.toLower().contains(".flac");
-        int readTimeoutMs = likelyFlacNetwork ? 4200 : 2600;
+        const bool localProxySource = m_networkSource.load()
+                && (m_filePath.startsWith("http://127.0.0.1", Qt::CaseInsensitive)
+                    || m_filePath.startsWith("http://localhost", Qt::CaseInsensitive));
+        int readTimeoutMs = localProxySource
+                ? (likelyFlacNetwork ? 1800 : 1400)
+                : (likelyFlacNetwork ? 3000 : 2600);
         if (m_waitingFirstPacketAfterSeek.load()) {
             // HLS 切段后首包 RTT 通常显著高于裸文件 Range，避免误判 EOF。
             if (m_hlsSource.load()) {
                 readTimeoutMs = 4500;
+            } else if (localProxySource) {
+                readTimeoutMs = likelyFlacNetwork ? 1800 : 1200;
             } else if (likelyFlacNetwork) {
-                // 远端 FLAC 大跨度 seek 后首包准备更慢，避免过早打断导致反复重试。
-                readTimeoutMs = 5200;
+                // 远端 FLAC seek 首包等待时间适度收敛，降低拖动后“长时间无声”。
+                readTimeoutMs = 3200;
             } else {
                 readTimeoutMs = 900;
             }
@@ -377,17 +391,17 @@ void AudioDecoder::decode()
             if (ret == AVERROR_EOF) {
                 if (m_networkSource.load() && m_waitingFirstPacketAfterSeek.load()) {
                     ++m_seekEofRetryCount;
-                    if (m_seekEofRetryCount <= 30) {
+                    if (m_seekEofRetryCount <= 16) {
                         if (m_seekEofRetryCount == 1 || m_seekEofRetryCount % 5 == 0) {
                             qWarning() << "AudioDecoder: Transient EOF right after seek, retrying"
-                                       << m_seekEofRetryCount << "/30";
+                                       << m_seekEofRetryCount << "/16";
                         }
                         std::this_thread::sleep_for(std::chrono::milliseconds(120));
                         continue;
                     }
                 }
 
-                // 鍒拌揪鏂囦欢鏈熬
+                
                 qDebug() << "AudioDecoder: End of stream reached";
                 emit decodeCompleted();
                 break;
@@ -402,24 +416,24 @@ void AudioDecoder::decode()
                 std::this_thread::sleep_for(std::chrono::milliseconds(sleepMs));
                 continue;
             } else {
-                // 鍏朵粬閿欒锛堝缃戠粶涓柇锛夛紝璁板綍浣嗙户缁皾璇?
+                
                 char errbuf[AV_ERROR_MAX_STRING_SIZE] = {0};
                 av_strerror(ret, errbuf, sizeof(errbuf));
                 qDebug() << "AudioDecoder: Read frame error:" << errbuf << ", will retry";
                 const int sleepMs = m_waitingFirstPacketAfterSeek.load() ? 2 : 10;
                 std::this_thread::sleep_for(std::chrono::milliseconds(sleepMs));
-                continue;  // 缁х画寰幆锛屼笉閫€鍑?
+                continue;  
             }
         }
         m_seekEofRetryCount = 0;
         
-        // 鍙鐞嗛煶棰戞祦
+        
         if (m_packet->stream_index == m_audioStreamIndex) {
-            // 鍙戦€佹暟鎹寘鍒拌В鐮佸櫒
+            
             if (avcodec_send_packet(m_codecCtx, m_packet) >= 0) {
-                // 鎺ユ敹瑙ｇ爜鍚庣殑甯?
+                
                 while (avcodec_receive_frame(m_codecCtx, m_frame) >= 0) {
-                    // 璁＄畻閲嶉噰鏍峰悗鐨勬牱鏈暟
+                    
                     int dst_nb_samples = av_rescale_rnd(
                         swr_get_delay(m_swrCtx, m_codecCtx->sample_rate) + m_frame->nb_samples,
                         m_outSampleRate,
@@ -427,7 +441,7 @@ void AudioDecoder::decode()
                         AV_ROUND_UP
                     );
                     
-                    // 璁＄畻缂撳啿鍖哄ぇ灏?
+                    // 计算重采样后的 PCM 缓冲区大小
                     int buffer_size = av_samples_get_buffer_size(
                         nullptr, 
                         m_outChannels, 
@@ -441,14 +455,14 @@ void AudioDecoder::decode()
                         continue;
                     }
                     
-                    // 鍒嗛厤缂撳啿鍖?
+                    // 为本帧重采样结果分配临时缓冲区
                     uint8_t* buffer = (uint8_t*)malloc(buffer_size);
                     if (!buffer) {
                         qDebug() << "Failed to allocate memory for buffer";
                         continue;
                     }
                     
-                    // 鎵ц閲嶉噰鏍?
+                    
                     int converted_samples = swr_convert(
                         m_swrCtx, 
                         &buffer,
@@ -457,7 +471,7 @@ void AudioDecoder::decode()
                         m_frame->nb_samples
                     );
                     
-                    // 璁＄畻瀹為檯杞崲鍚庣殑鏁版嵁澶у皬
+                    
                     int converted_buffer_size = av_samples_get_buffer_size(
                         nullptr, 
                         m_outChannels,
@@ -487,11 +501,11 @@ void AudioDecoder::decode()
                         m_currentPts = timestamp_ms;
                     }
                     
-                    // 鍒涘缓QByteArray骞跺彂閫佷俊鍙?
+                    
                     QByteArray pcmData(reinterpret_cast<const char*>(buffer), converted_buffer_size);
                     free(buffer);
                     
-                    // 鍦ㄥ彂閫佹暟鎹墠鍐嶆妫€鏌ユ槸鍚﹀仠姝紙閬垮厤鍙戦€佹棫鏁版嵁鍒版柊Session锛?
+                    
                     if (m_stopRequested) {
                         qDebug() << "AudioDecoder: Stop requested, discarding decoded frame";
                         break;
@@ -505,14 +519,14 @@ void AudioDecoder::decode()
                     emit decodedData(pcmData, timestamp_ms, m_appliedSeekGeneration.load());
                     emit progressUpdated(timestamp_ms);
                     
-                    // 姣?00甯ф墦鍗颁竴娆℃棩蹇楋紝閬垮厤鏃ュ織杩囧
+                    
                     static int frameCount = 0;
                     if (++frameCount % 100 == 0) {
                         qDebug() << "AudioDecoder: Decoded" << frameCount << "frames, current timestamp:" << timestamp_ms << "ms";
                     }
                     
-                    // 缁欎富绾跨▼鏃堕棿澶勭悊淇″彿锛岄伩鍏嶈В鐮佽繃蹇鑷翠俊鍙峰爢绉?
-                    // 姣?0甯ield涓€娆★紝璁╀富绾跨▼鏈夋満浼氬鐞哾ecodedData淇″彿
+                    
+                    
                     if (frameCount % 10 == 0) {
                         std::this_thread::sleep_for(std::chrono::milliseconds(5));
                     }
@@ -520,18 +534,18 @@ void AudioDecoder::decode()
             }
         }
         
-        // 閲婃斁鏁版嵁鍖?
+        // 释放当前 packet 引用，准备下一轮读取
         av_packet_unref(m_packet);
     }
     
-    // 瑙ｇ爜绾跨▼缁撴潫锛岄噸缃姸鎬佹爣蹇?
+    
     m_decoding = false;
     qDebug() << "AudioDecoder::decode thread finished, m_decoding reset to false";
 }
 
 void AudioDecoder::cleanup()
 {
-    // TODO: 娓呯悊FFmpeg璧勬簮
+    
     if(m_frame)
         av_frame_free(&m_frame);
     if(m_packet)
@@ -551,10 +565,10 @@ void AudioDecoder::extractAudioTags()
 {
     if (!m_formatCtx) return;
 
-    // 浠巉ormat context鐨刴etadata涓彁鍙栨爣棰樺拰鑹烘湳瀹?
+    
     AVDictionaryEntry *tag = nullptr;
 
-    // 鎻愬彇鏍囬
+    
     tag = av_dict_get(m_formatCtx->metadata, "title", nullptr, 0);
     if (tag) {
         m_extractedTitle = QString::fromUtf8(tag->value);
@@ -563,7 +577,7 @@ void AudioDecoder::extractAudioTags()
         m_extractedTitle = "";
     }
 
-    // 鎻愬彇鑹烘湳瀹?
+    
     tag = av_dict_get(m_formatCtx->metadata, "artist", nullptr, 0);
     if (tag) {
         m_extractedArtist = QString::fromUtf8(tag->value);
@@ -572,7 +586,7 @@ void AudioDecoder::extractAudioTags()
         m_extractedArtist = "";
     }
 
-    // 鍙戦€侀煶棰戞爣绛句俊鍙?
+    
     emit audioTagsReady(m_extractedTitle, m_extractedArtist);
 }
 
@@ -580,12 +594,12 @@ void AudioDecoder::extractAlbumArt()
 {
     if (!m_formatCtx) return;
     
-    // 鏌ユ壘闄勫姞鍥剧墖娴侊紙灏侀潰锛?
+    
     for (unsigned int i = 0; i < m_formatCtx->nb_streams; i++) {
         if (m_formatCtx->streams[i]->disposition & AV_DISPOSITION_ATTACHED_PIC) {
             AVPacket *pkt = &m_formatCtx->streams[i]->attached_pic;
             
-            // 淇濆瓨灏侀潰鍒颁复鏃舵枃浠?
+            
             QString tempPath = QStandardPaths::writableLocation(QStandardPaths::TempLocation)
                              + "/album_cover_" + QString::number(QDateTime::currentMSecsSinceEpoch()) + ".jpg";
             
@@ -594,7 +608,7 @@ void AudioDecoder::extractAlbumArt()
                 file.write((const char*)pkt->data, pkt->size);
                 file.close();
                 
-                // 杞崲涓?file:/// URL 鏍煎紡渚?QML 浣跨敤
+                
                 QString fileUrl = QUrl::fromLocalFile(tempPath).toString();
                 
                 qDebug() << "Album cover extracted to:" << fileUrl;
@@ -607,7 +621,7 @@ void AudioDecoder::extractAlbumArt()
         }
     }
     
-    // 娌℃湁鎵惧埌灏侀潰锛屼娇鐢ㄩ粯璁ゅ浘鐗?
+    
     qDebug() << "No album cover found, using default image";
     emit albumArtReady("qrc:/new/prefix1/icon/maxresdefault.jpg");
 }
@@ -632,12 +646,12 @@ bool AudioDecoder::openFile(const QString& filePath)
     m_formatCtx->interrupt_callback.opaque = this;
     
     AVDictionary* options = nullptr;
-    // 缃戠粶瓒呮椂璁剧疆锛?0绉掞級锛屽簲瀵圭綉缁滀笉绋冲畾
-    av_dict_set(&options, "timeout", "30000000", 0);  // 30绉掕秴鏃?
+    
+    av_dict_set(&options, "timeout", "30000000", 0);  
     av_dict_set(&options, "rw_timeout", "3000000", 0); // 单次I/O约3秒超时
-    av_dict_set(&options, "reconnect", "1", 0);  // 鍚敤鑷姩閲嶈繛
-    av_dict_set(&options, "reconnect_streamed", "1", 0);  // 娴佸紡閲嶈繛
-    av_dict_set(&options, "reconnect_delay_max", "5", 0);  // 鏈€澶ч噸杩炲欢杩?绉?
+    av_dict_set(&options, "reconnect", "1", 0);  
+    av_dict_set(&options, "reconnect_streamed", "1", 0);  
+    av_dict_set(&options, "reconnect_delay_max", "5", 0);  
     if (m_networkSource.load()) {
         // 强制按可随机访问网络流处理，避免 server 已支持 Range 但被判为不可 seek。
         av_dict_set(&options, "seekable", "1", 0);
@@ -673,7 +687,7 @@ bool AudioDecoder::openFile(const QString& filePath)
     qDebug() << "[TIMING]   avformat_find_stream_info:" 
              << std::chrono::duration<double, std::milli>(t2 - t1).count() << "ms";
     
-    // 鏌ユ壘闊抽娴?
+    
     m_audioStreamIndex = -1;
     for (int i = 0; i < (int)m_formatCtx->nb_streams; ++i) {
         if (m_formatCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
@@ -696,35 +710,35 @@ bool AudioDecoder::setupDecoder()
 {
     if (!m_formatCtx || m_audioStreamIndex < 0) return false;
     
-    // 鏌ユ壘瑙ｇ爜鍣?
+    
     AVCodec* codec = avcodec_find_decoder(m_formatCtx->streams[m_audioStreamIndex]->codecpar->codec_id);
     if (!codec) {
         qDebug() << "Codec not found";
         return false;
     }
     
-    // 鍒嗛厤瑙ｇ爜鍣ㄤ笂涓嬫枃
+    // 分配解码器上下文
     m_codecCtx = avcodec_alloc_context3(codec);
     if (!m_codecCtx) {
         qDebug() << "Could not allocate codec context";
         return false;
     }
     
-    // 澶嶅埗鍙傛暟
+    
     if (avcodec_parameters_to_context(m_codecCtx, m_formatCtx->streams[m_audioStreamIndex]->codecpar) < 0) {
         qDebug() << "Failed to copy codec parameters to codec context";
         avcodec_free_context(&m_codecCtx);
         return false;
     }
     
-    // 鎵撳紑瑙ｇ爜鍣?
+    
     if (avcodec_open2(m_codecCtx, codec, nullptr) < 0) {
         qDebug() << "Could not open codec";
         avcodec_free_context(&m_codecCtx);
         return false;
     }
     
-    // 鍒嗛厤甯у拰鍖?
+    // 分配 frame 与 packet
     m_frame = av_frame_alloc();
     if (!m_frame) {
         qDebug() << "Could not allocate frame";
@@ -747,20 +761,20 @@ bool AudioDecoder::setupResampler()
 {
     if (!m_codecCtx) return false;
     
-    // 鑾峰彇杈撳叆鏍煎紡
+    
     int64_t input_channel_layout = m_codecCtx->channel_layout;
     if (input_channel_layout == 0) {
         input_channel_layout = av_get_default_channel_layout(m_codecCtx->channels);
     }
     
-    // 鍒嗛厤閲嶉噰鏍蜂笂涓嬫枃
+    
     m_swrCtx = swr_alloc();
     if (!m_swrCtx) {
         qDebug() << "Could not allocate SwrContext";
         return false;
     }
     
-    // 閰嶇疆閲嶉噰鏍峰弬鏁?
+    
     int64_t output_channel_layout = AV_CH_LAYOUT_STEREO;
     
     av_opt_set_int(m_swrCtx, "in_channel_layout", input_channel_layout, 0);
@@ -770,7 +784,7 @@ bool AudioDecoder::setupResampler()
     av_opt_set_sample_fmt(m_swrCtx, "in_sample_fmt", m_codecCtx->sample_fmt, 0);
     av_opt_set_sample_fmt(m_swrCtx, "out_sample_fmt", m_outSampleFormat, 0);
     
-    // 鍒濆鍖栭噸閲囨牱鍣?
+    // 初始化重采样器
     if (swr_init(m_swrCtx) < 0) {
         qDebug() << "Could not initialize resampler";
         swr_free(&m_swrCtx);

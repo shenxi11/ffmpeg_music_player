@@ -1,11 +1,15 @@
-﻿import QtQuick 2.15
+import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import "../../theme/Theme.js" as Theme
 
-// 鏈湴鍜屼笅杞?- 澶歍ab鐣岄潰
 Rectangle {
     id: root
-    color: "#f5f5f5"
+    color: "transparent"
+
+    property int tabLeftMargin: 18
+    property int tabSpacing: width >= 1280 ? 18 : 10
+    property int tabButtonWidth: Math.max(120, Math.min(220, Math.floor((width - tabLeftMargin * 2 - tabSpacing * 2) / 3)))
 
     signal playMusic(string filename)
     signal deleteMusic(string filename)
@@ -15,37 +19,51 @@ Rectangle {
         anchors.fill: parent
         spacing: 0
 
-        // Tab鏍?
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 50
-            color: "#ffffff"
-            
+            Layout.preferredHeight: 64
+            color: Theme.glassLight
+            border.width: 1
+            border.color: Theme.glassBorder
+
             Row {
                 anchors.left: parent.left
-                anchors.leftMargin: 20
+                anchors.leftMargin: root.tabLeftMargin
                 anchors.verticalCenter: parent.verticalCenter
-                spacing: 40
+                spacing: root.tabSpacing
 
                 Repeater {
-                    model: ["\u672c\u5730\u97f3\u4e50", "\u4e0b\u8f7d\u97f3\u4e50", "\u6b63\u5728\u4e0b\u8f7d"]
-                    
+                    model: [
+                        "\u672c\u5730\u97f3\u4e50",
+                        "\u4e0b\u8f7d\u97f3\u4e50",
+                        "\u6b63\u5728\u4e0b\u8f7d"
+                    ]
+
                     Rectangle {
-                        width: 100
+                        id: tabButton
+                        width: root.tabButtonWidth
                         height: 40
-                        color: tabBar.currentIndex === index ? "#409EFF" : "transparent"
-                        radius: 4
+                        radius: 12
+                        color: tabBar.currentIndex === index
+                               ? Theme.accent
+                               : (tabArea.containsMouse ? Theme.glassHover : "transparent")
+                        border.width: tabBar.currentIndex === index ? 0 : 1
+                        border.color: Theme.glassBorder
+                        Behavior on color { ColorAnimation { duration: 120 } }
 
                         Text {
                             anchors.centerIn: parent
                             text: modelData
-                            font.pixelSize: 16
+                            font.family: "Microsoft YaHei UI"
+                            font.pixelSize: 14
                             font.bold: tabBar.currentIndex === index
-                            color: tabBar.currentIndex === index ? "#ffffff" : "#333333"
+                            color: tabBar.currentIndex === index ? "#ffffff" : Theme.textPrimary
                         }
 
                         MouseArea {
+                            id: tabArea
                             anchors.fill: parent
+                            hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
                                 tabBar.currentIndex = index
@@ -57,44 +75,37 @@ Rectangle {
             }
         }
 
-        // 鍒嗛殧绾?
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 1
-            color: "#e0e0e0"
+            color: Theme.divider
         }
 
-        // Tab鍐呭鍖?
         StackLayout {
             id: stackLayout
             Layout.fillWidth: true
             Layout.fillHeight: true
             currentIndex: tabBar.currentIndex
 
-            // Tab 1: 鏈湴闊充箰
             LocalMusicList {
                 onPlayMusic: root.playMusic(filename)
                 onDeleteMusic: root.deleteMusic(filename)
                 onAddToFavorite: root.addToFavorite(path, title, artist, duration)
             }
 
-            // Tab 2: 涓嬭浇闊充箰
             DownloadedMusicList {
                 onPlayMusic: root.playMusic(filename)
                 onDeleteMusic: root.deleteMusic(filename)
                 onAddToFavorite: root.addToFavorite(path, title, artist, duration)
             }
 
-            // Tab 3: 姝ｅ湪涓嬭浇
             DownloadingList {
             }
         }
     }
 
-    // Tab鎺у埗鍣紙闅愯棌锛?
     QtObject {
         id: tabBar
         property int currentIndex: 0
     }
 }
-

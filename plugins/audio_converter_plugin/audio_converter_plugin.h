@@ -1,15 +1,12 @@
-#ifndef AUDIO_CONVERTER_PLUGIN_H
+﻿#ifndef AUDIO_CONVERTER_PLUGIN_H
 #define AUDIO_CONVERTER_PLUGIN_H
 
 #include <QObject>
 #include <QtPlugin>
+
 #include "plugin_interface.h"
 #include "audio_converter.h"
 
-/**
- * @brief 音频转换插件
- * 实现音频格式转换功能
- */
 class AudioConverterPlugin : public QObject, public PluginInterface {
     Q_OBJECT
     Q_PLUGIN_METADATA(IID PluginInterface_iid FILE "audio_converter_plugin.json")
@@ -19,7 +16,6 @@ public:
     AudioConverterPlugin();
     ~AudioConverterPlugin() override;
 
-    // 实现 PluginInterface 接口
     QString pluginName() const override;
     QString pluginDescription() const override;
     QString pluginVersion() const override;
@@ -28,8 +24,19 @@ public:
     bool initialize() override;
     void cleanup() override;
 
+    QString pluginId() const override;
+    int pluginApiVersion() const override;
+    QStringList pluginCapabilities() const override;
+    QString pluginAuthor() const override;
+    QStringList pluginDependencies() const override;
+    QStringList pluginPermissions() const override;
+    void setHostContext(QObject* hostContext) override;
+    void setGrantedPermissions(const QStringList& permissions) override;
+
 private:
-    bool m_initialized;
+    bool m_initialized = false;
+    QObject* m_hostContext = nullptr;
+    QStringList m_grantedPermissions;
 };
 
 #endif // AUDIO_CONVERTER_PLUGIN_H

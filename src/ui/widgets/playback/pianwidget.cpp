@@ -1,4 +1,4 @@
-#include "pianwidget.h"
+﻿#include "pianwidget.h"
 
 PianWidget::PianWidget(QWidget *parent) : QWidget(parent)
 {

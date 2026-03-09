@@ -18,7 +18,7 @@ Rectangle {
     // 属性
     property bool isLoggedIn: false
     property string username: "未登录"
-    property string avatarSource: "qrc:/new/prefix1/icon/denglu.png"
+    property string avatarSource: "qrc:/design/design_exports/netease_ui_pack_20260309/icon/ui/base/base_icon_user_default@2x.png"
     
     // 信号
     signal loginRequested()
@@ -277,7 +277,7 @@ Rectangle {
         root.isLoggedIn = loggedIn
         if (!loggedIn) {
             root.username = "未登录"
-            root.avatarSource = "qrc:/new/prefix1/icon/denglu.png"
+            root.avatarSource = "qrc:/design/design_exports/netease_ui_pack_20260309/icon/ui/base/base_icon_user_default@2x.png"
         }
     }
 }

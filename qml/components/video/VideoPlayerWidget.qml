@@ -1,75 +1,94 @@
-﻿import QtQuick 2.14
+import QtQuick 2.14
 import QtQuick.Controls 2.14
 import QtQuick.Layouts 1.14
 import VideoPlayer 1.0
+import "../../theme/Theme.js" as Theme
 
 Rectangle {
     id: root
-    color: "#1E1E1E"  // 娣辫壊鑳屾櫙
-    
-    // 灞炴€?
+    color: "#0F1115"
+    property string playerIconPrefix: "qrc:/design/design_exports/netease_ui_pack_20260309/icon/ui/player/"
+
+    property int pagePadding: width >= 1400 ? 28 : (width >= 1000 ? 22 : 16)
+    property int actionButtonWidth: width >= 1200 ? 116 : 98
+    property int actionButtonHeight: width >= 1200 ? 38 : 34
+    property int controlButtonSize: width >= 1200 ? 52 : 46
+    property int controlPanelHeight: width >= 1200 ? 104 : 96
+
+    // 视频状态属性
     property int videoWidth: 0
     property int videoHeight: 0
     property double videoFPS: 0
     property int videoDuration: 0
     property bool isPlaying: false
     property int currentPosition: 0
-    
-    // 淇″彿
+
     signal playPauseClicked()
     signal stopClicked()
     signal seekRequested(int positionMs)
     signal openVideoClicked()
-    
-    // 鏇存柊杩涘害
+
     function updateProgress(progress) {
-        progressBar.value = progress
+        var clamped = Math.max(0, Math.min(1.0, Number(progress)))
+        progressBar.value = isNaN(clamped) ? 0 : clamped
     }
-    
-    // 鏄剧ず閿欒淇℃伅
+
     function showError(errorMsg) {
-        errorText.text = errorMsg
+        errorText.text = errorMsg || "播放失败"
         errorText.visible = true
+        errorHideTimer.restart()
     }
-    
+
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
-        
-        // 鏍囬鏍?
+
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 60
-            color: "#2D2D2D"
-            
+            Layout.preferredHeight: 62
+            color: "#171A20"
+            border.width: 1
+            border.color: "#262A33"
+
             RowLayout {
                 anchors.fill: parent
-                anchors.leftMargin: 20
-                anchors.rightMargin: 20
-                
+                anchors.leftMargin: root.pagePadding
+                anchors.rightMargin: root.pagePadding
+                spacing: 12
+
                 Text {
-                    text: "瑙嗛鎾斁"
+                    text: "视频播放"
                     font.pixelSize: 18
-                    font.bold: true
-                    color: "#FFFFFF"
+                    font.weight: Font.DemiBold
+                    color: "#F2F5FB"
                 }
-                
+
+                Text {
+                    text: videoWidth > 0
+                          ? (videoWidth + " x " + videoHeight + "  ·  " + videoFPS.toFixed(1) + " FPS")
+                          : "未加载视频"
+                    font.pixelSize: 12
+                    color: "#A4ACB9"
+                }
+
                 Item { Layout.fillWidth: true }
-                
-                // 閫夋嫨瑙嗛鎸夐挳
+
                 Rectangle {
-                    width: 100
-                    height: 36
-                    radius: 18
-                    color: openVideoArea.containsMouse ? "#EC4141" : "#3A3A3A"
-                    
+                    width: root.actionButtonWidth
+                    height: root.actionButtonHeight
+                    radius: height / 2
+                    color: openVideoArea.containsMouse ? Theme.accent : "transparent"
+                    border.width: 1
+                    border.color: Theme.accent
+
                     Text {
                         anchors.centerIn: parent
-                        text: "馃搧 閫夋嫨瑙嗛"
+                        text: "选择视频"
                         font.pixelSize: 13
-                        color: "#FFFFFF"
+                        font.weight: Font.Medium
+                        color: openVideoArea.containsMouse ? "#FFFFFF" : Theme.accent
                     }
-                    
+
                     MouseArea {
                         id: openVideoArea
                         anchors.fill: parent
@@ -78,151 +97,170 @@ Rectangle {
                         onClicked: root.openVideoClicked()
                     }
                 }
-                
-                Item { width: 20 }
-                
-                // 瑙嗛淇℃伅
-                Text {
-                    text: videoWidth > 0 ? videoWidth + "x" + videoHeight + " @ " + videoFPS.toFixed(1) + " FPS" : "鏈姞杞借棰?
-                    font.pixelSize: 12
-                    color: "#AAAAAA"
-                }
             }
         }
-        
-        // 瑙嗛鏄剧ず鍖哄煙
+
         Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
             color: "#000000"
-            
-            // 瑙嗛鐢婚潰 - 浣跨敤鑷畾涔夌殑VideoFrameItem
+
             VideoFrameItem {
                 id: videoFrameItem
                 objectName: "videoFrameItem"
                 anchors.fill: parent
             }
-            
-            // 鍗犱綅绗︽枃鏈?
+
             Text {
                 anchors.centerIn: parent
-                text: videoWidth === 0 ? "璇烽€夋嫨瑙嗛鏂囦欢" : ""
-                font.pixelSize: 24
-                color: "#666666"
                 visible: videoWidth === 0
+                text: "请选择视频文件"
+                font.pixelSize: 24
+                color: "#566075"
             }
-            
-            // 閿欒鎻愮ず
-            Text {
-                id: errorText
-                anchors.centerIn: parent
-                font.pixelSize: 16
-                color: "#E74C3C"
-                visible: false
+
+            Rectangle {
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.top: parent.top
+                anchors.topMargin: 18
+                visible: errorText.visible
+                radius: 10
+                color: "#CC8B1F1F"
+                border.width: 1
+                border.color: "#E05555"
+                width: Math.min(parent.width - 40, errorText.implicitWidth + 24)
+                height: 38
+
+                Text {
+                    id: errorText
+                    anchors.centerIn: parent
+                    font.pixelSize: 13
+                    color: "#FFFFFF"
+                    visible: false
+                    text: ""
+                    elide: Text.ElideRight
+                }
             }
-            
-            // 鍔犺浇鎸囩ず鍣紙鍙€夛級
+
             BusyIndicator {
                 id: loadingIndicator
                 anchors.centerIn: parent
                 running: false
                 visible: running
             }
+
+            Timer {
+                id: errorHideTimer
+                interval: 3500
+                repeat: false
+                onTriggered: errorText.visible = false
+            }
         }
-        
-        // 鎺у埗鏍?
+
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 100
-            color: "#2D2D2D"
-            
+            Layout.preferredHeight: root.controlPanelHeight
+            color: "#171A20"
+            border.width: 1
+            border.color: "#262A33"
+
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 10
+                anchors.leftMargin: root.pagePadding
+                anchors.rightMargin: root.pagePadding
+                anchors.topMargin: 10
+                anchors.bottomMargin: 10
                 spacing: 10
-                
-                // 杩涘害鏉?
+
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 10
-                    
+
                     Text {
                         text: formatTime(currentPosition)
                         font.pixelSize: 12
-                        color: "#AAAAAA"
+                        color: "#A4ACB9"
                     }
-                    
+
                     Slider {
                         id: progressBar
                         Layout.fillWidth: true
                         from: 0
                         to: 1.0
                         value: 0
-                        
+
                         onPressedChanged: {
                             if (!pressed && videoDuration > 0) {
                                 root.seekRequested(Math.floor(value * videoDuration))
                             }
                         }
-                        
+
                         background: Rectangle {
                             x: progressBar.leftPadding
                             y: progressBar.topPadding + progressBar.availableHeight / 2 - height / 2
-                            implicitWidth: 200
-                            implicitHeight: 4
                             width: progressBar.availableWidth
-                            height: implicitHeight
+                            height: 4
                             radius: 2
-                            color: "#4A4A4A"
-                            
+                            color: "#3A414E"
+
                             Rectangle {
                                 width: progressBar.visualPosition * parent.width
                                 height: parent.height
-                                color: "#EC4141"
                                 radius: 2
+                                color: Theme.accent
                             }
                         }
-                        
+
                         handle: Rectangle {
                             x: progressBar.leftPadding + progressBar.visualPosition * (progressBar.availableWidth - width)
                             y: progressBar.topPadding + progressBar.availableHeight / 2 - height / 2
-                            implicitWidth: 16
-                            implicitHeight: 16
-                            radius: 8
-                            color: progressBar.pressed ? "#FFFFFF" : "#EC4141"
+                            width: 14
+                            height: 14
+                            radius: 7
+                            color: progressBar.pressed ? "#FFFFFF" : Theme.accent
+                            border.width: 1
                             border.color: "#FFFFFF"
-                            border.width: 2
                         }
                     }
-                    
+
                     Text {
                         text: formatTime(videoDuration)
                         font.pixelSize: 12
-                        color: "#AAAAAA"
+                        color: "#A4ACB9"
                     }
                 }
-                
-                // 鎺у埗鎸夐挳
+
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 15
-                    
+                    spacing: 14
+
                     Item { Layout.fillWidth: true }
-                    
-                    // 鎾斁/鏆傚仠鎸夐挳
+
                     Rectangle {
-                        width: 50
-                        height: 50
-                        radius: 25
-                        color: playPauseArea.containsMouse ? "#EC4141" : "#3A3A3A"
-                        
-                        Text {
+                        width: root.controlButtonSize
+                        height: root.controlButtonSize
+                        radius: width / 2
+                        color: playPauseArea.containsMouse ? "#FDECEC" : "transparent"
+                        border.width: 1
+                        border.color: Theme.accent
+
+                        Image {
                             anchors.centerIn: parent
-                            text: root.isPlaying ? "鈴? : "鈻?
-                            font.pixelSize: 24
-                            color: "#FFFFFF"
+                            width: 22
+                            height: 22
+                            source: {
+                                if (root.isPlaying) {
+                                    return playPauseArea.containsMouse
+                                            ? root.playerIconPrefix + "player_btn_pause_hover.svg"
+                                            : root.playerIconPrefix + "player_btn_pause_default.svg"
+                                }
+                                return playPauseArea.containsMouse
+                                        ? root.playerIconPrefix + "player_btn_play_hover.svg"
+                                        : root.playerIconPrefix + "player_btn_play_default.svg"
+                            }
+                            fillMode: Image.PreserveAspectFit
                         }
-                        
+
                         MouseArea {
                             id: playPauseArea
                             anchors.fill: parent
@@ -231,21 +269,25 @@ Rectangle {
                             onClicked: root.playPauseClicked()
                         }
                     }
-                    
-                    // 鍋滄鎸夐挳
+
                     Rectangle {
-                        width: 50
-                        height: 50
-                        radius: 25
-                        color: stopArea.containsMouse ? "#E74C3C" : "#3A3A3A"
-                        
-                        Text {
+                        width: root.controlButtonSize
+                        height: root.controlButtonSize
+                        radius: width / 2
+                        color: stopArea.containsMouse ? "#FDECEC" : "transparent"
+                        border.width: 1
+                        border.color: stopArea.containsMouse ? Theme.accent : "#556070"
+
+                        Image {
                             anchors.centerIn: parent
-                            text: "鈴?
-                            font.pixelSize: 24
-                            color: "#FFFFFF"
+                            width: 20
+                            height: 20
+                            source: stopArea.containsMouse
+                                    ? root.playerIconPrefix + "player_btn_stop_hover.svg"
+                                    : root.playerIconPrefix + "player_btn_stop_default.svg"
+                            fillMode: Image.PreserveAspectFit
                         }
-                        
+
                         MouseArea {
                             id: stopArea
                             anchors.fill: parent
@@ -254,28 +296,26 @@ Rectangle {
                             onClicked: root.stopClicked()
                         }
                     }
-                    
+
                     Item { Layout.fillWidth: true }
                 }
             }
         }
     }
-    
-    // 鏃堕棿鏍煎紡鍖栧嚱鏁?
+
     function formatTime(ms) {
-        var totalSeconds = Math.floor(ms / 1000)
+        var totalSeconds = Math.floor(Math.max(0, ms) / 1000)
         var hours = Math.floor(totalSeconds / 3600)
         var minutes = Math.floor((totalSeconds % 3600) / 60)
         var seconds = totalSeconds % 60
-        
+
         if (hours > 0) {
-            return hours + ":" + 
-                   (minutes < 10 ? "0" : "") + minutes + ":" + 
-                   (seconds < 10 ? "0" : "") + seconds
-        } else {
-            return (minutes < 10 ? "0" : "") + minutes + ":" + 
+            return hours + ":" +
+                   (minutes < 10 ? "0" : "") + minutes + ":" +
                    (seconds < 10 ? "0" : "") + seconds
         }
+
+        return (minutes < 10 ? "0" : "") + minutes + ":" +
+               (seconds < 10 ? "0" : "") + seconds
     }
 }
-

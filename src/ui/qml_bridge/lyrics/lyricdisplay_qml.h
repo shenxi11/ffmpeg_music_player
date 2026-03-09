@@ -6,6 +6,7 @@
 #include <QQuickItem>
 #include <QQuickWidget>
 #include <QVariantList>
+#include <QVariantMap>
 #include <map>
 #include <string>
 #include <vector>
@@ -77,11 +78,29 @@ public:
         QMetaObject::invokeMethod(rootObject(), "setIsUp", Q_ARG(QVariant, up));
     }
 
+    void setCenterYOffset(double offset)
+    {
+        if (rootObject()) {
+            rootObject()->setProperty("centerYOffset", offset);
+        }
+    }
+
     void setSongInfo(const QString &title, const QString &artist = QString())
     {
         QMetaObject::invokeMethod(rootObject(), "setSongInfo",
                                   Q_ARG(QVariant, title),
                                   Q_ARG(QVariant, artist));
+    }
+
+    void setSimilarSongs(const QVariantList& items)
+    {
+        const QVariant itemsVar = QVariant::fromValue(items);
+        QMetaObject::invokeMethod(rootObject(), "setSimilarSongs", Q_ARG(QVariant, itemsVar));
+    }
+
+    void clearSimilarSongs()
+    {
+        QMetaObject::invokeMethod(rootObject(), "clearSimilarSongs");
     }
 
     int getCurrentLine() const
@@ -98,6 +117,7 @@ signals:
     void signal_lyric_drag_start();
     void signal_lyric_drag_preview(int timeMs);
     void signal_lyric_drag_end();
+    void signal_similar_play_requested(const QVariantMap& item);
 
 private slots:
     void onQmlSignal(const QString &lyricText)
@@ -134,6 +154,11 @@ private slots:
         emit signal_lyric_drag_end();
     }
 
+    void onSimilarPlayRequested(const QVariant& item)
+    {
+        emit signal_similar_play_requested(item.toMap());
+    }
+
 private:
     std::vector<int> lyricTimes;
     bool m_qmlSignalsConnected = false;
@@ -166,6 +191,8 @@ private:
                 this, SLOT(onLyricDragSeek(int)), Qt::UniqueConnection);
         connect(rootObject(), SIGNAL(lyricDragEnded()),
                 this, SLOT(onLyricDragEnded()), Qt::UniqueConnection);
+        connect(rootObject(), SIGNAL(similarPlayRequested(QVariant)),
+                this, SLOT(onSimilarPlayRequested(QVariant)), Qt::UniqueConnection);
 
         m_qmlSignalsConnected = true;
     }

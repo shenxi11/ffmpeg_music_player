@@ -1,6 +1,11 @@
-{
+﻿{
+    "id": "cloudmusic.audio_converter",
     "name": "audio_converter_plugin",
     "version": "1.0.0",
+    "apiVersion": 1,
     "description": "Audio format converter plugin",
-    "author": "FFmpeg Music Player Team"
+    "author": "CloudMusic Team",
+    "capabilities": ["widget", "audio.convert"],
+    "dependencies": [],
+    "permissions": ["ui.widget", "audio.convert", "storage.read"]
 }

@@ -306,6 +306,38 @@ QMenu::item:selected {
     color: #EC4141;
 }
 
+QDialog#PluginHostWindow {
+    background: #F6F7FB;
+}
+
+QWidget#PluginHeaderCard {
+    border: 1px solid #ECECEC;
+    border-radius: 10px;
+    background: #FFFFFF;
+}
+
+QLabel#PluginHeaderTitle {
+    color: #1F1F1F;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+QLabel#PluginHeaderSubtitle {
+    color: #7A7D85;
+    font-size: 12px;
+}
+
+QPushButton#PluginHeaderHelpButton {
+    min-height: 28px;
+    padding: 0 12px;
+}
+
+QWidget#PluginContentCard {
+    border: 1px solid #ECECEC;
+    border-radius: 10px;
+    background: #FFFFFF;
+}
+
 QWidget#MainWidget {
     background-color: #F6F7FB;
 }

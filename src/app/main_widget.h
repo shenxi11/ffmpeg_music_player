@@ -1,4 +1,4 @@
-#ifndef TEST_WIDGET_H
+﻿#ifndef TEST_WIDGET_H
 #define TEST_WIDGET_H
 #include"play_widget.h"
 #include "music_list_widget.h"
@@ -7,7 +7,7 @@
 #include "local_and_download_widget.h"
 #include "local_music_cache.h"
 #include "loginwidget_qml.h"
-#include "searchbox.h"
+#include "searchbox_qml.h"
 #include "user_widget.h"
 #include "userwidget_qml.h"
 #include "main_menu.h"
@@ -19,13 +19,19 @@
 #include "settings_manager.h"
 #include "play_history_widget.h"
 #include "favorite_music_widget.h"
+#include "recommend_music_widget.h"
 #include <QWidget>
 #include <QButtonGroup>
 #include <QScreen>
 #include <QGuiApplication>
+#include <QStringList>
+#include <QPainter>
+#include <QLinearGradient>
+#include <QMouseEvent>
 
 class PlaybackStateManager;
 class QCloseEvent;
+class QTimer;
 
 class MainWidget : public QWidget
 {
@@ -35,7 +41,7 @@ public:
     ~MainWidget();
     void Update_paint();
     
-    // 检查登录状态 (Q_INVOKABLE用于QMetaObject::invokeMethod调用)
+    // 检查登录状态（Q_INVOKABLE 供 QMetaObject::invokeMethod 调用）
     Q_INVOKABLE bool isUserLoggedIn() const { 
         return userWidgetQml ? userWidgetQml->getLoginState() : false; 
     }
@@ -49,22 +55,32 @@ public:
     }
     
 signals:
-    void loginRequired();  // 需要登录的信号
+    void loginRequired();  // 需要登录时发出的信号
     
 private:
     PlayWidget* w;
     MusicListWidget* list;
     MusicListWidgetLocal* main_list;
-    LocalAndDownloadWidget* localAndDownloadWidget;  // 新的本地和下载页面
+    LocalAndDownloadWidget* localAndDownloadWidget;  // 本地与下载页面组件
     MusicListWidgetNet* net_list;
-    PlayHistoryWidget* playHistoryWidget;  // 播放历史widget
-    FavoriteMusicWidget* favoriteMusicWidget;  // 喜欢音乐widget
+    PlayHistoryWidget* playHistoryWidget;  // 最近播放页面组件
+    FavoriteMusicWidget* favoriteMusicWidget;  // 喜欢音乐页面组件
+    RecommendMusicWidget* recommendMusicWidget;  // 推荐音乐页面组件
     LoginWidgetQml* loginWidget;
     UserWidget* userWidget;
     UserWidgetQml* userWidgetQml;
+    SearchBoxQml* searchBox = nullptr;
     QWidget* topWidget;
+    QWidget* leftWidget = nullptr;
+    QWidget* brandWidget = nullptr;
     MainMenu* mainMenu;
     QPushButton* menuButton;
+    QPushButton* recommendButton = nullptr;
+    QPushButton* localButton = nullptr;
+    QPushButton* netButton = nullptr;
+    QPushButton* historyButton = nullptr;
+    QPushButton* favoriteButton = nullptr;
+    QPushButton* videoButton = nullptr;
     VideoPlayerWindow* videoPlayerWindow;
     VideoListWidget* videoListWidget;  // 在线视频列表窗口
     SettingsWidget* settingsWidget;    // 设置窗口
@@ -72,10 +88,12 @@ private:
     QPushButton* Login;
     HttpRequestV2* request;
     
-    // 网络音乐元数据缓存（用于添加播放历史）
+    // 在线音乐元数据缓存（用于追加最近播放记录）
     QString m_networkMusicArtist;
     QString m_networkMusicCover;
     PlaybackStateManager* m_playbackStateManager = nullptr;
+    QTimer* m_pluginErrorDialogTimer = nullptr;
+    QStringList m_pendingPluginErrors;
 
     QPoint pos_ = QPoint(0, 0);
     bool dragging = false;
@@ -87,10 +105,10 @@ protected:
         QPainter painter(this);
         painter.setRenderHint(QPainter::Antialiasing);
 
-        // QQ音乐风格：浅灰白色渐变背景
+        // QQ 音乐风格：浅灰白色渐变背景
         QLinearGradient gradient(0, 0, 0, height());
         gradient.setColorAt(0, QColor("#F5F5F7"));   // 浅灰白色
-        gradient.setColorAt(0.5, QColor("#FAFAFA")); // 几乎白色
+        gradient.setColorAt(0.5, QColor("#FAFAFA")); // 接近纯白
         gradient.setColorAt(1, QColor("#F0F0F2"));   // 浅灰色
         painter.fillRect(rect(), gradient);
 
@@ -107,6 +125,14 @@ private:
                                     const QString& filePath,
                                     const QString& userAccount,
                                     int retryCount);
+    QRect computeContentRect() const;
+    void updateAdaptiveLayout();
+    void updateSideNavLayout();
+    void enqueuePluginLoadError(const QString& pluginFilePath, const QString& reason);
+    void showPluginDiagnosticsDialog();
 };
 
 #endif // TEST_WIDGET_H
+
+
+

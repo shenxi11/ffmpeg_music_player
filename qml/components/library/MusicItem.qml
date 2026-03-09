@@ -14,7 +14,7 @@ Rectangle {
     property string cover: ""
     property string filePath: ""
     property bool isNet: false
-    property bool isPlaying: false  // 鎾斁鐘舵€?
+    property bool isPlaying: false  // 播放状态
 
     signal playRequested(string songName)
     signal removeRequested(string songName)
@@ -35,7 +35,7 @@ Rectangle {
         anchors.rightMargin: 10
         spacing: 15
 
-        // 灏侀潰鍥剧墖
+        // 封面图片
         Rectangle {
             width: 44
             height: 44
@@ -91,9 +91,9 @@ Rectangle {
             }
         }
 
-        Item { width: 50 }  // 寮规€х┖闂?
+        Item { width: 50 }  // 弹性空白
 
-        // 鏃堕暱
+        // 时长
         Text {
             text: root.duration
             anchors.verticalCenter: parent.verticalCenter
@@ -102,7 +102,7 @@ Rectangle {
             width: 50
         }
 
-        // 鎿嶄綔鎸夐挳锛宧over 鏃舵樉绀?
+        // 操作按钮（hover 时显示）
         Row {
             id: buttonRow
             spacing: 8
@@ -135,7 +135,7 @@ Rectangle {
                 }
             }
 
-            // 鍒犻櫎鎸夐挳锛堟湰鍦伴煶涔愶級
+            // 删除按钮（本地音乐）
             Rectangle {
                 width: 60
                 height: 28
@@ -159,7 +159,7 @@ Rectangle {
                 }
             }
 
-            // 涓嬭浇鎸夐挳锛堢綉缁滈煶涔愶級
+            // 下载按钮（在线音乐）
             Rectangle {
                 width: 60
                 height: 28
@@ -190,12 +190,12 @@ Rectangle {
         anchors.fill: parent
         hoverEnabled: true
         onClicked: {
-            // 鐐瑰嚮鏁翠綋椤硅涓烘挱鏀?
+            // 点击整行视为播放
             root.playRequested(root.songName)
         }
     }
 
-    // 鎻愪緵缁?C++ 璋冪敤鐨勬柟娉?
+    // 提供给 C++ 调用的方法
     function setPlayingState(playing) {
         root.isPlaying = playing
     }

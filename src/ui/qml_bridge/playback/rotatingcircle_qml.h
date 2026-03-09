@@ -15,16 +15,16 @@ public:
     explicit RotatingCircleQml(QWidget *parent = nullptr)
         : QQuickWidget(parent)
     {
-        // 璁剧疆瀹屽叏閫忔槑鑳屾櫙
+        // 透明渲染配置，避免唱片区域出现底色块。
         setClearColor(Qt::transparent);
         setAttribute(Qt::WA_TranslucentBackground, true);
         setAttribute(Qt::WA_AlwaysStackOnTop, false);
         setAttribute(Qt::WA_NoSystemBackground, true);
-        setAttribute(Qt::WA_OpaquePaintEvent, false);   // 绂佺敤涓嶉€忔槑缁樺埗
+        setAttribute(Qt::WA_OpaquePaintEvent, false);   // 设置透明渲染相关属性
         setStyleSheet("background: transparent;");
-        setAutoFillBackground(false);                   // 绂佺敤鑷姩濉厖鑳屾櫙
+        setAutoFillBackground(false);                   // 禁用自动背景填充
         
-        // 鍔犺浇 QML 鏂囦欢
+        // 加载唱片旋转 QML。
         setSource(QUrl("qrc:/qml/components/playback/RotatingCircle.qml"));
         setResizeMode(QQuickWidget::SizeRootObjectToView);
         
@@ -33,29 +33,29 @@ public:
         }
     }
 
-    // 寮€濮嬫棆杞?
+    // 启动唱片旋转动画。
     void startRotation() {
         QMetaObject::invokeMethod(rootObject(), "startRotation");
     }
 
-    // 鍋滄鏃嬭浆
+    // 停止唱片旋转动画。
     void stopRotation() {
         QMetaObject::invokeMethod(rootObject(), "stopRotation");
     }
 
-    // 璁剧疆鍥剧墖
+    // 设置封面图路径并下发到 QML。
     void setImage(const QString &imagePath) {
         QMetaObject::invokeMethod(rootObject(), "setImage",
                                   Q_ARG(QVariant, imagePath));
     }
 
-    // 璁剧疆鍥剧墖璺緞锛堝吋瀹规€ф柟娉曪級
+    // 兼容旧接口命名。
     void setImagePath(const QString &imagePath) {
         setImage(imagePath);
     }
 
 public slots:
-    // 鍏煎鍘熸湁鎺ュ彛
+    // 根据布尔状态控制旋转动画启停。
     void on_signal_stop_rotate(bool flag) {
         if (flag) {
             startRotation();

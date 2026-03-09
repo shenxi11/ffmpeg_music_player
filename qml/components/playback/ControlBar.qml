@@ -1,21 +1,20 @@
-﻿import QtQuick 2.14
+import QtQuick 2.14
 import QtQuick.Controls 2.14
+import "../../theme/Theme.js" as Theme
 
 Item {
     id: root
-    width: 250
-    height: 70
-    
-    // 灞炴€?
-    property int playState: 0  // 0: Stop, 1: Play, 2: Pause
+    width: 320
+    height: 74
+
+    property int playState: 0    // 0: stop, 1: playing, 2: paused
     property bool loopState: false
     property bool isUp: false
     property int volumeValue: 50
     property bool volumeVisible: false
     property bool mlistChecked: false
     property bool deskChecked: false
-    
-    // 淇″彿
+
     signal stop()
     signal nextSong()
     signal lastSong()
@@ -25,242 +24,202 @@ Item {
     signal rePlay()
     signal deskToggled(bool checked)
     signal loopStateChanged(bool loop)
-    
+
+    Rectangle {
+        anchors.fill: parent
+        radius: 18
+        color: Theme.glassLight
+        border.width: 1
+        border.color: Theme.glassBorder
+    }
+
     Row {
         anchors.centerIn: parent
-        spacing: 8
-        
-        // 寰幆鎾斁鎸夐挳
+        spacing: 10
+
         Rectangle {
-            width: 28
-            height: 28
-            color: "transparent"
-            radius: 14
-            
-            Image {
+            width: 34
+            height: 34
+            radius: 17
+            color: loopArea.containsMouse ? Theme.glassHover : "transparent"
+            border.width: 1
+            border.color: Theme.glassBorder
+            Text {
                 anchors.centerIn: parent
-                width: 20
-                height: 20
-                source: root.loopState ? 
-                    (root.isUp ? "qrc:/new/prefix1/icon/loop_play_w.png" : "qrc:/new/prefix1/icon/loop_play.png") :
-                    (root.isUp ? "qrc:/new/prefix1/icon/random_play_w.png" : "qrc:/new/prefix1/icon/random_play.png")
-                fillMode: Image.PreserveAspectFit
-                smooth: true
+                text: root.loopState ? "\u27f3" : "\u2248"
+                font.pixelSize: 16
+                color: Theme.textPrimary
             }
-            
             MouseArea {
+                id: loopArea
                 anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
                 hoverEnabled: true
-                onEntered: parent.color = "#E0E0E0"
-                onExited: parent.color = "transparent"
+                cursorShape: Qt.PointingHandCursor
                 onClicked: {
                     root.loopState = !root.loopState
                     root.loopStateChanged(root.loopState)
                 }
             }
         }
-        
-        // 涓婁竴棣栨寜閽?
+
         Rectangle {
-            width: 28
-            height: 28
-            color: "transparent"
-            radius: 14
-            
-            Image {
+            width: 34
+            height: 34
+            radius: 17
+            color: lastArea.containsMouse ? Theme.glassHover : "transparent"
+            border.width: 1
+            border.color: Theme.glassBorder
+            Text {
                 anchors.centerIn: parent
-                width: 20
-                height: 20
-                source: root.isUp ? "qrc:/new/prefix1/icon/last_song_w.png" : "qrc:/new/prefix1/icon/last_song.png"
-                fillMode: Image.PreserveAspectFit
-                smooth: true
+                text: "\u23ee"
+                font.pixelSize: 15
+                color: Theme.textPrimary
             }
-            
             MouseArea {
+                id: lastArea
                 anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
                 hoverEnabled: true
-                onEntered: parent.color = "#E0E0E0"
-                onExited: parent.color = "transparent"
+                cursorShape: Qt.PointingHandCursor
                 onClicked: root.lastSong()
             }
         }
-        
-        // 鎾斁/鏆傚仠鎸夐挳锛堝ぇ涓€鐐癸紝甯︾豢鑹插渾褰㈣儗鏅級
+
         Rectangle {
-            width: 36
-            height: 36
-            color: "transparent"
-            radius: 18
-            
-            Rectangle {
+            width: 42
+            height: 42
+            radius: 21
+            color: playArea.containsMouse ? "#C8342C" : Theme.accent
+            Text {
                 anchors.centerIn: parent
-                width: 32
-                height: 32
-                radius: 16
-                color: playMouseArea.containsMouse ? "#FF5757" : "#EC4141"
-                
-                Image {
-                    anchors.centerIn: parent
-                    width: 18
-                    height: 18
-                    source: {
-                        if (root.playState === 1) { // Playing
-                            return "qrc:/new/prefix1/icon/pause_w.png"
-                        } else {
-                            return "qrc:/new/prefix1/icon/play_w.png"
-                        }
-                    }
-                    fillMode: Image.PreserveAspectFit
-                    smooth: true
-                }
+                text: root.playState === 1 ? "\u23f8" : "\u25b6"
+                font.pixelSize: 18
+                color: "#ffffff"
             }
-            
             MouseArea {
-                id: playMouseArea
+                id: playArea
                 anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
                 hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
                 onClicked: root.playClicked()
             }
         }
-        
-        // 涓嬩竴棣栨寜閽?
+
         Rectangle {
-            width: 28
-            height: 28
-            color: "transparent"
-            radius: 14
-            
-            Image {
+            width: 34
+            height: 34
+            radius: 17
+            color: nextArea.containsMouse ? Theme.glassHover : "transparent"
+            border.width: 1
+            border.color: Theme.glassBorder
+            Text {
                 anchors.centerIn: parent
-                width: 20
-                height: 20
-                source: root.isUp ? "qrc:/new/prefix1/icon/next_song_w.png" : "qrc:/new/prefix1/icon/next_song.png"
-                fillMode: Image.PreserveAspectFit
-                smooth: true
+                text: "\u23ed"
+                font.pixelSize: 15
+                color: Theme.textPrimary
             }
-            
             MouseArea {
+                id: nextArea
                 anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
                 hoverEnabled: true
-                onEntered: parent.color = "#E0E0E0"
-                onExited: parent.color = "transparent"
+                cursorShape: Qt.PointingHandCursor
                 onClicked: root.nextSong()
             }
         }
-        
-        // 闊抽噺鎸夐挳
+
         Rectangle {
-            width: 28
-            height: 28
-            color: "transparent"
-            radius: 14
-            
-            Image {
+            width: 34
+            height: 34
+            radius: 17
+            color: volumeArea.containsMouse ? Theme.glassHover : "transparent"
+            border.width: 1
+            border.color: Theme.glassBorder
+            Text {
                 anchors.centerIn: parent
-                width: 20
-                height: 20
-                source: root.isUp ? "qrc:/new/prefix1/icon/volume_w.png" : "qrc:/new/prefix1/icon/volume.png"
-                fillMode: Image.PreserveAspectFit
-                smooth: true
+                text: "\u266a"
+                font.pixelSize: 15
+                color: Theme.textPrimary
             }
-            
             MouseArea {
+                id: volumeArea
                 anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
                 hoverEnabled: true
-                onEntered: parent.color = "#E0E0E0"
-                onExited: parent.color = "transparent"
-                onClicked: {
-                    root.volumeVisible = !root.volumeVisible
-                }
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.volumeVisible = !root.volumeVisible
             }
-            
-            // 闊抽噺婊戝潡
+
             Rectangle {
                 id: volumeSliderBg
-                width: 100
-                height: 30
-                color: "#FFFFFF"
-                radius: 4
-                border.color: "#E0E0E0"
-                border.width: 1
+                width: 128
+                height: 36
                 visible: root.volumeVisible
                 anchors.bottom: parent.top
-                anchors.bottomMargin: 5
+                anchors.bottomMargin: 8
                 anchors.horizontalCenter: parent.horizontalCenter
-                
+                radius: 12
+                color: Theme.glassStrong
+                border.width: 1
+                border.color: Theme.glassBorder
+
                 Slider {
                     id: volumeSlider
                     anchors.fill: parent
-                    anchors.margins: 5
+                    anchors.leftMargin: 10
+                    anchors.rightMargin: 10
                     from: 0
                     to: 100
                     value: root.volumeValue
                     onValueChanged: {
-                        root.volumeValue = value
-                        root.volumeChanged(value)
+                        root.volumeValue = Math.round(value)
+                        root.volumeChanged(root.volumeValue)
                     }
                 }
             }
         }
-        
-        // 妗岄潰姝岃瘝鎸夐挳
+
         Rectangle {
-            width: 28
-            height: 28
-            color: "transparent"
-            radius: 14
-            
-            Image {
+            width: 34
+            height: 34
+            radius: 17
+            color: deskArea.containsMouse ? Theme.glassHover : "transparent"
+            border.width: 1
+            border.color: Theme.glassBorder
+            Text {
                 anchors.centerIn: parent
-                width: 20
-                height: 20
-                source: root.isUp ? "qrc:/new/prefix1/icon/vocabulary_rights.png" : "qrc:/new/prefix1/icon/vocabulary_rights.png"
-                fillMode: Image.PreserveAspectFit
-                opacity: root.deskChecked ? 1.0 : 0.6
-                smooth: true
+                text: "\u8bcd"
+                font.pixelSize: 13
+                font.bold: true
+                color: root.deskChecked ? Theme.accent : Theme.textPrimary
             }
-            
             MouseArea {
+                id: deskArea
                 anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
                 hoverEnabled: true
-                onEntered: parent.color = "#E0E0E0"
-                onExited: parent.color = "transparent"
+                cursorShape: Qt.PointingHandCursor
                 onClicked: {
                     root.deskChecked = !root.deskChecked
                     root.deskToggled(root.deskChecked)
                 }
             }
         }
-        
-        // 鎾斁鍒楄〃鎸夐挳
+
         Rectangle {
-            width: 28
-            height: 28
-            color: "transparent"
-            radius: 14
-            
-            Image {
+            width: 34
+            height: 34
+            radius: 17
+            color: listArea.containsMouse ? Theme.glassHover : "transparent"
+            border.width: 1
+            border.color: Theme.glassBorder
+            Text {
                 anchors.centerIn: parent
-                width: 20
-                height: 20
-                source: root.isUp ? "qrc:/new/prefix1/icon/musiclist.png" : "qrc:/new/prefix1/icon/musiclist.png"
-                fillMode: Image.PreserveAspectFit
-                opacity: root.mlistChecked ? 1.0 : 0.6
-                smooth: true
+                text: "\u2630"
+                font.pixelSize: 14
+                color: root.mlistChecked ? Theme.accent : Theme.textPrimary
             }
-            
             MouseArea {
+                id: listArea
                 anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
                 hoverEnabled: true
-                onEntered: parent.color = "#E0E0E0"
-                onExited: parent.color = "transparent"
+                cursorShape: Qt.PointingHandCursor
                 onClicked: {
                     root.mlistChecked = !root.mlistChecked
                     root.mlistToggled(root.mlistChecked)
@@ -268,30 +227,28 @@ Item {
             }
         }
     }
-    
-    // 鍏紑缁?C++ 璋冪敤鐨勫嚱鏁?
+
     function setPlayState(state) {
         root.playState = state
     }
-    
+
     function getPlayState() {
         return root.playState
     }
-    
+
     function setLoopState(loop) {
         root.loopState = loop
     }
-    
+
     function getLoopState() {
         return root.loopState
     }
-    
+
     function setIsUp(up) {
         root.isUp = up
     }
-    
+
     function playFinished() {
         root.rePlay()
     }
 }
-

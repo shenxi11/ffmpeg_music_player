@@ -32,14 +32,14 @@ MusicListWidgetNetQml::MusicListWidgetNetQml(QWidget *parent)
     , m_isPlaying(false)
     , m_songCount(0)
 {
-    // 璁剧疆 QML 婧愭枃浠?
+    // 加载在线音乐列表 QML。
     setSource(QUrl("qrc:/qml/components/library/MusicListWidgetNet.qml"));
     setResizeMode(QQuickWidget::SizeRootObjectToView);
     
-    // 杩炴帴淇″彿
+    // 根对象用于桥接在线列表交互信号。
     QQuickItem* root = rootObject();
     if (root) {
-        // 杩炴帴 QML 淇″彿鍒?C++ 淇″彿
+        // 透传播放、删除、下载、收藏等操作。
         connect(root, SIGNAL(playRequested(QString,QString,QString)), 
                 this, SIGNAL(signal_play_click(QString,QString,QString)));
         connect(root, SIGNAL(removeRequested(QString)), 
@@ -101,7 +101,7 @@ void MusicListWidgetNetQml::addSong(const QString& songName, const QString& file
             Q_ARG(QVariant, duration),
             Q_ARG(QVariant, cover));
         
-        // 鏇存柊姝屾洸鏁伴噺
+        // 每次增项后刷新缓存的歌曲数量。
         updateSongCount();
     }
 }
@@ -143,7 +143,7 @@ void MusicListWidgetNetQml::addSongList(const QStringList& songNames, const QStr
             Q_ARG(QVariant, coverList),
             Q_ARG(QVariant, artistList));
         
-        // 鏇存柊姝屾洸鏁伴噺
+        // 批量写入后刷新歌曲总数。
         updateSongCount();
     }
 }
@@ -155,7 +155,7 @@ void MusicListWidgetNetQml::removeSong(const QString& filePath)
         QMetaObject::invokeMethod(root, "removeSong",
             Q_ARG(QVariant, filePath));
         
-        // 鏇存柊姝屾洸鏁伴噺
+        // 删除后同步歌曲数量。
         updateSongCount();
     }
 }
@@ -166,7 +166,7 @@ void MusicListWidgetNetQml::clearAll()
     if (root) {
         QMetaObject::invokeMethod(root, "clearAll");
         
-        // 鏇存柊姝屾洸鏁伴噺
+        // 清空后重置内部计数并通知 UI。
         if (m_songCount != 0) {
             m_songCount = 0;
             emit songCountChanged();
@@ -183,7 +183,7 @@ int MusicListWidgetNetQml::getCount()
             Q_RETURN_ARG(QVariant, result));
         int count = result.toInt();
         
-        // 鍚屾鏇存柊璁℃暟
+        // 读数后同步到缓存，避免信号重复发送。
         if (m_songCount != count) {
             m_songCount = count;
             emit songCountChanged();

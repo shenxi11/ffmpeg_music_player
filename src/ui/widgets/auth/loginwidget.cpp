@@ -1,4 +1,4 @@
-#include "loginwidget.h"
+﻿#include "loginwidget.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QLabel>

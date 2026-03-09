@@ -4,6 +4,50 @@
 #include <QPainter>
 #include <QUrl>
 
+namespace {
+
+QString decodedFileNameFromPath(const QString& songPath)
+{
+    if (songPath.trimmed().isEmpty()) {
+        return QString();
+    }
+
+    if (songPath.startsWith("http", Qt::CaseInsensitive)) {
+        const QUrl url(songPath);
+        QString decodedPath = QUrl::fromPercentEncoding(url.path().toUtf8());
+        decodedPath = decodedPath.trimmed();
+        if (!decodedPath.isEmpty()) {
+            const QFileInfo info(decodedPath);
+            const QString name = info.fileName().trimmed();
+            if (!name.isEmpty()) {
+                return name;
+            }
+        }
+    }
+
+    const QFileInfo fallbackInfo(songPath);
+    return QUrl::fromPercentEncoding(fallbackInfo.fileName().toUtf8()).trimmed();
+}
+
+QString displayTitleFromFileName(const QString& fileName)
+{
+    const QString decoded = QUrl::fromPercentEncoding(fileName.toUtf8()).trimmed();
+    if (decoded.isEmpty()) {
+        return QString();
+    }
+    const QFileInfo info(decoded);
+    QString title = info.completeBaseName().trimmed();
+    if (title.isEmpty()) {
+        title = info.baseName().trimmed();
+    }
+    if (title.isEmpty()) {
+        title = decoded;
+    }
+    return title;
+}
+
+}
+
 PlayWidget::PlayWidget(QWidget *parent, QWidget *mainWidget)
     : QWidget(parent),
       m_playbackViewModel(new PlaybackViewModel(this)),  // ViewModel是UI层的唆一接口
@@ -24,8 +68,7 @@ PlayWidget::PlayWidget(QWidget *parent, QWidget *mainWidget)
     
     // 创建组合的进度条和控制栏（所有功能都在一QML 中）
     process_slider = new ProcessSliderQml(this);
-    process_slider->setFixedSize(1000, 70);
-    process_slider->move(0, 490);
+    process_slider->setMinimumHeight(72);
     process_slider->setMaxSeconds(0);
     process_slider->setVolume(m_playbackViewModel->volume());
     
@@ -98,16 +141,14 @@ PlayWidget::PlayWidget(QWidget *parent, QWidget *mainWidget)
     
     init_LyricDisplay();
 
-    QWidget* rotate_widget = new QWidget(this);
-    rotate_widget->setAttribute(Qt::WA_TranslucentBackground, true);
-    rotate_widget->setAutoFillBackground(false);
-    rotate_widget->setStyleSheet("background: transparent;");
-    rotatingCircle = new RotatingCircleImage(rotate_widget);
+    rotatingCircleHost = new QWidget(this);
+    rotatingCircleHost->setAttribute(Qt::WA_TranslucentBackground, true);
+    rotatingCircleHost->setAutoFillBackground(false);
+    rotatingCircleHost->setStyleSheet("background: transparent;");
+    rotatingCircle = new RotatingCircleImage(rotatingCircleHost);
     rotatingCircle->setAttribute(Qt::WA_TranslucentBackground, true);
     rotatingCircle->setAutoFillBackground(false);
     rotatingCircle->setStyleSheet("background: transparent;");
-    rotate_widget->move(100, 100);
-    rotate_widget->resize(300, 300);
     rotatingCircle->resize(300, 300);
 
     connect(this, &PlayWidget::signal_stop_rotate, rotatingCircle, &RotatingCircleImage::on_signal_stop_rotate);
@@ -318,9 +359,14 @@ PlayWidget::PlayWidget(QWidget *parent, QWidget *mainWidget)
     connect(&AudioService::instance(), &AudioService::bufferingFinished,
             this, [this]() {
         qDebug() << "[MVVM-UI] Buffering finished";
-        // 恢复歌曲名显
-        if (nameLabel && !fileName.isEmpty()) {
-            nameLabel->setText(QFileInfo(fileName).baseName());
+        // 恢复歌曲名显示：优先使用业务标题，其次回退到解码后的文件名标题。
+        if (nameLabel) {
+            const QString title = !currentSongTitle.trimmed().isEmpty()
+                    ? currentSongTitle.trimmed()
+                    : displayTitleFromFileName(fileName);
+            if (!title.isEmpty()) {
+                nameLabel->setText(title);
+            }
         }
     });
     
@@ -383,7 +429,11 @@ PlayWidget::PlayWidget(QWidget *parent, QWidget *mainWidget)
     });
     
     connect(process_slider, &ProcessSliderQml::signal_up_click, this, [this](){
-        emit signal_big_clicked(!isUp);  // 切换状态而不是总是展开
+        qDebug() << "[PlayWidget] signal_up_click received, isUp =" << isUp;
+        // 底部封面区点击仅负责“进入歌词页”，避免在已展开态被误触后直接收起。
+        if (!isUp) {
+            emit signal_big_clicked(true);
+        }
     });
     
     // ========== 歌词分析连接 ==========
@@ -425,14 +475,17 @@ PlayWidget::PlayWidget(QWidget *parent, QWidget *mainWidget)
     connect(lyricDisplay, &LyricDisplayQml::signal_lyric_drag_start, this, &PlayWidget::slot_lyric_drag_start);
     connect(lyricDisplay, &LyricDisplayQml::signal_lyric_drag_preview, this, &PlayWidget::slot_lyric_preview);
     connect(lyricDisplay, &LyricDisplayQml::signal_lyric_drag_end, this, &PlayWidget::slot_lyric_drag_end);
+    connect(lyricDisplay, &LyricDisplayQml::signal_similar_play_requested, this,
+            [this](const QVariantMap& item) {
+        emit signal_similarSongSelected(item);
+    });
 
 
     nameLabel = new QLabel(this);
-    nameLabel->move(400, 50);
     nameLabel->setAttribute(Qt::WA_TranslucentBackground, true);
     nameLabel->setStyleSheet("QLabel { color: white; font-size: 28px; background: transparent; }");
     nameLabel->setWordWrap(true);
-    nameLabel->setFixedSize(550, 30);
+    nameLabel->setMinimumHeight(30);
     nameLabel->setAlignment(Qt::AlignCenter);
 
     // ========== 旧架构状态连接（已注释） ==========
@@ -554,14 +607,18 @@ PlayWidget::PlayWidget(QWidget *parent, QWidget *mainWidget)
             // 计算播放列表位置（相对于 mainWidget
             QWidget* mainWidget = playlistHistory->parentWidget();
             if (mainWidget) {
-                int windowX = mainWidget->width() - 400;  // 贴在主窗口右边缘
-                int windowY = 60;  // 距离顶部60px（topWidget高度
-                int windowHeight = mainWidget->height() - 70 - 65;  // 高度：主窗口高度 - slider高度 - topWidget高度
+                const int listWidth = qBound(320, mainWidget->width() / 3, 460);
+                const int topBarHeight = 60;
+                const int bottomPadding = qMax(10, collapsedPlaybackHeight() + 8);
+                int windowX = mainWidget->width() - listWidth;
+                int windowY = topBarHeight;
+                int windowHeight = mainWidget->height() - topBarHeight - bottomPadding;
+                windowHeight = qMax(220, windowHeight);
                 
                 qDebug() << "MainWidget size:" << mainWidget->size();
-                qDebug() << "PlaylistHistory position:" << windowX << windowY << "size:" << 400 << windowHeight;
+                qDebug() << "PlaylistHistory position:" << windowX << windowY << "size:" << listWidth << windowHeight;
                 
-                playlistHistory->setGeometry(windowX, windowY, 400, windowHeight);
+                playlistHistory->setGeometry(windowX, windowY, listWidth, windowHeight);
                 playlistHistory->show();
                 playlistHistory->raise();  // 提升到最上层
                 
@@ -668,6 +725,8 @@ PlayWidget::PlayWidget(QWidget *parent, QWidget *mainWidget)
     // 播放完成由后端 AudioService/AudioSession 统一驱动，避免进度条本地提前判定结束。
 
     connect(this, &PlayWidget::signal_isUpChanged, process_slider, &ProcessSliderQml::slot_isUpChanged);
+
+    updateAdaptiveLayout();
 }
 void PlayWidget::slot_desk_toggled(bool checked){
     if(checked){
@@ -737,9 +796,83 @@ void PlayWidget::set_isUp(bool flag){
     
     // 触发重绘以更新背
     update();
+
+    updateAdaptiveLayout();
     
     emit signal_isUpChanged(isUp);
 }
+
+int PlayWidget::collapsedPlaybackHeight() const
+{
+    return process_slider ? process_slider->height() : 90;
+}
+
+void PlayWidget::updateAdaptiveLayout()
+{
+    const int wWidth = qMax(1, width());
+    const int wHeight = qMax(1, height());
+
+    const int controlHeight = qBound(72, wHeight / 8, 108);
+    if (process_slider) {
+        process_slider->setGeometry(0, wHeight - controlHeight, wWidth, controlHeight);
+    }
+
+    if (music) {
+        music->move(10, 10);
+    }
+
+    const int topMargin = 20;
+    const int contentTop = topMargin + 50;
+    const int contentBottom = wHeight - controlHeight - 12;
+    const int contentHeight = qMax(120, contentBottom - contentTop);
+
+    const int circleDiameter = qBound(180, qMin(wWidth, contentHeight) / 2, 380);
+    if (rotatingCircleHost) {
+        const int circleX = qMax(24, wWidth / 10);
+        const int circleY = contentTop + qMax(0, (contentHeight - circleDiameter) / 2);
+        rotatingCircleHost->setGeometry(circleX, circleY, circleDiameter, circleDiameter);
+    }
+    if (rotatingCircle) {
+        rotatingCircle->setGeometry(0, 0, rotatingCircleHost ? rotatingCircleHost->width() : circleDiameter,
+                                    rotatingCircleHost ? rotatingCircleHost->height() : circleDiameter);
+    }
+
+    if (nameLabel) {
+        // 歌词页标题始终以窗口为基准水平居中，避免缩放后偏向右侧区域。
+        const int nameSideMargin = qBound(18, wWidth / 20, 64);
+        const int nameWidth = qMax(260, wWidth - nameSideMargin * 2);
+        const int nameX = (wWidth - nameWidth) / 2;
+        nameLabel->setGeometry(nameX, 44, nameWidth, 36);
+    }
+
+    if (lyricDisplay) {
+        const int lyricX = qBound(220, wWidth / 3, wWidth - 260);
+        const int lyricY = contentTop;
+        const int lyricWidth = qMax(260, wWidth - lyricX - 18);
+        const int lyricHeight = qMax(160, contentBottom - lyricY);
+        lyricDisplay->setGeometry(lyricX, lyricY, lyricWidth, lyricHeight);
+
+        // 高亮歌词的目标中心按“窗口可用播放区（去掉底部控制栏）”计算，
+        // 而不是按 LyricDisplay 自身区域中点，避免全屏后视觉中心偏下。
+        const double playbackAreaCenterY = (wHeight - controlHeight) / 2.0;
+        const double localCenterY = playbackAreaCenterY - lyricY;
+        const double centerOffsetY = localCenterY - lyricHeight / 2.0;
+        lyricDisplay->setCenterYOffset(centerOffsetY);
+    }
+
+    if (isUp) {
+        clearMask();
+    } else {
+        setMask(QRegion(0, wHeight - controlHeight, wWidth, controlHeight));
+    }
+}
+
+void PlayWidget::resizeEvent(QResizeEvent *event)
+{
+    QWidget::resizeEvent(event);
+    updateAdaptiveLayout();
+}
+
 void PlayWidget::slot_work_stop(){
     qDebug() << __FUNCTION__ << "暂停";
     emit signal_playState(ProcessSliderQml::Pause);
@@ -754,8 +887,11 @@ void PlayWidget::slot_work_stop(){
             emit signal_play_button_click(false, currentFilePath);
         });
         
-        process_slider->setSongName(QFileInfo(fileName).baseName());
-        nameLabel->setText(QFileInfo(fileName).baseName());
+        const QString title = !currentSongTitle.trimmed().isEmpty()
+                ? currentSongTitle.trimmed()
+                : displayTitleFromFileName(fileName);
+        process_slider->setSongName(title);
+        nameLabel->setText(title);
     }
 }
 void PlayWidget::slot_work_play(){
@@ -769,8 +905,11 @@ void PlayWidget::slot_work_play(){
         emit signal_play_button_click(true, currentFilePath);
     });
     
-    process_slider->setSongName(QFileInfo(fileName).baseName());
-    nameLabel->setText(QFileInfo(fileName).baseName());
+    const QString title = !currentSongTitle.trimmed().isEmpty()
+            ? currentSongTitle.trimmed()
+            : displayTitleFromFileName(fileName);
+    process_slider->setSongName(title);
+    nameLabel->setText(title);
 }
 void PlayWidget::slot_Lrc_send_lrc(const std::map<int, std::string> lyrics){
     this->lyricDisplay->currentLine = 5;  // 初始行设，对应第一行歌
@@ -782,9 +921,10 @@ void PlayWidget::slot_Lrc_send_lrc(const std::map<int, std::string> lyrics){
     }
     
     // 设置歌曲信息到歌词显示界
-    if (!fileName.isEmpty()) {
-        QFileInfo fileInfo(fileName);
-        QString songName = fileInfo.baseName();
+    if (!fileName.isEmpty() || !currentSongTitle.trimmed().isEmpty()) {
+        const QString songName = !currentSongTitle.trimmed().isEmpty()
+                ? currentSongTitle.trimmed()
+                : displayTitleFromFileName(fileName);
         lyricDisplay->setSongInfo(songName, ""); // 暂时没有艺术家信
     }
     
@@ -812,9 +952,10 @@ void PlayWidget::slot_Lrc_send_lrc(const std::map<int, std::string> lyrics){
     }
     
     // 设置歌曲名字到桌面歌
-    if (!fileName.isEmpty()) {
-        QFileInfo fileInfo(fileName);
-        QString songName = fileInfo.baseName();
+    if (!fileName.isEmpty() || !currentSongTitle.trimmed().isEmpty()) {
+        const QString songName = !currentSongTitle.trimmed().isEmpty()
+                ? currentSongTitle.trimmed()
+                : displayTitleFromFileName(fileName);
         qDebug() << "Setting desktop song name:" << songName;
         desk->setSongName(songName);
     }
@@ -867,8 +1008,7 @@ void PlayWidget::init_LyricDisplay()
     lyricDisplay = new LyricDisplayQml(this);
     lyricDisplay->setClearColor(QColor(Qt::transparent));
     lyricDisplay->setAttribute(Qt::WA_AlwaysStackOnTop,true);
-    lyricDisplay->resize(550, 350);
-    lyricDisplay->move(400, 100);
+    lyricDisplay->setMinimumSize(360, 220);
     lyricDisplay->hide();  // 初始时隐藏歌词，只有展开时才显示
     qDebug() << "LyricDisplay initialized, size:" << lyricDisplay->size() << "position:" << lyricDisplay->pos();
 }
@@ -908,8 +1048,7 @@ void PlayWidget::_play_click(QString songPath)
     {
         this->filePath = songPath;
 
-        QFileInfo fileInfo(songPath);
-        fileName = fileInfo.fileName();
+        fileName = decodedFileNameFromPath(songPath);
         if(!checkAndWarnIfPathNotExists(songPath))
             return;
         
@@ -1109,26 +1248,32 @@ void PlayWidget::slot_updateBackground(QString picPath) {
     
     qDebug() << "Original pixmap size:" << originalPixmap.size();
     
-    // 1. 缩放到合适大小（1000x600），保持比例并填
-    QPixmap scaledPixmap = originalPixmap.scaled(1000, 600, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+    const int targetWidth = qMax(640, width());
+    const int targetHeight = qMax(360, height());
+
+    // 1. 按当前窗口尺寸缩放并填满
+    QPixmap scaledPixmap = originalPixmap.scaled(targetWidth, targetHeight,
+                                                 Qt::KeepAspectRatioByExpanding,
+                                                 Qt::SmoothTransformation);
     
-    // 2. 裁剪到中心区
-    int x = (scaledPixmap.width() - 1000) / 2;
-    int y = (scaledPixmap.height() - 600) / 2;
-    QPixmap croppedPixmap = scaledPixmap.copy(x, y, 1000, 600);
+    // 2. 裁剪到目标尺寸中心区域
+    int x = (scaledPixmap.width() - targetWidth) / 2;
+    int y = (scaledPixmap.height() - targetHeight) / 2;
+    QPixmap croppedPixmap = scaledPixmap.copy(x, y, targetWidth, targetHeight);
     
     qDebug() << "Cropped pixmap size:" << croppedPixmap.size();
     
     // 3. 创建强模糊效果的图片 - 多次缩放模拟高斯模糊
     QImage image = croppedPixmap.toImage();
     
-    // 使用更小的尺寸实现更强的模糊效果
-    // 第一次模糊：缩小100x60
-    QImage smallImage1 = image.scaled(100, 60, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-    // 第二次模糊：放大200x120
-    QImage smallImage2 = smallImage1.scaled(200, 120, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-    // 第三次模糊：放大到最终尺
-    QImage blurredImage = smallImage2.scaled(1000, 600, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+    // 使用分段缩放生成模糊背景，分辨率随窗口尺寸自适应
+    const int blurW1 = qMax(96, targetWidth / 10);
+    const int blurH1 = qMax(54, targetHeight / 10);
+    const int blurW2 = qMax(192, targetWidth / 5);
+    const int blurH2 = qMax(108, targetHeight / 5);
+    QImage smallImage1 = image.scaled(blurW1, blurH1, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+    QImage smallImage2 = smallImage1.scaled(blurW2, blurH2, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+    QImage blurredImage = smallImage2.scaled(targetWidth, targetHeight, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
     
     // 4. 添加更深的半透明深色遮罩，增强对比度和歌词可读
     QPainter maskPainter(&blurredImage);
@@ -1250,6 +1395,20 @@ void PlayWidget::slot_lyric_preview(int timeMs) {
                 root->setProperty("currentTime", previewSeconds);
             }
         }
+    }
+}
+
+void PlayWidget::setSimilarRecommendations(const QVariantList& items)
+{
+    if (lyricDisplay) {
+        lyricDisplay->setSimilarSongs(items);
+    }
+}
+
+void PlayWidget::clearSimilarRecommendations()
+{
+    if (lyricDisplay) {
+        lyricDisplay->clearSimilarSongs();
     }
 }
 

@@ -10,7 +10,7 @@ PlayHistoryWidget::PlayHistoryWidget(QWidget *parent)
     
     qDebug() << "PlayHistoryWidget: Created";
     
-    // 杩炴帴QML淇″彿
+    // 获取 QML 根对象并转发最近播放列表交互信号。
     QQuickItem* root = rootObject();
     if (root) {
         connect(root, SIGNAL(playMusic(QString)),

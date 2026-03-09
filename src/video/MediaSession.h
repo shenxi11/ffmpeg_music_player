@@ -9,6 +9,7 @@
 #include <atomic>
 #include <mutex>
 #include <condition_variable>
+#include <optional>
 #include "AudioSession.h"
 
 extern "C" {
@@ -25,6 +26,12 @@ class MediaSession : public QObject
     Q_OBJECT
 
 public:
+    enum class DemuxState {
+        Stopped,
+        Running,
+        Paused
+    };
+
     enum PlaybackState {
         Stopped,
         Playing,
@@ -77,6 +84,10 @@ private slots:
     void updatePosition();
 
 private:
+    bool isDemuxRunning() const { return m_demuxState.load() != DemuxState::Stopped; }
+    bool isDemuxPaused() const { return m_demuxState.load() == DemuxState::Paused; }
+    void setDemuxState(DemuxState state) { m_demuxState.store(state); }
+
     bool initDemuxer(const QString& filePath);
     void cleanupDemuxer();
     bool initAudioDecoder(AVStream* stream);
@@ -116,11 +127,10 @@ private:
     qint64 m_masterClock;
 
     QThread* m_demuxThread;
-    bool m_demuxRunning;
-    bool m_demuxPaused;
+    std::atomic<DemuxState> m_demuxState;
     std::mutex m_demuxPauseMutex;
     std::condition_variable m_demuxPauseCv;
-    bool m_seekPending;
+    std::optional<qint64> m_pendingAudioClockSyncMs;
 
     QString m_audioWriteOwnerId;
 

@@ -9,8 +9,8 @@
 #include <QDebug>
 
 /**
- * @brief QML 鐗堟湰鐨?SearchBox 鍖呰绫?
- * 鎻愪緵涓庡師 QWidget SearchBox 鐩稿悓鐨勬帴鍙ｏ紝鐢ㄤ簬鏃犵紳鏇挎崲
+ * QML 搜索框桥接控件，负责加载 SearchBox.qml 并转发搜索信号。
+ * 用于在 QWidget 页面中复用 QML 搜索输入体验。
  */
 class SearchBoxQml : public QQuickWidget
 {
@@ -22,22 +22,22 @@ public:
     {
         qDebug() << "SearchBoxQml: Initializing...";
         
-        // 閰嶇疆 QML 寮曟搸鐨勫鍏ヨ矾寰?
+        // 补充 qrc 导入路径，避免嵌套组件解析失败。
         engine()->addImportPath("qrc:/");
         engine()->addImportPath(":/");
         
-        // 娣诲姞 Qt 鐨?QML 妯″潡璺緞
+        // 输出导入路径，便于排查 QML 资源加载问题。
         QStringList importPaths = engine()->importPathList();
         qDebug() << "SearchBoxQml: Current QML import paths:" << importPaths;
         
-        // 璁剧疆 QML 寮曟搸灞炴€?
+        // 根节点尺寸跟随控件尺寸变化。
         setResizeMode(QQuickWidget::SizeRootObjectToView);
         
-        // 鍔犺浇 QML 鏂囦欢
+        // 加载搜索框 QML 资源。
         qDebug() << "SearchBoxQml: Loading QML from qrc:/qml/components/search/SearchBox.qml";
         setSource(QUrl("qrc:/qml/components/search/SearchBox.qml"));
         
-        // 妫€鏌ュ姞杞芥槸鍚︽垚鍔?
+        // 启动阶段遇到错误时输出完整错误栈。
         if (status() == QQuickWidget::Error) {
             qWarning() << "SearchBoxQml: Failed to load SearchBox.qml";
             QList<QQmlError> errors = this->errors();
@@ -49,16 +49,16 @@ public:
         
         qDebug() << "SearchBoxQml: QML loaded successfully, status =" << status();
         
-        // 杩炴帴 QML 淇″彿鍒?C++ 淇″彿
+        // 获取根对象并建立搜索信号转发。
         QQuickItem *rootItem = rootObject();
         if (rootItem) {
             qDebug() << "SearchBoxQml: Root item found, size:" << rootItem->width() << "x" << rootItem->height();
             
-            // 杩炴帴 search(string) 淇″彿
+            // 转发关键字搜索信号。
             connect(rootItem, SIGNAL(search(QString)), 
                     this, SIGNAL(search(QString)));
             
-            // 杩炴帴 searchAll() 淇″彿
+            // 转发“全局搜索”信号。
             connect(rootItem, SIGNAL(searchAll()), 
                     this, SIGNAL(searchAll()));
             
@@ -67,7 +67,7 @@ public:
             qWarning() << "SearchBoxQml: Failed to get root object";
         }
         
-        // 璁剧疆鑳屾櫙閫忔槑
+        // 使用透明背景，避免遮挡父级主题背景。
         setClearColor(Qt::transparent);
         setAttribute(Qt::WA_AlwaysStackOnTop);
         setAttribute(Qt::WA_TranslucentBackground);
@@ -78,13 +78,13 @@ public:
     ~SearchBoxQml() override = default;
 
 signals:
-    // 涓庡師 SearchBox 淇濇寔涓€鑷寸殑淇″彿
+    // 与原搜索框保持一致的接口
     void search(const QString &text);
     void searchAll();
 
 public slots:
     /**
-     * @brief 娓呯┖鎼滅储妗嗘枃鏈?
+     * 清空搜索输入框内容。
      */
     void clear() {
         QQuickItem *rootItem = rootObject();
@@ -94,7 +94,7 @@ public slots:
     }
     
     /**
-     * @brief 鑾峰彇褰撳墠鎼滅储鏂囨湰
+     * @brief 获取当前搜索文本
      */
     QString text() const {
         QQuickItem *rootItem = const_cast<SearchBoxQml*>(this)->rootObject();
@@ -105,7 +105,7 @@ public slots:
     }
     
     /**
-     * @brief 璁剧疆鎼滅储鏂囨湰
+     * 外部设置搜索框文本内容。
      */
     void setText(const QString &text) {
         QQuickItem *rootItem = rootObject();

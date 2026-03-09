@@ -1,4 +1,4 @@
-#ifndef LOCAL_AND_DOWNLOAD_WIDGET_H
+﻿#ifndef LOCAL_AND_DOWNLOAD_WIDGET_H
 #define LOCAL_AND_DOWNLOAD_WIDGET_H
 
 #include <QQuickWidget>

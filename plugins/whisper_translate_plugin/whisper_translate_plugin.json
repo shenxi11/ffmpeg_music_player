@@ -1,6 +1,11 @@
-{
-    "name": "Whisper Translate Plugin",
-    "description": "音频转文字翻译插件，基于 Whisper.cpp",
+﻿{
+    "id": "cloudmusic.whisper_translate",
+    "name": "whisper_translate_plugin",
     "version": "1.0.0",
-    "author": "FFmpeg Music Player Team"
+    "apiVersion": 1,
+    "description": "Whisper speech transcription plugin",
+    "author": "CloudMusic Team",
+    "capabilities": ["widget", "speech.transcribe"],
+    "dependencies": [],
+    "permissions": ["ui.widget", "speech.transcribe", "storage.read"]
 }

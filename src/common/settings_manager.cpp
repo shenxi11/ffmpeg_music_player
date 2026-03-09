@@ -46,6 +46,17 @@ bool looksLikeBuildDefaultLogPath(const QString& path)
         && QFileInfo(path).fileName() == QStringLiteral("打印日志.txt");
 }
 
+QString normalizedPluginKey(const QString& pluginId)
+{
+    QString key = pluginId.trimmed();
+    key.replace('/', '_');
+    key.replace('\\', '_');
+    if (key.isEmpty()) {
+        key = QStringLiteral("unknown_plugin");
+    }
+    return key;
+}
+
 } // namespace
 
 SettingsManager::SettingsManager()
@@ -98,6 +109,9 @@ SettingsManager::SettingsManager()
         m_autoLoginEnabled = false;
         m_settings.setValue("account/cache/auto_login", false);
     }
+
+    m_hasServerWelcomeWindowPos = m_settings.value("ui/server_welcome/pos_valid", false).toBool();
+    m_serverWelcomeWindowPos = m_settings.value("ui/server_welcome/pos", QPoint(0, 0)).toPoint();
 }
 
 void SettingsManager::setDownloadPath(const QString& path)
@@ -279,4 +293,41 @@ void SettingsManager::clearAccountCache()
     if (autoChanged) {
         emit autoLoginChanged();
     }
+}
+
+void SettingsManager::setServerWelcomeWindowPos(const QPoint& pos)
+{
+    if (m_hasServerWelcomeWindowPos && m_serverWelcomeWindowPos == pos) {
+        return;
+    }
+
+    m_hasServerWelcomeWindowPos = true;
+    m_serverWelcomeWindowPos = pos;
+    m_settings.setValue("ui/server_welcome/pos_valid", true);
+    m_settings.setValue("ui/server_welcome/pos", m_serverWelcomeWindowPos);
+}
+
+QByteArray SettingsManager::pluginWindowGeometry(const QString& pluginId) const
+{
+    const QString key = QStringLiteral("ui/plugins/%1/geometry")
+                            .arg(normalizedPluginKey(pluginId));
+    return m_settings.value(key).toByteArray();
+}
+
+void SettingsManager::setPluginWindowGeometry(const QString& pluginId, const QByteArray& geometry)
+{
+    if (geometry.isEmpty()) {
+        return;
+    }
+
+    const QString key = QStringLiteral("ui/plugins/%1/geometry")
+                            .arg(normalizedPluginKey(pluginId));
+    m_settings.setValue(key, geometry);
+}
+
+void SettingsManager::clearPluginWindowGeometry(const QString& pluginId)
+{
+    const QString key = QStringLiteral("ui/plugins/%1/geometry")
+                            .arg(normalizedPluginKey(pluginId));
+    m_settings.remove(key);
 }

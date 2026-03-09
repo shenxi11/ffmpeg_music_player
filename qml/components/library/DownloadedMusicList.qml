@@ -6,10 +6,16 @@ import QtQuick.Layouts 1.15
 Rectangle {
     id: root
     color: "#f5f5f5"
+    property string listIconPrefix: "qrc:/design/design_exports/netease_ui_pack_20260309/icon/ui/list/"
+    property string playerIconPrefix: "qrc:/design/design_exports/netease_ui_pack_20260309/icon/ui/player/"
     property int colCoverWidth: 44
-    property int colNameWidth: 240
-    property int colSizeWidth: 120
-    property int colTimeWidth: 150
+    property int colSizeWidth: width >= 1280 ? 130 : (width >= 960 ? 110 : 96)
+    property int colTimeWidth: width >= 1280 ? 170 : (width >= 960 ? 142 : 120)
+    property int colActionWidth: width >= 1280 ? 170 : 150
+    property int rowContentWidth: Math.max(320, width - 70)
+    property int colNameWidth: Math.max(150,
+                                        rowContentWidth - colCoverWidth - colSizeWidth
+                                        - colTimeWidth - colActionWidth - 40)
 
     signal playMusic(string filename)
     signal deleteMusic(string filename)
@@ -100,7 +106,7 @@ Rectangle {
                     font.pixelSize: 14
                     font.bold: true
                     color: "#333333"
-                    Layout.fillWidth: true
+                    Layout.preferredWidth: root.colActionWidth
                 }
             }
         }
@@ -183,7 +189,7 @@ Rectangle {
 
                     // 操作按钮
                     Row {
-                        Layout.fillWidth: true
+                        Layout.preferredWidth: root.colActionWidth
                         spacing: 10
                         opacity: itemArea.containsMouse || playBtnArea.containsMouse || favBtnArea.containsMouse || deleteBtnArea.containsMouse ? 1.0 : 0.0
                         enabled: opacity > 0
@@ -196,12 +202,17 @@ Rectangle {
                             height: 32
                             radius: 16
                             color: favBtnArea.containsMouse ? "#ffe0e6" : "transparent"
+                            border.width: 1
+                            border.color: favBtnArea.containsMouse ? "#EC4141" : "#D6DCE8"
 
-                            Text {
+                            Image {
                                 anchors.centerIn: parent
-                                text: "♡"
-                                font.pixelSize: 16
-                                color: favBtnArea.containsMouse ? "#ff0000" : "#999999"
+                                width: 18
+                                height: 18
+                                source: favBtnArea.containsMouse
+                                        ? root.listIconPrefix + "list_icon_favorite_hover.svg"
+                                        : root.listIconPrefix + "list_icon_favorite_default.svg"
+                                fillMode: Image.PreserveAspectFit
                             }
 
                             MouseArea {
@@ -226,13 +237,25 @@ Rectangle {
                             width: 32
                             height: 32
                             radius: 16
-                            color: playBtnArea.containsMouse ? "#4A90E2" : "#DDDDDD"
+                            color: model.isPlaying ? "#EC4141" : (playBtnArea.containsMouse ? "#FDECEC" : "transparent")
+                            border.width: 1
+                            border.color: model.isPlaying ? "#EC4141" : "#D6DCE8"
 
-                            Text {
+                            Image {
                                 anchors.centerIn: parent
-                                text: model.isPlaying ? "⏸" : "▶"
-                                font.pixelSize: 14
-                                color: playBtnArea.containsMouse ? "white" : "#333333"
+                                width: 18
+                                height: 18
+                                source: {
+                                    if (model.isPlaying) {
+                                        return playBtnArea.containsMouse
+                                                ? root.playerIconPrefix + "player_btn_pause_hover.svg"
+                                                : root.playerIconPrefix + "player_btn_pause_default.svg"
+                                    }
+                                    return playBtnArea.containsMouse
+                                            ? root.playerIconPrefix + "player_btn_play_hover.svg"
+                                            : root.playerIconPrefix + "player_btn_play_default.svg"
+                                }
+                                fillMode: Image.PreserveAspectFit
                             }
 
                             MouseArea {
@@ -255,16 +278,21 @@ Rectangle {
 
                         // 删除按钮（圆形图标样式）
                         Rectangle {
-                            width: 60
-                            height: 28
-                            radius: 4
-                            color: deleteBtnArea.containsMouse ? "#F56C6C" : "#F0F0F0"
+                            width: 32
+                            height: 32
+                            radius: 16
+                            color: deleteBtnArea.containsMouse ? "#FDECEC" : "transparent"
+                            border.width: 1
+                            border.color: deleteBtnArea.containsMouse ? "#EC4141" : "#D6DCE8"
 
-                            Text {
+                            Image {
                                 anchors.centerIn: parent
-                                text: "删除"
-                                font.pixelSize: 12
-                                color: deleteBtnArea.containsMouse ? "white" : "#666666"
+                                width: 18
+                                height: 18
+                                source: deleteBtnArea.containsMouse
+                                        ? root.listIconPrefix + "list_icon_delete_hover.svg"
+                                        : root.listIconPrefix + "list_icon_delete_default.svg"
+                                fillMode: Image.PreserveAspectFit
                             }
 
                             MouseArea {

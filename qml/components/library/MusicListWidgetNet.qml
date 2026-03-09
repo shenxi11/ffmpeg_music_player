@@ -4,9 +4,22 @@ import QtQuick.Controls 2.14
 Rectangle {
     id: root
     color: "#F7F9FC"
+    property string listIconPrefix: "qrc:/design/design_exports/netease_ui_pack_20260309/icon/ui/list/"
+    property string playerIconPrefix: "qrc:/design/design_exports/netease_ui_pack_20260309/icon/ui/player/"
     
     // 对外暴露的属性
     property int currentPlayingIndex: -1  // 当前播放的歌曲索引，-1表示没有播放
+    property int sideMargin: 20
+    property int innerMargin: 15
+    property int colGap: 10
+    property int colCoverWidth: 44
+    property int colDurationWidth: width >= 1280 ? 96 : (width >= 960 ? 84 : 72)
+    property int colArtistWidth: width >= 1280 ? 160 : (width >= 960 ? 130 : 110)
+    property int colActionWidth: 124
+    property int contentWidth: Math.max(320, width - sideMargin * 2 - innerMargin * 2)
+    property int colTitleWidth: Math.max(140,
+                                         contentWidth - colCoverWidth - colDurationWidth
+                                         - colArtistWidth - colActionWidth - colGap * 4)
     
     // 信号
     signal playRequested(string filePath, string artist, string cover)
@@ -19,8 +32,7 @@ Rectangle {
         var text = String(value).trim()
         if (text.length === 0) return true
         if (/^[\?？\s]+$/.test(text)) return true
-        var suspicious = text.match(/[鍙鍚鍛鍜鍝鎵鎺鏄鏃鏂鏈鏉鏋鏌鏍鐨缁璁妫娓绛鎻锛]/g)
-        return suspicious && suspicious.length >= 3
+        return text.indexOf("\uFFFD") >= 0
     }
 
     function _baseNameFromPath(path) {
@@ -61,7 +73,7 @@ Rectangle {
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.topMargin: 20
-        anchors.leftMargin: 20
+        anchors.leftMargin: root.sideMargin
         text: "在线音乐"
         font.pixelSize: 20
         font.bold: true
@@ -71,7 +83,10 @@ Rectangle {
     // 列表头部
     Rectangle {
         id: headerBar
-        width: parent.width
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.leftMargin: root.sideMargin
+        anchors.rightMargin: root.sideMargin
         height: 40
         color: "#ffffff"
         anchors.top: topTitle.bottom
@@ -80,13 +95,13 @@ Rectangle {
         
         Row {
             anchors.fill: parent
-            anchors.leftMargin: 15
-            anchors.rightMargin: 15
-            spacing: 10
+            anchors.leftMargin: root.innerMargin
+            anchors.rightMargin: root.innerMargin
+            spacing: root.colGap
             
             Text {
                 text: "封面"
-                width: 50
+                width: root.colCoverWidth
                 font.pixelSize: 14
                 font.bold: true
                 color: "#333333"
@@ -95,7 +110,7 @@ Rectangle {
             
             Text {
                 text: "歌曲名"
-                width: 240
+                width: root.colTitleWidth
                 font.pixelSize: 14
                 font.bold: true
                 color: "#333333"
@@ -104,7 +119,7 @@ Rectangle {
             
             Text {
                 text: "时长"
-                width: 80
+                width: root.colDurationWidth
                 font.pixelSize: 14
                 font.bold: true
                 color: "#333333"
@@ -113,7 +128,7 @@ Rectangle {
             
             Text {
                 text: "艺术家"
-                width: 120
+                width: root.colArtistWidth
                 font.pixelSize: 14
                 font.bold: true
                 color: "#333333"
@@ -122,6 +137,7 @@ Rectangle {
             
             Text {
                 text: "操作"
+                width: root.colActionWidth
                 font.pixelSize: 14
                 font.bold: true
                 color: "#333333"
@@ -136,6 +152,8 @@ Rectangle {
         anchors.top: headerBar.bottom
         anchors.left: parent.left
         anchors.right: parent.right
+        anchors.leftMargin: root.sideMargin
+        anchors.rightMargin: root.sideMargin
         anchors.bottom: parent.bottom
         anchors.topMargin: 8
         clip: true
@@ -180,13 +198,13 @@ Rectangle {
             
             Row {
                 anchors.fill: parent
-                anchors.leftMargin: 15
-                anchors.rightMargin: 15
-                spacing: 10
+                anchors.leftMargin: root.innerMargin
+                anchors.rightMargin: root.innerMargin
+                spacing: root.colGap
                 
                 // 专辑封面
                 Rectangle {
-                    width: 44
+                    width: root.colCoverWidth
                     height: 44
                     anchors.verticalCenter: parent.verticalCenter
                     radius: 4
@@ -206,7 +224,7 @@ Rectangle {
                 
                 // 歌曲名
                 Text {
-                    width: 240
+                    width: root.colTitleWidth
                     text: root.displayTitle(model)
                     font.pixelSize: 14
                     font.bold: model.isPlaying
@@ -217,7 +235,7 @@ Rectangle {
                 
                 // 时长
                 Text {
-                    width: 80
+                    width: root.colDurationWidth
                     text: model.duration || "0:00"
                     font.pixelSize: 13
                     color: "#666666"
@@ -226,7 +244,7 @@ Rectangle {
                 
                 // 艺术家
                 Text {
-                    width: 120
+                    width: root.colArtistWidth
                     text: root.displayArtist(model)
                     font.pixelSize: 13
                     color: "#888888"
@@ -234,10 +252,9 @@ Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
                 }
                 
-                Item { width: 10 }
-                
                 // 操作按钮（hover 时显示）
                 Row {
+                    width: root.colActionWidth
                     spacing: 8
                     anchors.verticalCenter: parent.verticalCenter
                     opacity: itemArea.containsMouse ? 1.0 : 0.0
@@ -251,12 +268,17 @@ Rectangle {
                         height: 32
                         radius: 16
                         color: favBtnArea.containsMouse ? "#ffe0e6" : "transparent"
+                        border.width: 1
+                        border.color: favBtnArea.containsMouse ? "#EC4141" : "#D6DCE8"
                         
-                        Text {
+                        Image {
                             anchors.centerIn: parent
-                            text: "♡"
-                            font.pixelSize: 16
-                            color: favBtnArea.containsMouse ? "#ff0000" : "#999999"
+                            width: 18
+                            height: 18
+                            source: favBtnArea.containsMouse
+                                    ? root.listIconPrefix + "list_icon_favorite_hover.svg"
+                                    : root.listIconPrefix + "list_icon_favorite_default.svg"
+                            fillMode: Image.PreserveAspectFit
                         }
                         
                         MouseArea {
@@ -280,13 +302,25 @@ Rectangle {
                         width: 32
                         height: 32
                         radius: 16
-                        color: playBtnArea.containsMouse ? "#4A90E2" : "#DDDDDD"
+                        color: model.isPlaying ? "#EC4141" : (playBtnArea.containsMouse ? "#FDECEC" : "transparent")
+                        border.width: 1
+                        border.color: model.isPlaying ? "#EC4141" : "#D6DCE8"
                         
-                        Text {
+                        Image {
                             anchors.centerIn: parent
-                            text: model.isPlaying ? "⏸" : "▶"
-                            font.pixelSize: 14
-                            color: playBtnArea.containsMouse ? "white" : "#333333"
+                            width: 18
+                            height: 18
+                            source: {
+                                if (model.isPlaying) {
+                                    return playBtnArea.containsMouse
+                                            ? root.playerIconPrefix + "player_btn_pause_hover.svg"
+                                            : root.playerIconPrefix + "player_btn_pause_default.svg"
+                                }
+                                return playBtnArea.containsMouse
+                                        ? root.playerIconPrefix + "player_btn_play_hover.svg"
+                                        : root.playerIconPrefix + "player_btn_play_default.svg"
+                            }
+                            fillMode: Image.PreserveAspectFit
                         }
                         
                         MouseArea {
@@ -305,16 +339,21 @@ Rectangle {
                     
                     // 下载按钮（网络音乐）
                     Rectangle {
-                        width: 60
-                        height: 28
-                        radius: 4
-                        color: downloadBtnArea.containsMouse ? "#51CF66" : "#F0F0F0"
+                        width: 32
+                        height: 32
+                        radius: 16
+                        color: downloadBtnArea.containsMouse ? "#FDECEC" : "transparent"
+                        border.width: 1
+                        border.color: downloadBtnArea.containsMouse ? "#EC4141" : "#D6DCE8"
                         
-                        Text {
+                        Image {
                             anchors.centerIn: parent
-                            text: "下载"
-                            font.pixelSize: 12
-                            color: downloadBtnArea.containsMouse ? "white" : "#666666"
+                            width: 18
+                            height: 18
+                            source: downloadBtnArea.containsMouse
+                                    ? root.listIconPrefix + "list_icon_download_hover.svg"
+                                    : root.listIconPrefix + "list_icon_download_default.svg"
+                            fillMode: Image.PreserveAspectFit
                         }
                         
                         MouseArea {

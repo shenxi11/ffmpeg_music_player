@@ -17,12 +17,12 @@ public:
         setResizeMode(QQuickWidget::SizeRootObjectToView);
         setSource(QUrl("qrc:/qml/components/playback/PlaylistHistory.qml"));
         
-        // 涓嶈缃獥鍙ｆ爣蹇楋紝浣滀负鐖剁獥鍙ｇ殑瀛愭帶浠?
-        setAttribute(Qt::WA_TranslucentBackground);  // 鍏佽鍦嗚
+        // 允许透明背景以配合圆角样式。
+        setAttribute(Qt::WA_TranslucentBackground);
         
         qDebug() << "PlaylistHistoryQml: Created, root object:" << (rootObject() != nullptr);
         
-        // 杩炴帴QML淇″彿
+        // 获取根对象并连接播放列表相关交互信号。
         QQuickItem* root = rootObject();
         if (root) {
             connect(root, SIGNAL(playRequested(QString)),
@@ -39,7 +39,7 @@ public:
         }
     }
     
-    // 娣诲姞姝屾洸鍒版挱鏀惧垪琛?
+    // 向最近播放列表追加一首歌曲。
     void addSong(const QString& filePath, const QString& title, 
                  const QString& artist, const QString& cover)
     {
@@ -56,7 +56,7 @@ public:
         }
     }
     
-    // 娓呯┖鍒楄〃
+    // 清空列表展示项。
     void clearAll()
     {
         QQuickItem* root = rootObject();
@@ -65,7 +65,7 @@ public:
         }
     }
     
-    // 璁剧疆褰撳墠鎾斁璺緞
+    // 设置当前高亮播放路径。
     void setCurrentPlayingPath(const QString& path)
     {
         QQuickItem* root = rootObject();
@@ -75,7 +75,7 @@ public:
         }
     }
     
-    // 璁剧疆鏆傚仠鐘舵€?
+    // 同步暂停状态，驱动列表项图标刷新。
     void setPaused(bool paused)
     {
         QQuickItem* root = rootObject();
@@ -85,7 +85,7 @@ public:
         }
     }
     
-    // 鍚屾鎾斁鐘舵€侊紙缁勫悎鏇存柊锛?
+    // 一次性更新当前播放路径与播放态。
     void updatePlayingState(const QString& currentPath, bool isPlaying)
     {
         QQuickItem* root = rootObject();
@@ -96,7 +96,7 @@ public:
         }
     }
     
-    // 鍒囨崲鏄剧ず/闅愯棌
+    // 切换显示/隐藏
     void toggle()
     {
         if (isVisible()) {
@@ -112,7 +112,7 @@ signals:
     void playRequested(const QString& filePath);
     void removeRequested(const QString& filePath);
     void clearAllRequested();
-    void pauseToggled();  // 鏆傚仠/缁х画鎾斁淇″彿
+    void pauseToggled();  // 暂停/继续切换信号
 };
 
 #endif // PLAYLIST_HISTORY_QML_H

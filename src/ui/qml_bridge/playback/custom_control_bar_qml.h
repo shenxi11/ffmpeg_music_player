@@ -24,7 +24,7 @@ public:
             return;
         }
         
-        // 璁剧疆閫忔槑鑳屾櫙
+        // 控件悬浮于播放器上层并保持透明背景。
         setAttribute(Qt::WA_AlwaysStackOnTop);
         setAttribute(Qt::WA_TranslucentBackground);
         setClearColor(Qt::transparent);
@@ -32,7 +32,7 @@ public:
         QQuickItem* root = rootObject();
         if (root) {
             qDebug() << "CustomControlBarQml: QML loaded successfully, connecting signals";
-            // 杩炴帴 QML 淇″彿
+            // 将 QML 控制栏操作统一转发到 C++ 层。
             connect(root, SIGNAL(playPauseClicked()), this, SIGNAL(playPauseClicked()));
             connect(root, SIGNAL(previousClicked()), this, SIGNAL(previousClicked()));
             connect(root, SIGNAL(nextClicked()), this, SIGNAL(nextClicked()));

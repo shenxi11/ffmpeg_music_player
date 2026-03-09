@@ -111,6 +111,7 @@ link_directories(
 set(PROJECT_RESOURCES
     pic.qrc
     qml.qrc
+    design_ui.qrc
 )
 
 if(WIN32)

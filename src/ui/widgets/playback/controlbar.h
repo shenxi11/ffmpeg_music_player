@@ -1,4 +1,4 @@
-#ifndef CONTROLBAR_H
+﻿#ifndef CONTROLBAR_H
 #define CONTROLBAR_H
 
 #include <QObject>

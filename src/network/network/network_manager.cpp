@@ -19,10 +19,10 @@ Network::NetworkManager::NetworkManager(QObject* parent)
 {
     m_manager = new QNetworkAccessManager(this);
     
-    // 閰嶇疆缃戠粶绠＄悊
+    // 配置网络管理器。
     m_manager->setTransferTimeout(m_globalTimeout);
     
-    // 鍚敤HTTP/2锛堝鏋淨t鐗堟湰鏀寔
+    // 启用 HTTP/2（若 Qt 版本支持）
 #if QT_VERSION >= QT_VERSION_CHECK(5, 9, 0)
     m_manager->setProperty("HTTP2Enabled", true);
 #endif
@@ -43,10 +43,10 @@ QString Network::NetworkManager::sendRequest(
     ResponseCallback callback,
     ProgressCallback progressCallback)
 {
-    // 鐢熸垚鍞竴璇锋眰ID
+    // 生成唯一请求 ID。
     QString requestId = QUuid::createUuid().toString(QUuid::WithoutBraces);
     
-    // 鍒涘缓璇锋眰涓婁笅
+    // 创建请求上下文。
     auto context = std::make_shared<RequestContext>();
     context->requestId = requestId;
     context->url = url;
@@ -67,7 +67,7 @@ QString Network::NetworkManager::sendRequest(
     qDebug() << "[NetworkManager] Request started:" << requestId << httpMethodToString(method) << url;
     emit requestStarted(requestId, url);
     
-    // 鎵ц璇锋眰
+    // 执行请求。
     executeRequest(context);
     
     return requestId;
@@ -77,7 +77,7 @@ void Network::NetworkManager::executeRequest(std::shared_ptr<RequestContext> con
 {
     QNetworkRequest request = createRequest(context->url, context->options);
     
-    // 鏍规嵁HTTP鏂规硶鍙戦€佽
+    // 根据 HTTP 方法发送请求
     QNetworkReply* reply = nullptr;
     
     switch (context->method) {
@@ -125,12 +125,12 @@ void Network::NetworkManager::executeRequest(std::shared_ptr<RequestContext> con
     
     context->reply = reply;
     
-    // 杩炴帴瀹屾垚淇″彿
+    // 连接完成信号。
     connect(reply, &QNetworkReply::finished, this, [this, context]() {
         handleReplyFinished(context);
     });
     
-    // 杩炴帴杩涘害淇″彿
+    // 连接进度信号。
     if (context->progressCallback) {
         connect(reply, &QNetworkReply::downloadProgress, this, 
                 [this, context](qint64 bytesReceived, qint64 bytesTotal) {
@@ -141,7 +141,7 @@ void Network::NetworkManager::executeRequest(std::shared_ptr<RequestContext> con
         });
     }
     
-    // 璁剧疆瓒呮椂瀹氭椂
+    // 设置超时定时器
     int timeout = context->options.timeout > 0 ? context->options.timeout : m_globalTimeout;
     context->timeoutTimer = new QTimer();
     context->timeoutTimer->setSingleShot(true);
@@ -158,7 +158,7 @@ void Network::NetworkManager::handleReplyFinished(std::shared_ptr<RequestContext
         return;
     }
     
-    // 鍋滄瓒呮椂瀹氭椂
+    // 停止超时计时器。
     if (context->timeoutTimer) {
         context->timeoutTimer->stop();
         context->timeoutTimer->deleteLater();
@@ -167,7 +167,7 @@ void Network::NetworkManager::handleReplyFinished(std::shared_ptr<RequestContext
     
     QNetworkReply* reply = context->reply;
     
-    // 鏋勫缓鍝嶅簲
+    // 构建响应对象。
     NetworkResponse response;
     response.requestId = context->requestId;
     response.statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
@@ -176,7 +176,7 @@ void Network::NetworkManager::handleReplyFinished(std::shared_ptr<RequestContext
     response.errorString = reply->errorString();
     response.elapsedMs = context->elapsedTimer->elapsed();
     
-    // 鑾峰彇鍝嶅簲
+    // 读取响应头与状态信息
     const auto headerList = reply->rawHeaderPairs();
     for (const auto& pair : headerList) {
         response.headers[QString::fromUtf8(pair.first)] = QString::fromUtf8(pair.second);
@@ -188,7 +188,7 @@ void Network::NetworkManager::handleReplyFinished(std::shared_ptr<RequestContext
              << "Size:" << response.body.size() << "bytes"
              << "Retry:" << context->currentRetry;
     
-    // 妫€鏌ユ槸鍚﹂渶瑕侀噸
+    // 检查是否需要重试
     const bool isClientError = response.statusCode >= 400 && response.statusCode < 500;
     if (response.error != QNetworkReply::NoError &&
         !isClientError &&
@@ -205,10 +205,10 @@ void Network::NetworkManager::handleReplyFinished(std::shared_ptr<RequestContext
         return;
     }
     
-    // 鏇存柊缁熻淇℃伅
+    // 更新统计信息
     updateStats(response);
     
-    // 璋冪敤鍥炶皟
+    // 调用回调
     if (context->callback) {
         context->callback(response);
     }
@@ -219,7 +219,7 @@ void Network::NetworkManager::handleReplyFinished(std::shared_ptr<RequestContext
         emit requestFailed(context->requestId, response.errorString);
     }
     
-    // 娓呯悊
+    // 清理请求上下文
     reply->deleteLater();
     delete context->elapsedTimer;
     
@@ -237,7 +237,7 @@ void Network::NetworkManager::handleTimeout(std::shared_ptr<RequestContext> cont
         context->reply->abort();
     }
     
-    // 妫€鏌ユ槸鍚﹂渶瑕侀噸
+    // 检查超时后是否需要重试
     if (context->currentRetry < context->options.maxRetries) {
         qDebug() << "[NetworkManager] Timeout, will retry:" << context->requestId
                  << "Retry" << (context->currentRetry + 1) << "of" << context->options.maxRetries;
@@ -277,7 +277,7 @@ void Network::NetworkManager::retryRequest(std::shared_ptr<RequestContext> conte
     
     qDebug() << "[NetworkManager] Retrying request in" << delay << "ms:" << context->requestId;
     
-    // 浣跨敤瀹氭椂鍣ㄥ欢杩熼噸
+    // 使用定时器延迟重试
     QTimer::singleShot(delay, this, [this, context]() {
         context->elapsedTimer->restart();
         executeRequest(context);
@@ -290,10 +290,10 @@ int Network::NetworkManager::calculateRetryDelay(int retry, const RequestOptions
         return options.retryDelay;
     }
     
-    // 鎸囨暟閫€閬匡細delay * (2 ^ retry)
+    // 指数退避：delay * (2 ^ retry)。
     int delay = options.retryDelay * (1 << retry);
     
-    // 闄愬埗鏈€澶у欢杩熶负30
+    // 限制最大延迟为 30 秒。
     return qMin(delay, 30000);
 }
 
@@ -369,7 +369,7 @@ void Network::NetworkManager::setGlobalTimeout(int timeout)
 void Network::NetworkManager::setMaxConnections(int maxConnections)
 {
     m_maxConnections = maxConnections;
-    // Qt鐨凲NetworkAccessManager浼氳嚜鍔ㄧ鐞嗚繛鎺ユ睜
+    // Qt 的 QNetworkAccessManager 会自动管理连接池。
     qDebug() << "[NetworkManager] Max connections set to:" << maxConnections;
 }
 
@@ -391,23 +391,23 @@ QNetworkRequest Network::NetworkManager::createRequest(const QString& url, const
     QUrl qurl(url);
     QNetworkRequest request(qurl);
     
-    // 璁剧疆榛樿璇锋眰
+    // 设置默认请求头
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     request.setRawHeader("Connection", "keep-alive");
     request.setRawHeader("Keep-Alive", "timeout=300, max=1000");
     request.setRawHeader("User-Agent", "FFmpeg-Music-Player/1.0");
     
-    // 鍚敤鍘嬬缉
+    // 启用压缩。
     if (options.enableCompression) {
         request.setRawHeader("Accept-Encoding", "gzip, deflate");
     }
     
-    // 璁剧疆鑷畾涔夎姹傚ご
+    // 设置自定义请求头
     for (auto it = options.headers.begin(); it != options.headers.end(); ++it) {
         request.setRawHeader(it.key().toUtf8(), it.value().toUtf8());
     }
     
-    // 閲嶅畾鍚戠瓥
+    // 重定向策略。
     if (options.followRedirects) {
         request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, 
                            QNetworkRequest::NoLessSafeRedirectPolicy);
@@ -448,7 +448,7 @@ void Network::NetworkManager::updateStats(const NetworkResponse& response)
     
     m_stats.totalBytes += response.body.size();
     
-    // 鏇存柊骞冲潎鍝嶅簲鏃堕棿
+    // 更新平均响应时间
     if (m_stats.totalRequests > 0) {
         m_stats.avgResponseTime = (m_stats.avgResponseTime * (m_stats.totalRequests - 1) + response.elapsedMs) 
                                  / m_stats.totalRequests;

@@ -6,10 +6,16 @@ import QtQuick.Layouts 1.15
 Rectangle {
     id: root
     color: "#f5f5f5"
-    property int colNameWidth: 250
-    property int colProgressWidth: 200
-    property int colSizeWidth: 100
-    property int colStateWidth: 80
+    property int colSizeWidth: width >= 1280 ? 150 : (width >= 960 ? 126 : 110)
+    property int colStateWidth: width >= 1280 ? 92 : 80
+    property int colActionWidth: width >= 1280 ? 220 : 190
+    property int rowContentWidth: Math.max(360, width - 70)
+    property int colProgressWidth: Math.max(160,
+                                            Math.floor((rowContentWidth - colSizeWidth
+                                                        - colStateWidth - colActionWidth - 40) * 0.52))
+    property int colNameWidth: Math.max(160,
+                                        rowContentWidth - colProgressWidth - colSizeWidth
+                                        - colStateWidth - colActionWidth - 40)
     
     // 当可见性改变时刷新
     onVisibleChanged: {
@@ -96,7 +102,7 @@ Rectangle {
                     font.pixelSize: 14
                     font.bold: true
                     color: "#333333"
-                    Layout.fillWidth: true
+                    Layout.preferredWidth: root.colActionWidth
                 }
             }
         }
@@ -203,7 +209,7 @@ Rectangle {
 
                     // 操作按钮
                     Row {
-                        Layout.fillWidth: true
+                        Layout.preferredWidth: root.colActionWidth
                         spacing: 10
 
                         // 暂停/恢复按钮

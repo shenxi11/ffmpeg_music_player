@@ -138,7 +138,7 @@ Window {
                         anchors.centerIn: parent
                         width: 30
                         height: 30
-                        source: "qrc:/new/prefix1/icon/netease.png"
+                        source: "qrc:/design/design_exports/netease_ui_pack_20260309/icon/ui/brand/brand_logo_light@2x.png"
                         fillMode: Image.PreserveAspectFit
                         smooth: true
                     }

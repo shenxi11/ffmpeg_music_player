@@ -39,9 +39,8 @@ MediaSession::MediaSession(QObject* parent)
     , m_syncEnabled(true)
     , m_masterClock(0)
     , m_demuxThread(nullptr)
-    , m_demuxRunning(false)
-    , m_demuxPaused(false)
-    , m_seekPending(false)
+    , m_demuxState(DemuxState::Stopped)
+    , m_pendingAudioClockSyncMs(std::nullopt)
     , m_audioWriteOwnerId(QUuid::createUuid().toString(QUuid::WithoutBraces))
     , m_positionTimer(nullptr)
 {
@@ -187,18 +186,12 @@ void MediaSession::play()
 
     // On cross-owner resume, force a keyframe-aligned seek first to avoid
     // reference-frame corruption and frozen/black frames after resume.
-    // If an explicit seek has just happened (m_seekPending), skip the extra
+    // If an explicit seek has just happened, skip the extra
     // handoff seek to avoid duplicate demux restart.
-    if (m_state == Paused && takingOverFromOtherOwner && m_videoSession && !m_seekPending) {
+    if (m_state == Paused && takingOverFromOtherOwner && m_videoSession && !m_pendingAudioClockSyncMs.has_value()) {
         qDebug() << "[MediaSession] Owner handoff resume, forcing keyframe seek to" << resumePos << "ms";
         seekTo(resumePos);
     }
-
-    {
-        std::lock_guard<std::mutex> lock(m_demuxPauseMutex);
-        m_demuxPaused = false;
-    }
-    m_demuxPauseCv.notify_all();
 
     if (m_audioCodecCtx) {
         AudioPlayer::instance().setWriteOwner(m_audioWriteOwnerId);
@@ -223,7 +216,7 @@ void MediaSession::play()
                 player.stop();
                 player.resetBuffer();
                 player.setCurrentTimestamp(resumePos);
-                m_seekPending = true;
+                m_pendingAudioClockSyncMs = resumePos;
                 player.start();
                 qDebug() << "[MediaSession] Audio playback restarted after owner handoff at" << resumePos << "ms";
             } else if (!player.isPlaying()) {
@@ -240,7 +233,7 @@ void MediaSession::play()
             player.stop();
             player.resetBuffer();
             player.setCurrentTimestamp(0);
-            m_seekPending = true;
+            m_pendingAudioClockSyncMs = 0;
             m_masterClock = 0;
             player.start();
             qDebug() << "[MediaSession] Audio playback started (fresh clock)";
@@ -268,7 +261,9 @@ void MediaSession::pause()
 
     {
         std::lock_guard<std::mutex> lock(m_demuxPauseMutex);
-        m_demuxPaused = true;
+        if (isDemuxRunning()) {
+            setDemuxState(DemuxState::Paused);
+        }
     }
 
     // Snapshot current playback clock before pausing so resume can continue
@@ -301,7 +296,9 @@ void MediaSession::stop()
 
     {
         std::lock_guard<std::mutex> lock(m_demuxPauseMutex);
-        m_demuxPaused = false;
+        if (isDemuxRunning()) {
+            setDemuxState(DemuxState::Running);
+        }
     }
     m_demuxPauseCv.notify_all();
 
@@ -340,12 +337,12 @@ void MediaSession::seekTo(qint64 positionMs)
         return;
     }
     
-    bool wasRunning = m_demuxRunning;
+    bool wasRunning = isDemuxRunning();
     if (wasRunning) {
-        m_demuxRunning = false;
+        setDemuxState(DemuxState::Stopped);
         {
             std::lock_guard<std::mutex> lock(m_demuxPauseMutex);
-            m_demuxPaused = false;
+            setDemuxState(DemuxState::Stopped);
         }
         m_demuxPauseCv.notify_all();
         
@@ -363,7 +360,7 @@ void MediaSession::seekTo(qint64 positionMs)
     if (ret < 0) {
         qWarning() << "[MediaSession] Seek failed";
         if (wasRunning) {
-            m_demuxRunning = true;
+            setDemuxState(DemuxState::Running);
         }
         return;
     }
@@ -371,7 +368,7 @@ void MediaSession::seekTo(qint64 positionMs)
     if (m_audioCodecCtx) {
         avcodec_flush_buffers(m_audioCodecCtx);
         AudioPlayer::instance().resetBuffer();
-        m_seekPending = true;
+        m_pendingAudioClockSyncMs = positionMs;
         {
             std::lock_guard<std::mutex> lock(m_audioResampleMutex);
             recreateAudioResampler();
@@ -391,7 +388,7 @@ void MediaSession::seekTo(qint64 positionMs)
     m_masterClock = positionMs;
     
     if (wasRunning) {
-        m_demuxRunning = true;
+        setDemuxState(DemuxState::Running);
         if (!m_demuxThread || m_demuxThread->isFinished()) {
             qDebug() << "[MediaSession] Restarting demux thread after seek";
             m_demuxThread = QThread::create([this]() {
@@ -570,42 +567,52 @@ void MediaSession::startDemux()
     if (!m_formatContext) {
         return;
     }
-    
-    if (m_demuxRunning) {
-        if (m_demuxThread && m_demuxThread->isFinished()) {
-            qDebug() << "[MediaSession] Previous demux thread finished, will restart";
-            m_demuxRunning = false;
-            m_demuxThread = nullptr;
+
+    // 线程对象存在且仍在运行：根据状态决定“恢复”还是“已在运行”。
+    if (m_demuxThread && !m_demuxThread->isFinished()) {
+        if (isDemuxPaused()) {
+            qDebug() << "[MediaSession] Resuming demux thread";
+            {
+                std::lock_guard<std::mutex> lock(m_demuxPauseMutex);
+                setDemuxState(DemuxState::Running);
+            }
+            m_demuxPauseCv.notify_all();
         } else {
             qDebug() << "[MediaSession] Demux already running";
-            return;
         }
+        return;
     }
-    
+
+    // 线程对象已结束，清理悬挂指针并重置状态。
+    if (m_demuxThread && m_demuxThread->isFinished()) {
+        qDebug() << "[MediaSession] Previous demux thread finished, will restart";
+        m_demuxThread = nullptr;
+        setDemuxState(DemuxState::Stopped);
+    }
+
     qDebug() << "[MediaSession] Starting demux thread";
-    
-    m_demuxRunning = true;
-    
+    setDemuxState(DemuxState::Running);
+
     m_demuxThread = QThread::create([this]() {
         this->demuxLoop();
     });
-    
+
     connect(m_demuxThread, &QThread::finished, m_demuxThread, &QThread::deleteLater);
     m_demuxThread->start();
 }
 
 void MediaSession::stopDemux()
 {
-    if (!m_demuxRunning) {
+    if (!isDemuxRunning()) {
         return;
     }
 
     qDebug() << "[MediaSession] Stopping demux thread";
 
-    m_demuxRunning = false;
+    setDemuxState(DemuxState::Stopped);
     {
         std::lock_guard<std::mutex> lock(m_demuxPauseMutex);
-        m_demuxPaused = false;
+        setDemuxState(DemuxState::Stopped);
     }
     m_demuxPauseCv.notify_all();
 
@@ -631,27 +638,47 @@ void MediaSession::demuxLoop()
     int videoPacketCount = 0;
     int audioPacketCount = 0;
     
-    while (m_demuxRunning) {
+    while (isDemuxRunning()) {
         {
             std::unique_lock<std::mutex> lock(m_demuxPauseMutex);
-            if (m_demuxPaused) {
+            if (isDemuxPaused()) {
                 m_demuxPauseCv.wait(lock, [this]() {
-                    return !m_demuxPaused || !m_demuxRunning;
+                    return !isDemuxPaused() || !isDemuxRunning();
                 });
             }
         }
 
-        if (!m_demuxRunning) {
+        if (!isDemuxRunning()) {
             break;
         }
-        if (m_videoSession && m_videoSession->videoBuffer()) {
-            int bufferSize = m_videoSession->videoBuffer()->size();
-            int bufferCapacity = m_videoSession->videoBuffer()->capacity();
-            
-            if (bufferSize >= bufferCapacity * 0.8) {
-                QThread::msleep(10);
-                continue;
+        int audioBufferedBytes = 0;
+        if (m_audioCodecCtx) {
+            AudioBuffer* audioBuffer = AudioPlayer::instance().getBuffer();
+            if (audioBuffer) {
+                audioBufferedBytes = audioBuffer->availableBytes();
             }
+        }
+        constexpr int kAudioLowWaterBytes = 96 * 1024;    // ~0.55s PCM
+        constexpr int kAudioHighWaterBytes = 384 * 1024;  // ~2.2s PCM
+
+        // 音频背压：优先限制“读太快跑到EOF”，而不是依赖大容量环形缓冲百分比。
+        if (audioBufferedBytes >= kAudioHighWaterBytes) {
+            QThread::msleep(4);
+            continue;
+        }
+
+        bool shouldThrottleVideo = false;
+        if (m_videoSession && m_videoSession->videoBuffer()) {
+            const int bufferSize = m_videoSession->videoBuffer()->size();
+            const int bufferCapacity = m_videoSession->videoBuffer()->capacity();
+            shouldThrottleVideo = (bufferCapacity > 0 && bufferSize >= bufferCapacity * 0.8);
+        }
+
+        // 当视频缓冲已高位且音频有最低安全余量时，暂停 demux 让渲染追上。
+        // 这里不用“丢视频包”，避免 H264 包序破坏造成画面卡顿。
+        if (shouldThrottleVideo && audioBufferedBytes >= kAudioLowWaterBytes) {
+            QThread::msleep(3);
+            continue;
         }
         
         int ret = av_read_frame(m_formatContext, pkt);
@@ -690,9 +717,9 @@ void MediaSession::demuxLoop()
                         );
                     }
 
-                    if (m_seekPending) {
+                    if (m_pendingAudioClockSyncMs.has_value()) {
                         AudioPlayer::instance().setCurrentTimestamp(inputPtsMs);
-                        m_seekPending = false;
+                        m_pendingAudioClockSyncMs.reset();
                         qDebug() << "[MediaSession] Seek completed - clock synced to actual PTS:" << inputPtsMs << "ms";
                     }
 
@@ -792,9 +819,9 @@ void MediaSession::demuxLoop()
     
     av_packet_free(&pkt);
     
-    m_demuxRunning = false;
+    setDemuxState(DemuxState::Stopped);
     
-    qDebug() << "[MediaSession] Demux loop finished - Audio packets:" << audioPacketCount 
+    qDebug() << "[MediaSession] Demux loop finished - Audio packets:" << audioPacketCount
              << "Video packets:" << videoPacketCount;
     emit demuxFinished();
 }

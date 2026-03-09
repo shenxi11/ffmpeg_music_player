@@ -1,4 +1,4 @@
-#ifndef LOGINWIDGET_QML_H
+﻿#ifndef LOGINWIDGET_QML_H
 #define LOGINWIDGET_QML_H
 
 #include <QObject>

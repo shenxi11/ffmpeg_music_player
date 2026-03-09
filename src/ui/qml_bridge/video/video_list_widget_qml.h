@@ -1,4 +1,4 @@
-#ifndef VIDEO_LIST_WIDGET_QML_H
+﻿#ifndef VIDEO_LIST_WIDGET_QML_H
 #define VIDEO_LIST_WIDGET_QML_H
 
 #include <QQuickWidget>

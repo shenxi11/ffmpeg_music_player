@@ -5,94 +5,94 @@ import QtGraphicalEffects 1.14
 Item {
     id: root
     
-    // 灞炴€?
+    // 属性
     property int currentLine: -1
     property bool isUp: false
-    property int userScrolledIndex: -1  // 鐢ㄦ埛婊氬姩鍒扮殑琛?
-    property bool isUserScrolling: false  // 鏄惁姝ｅ湪鐢ㄦ埛婊氬姩妯″紡
+    property int userScrolledIndex: -1  // 用户滚动到的行索引
+    property bool isUserScrolling: false  // 是否处于用户滚动模式
     
-    // 淇″彿
+    // 信号
     signal currentLrcChanged(string lyricText)
     signal lyricClicked(int lineIndex)
     signal dragStarted(int lineIndex)
     signal dragMoved(int lineIndex)
     signal dragEnded(int lineIndex)
 
-    signal playButtonClicked(int lineIndex)  // 鎾斁鎸夐挳鐐瑰嚮淇″彿
+    signal playButtonClicked(int lineIndex)  // 播放按钮点击信号
     
-    // 鎭㈠瀹氭椂鍣?
+    // 恢复定时器
     Timer {
         id: restoreTimer
-        interval: 5000  // 5绉?
+        interval: 5000  // 5秒
         onTriggered: {
             root.isUserScrolling = false
             root.userScrolledIndex = -1
-            // 鎭㈠鍒板綋鍓嶉珮浜
+            // 恢复到当前高亮行
             lyricView.positionViewAtIndex(root.currentLine, ListView.Center)
         }
     }
     
-    // 姝岃瘝妯″瀷
+    // 歌词模型
     ListModel {
         id: lyricModel
     }
     
-    // 姝岃瘝 ListView
+    // 歌词列表视图
     ListView {
         id: lyricView
         anchors.fill: parent
         model: lyricModel
         clip: true
         
-        // 绂佺敤婊氬姩鏉?
+        // 禁用滚动条
         ScrollBar.vertical: ScrollBar {
             visible: false
         }
         
-        // 鍚敤浜や簰浠ユ敮鎸佹粴杞?
+        // 启用交互以支持滚轮
         interactive: true
         
-        // 娣诲姞婊氳疆鏀寔
+        // 添加滚轮支持
         MouseArea {
             anchors.fill: parent
-            acceptedButtons: Qt.NoButton  // 涓嶅鐞嗙偣鍑伙紝鍙鐞嗘粴杞?
+            acceptedButtons: Qt.NoButton  // 不处理点击，仅处理滚轮
             
             property bool isWheelScrolling: false
             
             onWheel: {
                 var delta = wheel.angleDelta.y
-                var sensitivity = 120  // 婊氳疆鐏垫晱搴?
+                var sensitivity = 120  // 滚轮灵敏度
                 
                 if (Math.abs(delta) >= sensitivity) {
-                    // 濡傛灉鏄涓€娆℃粴鍔?
+                    // 如果是第一次滚动
                     if (!isWheelScrolling) {
                         isWheelScrolling = true
                     }
                     
-                    var direction = delta > 0 ? -1 : 1  // 鍚戜笂婊氬姩鍑忓皯绱㈠紩锛屽悜涓嬫粴鍔ㄥ鍔犵储寮?
+                    var direction = delta > 0 ? -1 : 1  // 向上滚动减少索引，向下滚动增加索引
                     var currentIndex = lyricView.indexAt(lyricView.contentX, lyricView.contentY + lyricView.height / 2)
                     var newIndex = Math.max(5, Math.min(currentIndex + direction, lyricModel.count - 10))
                     
                     if (newIndex !== currentIndex && newIndex >= 5 && newIndex < lyricModel.count - 5) {
-                        // 璁剧疆鐢ㄦ埛婊氬姩鐘舵€?
+                        // 设置用户滚动状态
                         root.isUserScrolling = true
                         root.userScrolledIndex = newIndex
                         
-                        // 婊氬姩鍒版寚瀹氫綅缃?
+                        // 滚动到指定位置
                         lyricView.positionViewAtIndex(newIndex, ListView.Center)
                         
-                        // 閲嶆柊鍚姩鎭㈠瀹氭椂鍣?
+                        // 重新启动恢复定时器
                         restoreTimer.restart()
                     }
                     
-                    // 閲嶇疆瀹氭椂鍣?
+                    // 重置定时器
                     scrollEndTimer.restart()
                 }
             }
             
             Timer {
                 id: scrollEndTimer
-                interval: 300  // 300ms 鏃犳粴鍔ㄥ垯璁や负缁撴潫
+                interval: 300  // 300ms 无滚动则视为结束
                 onTriggered: {
                     if (parent.isWheelScrolling) {
                         parent.isWheelScrolling = false
@@ -101,11 +101,11 @@ Item {
             }
         }
         
-        // 褰撳墠椤瑰眳涓樉绀猴紙鍦ㄨ鍙ｄ笂1/3澶勶級
+        // 当前项居中显示（位于视口上方约 1/3 处）
         preferredHighlightBegin: height / 3
         preferredHighlightEnd: height / 3
         highlightRangeMode: ListView.StrictlyEnforceRange
-        highlightMoveDuration: 300  // 骞虫粦婊氬姩鍔ㄧ敾
+        highlightMoveDuration: 300  // 平滑滚动动画
         
         delegate: Item {
             id: lyricItem
@@ -127,14 +127,14 @@ Item {
                         restoreTimer.restart()
                     }
                     
-                    // 璁＄畻涓績琛?
+                    // 计算中心行
                     var centerY = lyricView.height / 2
-                    var centerIndex = Math.round((lyricView.contentY + centerY) / 60) // 鍋囪姣忚60鍍忕礌
+                    var centerIndex = Math.round((lyricView.contentY + centerY) / 60) // 假设每行 60 像素
                     root.updateCenterIndex(centerIndex)
                 }
             }
             
-            // 绠€鍗曠殑姝岃瘝鏂囨湰鏄剧ず
+            // 简单的歌词文本显示
             Text {
                 id: lyricText
                 anchors.centerIn: parent
@@ -146,7 +146,7 @@ Item {
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.WordWrap
                 
-                // 瀛楀彿鍜岄€忔槑搴﹀姩鐢?
+                // 字号和透明度动画
                 Behavior on font.pixelSize {
                     NumberAnimation { duration: 200 }
                 }
@@ -167,7 +167,7 @@ Item {
                 anchors.margins: 10
                 spacing: 10
                 
-                // 绗竴鍒楋細鎾斁鎸夐挳
+                // 第一列：播放按钮
                 Item {
                     width: 50
                     height: parent.height
@@ -183,7 +183,7 @@ Item {
                         border.width: 1.5
                         visible: root.isUserScrolling && model.time && model.time !== ""
                         
-                        // 鎾斁鍥炬爣锛堜笁瑙掑舰锛?
+                        // 播放图标（三角形）
                         Canvas {
                             anchors.centerIn: parent
                             width: 12
@@ -200,13 +200,13 @@ Item {
                             }
                         }
                         
-                        // 缂╂斁鍔ㄧ敾
+                        // 缩放动画
                         scale: playButtonMouseArea.pressed ? 0.85 : 1.0
                         Behavior on scale {
                             NumberAnimation { duration: 100 }
                         }
                         
-                        // 閫忔槑搴﹀姩鐢?
+                        // 透明度动画
                         Behavior on opacity {
                             NumberAnimation { duration: 200 }
                         }
@@ -218,12 +218,12 @@ Item {
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
                                 console.log("Play button clicked for line:", index, "time:", model.time)
-                                // 绔嬪嵆闅愯棌鎸夐挳鍜屾仮澶嶇姸鎬?
+                                // 立即隐藏按钮并恢复状态
                                 root.isUserScrolling = false
                                 root.restoreTimer.stop()
                                 root.playButtonClicked(index)
                                 
-                                // 婊氬姩鍥炲埌褰撳墠鎾斁琛?
+                                // 滚动回当前播放行
                                 if (root.currentLine >= 0) {
                                     lyricView.positionViewAtIndex(root.currentLine, ListView.Center)
                                 }
@@ -232,7 +232,7 @@ Item {
                     }
                 }
                 
-                // 绗簩鍒楋細鏃堕棿鏄剧ず
+                // 第二列：时间显示
                 Item {
                     width: 65
                     height: parent.height
@@ -253,16 +253,16 @@ Item {
                         horizontalAlignment: Text.AlignCenter
                         visible: model.time && model.time !== ""
                         
-                        // 棰滆壊鍔ㄧ敾
+                        // 颜色动画
                         Behavior on color {
                             ColorAnimation { duration: 200 }
                         }
                     }
                 }
                 
-                // 绗笁鍒楋細姝岃瘝鏂囨湰
+                // 第三列：歌词文本
                 Item {
-                    width: parent.width - 50 - 65 - 20  // 鍑忓幓鍓嶄袱鍒楀搴﹀拰闂磋窛
+                    width: parent.width - 50 - 65 - 20  // 减去前两列宽度和间距
                     height: parent.height
                     
                     Text {
@@ -283,22 +283,22 @@ Item {
                         horizontalAlignment: Text.AlignLeft
                         wrapMode: Text.WordWrap
                         
-                        // 瀛楀彿鍔ㄧ敾
+                        // 字号动画
                         Behavior on font.pixelSize {
                             NumberAnimation { duration: 200 }
                         }
                         
-                        // 瀛椾綋绮楃粏鍔ㄧ敾
+                        // 字体粗细动画
                         Behavior on font.bold {
                             PropertyAnimation { duration: 200 }
                         }
                         
-                        // 棰滆壊鍔ㄧ敾
+                        // 颜色动画
                         Behavior on color {
                             ColorAnimation { duration: 200 }
                         }
                         
-                        // 閫忔槑搴﹀熀浜庤窛绂诲綋鍓嶈鐨勮繙杩?
+                        // 透明度基于与当前行的距离
                         opacity: {
                             if (lyricItem.isCurrent) return 1.0
                             var distance = Math.abs(index - root.currentLine)
@@ -316,7 +316,7 @@ Item {
         }
     }
     
-    // 绌哄垪琛ㄦ彁绀?
+    // 空列表提示
     Text {
         anchors.centerIn: parent
         text: "鏆傛棤姝岃瘝"
@@ -325,29 +325,29 @@ Item {
         visible: lyricModel.count === 0
     }
     
-    // 鍑芥暟锛氭竻绌烘瓕璇?
+    // 函数：清空歌词
     function clearLyrics() {
         lyricModel.clear()
         root.currentLine = -1
     }
     
-    // 鍑芥暟锛氭坊鍔犳瓕璇嶅垪琛紙鍓嶅悗鍔犵┖琛岋級
+    // 函数：添加歌词列表（前后补空行）
     function setLyrics(lyricsArray) {
         lyricModel.clear()
         
-        // 娣诲姞鍓嶉潰5琛岀┖琛?
+        // 添加前面 5 行空行
         for (var i = 0; i < 5; i++) {
             lyricModel.append({ "text": " ", "time": "" })
         }
         
-        // 娣诲姞姝岃瘝鍐呭
+        // 添加歌词内容
         for (var j = 0; j < lyricsArray.length; j++) {
             var item = lyricsArray[j]
             if (typeof item === 'string') {
-                // 鍏煎鏃ф牸寮忥紙绾瓧绗︿覆鏁扮粍锛?
+                // 兼容旧格式（纯字符串数组）
                 lyricModel.append({ "text": item, "time": "" })
             } else {
-                // 鏂版牸寮忥紙甯︽椂闂寸殑瀵硅薄锛?
+                // 新格式（带时间的对象）
                 lyricModel.append({ 
                     "text": item.text || "",
                     "time": item.time || ""
@@ -355,16 +355,16 @@ Item {
             }
         }
         
-        // 娣诲姞鍚庨潰9琛岀┖琛?
+        // 添加后面 9 行空行
         for (var k = 0; k < 9; k++) {
             lyricModel.append({ "text": " ", "time": "" })
         }
         
-        // 閲嶇疆褰撳墠琛屼负绗竴琛屾瓕璇嶏紙绱㈠紩5锛?
+        // 重置当前行为第一行歌词（索引 5）
         root.currentLine = 5
     }
     
-    // 鍑芥暟锛氶珮浜寚瀹氳
+    // 函数：高亮指定行
     function highlightLine(lineNumber) {
         if (lineNumber < 0 || lineNumber >= lyricModel.count) {
             return
@@ -372,19 +372,19 @@ Item {
         
         root.currentLine = lineNumber
         
-        // 鍙湁鍦ㄩ潪鐢ㄦ埛婊氬姩鐘舵€佷笅鎵嶈嚜鍔ㄦ粴鍔ㄥ埌楂樹寒琛?
+        // 仅在非用户滚动状态下自动滚动到高亮行
         if (!root.isUserScrolling) {
             lyricView.positionViewAtIndex(lineNumber, ListView.Center)
         }
         
-        // 鍙戝皠褰撳墠姝岃瘝鏂囨湰
+        // 发射当前歌词文本
         var item = lyricModel.get(lineNumber)
         if (item && item.text.trim() !== "") {
             root.currentLrcChanged(item.text)
         }
     }
     
-    // 鍑芥暟锛氭粴鍔ㄥ埌鎸囧畾琛?
+    // 函数：滚动到指定行
     function scrollToLine(lineNumber) {
         if (lineNumber < 0 || lineNumber >= lyricModel.count) {
             return
@@ -392,7 +392,7 @@ Item {
         lyricView.positionViewAtIndex(lineNumber, ListView.Center)
     }
     
-    // 鍑芥暟锛氳缃槸鍚﹀睍寮€鐘舵€?
+    // 函数：设置是否展开状态
     function setIsUp(up) {
         root.isUp = up
     }

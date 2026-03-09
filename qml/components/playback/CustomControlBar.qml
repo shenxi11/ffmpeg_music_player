@@ -254,7 +254,7 @@ Item {
             
             Text {
                 anchors.centerIn: parent
-                text: root.loopMode === 0 ? "馃攣" : root.loopMode === 1 ? "馃攤" : "馃攢"
+                text: root.loopMode === 0 ? "循" : root.loopMode === 1 ? "单" : "随"
                 font.pixelSize: 16
             }
             
@@ -276,7 +276,7 @@ Item {
             
             Text {
                 anchors.centerIn: parent
-                text: "璇?
+                text: "词"
                 font.family: "Microsoft YaHei"
                 font.pixelSize: 14
                 font.bold: true
@@ -297,7 +297,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             
             Text {
-                text: root.volume > 0.5 ? "馃攰" : root.volume > 0 ? "馃攭" : "馃攪"
+                text: root.volume > 0.5 ? "高" : root.volume > 0 ? "中" : "静"
                 font.pixelSize: 16
                 anchors.verticalCenter: parent.verticalCenter
             }

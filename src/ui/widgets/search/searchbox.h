@@ -1,4 +1,4 @@
-#ifndef SEARCHBOX_H
+﻿#ifndef SEARCHBOX_H
 #define SEARCHBOX_H
 
 #include <QObject>

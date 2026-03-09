@@ -13,6 +13,7 @@
 #include <QStringList>
 #include <QSet>
 #include <QUrl>
+#include <QUrlQuery>
 
 namespace {
 QString readArtistFromObject(const QJsonObject& obj);
@@ -334,7 +335,7 @@ HttpRequestV2::HttpRequestV2(QObject* parent)
         m_baseUrl += '/';
     }
 
-    // 璁剧疆鍩虹URL
+    // 设置基础 URL
     m_networkService.setBaseUrl(m_baseUrl);
     
     // DNS棰勭儹
@@ -349,7 +350,7 @@ void HttpRequestV2::login(const QString& account, const QString& password)
     json["account"] = account;
     json["password"] = password;
     
-    // 鐧诲綍浣跨敤Critical浼樺厛绾э紝纭繚蹇€熷搷搴?
+    // 登录使用 Critical 优先级，确保快速响应
     auto options = Network::RequestOptions::critical();
     
     qDebug() << "[HttpRequestV2] Login:" << account;
@@ -361,7 +362,7 @@ void HttpRequestV2::login(const QString& account, const QString& password)
                 
                 qDebug() << "[HttpRequestV2] Login response received in" << response.elapsedMs << "ms";
                 
-                // 妫€鏌ョ櫥褰曟槸鍚︽垚鍔?
+                // 检查登录是否成功
                 bool loginSuccess = false;
                 if (result.contains("success_bool")) {
                     loginSuccess = result.value("success_bool").toBool();
@@ -390,7 +391,7 @@ void HttpRequestV2::login(const QString& account, const QString& password)
                     OnlinePresenceManager::instance().onLoginSucceeded(
                         account, username, onlineToken, heartbeatSec, ttlSec);
                     
-                    // 璁剧疆鐢ㄦ埛鏀惰棌鐨勬瓕鏇插垪琛?
+                    // 设置用户收藏歌曲列表
                     if (result.contains("song_path_list")) {
                         QJsonArray songPathArray = result.value("song_path_list").toArray();
                         QStringList musics;
@@ -422,7 +423,8 @@ void HttpRequestV2::registerUser(const QString& account, const QString& password
     json["username"] = username;
     
     auto options = Network::RequestOptions::critical();
-    // 娉ㄥ唽璇锋眰涓嶅簲璇ヨ嚜鍔ㄩ噸璇曪紝鍚﹀垯浼氳Е鍙戦噸澶嶆敞鍐?    options.maxRetries = 0;
+    // 注册请求不应自动重试，避免重复注册。
+    options.maxRetries = 0;
     
     qDebug() << "[HttpRequestV2] Register:" << account;
     
@@ -449,7 +451,7 @@ void HttpRequestV2::resetPassword(const QString& account, const QString& newPass
     json["new_password"] = newPassword;
 
     auto options = Network::RequestOptions::critical();
-    // 閲嶇疆瀵嗙爜灞炰簬鏄惧紡鍐欐搷浣滐紝绂佹鑷姩閲嶈瘯
+    // 重置密码属于显式写操作，禁止自动重试。
     options.maxRetries = 0;
 
     qDebug() << "[HttpRequestV2] Reset password:" << account;
@@ -473,7 +475,7 @@ void HttpRequestV2::getAllFiles(bool useCache)
     Network::RequestOptions options;
     if (useCache) {
         options.useCache = true;
-        options.cacheTtl = 300;  // 缂撳瓨5鍒嗛挓
+        options.cacheTtl = 300;  // 缓存 5 分钟
     }
     options.priority = Network::RequestPriority::High;
     
@@ -500,7 +502,7 @@ void HttpRequestV2::getAllFiles(bool useCache)
                             artist = QStringLiteral("Unknown Artist");
                         }
                         
-                        // 瑙ｆ瀽鏃堕暱
+                        // 解析时长
                         double durationValue = 0.0;
                         if (durationStr != "Error") {
                             QStringList parts = durationStr.split(" ");
@@ -595,7 +597,7 @@ void HttpRequestV2::getLyrics(const QString& url)
 void HttpRequestV2::downloadFile(const QString& filename, const QString& downloadFolder,
                                 bool downloadLyrics, const QString& coverUrl)
 {
-    // 涓嬭浇浠嶄娇鐢―ownloadManager锛堝紓姝ヤ笅杞界鐞嗭級
+    // 下载仍使用 DownloadManager（异步下载管理）。
     QString downloadUrl = m_baseUrl + "download";
     
     QJsonObject jsonObject;
@@ -645,8 +647,8 @@ void HttpRequestV2::addFavorite(const QString& userAccount, const QString& path,
         durationSec = trimmedDuration.toInt();
     }
 
-    // 鏈嶅姟绔绾︼細
-    // POST /user/favorites/add?user_account=xxx
+    // 服务端契约：
+    // 接口契约：POST /user/favorites/add?user_account=xxx
     // body: music_path, music_title, artist, duration_sec, is_local
     QString url = "user/favorites/add?user_account=" + QString(QUrl::toPercentEncoding(userAccount));
 
@@ -657,7 +659,7 @@ void HttpRequestV2::addFavorite(const QString& userAccount, const QString& path,
     json["duration_sec"] = durationSec;
     json["is_local"] = isLocal;
 
-    // 鍏煎鏃ф湇鍔＄瀛楁
+    // 兼容旧服务端字段
     json["path"] = path;
     json["title"] = title;
     json["duration"] = QString::number(durationSec);
@@ -665,7 +667,7 @@ void HttpRequestV2::addFavorite(const QString& userAccount, const QString& path,
     qDebug() << "[HttpRequestV2] Adding favorite:" << title;
 
     Network::RequestOptions options;
-    options.maxRetries = 0;  // 闈炲箓绛夊啓鎿嶄綔锛岄伩鍏嶈嚜鍔ㄩ噸璇曞鑷撮噸澶嶆彁浜?
+    options.maxRetries = 0;  // 非幂等写操作，避免自动重试导致重复提交
     m_networkService.postJson(url, json, options,
         [this, title, userAccount](const Network::NetworkResponse& response) {
             if (response.isSuccess()) {
@@ -717,7 +719,7 @@ void HttpRequestV2::getFavorites(const QString& userAccount, bool useCache)
     m_networkService.get(url, options,
         [this](const Network::NetworkResponse& response) {
             if (response.isSuccess()) {
-                // 鏈嶅姟绔洿鎺ヨ繑鍥濲SON鏁扮粍
+                // 服务端直接返回 JSON 数组
                 QJsonArray favoritesArray = Network::NetworkService::parseJsonArray(response);
 
                 QHash<QString, QString> localCoverByPath;
@@ -740,7 +742,7 @@ void HttpRequestV2::getFavorites(const QString& userAccount, bool useCache)
                     QString path = favObj["path"].toString();
                     bool isLocal = favObj["is_local"].toBool();
                     
-                    // 瀵逛簬鍦ㄧ嚎闊充箰锛屽鏋減ath鏄浉瀵硅矾寰勶紝闇€瑕佽ˉ鍏ㄤ负瀹屾暣URL
+                    // 对在线音乐，若 path 是相对路径，需要补全为完整 URL。
                     if (!isLocal) {
                         const QString normalized = normalizeOnlineMediaPath(path, m_baseUrl);
                         if (normalized != path) {
@@ -792,7 +794,7 @@ void HttpRequestV2::addPlayHistory(const QString& userAccount, const QString& pa
     }
 
     // Keep request contract aligned with backend:
-    // POST /user/history/add?user_account=xxx
+    // 接口契约：POST /user/history/add?user_account=xxx
     // body: music_path, music_title, artist, album, duration_sec, is_local
     QString url = "user/history/add?user_account=" + QString(QUrl::toPercentEncoding(userAccount));
 
@@ -844,7 +846,8 @@ void HttpRequestV2::getPlayHistory(const QString& userAccount, int limit, bool u
     
     Network::RequestOptions options;
     if (useCache) {
-        options = Network::RequestOptions::withCache(30);  // 缂撳瓨30绉?    } else {
+        options = Network::RequestOptions::withCache(30);  // 缓存 30 秒
+    } else {
         options = Network::RequestOptions::withPriority(Network::RequestPriority::High);
         options.useCache = false;
     }
@@ -855,7 +858,7 @@ void HttpRequestV2::getPlayHistory(const QString& userAccount, int limit, bool u
     m_networkService.get(url, options,
         [this](const Network::NetworkResponse& response) {
             if (response.isSuccess()) {
-                // 鏈嶅姟绔洿鎺ヨ繑鍥濲SON鏁扮粍
+                // 服务端直接返回 JSON 数组
                 QJsonArray historyArray = Network::NetworkService::parseJsonArray(response);
 
                 QHash<QString, QString> localDurationByPath;
@@ -879,7 +882,7 @@ void HttpRequestV2::getPlayHistory(const QString& userAccount, int limit, bool u
                     QString path = histObj["path"].toString();
                     bool isLocal = histObj["is_local"].toBool();
                     
-                    // 瀵逛簬鍦ㄧ嚎闊充箰锛屽鏋減ath鏄浉瀵硅矾寰勶紝闇€瑕佽ˉ鍏ㄤ负瀹屾暣URL
+                    // 对在线音乐，若 path 是相对路径，需要补全为完整 URL。
                     if (!isLocal) {
                         const QString normalized = normalizeOnlineMediaPath(path, m_baseUrl);
                         if (normalized != path) {
@@ -923,9 +926,289 @@ void HttpRequestV2::getPlayHistory(const QString& userAccount, int limit, bool u
     );
 }
 
+void HttpRequestV2::getAudioRecommendations(const QString& userId,
+                                            const QString& scene,
+                                            int limit,
+                                            bool excludePlayed,
+                                            const QString& cursor)
+{
+    const QString trimmedUser = userId.trimmed();
+    if (trimmedUser.isEmpty()) {
+        qWarning() << "[HttpRequestV2] getAudioRecommendations skipped: userId is empty";
+        emit signal_recommendationList(QVariantMap(), QVariantList());
+        return;
+    }
+
+    const int safeLimit = qBound(1, limit, 100);
+
+    QUrlQuery query;
+    query.addQueryItem(QStringLiteral("user_id"), trimmedUser);
+    // 兼容字段，服务端可按 user_account / header 回退
+    query.addQueryItem(QStringLiteral("user_account"), trimmedUser);
+    query.addQueryItem(QStringLiteral("scene"), scene.trimmed().isEmpty() ? QStringLiteral("home") : scene.trimmed());
+    query.addQueryItem(QStringLiteral("limit"), QString::number(safeLimit));
+    query.addQueryItem(QStringLiteral("exclude_played"), excludePlayed ? QStringLiteral("true") : QStringLiteral("false"));
+    if (!cursor.trimmed().isEmpty()) {
+        query.addQueryItem(QStringLiteral("cursor"), cursor.trimmed());
+    }
+
+    QString url = QStringLiteral("recommendations/audio");
+    const QString encodedQuery = query.toString(QUrl::FullyEncoded);
+    if (!encodedQuery.isEmpty()) {
+        url += QStringLiteral("?") + encodedQuery;
+    }
+
+    auto options = Network::RequestOptions::withPriority(Network::RequestPriority::High);
+    options.useCache = false;
+
+    qDebug() << "[HttpRequestV2] Getting recommendations for user:" << trimmedUser
+             << "scene:" << scene << "limit:" << safeLimit;
+
+    m_networkService.get(url, options,
+        [this](const Network::NetworkResponse& response) {
+            if (!response.isSuccess()) {
+                qWarning() << "[HttpRequestV2] Get recommendations error:" << response.errorString;
+                emit signal_recommendationList(QVariantMap(), QVariantList());
+                return;
+            }
+
+            const QJsonObject rootObj = Network::NetworkService::parseJsonObject(response);
+            QJsonObject dataObj = rootObj;
+            if (rootObj.contains(QStringLiteral("data")) && rootObj.value(QStringLiteral("data")).isObject()) {
+                dataObj = rootObj.value(QStringLiteral("data")).toObject();
+            }
+
+            QVariantMap meta;
+            meta.insert(QStringLiteral("request_id"), dataObj.value(QStringLiteral("request_id")).toString());
+            meta.insert(QStringLiteral("user_id"), dataObj.value(QStringLiteral("user_id")).toString());
+            meta.insert(QStringLiteral("scene"), dataObj.value(QStringLiteral("scene")).toString());
+            meta.insert(QStringLiteral("model_version"), dataObj.value(QStringLiteral("model_version")).toString());
+            meta.insert(QStringLiteral("next_cursor"), dataObj.value(QStringLiteral("next_cursor")).toString());
+
+            QVariantList items;
+            const QJsonArray itemArray = dataObj.value(QStringLiteral("items")).toArray();
+            items.reserve(itemArray.size());
+
+            for (const QJsonValue& value : itemArray) {
+                if (!value.isObject()) {
+                    continue;
+                }
+
+                const QJsonObject itemObj = value.toObject();
+                const QString rawPath = itemObj.value(QStringLiteral("path")).toString();
+                const QString rawStreamUrl = itemObj.value(QStringLiteral("stream_url")).toString();
+
+                QString streamUrl = rewriteServiceUrlToBase(rawStreamUrl, m_baseUrl);
+                if (streamUrl.trimmed().isEmpty() && !rawPath.trimmed().isEmpty()) {
+                    streamUrl = normalizeOnlineMediaPath(rawPath, m_baseUrl);
+                }
+
+                const double durationSec = itemObj.value(QStringLiteral("duration_sec")).toDouble(0.0);
+                QString durationText = formatDurationFromSeconds(static_cast<int>(durationSec + 0.5));
+                if (durationText.isEmpty()) {
+                    durationText = readDurationFromObject(itemObj);
+                }
+
+                QVariantMap item;
+                item.insert(QStringLiteral("song_id"), itemObj.value(QStringLiteral("song_id")).toString());
+                item.insert(QStringLiteral("path"), rawPath);
+                item.insert(QStringLiteral("play_path"), streamUrl);
+                item.insert(QStringLiteral("title"), itemObj.value(QStringLiteral("title")).toString());
+                item.insert(QStringLiteral("artist"), readArtistFromObject(itemObj));
+                item.insert(QStringLiteral("album"), itemObj.value(QStringLiteral("album")).toString());
+                item.insert(QStringLiteral("duration_sec"), durationSec);
+                item.insert(QStringLiteral("duration"), durationText);
+                item.insert(QStringLiteral("cover_art_url"),
+                            rewriteServiceUrlToBase(itemObj.value(QStringLiteral("cover_art_url")).toString(), m_baseUrl));
+                item.insert(QStringLiteral("stream_url"), streamUrl);
+                item.insert(QStringLiteral("lrc_url"),
+                            rewriteServiceUrlToBase(itemObj.value(QStringLiteral("lrc_url")).toString(), m_baseUrl));
+                item.insert(QStringLiteral("score"), itemObj.value(QStringLiteral("score")).toDouble());
+                item.insert(QStringLiteral("reason"), itemObj.value(QStringLiteral("reason")).toString());
+                item.insert(QStringLiteral("source"), itemObj.value(QStringLiteral("source")).toString());
+                item.insert(QStringLiteral("request_id"), meta.value(QStringLiteral("request_id")));
+                item.insert(QStringLiteral("model_version"), meta.value(QStringLiteral("model_version")));
+                item.insert(QStringLiteral("scene"), meta.value(QStringLiteral("scene")));
+
+                items.append(item);
+            }
+
+            qDebug() << "[HttpRequestV2] Recommendations received:" << items.size();
+            emit signal_recommendationList(meta, items);
+        }
+    );
+}
+
+void HttpRequestV2::getSimilarRecommendations(const QString& songId, int limit)
+{
+    const QString trimmedSongId = songId.trimmed();
+    if (trimmedSongId.isEmpty()) {
+        qWarning() << "[HttpRequestV2] getSimilarRecommendations skipped: songId is empty";
+        emit signal_similarRecommendationList(QVariantMap(), QVariantList(), QString());
+        return;
+    }
+
+    const int safeLimit = qBound(1, limit, 100);
+    const QString encodedSongId = QString::fromUtf8(QUrl::toPercentEncoding(trimmedSongId));
+    const QString url = QStringLiteral("recommendations/similar/%1?limit=%2")
+                            .arg(encodedSongId, QString::number(safeLimit));
+
+    auto options = Network::RequestOptions::withPriority(Network::RequestPriority::High);
+    options.useCache = false;
+
+    qDebug() << "[HttpRequestV2] Getting similar recommendations for songId:"
+             << trimmedSongId << "limit:" << safeLimit;
+
+    m_networkService.get(url, options,
+        [this, trimmedSongId](const Network::NetworkResponse& response) {
+            if (!response.isSuccess()) {
+                qWarning() << "[HttpRequestV2] Get similar recommendations error:"
+                           << response.errorString << "status:" << response.statusCode;
+                emit signal_similarRecommendationList(QVariantMap(), QVariantList(), trimmedSongId);
+                return;
+            }
+
+            const QJsonObject rootObj = Network::NetworkService::parseJsonObject(response);
+            QJsonObject dataObj = rootObj;
+            if (rootObj.contains(QStringLiteral("data")) && rootObj.value(QStringLiteral("data")).isObject()) {
+                dataObj = rootObj.value(QStringLiteral("data")).toObject();
+            }
+
+            QVariantMap meta;
+            meta.insert(QStringLiteral("request_id"), dataObj.value(QStringLiteral("request_id")).toString());
+            meta.insert(QStringLiteral("user_id"), dataObj.value(QStringLiteral("user_id")).toString());
+            meta.insert(QStringLiteral("scene"), dataObj.value(QStringLiteral("scene")).toString());
+            meta.insert(QStringLiteral("model_version"), dataObj.value(QStringLiteral("model_version")).toString());
+            meta.insert(QStringLiteral("next_cursor"), dataObj.value(QStringLiteral("next_cursor")).toString());
+
+            if (meta.value(QStringLiteral("scene")).toString().trimmed().isEmpty()) {
+                meta.insert(QStringLiteral("scene"), QStringLiteral("detail"));
+            }
+
+            QVariantList items;
+            const QJsonArray itemArray = dataObj.value(QStringLiteral("items")).toArray();
+            items.reserve(itemArray.size());
+
+            for (const QJsonValue& value : itemArray) {
+                if (!value.isObject()) {
+                    continue;
+                }
+
+                const QJsonObject itemObj = value.toObject();
+                const QString rawPath = itemObj.value(QStringLiteral("path")).toString();
+                const QString rawStreamUrl = itemObj.value(QStringLiteral("stream_url")).toString();
+
+                QString streamUrl = rewriteServiceUrlToBase(rawStreamUrl, m_baseUrl);
+                if (streamUrl.trimmed().isEmpty() && !rawPath.trimmed().isEmpty()) {
+                    streamUrl = normalizeOnlineMediaPath(rawPath, m_baseUrl);
+                }
+
+                const double durationSec = itemObj.value(QStringLiteral("duration_sec")).toDouble(0.0);
+                QString durationText = formatDurationFromSeconds(static_cast<int>(durationSec + 0.5));
+                if (durationText.isEmpty()) {
+                    durationText = readDurationFromObject(itemObj);
+                }
+
+                QVariantMap item;
+                const QString itemSongId = itemObj.value(QStringLiteral("song_id")).toString();
+                item.insert(QStringLiteral("song_id"), itemSongId.isEmpty() ? rawPath : itemSongId);
+                item.insert(QStringLiteral("path"), rawPath);
+                item.insert(QStringLiteral("play_path"), streamUrl);
+                item.insert(QStringLiteral("title"), itemObj.value(QStringLiteral("title")).toString());
+                item.insert(QStringLiteral("artist"), readArtistFromObject(itemObj));
+                item.insert(QStringLiteral("album"), itemObj.value(QStringLiteral("album")).toString());
+                item.insert(QStringLiteral("duration_sec"), durationSec);
+                item.insert(QStringLiteral("duration"), durationText);
+                item.insert(QStringLiteral("cover_art_url"),
+                            rewriteServiceUrlToBase(itemObj.value(QStringLiteral("cover_art_url")).toString(), m_baseUrl));
+                item.insert(QStringLiteral("stream_url"), streamUrl);
+                item.insert(QStringLiteral("lrc_url"),
+                            rewriteServiceUrlToBase(itemObj.value(QStringLiteral("lrc_url")).toString(), m_baseUrl));
+                item.insert(QStringLiteral("score"), itemObj.value(QStringLiteral("score")).toDouble());
+                item.insert(QStringLiteral("reason"), itemObj.value(QStringLiteral("reason")).toString());
+                item.insert(QStringLiteral("source"), itemObj.value(QStringLiteral("source")).toString());
+                item.insert(QStringLiteral("request_id"), meta.value(QStringLiteral("request_id")));
+                item.insert(QStringLiteral("model_version"), meta.value(QStringLiteral("model_version")));
+                item.insert(QStringLiteral("scene"), meta.value(QStringLiteral("scene")));
+
+                items.append(item);
+            }
+
+            qDebug() << "[HttpRequestV2] Similar recommendations received:" << items.size()
+                     << "anchorSongId:" << trimmedSongId;
+            emit signal_similarRecommendationList(meta, items, trimmedSongId);
+        }
+    );
+}
+
+void HttpRequestV2::postRecommendationFeedback(const QString& userId,
+                                               const QString& songId,
+                                               const QString& eventType,
+                                               const QString& scene,
+                                               const QString& requestId,
+                                               const QString& modelVersion,
+                                               qint64 playMs,
+                                               qint64 durationMs)
+{
+    const QString trimmedUser = userId.trimmed();
+    const QString trimmedSongId = songId.trimmed();
+    const QString trimmedEventType = eventType.trimmed();
+
+    if (trimmedUser.isEmpty() || trimmedSongId.isEmpty() || trimmedEventType.isEmpty()) {
+        qWarning() << "[HttpRequestV2] postRecommendationFeedback skipped: missing required params"
+                   << "userIdEmpty=" << trimmedUser.isEmpty()
+                   << "songIdEmpty=" << trimmedSongId.isEmpty()
+                   << "eventTypeEmpty=" << trimmedEventType.isEmpty();
+        emit signal_recommendationFeedbackResult(false, trimmedEventType, trimmedSongId);
+        return;
+    }
+
+    QJsonObject json;
+    json[QStringLiteral("user_id")] = trimmedUser;
+    json[QStringLiteral("song_id")] = trimmedSongId;
+    json[QStringLiteral("event_type")] = trimmedEventType;
+    json[QStringLiteral("scene")] = scene.trimmed().isEmpty() ? QStringLiteral("home") : scene.trimmed();
+
+    if (!requestId.trimmed().isEmpty()) {
+        json[QStringLiteral("request_id")] = requestId.trimmed();
+    }
+    if (!modelVersion.trimmed().isEmpty()) {
+        json[QStringLiteral("model_version")] = modelVersion.trimmed();
+    }
+    if (playMs >= 0) {
+        json[QStringLiteral("play_ms")] = static_cast<double>(playMs);
+    }
+    if (durationMs >= 0) {
+        json[QStringLiteral("duration_ms")] = static_cast<double>(durationMs);
+    }
+
+    Network::RequestOptions options = Network::RequestOptions::withPriority(Network::RequestPriority::Low);
+    options.maxRetries = 0;
+    options.useCache = false;
+
+    m_networkService.postJson(QStringLiteral("recommendations/feedback"), json, options,
+        [this, trimmedEventType, trimmedSongId](const Network::NetworkResponse& response) {
+            bool success = false;
+            if (response.isSuccess()) {
+                const QJsonObject rootObj = Network::NetworkService::parseJsonObject(response);
+                QJsonObject dataObj = rootObj;
+                if (rootObj.contains(QStringLiteral("data")) && rootObj.value(QStringLiteral("data")).isObject()) {
+                    dataObj = rootObj.value(QStringLiteral("data")).toObject();
+                }
+                success = dataObj.value(QStringLiteral("success")).toBool(true);
+            } else {
+                qWarning() << "[HttpRequestV2] Recommendation feedback error:" << response.errorString
+                           << "status:" << response.statusCode;
+            }
+
+            emit signal_recommendationFeedbackResult(success, trimmedEventType, trimmedSongId);
+        }
+    );
+}
+
 void HttpRequestV2::getVideoList()
 {
-    auto options = Network::RequestOptions::withCache(300);  // 缂撳瓨5鍒嗛挓
+    auto options = Network::RequestOptions::withCache(300);  // 缓存 5 分钟
     
     m_networkService.get("videos", options,
         [this](const Network::NetworkResponse& response) {
@@ -976,7 +1259,7 @@ void HttpRequestV2::searchArtist(const QString& artist)
     QJsonObject json;
     json["artist"] = artist;
     
-    // 鎼滅储浣跨敤楂樹紭鍏堢骇
+    // 搜索使用高优先级
     auto options = Network::RequestOptions::withPriority(Network::RequestPriority::High);
     
     m_networkService.postJson("artist/search", json, options,
@@ -1000,8 +1283,8 @@ void HttpRequestV2::getMusicByArtist(const QString& artist)
     QJsonObject json;
     json["artist"] = artist;
     
-    // 缂撳瓨鑹烘湳瀹堕煶涔愬垪琛?
-    auto options = Network::RequestOptions::withCache(600);  // 缂撳瓨10鍒嗛挓
+    // 缓存艺术家音乐列表。
+    auto options = Network::RequestOptions::withCache(600);  // 缓存 10 分钟
     
     m_networkService.postJson("music/artist", json, options,
         [this, artist](const Network::NetworkResponse& response) {
@@ -1186,7 +1469,7 @@ void HttpRequestV2::getMusic(const QString& keyword)
                             artist = QStringLiteral("Unknown Artist");
                         }
 
-                        // 瑙ｆ瀽鏃堕暱瀛楃涓?"239.49 seconds" -> 绉掓暟
+                        // 解析时长字符串："239.49 seconds" -> 秒数
                         double durationValue = 0.0;
                         if (durationStr != "Error") {
                             QStringList parts = durationStr.split(" ");
@@ -1199,10 +1482,10 @@ void HttpRequestV2::getMusic(const QString& keyword)
                         int minutes = totalSeconds / 60;
                         int seconds = totalSeconds % 60;
                         
-                        // 浣跨敤Music鐨剆etter鏂规硶璁剧疆灞炴€?
+                        // 使用 Music 的 setter 方法设置属性
                         Music music;
                         music.setSongPath(filePath);
-                        music.setDuration(totalSeconds * 1000);  // 杞崲涓烘绉?
+                        music.setDuration(totalSeconds * 1000);  // 转换为毫秒
                         music.setPicPath(coverUrl);
                         music.setSinger(artist);
 
@@ -1227,11 +1510,11 @@ void HttpRequestV2::removeFavorite(const QString& userAccount, const QStringList
     
     QJsonObject json;
     json["user_account"] = userAccount;
-    json["music_path"] = paths[0];  // 鏈嶅姟绔帴鍙ｅ彧鏀寔鍗曚釜鍒犻櫎
+    json["music_path"] = paths[0];  // 服务端接口仅支持单条删除
     
     qDebug() << "[HttpRequestV2] Removing favorite for user:" << userAccount << "path:" << paths[0];
     
-    // 浣跨敤POST璇锋眰鍒犻櫎鏀惰棌锛堟湇鍔＄閫氳繃璺敱鍖哄垎鎿嶄綔锛?
+    // 使用 POST 请求删除收藏（服务端通过路由区分操作）
     m_networkService.postJson("user/favorites/remove", json, Network::RequestOptions(),
         [this, userAccount](const Network::NetworkResponse& response) {
             bool success = false;

@@ -17,9 +17,9 @@ public:
     {
         setResizeMode(QQuickWidget::SizeRootObjectToView);
         setClearColor(Qt::transparent);
-        setAttribute(Qt::WA_AlwaysStackOnTop, false);  // 涓嶆€绘槸鍦ㄩ《灞?
+        setAttribute(Qt::WA_AlwaysStackOnTop, false);  // 设置透明渲染相关属性
         
-        // 鎬ц兘浼樺寲锛氫娇鐢ㄨ蒋浠舵覆鏌撴垨鍏变韩 OpenGL 涓婁笅鏂?
+        // 预留：如需无边框独立弹窗可启用无边框窗口标志。
         // setWindowFlag(Qt::FramelessWindowHint);
         
         setSource(QUrl("qrc:/qml/components/library/MusicItem.qml"));
@@ -37,7 +37,7 @@ public:
             rootItem->setProperty("cover", picPath);
             rootItem->setProperty("isNet", false);
 
-            // 杩炴帴 QML 淇″彿鍒?C++ 淇″彿
+            // 转发单行歌曲项的播放/删除/下载操作。
             connect(rootItem, SIGNAL(playRequested(QString)), this, SIGNAL(signal_play_click(QString)));
             connect(rootItem, SIGNAL(removeRequested(QString)), this, SIGNAL(signal_remove_click(QString)));
             connect(rootItem, SIGNAL(downloadRequested(QString)), this, SIGNAL(signal_download_click(QString)));
@@ -46,7 +46,7 @@ public:
         setFixedSize(size);
     }
 
-    // 鎻愪緵涓庡師 MusicItem 鍏煎鐨勬帴鍙?
+    // 同步单条目播放态（用于显示播放图标）。
     void button_op(bool flag) {
         QQuickItem *rootItem = rootObject();
         if (rootItem) {

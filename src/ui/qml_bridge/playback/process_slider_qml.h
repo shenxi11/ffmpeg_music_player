@@ -11,7 +11,7 @@ class ProcessSliderQml : public QQuickWidget
 {
     Q_OBJECT
 public:
-    // 鐘舵€佹灇涓撅紙瀵瑰簲 ControlBar锛?
+    // 播放控制栏相关信号
     enum State {
         Stop = 0,
         Play = 1,
@@ -24,14 +24,13 @@ public:
         QElapsedTimer timer;
         timer.start();
         
-        // 璁剧疆瀹屽叏閫忔槑鑳屾櫙
+        // 启用透明渲染属性，避免与父窗口背景冲突。
         setClearColor(Qt::transparent);
         setAttribute(Qt::WA_TranslucentBackground, true);
-        setAttribute(Qt::WA_AlwaysStackOnTop, true);
-        setAttribute(Qt::WA_NoSystemBackground, true);  // 绂佺敤绯荤粺鑳屾櫙
-        setAttribute(Qt::WA_OpaquePaintEvent, false);   // 绂佺敤涓嶉€忔槑缁樺埗
-        setStyleSheet("background: transparent;");      // 纭繚鏍峰紡琛ㄤ篃閫忔槑
-        setAutoFillBackground(false);                   // 绂佺敤鑷姩濉厖鑳屾櫙
+        setAttribute(Qt::WA_NoSystemBackground, true);  // 禁用系统背景填充
+        setAttribute(Qt::WA_OpaquePaintEvent, false);   // 设置透明渲染相关属性
+        setStyleSheet("background: transparent;");      // 设置透明渲染相关属性
+        setAutoFillBackground(false);                   // 禁用自动背景填充
         
         qDebug() << "ProcessSliderQml: Loading QML from qrc:/qml/components/playback/ProcessSlider.qml";
         setSource(QUrl("qrc:/qml/components/playback/ProcessSlider.qml"));
@@ -40,7 +39,7 @@ public:
         setResizeMode(QQuickWidget::SizeRootObjectToView);
         qDebug() << "  Resize mode set in" << timer.elapsed() << "ms";
         
-        // 妫€鏌?QML 鍔犺浇鐘舵€?
+        // 输出 QML 加载错误，便于启动阶段排查。
         if (status() == QQuickWidget::Error) {
             qDebug() << "ProcessSliderQml: QML loading errors:";
             for (const auto& error : errors()) {
@@ -53,14 +52,14 @@ public:
         QQuickItem* root = rootObject();
         if (root) {
             qDebug() << "ProcessSliderQml: Root object found, connecting signals...";
-            // 杩涘害鏉′俊鍙?
+            // 连接进度拖动和播放控制相关信号。
             connect(root, SIGNAL(seekTo(int)), this, SIGNAL(signal_Slider_Move(int)));
             connect(root, SIGNAL(sliderPressedSignal()), this, SIGNAL(signal_sliderPressed()));
             connect(root, SIGNAL(sliderReleasedSignal()), this, SIGNAL(signal_sliderReleased()));
             connect(root, SIGNAL(upClicked()), this, SIGNAL(signal_up_click()));
             connect(root, SIGNAL(playFinished()), this, SIGNAL(signal_playFinished()));
             
-            // 鎾斁鎺у埗淇″彿锛堝搴?ControlBar锛?
+            // 播放控制栏相关信号
             connect(root, SIGNAL(stop()), this, SIGNAL(signal_stop()));
             connect(root, SIGNAL(nextSong()), this, SIGNAL(signal_nextSong()));
             connect(root, SIGNAL(lastSong()), this, SIGNAL(signal_lastSong()));
@@ -71,7 +70,7 @@ public:
             connect(root, SIGNAL(deskToggled(bool)), this, SIGNAL(signal_desk_toggled(bool)));
             connect(root, SIGNAL(loopToggled(bool)), this, SLOT(on_loop_state_changed(bool)));
             
-            // 鏂板淇″彿杩炴帴 - playMode灞炴€у彉鍖栦俊鍙?
+            // 播放模式状态同步说明
             connect(root, SIGNAL(playModeChanged()), this, SLOT(on_playMode_changed()));
             
             qDebug() << "ProcessSliderQml: All signals connected in" << timer.elapsed() << "ms (total)";
@@ -81,11 +80,11 @@ public:
         
         qDebug() << "ProcessSliderQml: Constructor completed in" << timer.elapsed() << "ms (total)";
         
-        // 纭繚鏄剧ず
+        // 确保控件可见
         show();
     }
     
-    // 杩涘害鏉℃柟娉?
+    // 设置进度条最大秒数（总时长）。
     void setMaxSeconds(int seconds) {
         QQuickItem* root = rootObject();
         if (root) {
@@ -137,7 +136,7 @@ public:
         }
     }
     
-    // 鎾斁鎺у埗鏂规硶锛堝搴?ControlBar锛?
+    // 播放控制栏相关信号
     void setState(State state) {
         QQuickItem* root = rootObject();
         if (root) {
@@ -221,14 +220,14 @@ public slots:
     }
     
 signals:
-    // 杩涘害鏉′俊鍙?
+    // 用户拖动进度条后的目标秒数。
     void signal_Slider_Move(int seconds);
     void signal_sliderPressed();
     void signal_sliderReleased();
     void signal_up_click();
-    void signal_playFinished();  // 鎾斁瀹屾垚淇″彿
+    void signal_playFinished();  // 播放完成信号
     
-    // 鎾斁鎺у埗淇″彿锛堝搴?ControlBar锛?
+    // 播放控制栏相关信号
     void signal_stop();
     void signal_nextSong();
     void signal_lastSong();
@@ -238,7 +237,7 @@ signals:
     void signal_rePlay();
     void signal_desk_toggled(bool checked);
     void signal_loop_change(bool loop);
-    void signal_playModeChanged(int mode);  // 鎾斁妯″紡鏀瑰彉锛堟柊锛?
+    void signal_playModeChanged(int mode);  // 播放模式变更信号
 };
 
 #endif // PROCESS_SLIDER_QML_H

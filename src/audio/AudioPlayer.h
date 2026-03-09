@@ -42,6 +42,7 @@ public:
     qint64 getCurrentTimestamp() const;
     void setCurrentTimestamp(qint64 timestampMs);
     qint64 getPlaybackPosition() const;
+    qint64 getSyncPlaybackPosition() const;
 
     void setPlaybackRate(double rate);
     double playbackRate() const { return m_playbackRate.load(); }

@@ -1,4 +1,4 @@
-#include "process_slider.h"
+﻿#include "process_slider.h"
 #include <QDebug>
 ProcessSlider::ProcessSlider(QWidget *parent)
     : QWidget(parent)

@@ -3,14 +3,14 @@
 VideoListWidgetQml::VideoListWidgetQml(QWidget *parent)
     : QQuickWidget(parent)
 {
-    // 璁剧疆 QML 婧愭枃浠?
+    // 加载视频列表 QML 视图。
     setSource(QUrl("qrc:/qml/components/video/VideoListWidget.qml"));
     setResizeMode(QQuickWidget::SizeRootObjectToView);
     
-    // 杩炴帴淇″彿
+    // 获取根对象并绑定交互信号。
     QQuickItem* root = rootObject();
     if (root) {
-        // 杩炴帴 QML 淇″彿鍒?C++ 淇″彿
+        // 将 QML 侧“选中视频”事件转发给 QWidget 层。
         connect(root, SIGNAL(videoSelected(QString, QString)), 
                 this, SIGNAL(signal_video_selected(QString, QString)));
         connect(root, SIGNAL(refreshRequested()), 

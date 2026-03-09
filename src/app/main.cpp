@@ -104,6 +104,19 @@ int main(int argc, char *argv[])
     qDebug() << "Loading plugins from:" << pluginDir;
     
     PluginManager& pluginManager = PluginManager::instance();
+    pluginManager.setAllowedPermissions({
+        QStringLiteral("ui.widget"),
+        QStringLiteral("audio.convert"),
+        QStringLiteral("speech.transcribe"),
+        QStringLiteral("network.read"),
+        QStringLiteral("storage.read"),
+        QStringLiteral("playback.control")
+    });
+    pluginManager.hostContext()->setEnvironmentValue(QStringLiteral("appName"), QStringLiteral("云音乐"));
+    pluginManager.hostContext()->setEnvironmentValue(QStringLiteral("appVersion"), QStringLiteral("1.0.0"));
+    pluginManager.hostContext()->setEnvironmentValue(QStringLiteral("pluginDir"), pluginDir);
+    pluginManager.hostContext()->setEnvironmentValue(QStringLiteral("themeName"), QStringLiteral("netease"));
+    pluginManager.hostContext()->setEnvironmentValue(QStringLiteral("themeAccentColor"), QStringLiteral("#EC4141"));
     int loadedPlugins = pluginManager.loadPlugins(pluginDir);
     qDebug() << "Loaded" << loadedPlugins << "plugins";
 

@@ -1,4 +1,4 @@
-#ifndef PROCESSSLIDER_H
+﻿#ifndef PROCESSSLIDER_H
 #define PROCESSSLIDER_H
 
 #include <QObject>

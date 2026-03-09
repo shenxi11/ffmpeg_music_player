@@ -1,104 +1,92 @@
 import QtQuick 2.14
 import QtQuick.Controls 2.14
-import QtGraphicalEffects 1.14
+import "../../theme/Theme.js" as Theme
 
 Rectangle {
     id: root
-    color: "#F7F9FC"
-    
-    // 对外暴露的属性
+    color: "transparent"
+
+    property int pageMargin: width >= 1200 ? 20 : (width >= 900 ? 14 : 10)
+    property int topBarHeight: width >= 1200 ? 62 : 56
+    property int refreshButtonWidth: width >= 1200 ? 94 : 82
+    property int refreshButtonHeight: width >= 1200 ? 34 : 32
+    property int listSpacing: width >= 1200 ? 10 : 8
+    property int itemHeight: width >= 1200 ? 84 : (width >= 900 ? 78 : 70)
+    property int itemPadding: width >= 1200 ? 14 : 12
+    property int iconSize: width >= 1200 ? 50 : (width >= 900 ? 46 : 40)
+
+    // 对外暴露属性
     property int currentSelectedIndex: -1
-    
-    // 信号
+
     signal videoSelected(string videoPath, string videoName)
     signal refreshRequested()
-    
-    // 视频列表数据模型
+
     ListModel {
         id: videoListModel
     }
-    
-    // 顶部标题栏
+
     Rectangle {
         id: topBar
-        width: parent.width
-        height: 60
-        color: "white"
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.leftMargin: root.pageMargin
+        anchors.rightMargin: root.pageMargin
         anchors.top: parent.top
-        
-        Rectangle {
-            width: parent.width
-            height: 1
-            color: "#E0E0E0"
-            anchors.bottom: parent.bottom
-        }
-        
+        height: root.topBarHeight
+        radius: 12
+        color: Theme.glassLight
+        border.width: 1
+        border.color: Theme.glassBorder
+
         Row {
             anchors.left: parent.left
-            anchors.leftMargin: 20
+            anchors.leftMargin: 14
             anchors.verticalCenter: parent.verticalCenter
-            spacing: 15
-            
+            spacing: 10
+
             Text {
-                text: "📹 在线视频"
-                font.pixelSize: 18
-                font.bold: true
-                color: "#333333"
-                anchors.verticalCenter: parent.verticalCenter
+                text: "\u89c6\u9891\u5217\u8868"
+                color: Theme.textPrimary
+                font.pixelSize: 17
+                font.weight: Font.DemiBold
             }
-            
             Text {
-                text: "(" + videoListModel.count + " 个视频)"
-                font.pixelSize: 14
-                color: "#999999"
-                anchors.verticalCenter: parent.verticalCenter
+                text: "(" + videoListModel.count + ")"
+                color: Theme.textSecondary
+                font.pixelSize: 13
             }
         }
-        
-        // 刷新按钮
+
         Rectangle {
             id: refreshButton
-            width: 80
-            height: 32
-            color: refreshMouseArea.containsMouse ? "#E8F5E9" : "#F1F3F5"
+            width: root.refreshButtonWidth
+            height: root.refreshButtonHeight
             radius: 16
             anchors.right: parent.right
-            anchors.rightMargin: 20
+            anchors.rightMargin: 12
             anchors.verticalCenter: parent.verticalCenter
+            color: refreshArea.containsMouse ? Theme.accent : "transparent"
             border.width: 1
-            border.color: refreshMouseArea.containsMouse ? "#4CAF50" : "#E0E0E0"
-            
-            Row {
+            border.color: Theme.accent
+
+            Text {
                 anchors.centerIn: parent
-                spacing: 5
-                
-                Text {
-                    text: "🔄"
-                    font.pixelSize: 14
-                    anchors.verticalCenter: parent.verticalCenter
-                }
-                
-                Text {
-                    text: "刷新"
-                    font.pixelSize: 13
-                    color: "#4CAF50"
-                    anchors.verticalCenter: parent.verticalCenter
-                }
+                text: "\u5237\u65b0"
+                color: refreshArea.containsMouse ? "#FFFFFF" : Theme.accent
+                font.pixelSize: 13
+                font.weight: Font.Medium
             }
-            
+
             MouseArea {
-                id: refreshMouseArea
+                id: refreshArea
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
-                onClicked: {
-                    root.refreshRequested()
-                }
+                onClicked: root.refreshRequested()
             }
         }
     }
-    
-    // 视频列表
+
     ListView {
         id: videoListView
         anchors.top: topBar.bottom
@@ -106,104 +94,80 @@ Rectangle {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
-        anchors.margins: 10
-        spacing: 8
+        anchors.leftMargin: root.pageMargin
+        anchors.rightMargin: root.pageMargin
         clip: true
-        
+        spacing: root.listSpacing
         model: videoListModel
-        
+
         delegate: Rectangle {
             id: videoItem
             width: videoListView.width
-            height: 80
-            color: videoMouseArea.containsMouse ? "#FFFFFF" : "#F8F9FA"
-            radius: 8
+            height: root.itemHeight
+            radius: 10
+            property bool hovered: mouseArea.containsMouse
+
+            color: index === root.currentSelectedIndex
+                   ? "#FDECEC"
+                   : (hovered ? "#F8FAFF" : Theme.bgCard)
             border.width: 1
-            border.color: videoMouseArea.containsMouse ? "#4CAF50" : "#E8E8E8"
-            
-            // 添加阴影效果
-            layer.enabled: videoMouseArea.containsMouse
-            layer.effect: DropShadow {
-                horizontalOffset: 0
-                verticalOffset: 2
-                radius: 8
-                samples: 16
-                color: "#20000000"
-            }
-            
+            border.color: index === root.currentSelectedIndex ? Theme.accent : Theme.glassBorder
+
             Row {
                 anchors.fill: parent
-                anchors.margins: 15
-                spacing: 15
-                
-                // 视频图标
+                anchors.margins: root.itemPadding
+                spacing: 12
+
                 Rectangle {
-                    width: 50
-                    height: 50
-                    color: "#E3F2FD"
+                    width: root.iconSize
+                    height: root.iconSize
                     radius: 8
                     anchors.verticalCenter: parent.verticalCenter
-                    
+                    color: "#EEF2FA"
+                    border.width: 1
+                    border.color: "#D9DFEA"
+
                     Text {
-                        text: "🎬"
-                        font.pixelSize: 28
                         anchors.centerIn: parent
+                        text: "\u25b6"
+                        color: Theme.accent
+                        font.pixelSize: root.iconSize * 0.45
+                        font.weight: Font.Bold
                     }
                 }
-                
-                // 视频信息
+
                 Column {
-                    spacing: 8
                     anchors.verticalCenter: parent.verticalCenter
-                    width: parent.width - 80
-                    
+                    spacing: 4
+                    width: parent.width - root.iconSize - 12
+
                     Text {
-                        text: model.name
-                        font.pixelSize: 16
-                        font.bold: true
-                        color: "#333333"
-                        elide: Text.ElideRight
                         width: parent.width
+                        text: model.name
+                        elide: Text.ElideRight
+                        font.pixelSize: 14
+                        font.weight: Font.DemiBold
+                        color: Theme.textPrimary
                     }
-                    
-                    Row {
-                        spacing: 15
-                        
-                        Row {
-                            spacing: 5
-                            
-                            Text {
-                                text: "📄"
-                                font.pixelSize: 12
-                            }
-                            
-                            Text {
-                                text: model.path
-                                font.pixelSize: 13
-                                color: "#666666"
-                            }
-                        }
-                        
-                        Row {
-                            spacing: 5
-                            
-                            Text {
-                                text: "💾"
-                                font.pixelSize: 12
-                            }
-                            
-                            Text {
-                                text: formatFileSize(model.size)
-                                font.pixelSize: 13
-                                color: "#666666"
-                            }
-                        }
+
+                    Text {
+                        width: parent.width
+                        text: model.path
+                        elide: Text.ElideMiddle
+                        font.pixelSize: 12
+                        color: Theme.textSecondary
+                    }
+
+                    Text {
+                        text: formatFileSize(model.size)
+                        font.pixelSize: 12
+                        color: Theme.textSecondary
                     }
                 }
             }
-            
+
             MouseArea {
-                id: videoMouseArea
+                id: mouseArea
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
@@ -213,45 +177,21 @@ Rectangle {
                 }
             }
         }
-        
-        // 滚动条
+
         ScrollBar.vertical: ScrollBar {
             policy: ScrollBar.AsNeeded
+            width: 8
         }
-    }
-    
-    // 空状态提示
-    Item {
-        anchors.centerIn: parent
-        visible: videoListModel.count === 0
-        
-        Column {
+
+        Label {
             anchors.centerIn: parent
-            spacing: 15
-            
-            Text {
-                text: "📹"
-                font.pixelSize: 64
-                anchors.horizontalCenter: parent.horizontalCenter
-            }
-            
-            Text {
-                text: "暂无视频"
-                font.pixelSize: 18
-                color: "#999999"
-                anchors.horizontalCenter: parent.horizontalCenter
-            }
-            
-            Text {
-                text: "点击右上角刷新按钮加载视频列表"
-                font.pixelSize: 14
-                color: "#BBBBBB"
-                anchors.horizontalCenter: parent.horizontalCenter
-            }
+            visible: videoListModel.count === 0
+            text: "\u6682\u65e0\u89c6\u9891"
+            color: Theme.textSecondary
+            font.pixelSize: 16
         }
     }
-    
-    // 公开方法
+
     function addVideo(name, path, size) {
         videoListModel.append({
             "name": name,
@@ -259,15 +199,16 @@ Rectangle {
             "size": size
         })
     }
-    
+
     function clearAll() {
         videoListModel.clear()
+        root.currentSelectedIndex = -1
     }
-    
+
     function getCount() {
         return videoListModel.count
     }
-    
+
     function formatFileSize(bytes) {
         if (bytes < 1024) {
             return bytes + " B"
@@ -275,8 +216,7 @@ Rectangle {
             return (bytes / 1024).toFixed(2) + " KB"
         } else if (bytes < 1024 * 1024 * 1024) {
             return (bytes / (1024 * 1024)).toFixed(2) + " MB"
-        } else {
-            return (bytes / (1024 * 1024 * 1024)).toFixed(2) + " GB"
         }
+        return (bytes / (1024 * 1024 * 1024)).toFixed(2) + " GB"
     }
 }

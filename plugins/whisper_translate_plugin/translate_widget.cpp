@@ -1,266 +1,281 @@
+﻿#include "translate_widget.h"
 
-#include "translate_widget.h"
-#include <QPainter>
-#include <QStyleOption>
-#include <QDebug>
-#include <QProcess>
-#include <QString>
-#include <QThread>
+#include <QDesktopServices>
+#include <QFile>
+#include <QFileDialog>
+#include <QFileInfo>
+#include <QFont>
+#include <QHBoxLayout>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QTime>
 #include <QMessageBox>
+#include <QMetaObject>
+#include <QTextStream>
+#include <QThread>
+#include <QUrl>
+#include <QVBoxLayout>
+#include <chrono>
 
-// ResultListItem 类的实现
-ResultListItem::ResultListItem(const QString &fileName, const QString &filePath, QWidget *parent)
-    : QWidget(parent), fileName(fileName), filePath(filePath)
+transformFactory::transformFactory()
 {
-    setFixedHeight(80);
-    setStyleSheet(
-        "ResultListItem {"
-        "    background: #f8f9fa;"
-        "    border: 1px solid #e9ecef;"
-        "    border-radius: 8px;"
-        "    margin: 2px;"
-        "}"
-        "ResultListItem:hover {"
-        "    background: #e9ecef;"
-        "}"
-    );
+    funcMp[QStringLiteral("txt")] = saveTXT;
+    funcMp[QStringLiteral("json")] = saveJSON;
+    funcMp[QStringLiteral("vtt")] = saveVTT;
+    funcMp[QStringLiteral("srt")] = saveSRT;
+    funcMp[QStringLiteral("lrc")] = saveLRC;
+    funcMp[QStringLiteral("kar")] = saveKAR;
+}
 
-    QVBoxLayout* mainLayout = new QVBoxLayout(this);
-    mainLayout->setContentsMargins(12, 8, 12, 8);
-    mainLayout->setSpacing(4);
+void transformFactory::save(const QString &name, struct whisper_context* ctx, QStringList &outputLines)
+{
+    const auto it = funcMp.find(name.toLower());
+    if (it != funcMp.end()) {
+        it->second(ctx, outputLines);
+    }
+}
 
-    // 文件名标签
+ResultListItem::ResultListItem(const QString &fileName, const QString &filePath, QWidget *parent)
+    : QWidget(parent)
+    , fileName(fileName)
+    , filePath(filePath)
+{
+    setProperty("card", true);
+
+    auto* mainLayout = new QVBoxLayout(this);
+    mainLayout->setContentsMargins(12, 10, 12, 10);
+    mainLayout->setSpacing(6);
+
     fileNameLabel = new QLabel(fileName, this);
-    fileNameLabel->setStyleSheet("font-weight: bold; color: #495057; font-size: 14px;");
-    fileNameLabel->setWordWrap(true);
+    QFont nameFont = fileNameLabel->font();
+    nameFont.setBold(true);
+    fileNameLabel->setFont(nameFont);
 
-    // 文件路径标签
     QFileInfo fileInfo(filePath);
-    QString displayPath = fileInfo.dir().absolutePath();
-    filePathLabel = new QLabel(displayPath, this);
-    filePathLabel->setStyleSheet("color: #6c757d; font-size: 12px;");
-    filePathLabel->setWordWrap(true);
+    filePathLabel = new QLabel(fileInfo.absolutePath(), this);
+    filePathLabel->setProperty("secondary", true);
 
-    // 按钮布局
-    QHBoxLayout* buttonLayout = new QHBoxLayout();
-    
-    openFileBtn = new QPushButton("打开文件", this);
-    openFileBtn->setFixedSize(80, 24);
-    openFileBtn->setStyleSheet(
-        "QPushButton {"
-        "    background: #007bff;"
-        "    color: white;"
-        "    border: none;"
-        "    border-radius: 4px;"
-        "    font-size: 11px;"
-        "}"
-        "QPushButton:hover {"
-        "    background: #0056b3;"
-        "}"
-        "QPushButton:pressed {"
-        "    background: #004085;"
-        "}"
-    );
-
-    openFolderBtn = new QPushButton("打开文件夹", this);
-    openFolderBtn->setFixedSize(80, 24);
-    openFolderBtn->setStyleSheet(
-        "QPushButton {"
-        "    background: #28a745;"
-        "    color: white;"
-        "    border: none;"
-        "    border-radius: 4px;"
-        "    font-size: 11px;"
-        "}"
-        "QPushButton:hover {"
-        "    background: #1e7e34;"
-        "}"
-        "QPushButton:pressed {"
-        "    background: #155724;"
-        "}"
-    );
-
+    auto* buttonLayout = new QHBoxLayout();
+    buttonLayout->setSpacing(8);
     buttonLayout->addStretch();
+
+    openFileBtn = new QPushButton(QStringLiteral("打开文件"), this);
+    openFolderBtn = new QPushButton(QStringLiteral("打开目录"), this);
+
     buttonLayout->addWidget(openFileBtn);
     buttonLayout->addWidget(openFolderBtn);
-    
+
     mainLayout->addWidget(fileNameLabel);
     mainLayout->addWidget(filePathLabel);
     mainLayout->addLayout(buttonLayout);
 
-    // 连接信号
     connect(openFileBtn, &QPushButton::clicked, this, &ResultListItem::onOpenFileClicked);
     connect(openFolderBtn, &QPushButton::clicked, this, &ResultListItem::onOpenFolderClicked);
 }
 
 void ResultListItem::onOpenFileClicked()
 {
-    QFileInfo fileInfo(filePath);
-    if (fileInfo.exists()) {
-        QDesktopServices::openUrl(QUrl::fromLocalFile(filePath));
-    } else {
-        QMessageBox::warning(this, "警告", "文件不存在：" + filePath);
+    const QFileInfo fileInfo(filePath);
+    if (!fileInfo.exists()) {
+        QMessageBox::warning(this, QStringLiteral("提示"), QStringLiteral("文件不存在：%1").arg(filePath));
+        return;
     }
+    QDesktopServices::openUrl(QUrl::fromLocalFile(filePath));
 }
 
 void ResultListItem::onOpenFolderClicked()
 {
-    QFileInfo fileInfo(filePath);
-    if (fileInfo.exists()) {
-        QString folderPath = fileInfo.dir().absolutePath();
-        QDesktopServices::openUrl(QUrl::fromLocalFile(folderPath));
-    } else {
-        QMessageBox::warning(this, "警告", "文件夹不存在：" + fileInfo.dir().absolutePath());
+    const QFileInfo fileInfo(filePath);
+    const QString folderPath = fileInfo.absolutePath();
+    if (!QFileInfo(folderPath).exists()) {
+        QMessageBox::warning(this, QStringLiteral("提示"), QStringLiteral("目录不存在：%1").arg(folderPath));
+        return;
     }
+    QDesktopServices::openUrl(QUrl::fromLocalFile(folderPath));
 }
 
-void transformFactory::save(const QString &name, struct whisper_context* ctx, QStringList &outputLines){
-    auto func = funcMp.find(name);
-    if(func != funcMp.end()){
-        func->second(ctx, outputLines);
-    }
-}
-TranslateWidget::TranslateWidget(QWidget *parent) : QWidget(parent)
+TranslateWidget::TranslateWidget(QWidget *parent)
+    : QWidget(parent)
 {
-    // 设置为独立窗口（忽略 parent 参数）
-    this->setWindowFlags(Qt::Window | Qt::WindowCloseButtonHint | Qt::WindowMinimizeButtonHint | Qt::WindowMaximizeButtonHint);
-    this->setAttribute(Qt::WA_DeleteOnClose);  // 关闭时自动删除
-    
-    // 设置窗口标题和图标
-    this->setWindowTitle("Whisper 语音转文字");
-    
-    // 设置窗口大小和背景
-    this->resize(600, 500);
-    this->setStyleSheet("QWidget { background-color: white; }");
+    setAttribute(Qt::WA_DeleteOnClose, true);
+    setWindowTitle(QStringLiteral("Whisper 音频转写"));
 
-    // 顶部标题区域（可选，如果想要自定义标题栏可以保留）
-    QWidget* headerWidget = new QWidget(this);
-    headerWidget->setStyleSheet("background: #f5f5f5; border-bottom: 1px solid #ddd;");
-    headerWidget->setFixedHeight(50);
-    
-    QLabel* headerLabel = new QLabel("音频转文字", headerWidget);
-    headerLabel->setStyleSheet("color: #333; font-size: 18px; font-weight: bold;");
-    
-    QHBoxLayout* headerLayout = new QHBoxLayout(headerWidget);
-    headerLayout->addWidget(headerLabel);
-    headerLayout->setContentsMargins(20, 0, 20, 0);
+    if (!parent) {
+        setWindowFlags(Qt::Window | Qt::WindowCloseButtonHint | Qt::WindowMinimizeButtonHint);
+    }
 
-    // 文件选择
-    fileLabel = new QLabel("音频文件:", this);
-    filePathEdit = new QLineEdit(this);
-    filePathEdit->setPlaceholderText("请选择音频文件...");
-    browseButton = new QPushButton("浏览", this);
-    browseButton->setStyleSheet("background-color: #1DB954; color: white; border-radius: 4px; padding: 4px 12px;");
-    fileLayout = new QHBoxLayout();
+    setMinimumSize(760, 640);
+    resize(820, 720);
+
+    decodeThread_ = new QThread(this);
+    take_pcm = std::make_shared<TakePcm>();
+    take_pcm->setTranslate(true);
+    take_pcm->moveToThread(decodeThread_);
+    decodeThread_->start();
+
+    buildUi();
+    bindSignals();
+
+    config_.modelName_ = QStringLiteral("ggml-tiny.bin");
+    config_.outputMode_ = QStringLiteral("txt");
+    config_.language_ = 0;
+}
+
+TranslateWidget::~TranslateWidget()
+{
+    if (decodeThread_) {
+        decodeThread_->quit();
+        decodeThread_->wait(1500);
+    }
+}
+
+void TranslateWidget::setPluginHostContext(QObject* hostContext, const QStringList& grantedPermissions)
+{
+    m_hostContext = hostContext;
+    m_grantedPermissions = grantedPermissions;
+    if (subtitleLabel) {
+        subtitleLabel->setText(QStringLiteral("Whisper.cpp 本地转写 · 已授权 %1 项插件权限").arg(m_grantedPermissions.size()));
+    }
+}
+
+void TranslateWidget::buildUi()
+{
+    auto* root = new QVBoxLayout(this);
+    root->setContentsMargins(20, 20, 20, 20);
+    root->setSpacing(14);
+
+    auto* headerCard = new QWidget(this);
+    headerCard->setProperty("card", true);
+    auto* headerLayout = new QVBoxLayout(headerCard);
+    headerLayout->setContentsMargins(18, 14, 18, 14);
+    headerLayout->setSpacing(6);
+
+    auto* titleLabel = new QLabel(QStringLiteral("音频转文字"), headerCard);
+    QFont titleFont = titleLabel->font();
+    titleFont.setPointSize(16);
+    titleFont.setBold(true);
+    titleLabel->setFont(titleFont);
+
+    subtitleLabel = new QLabel(QStringLiteral("Whisper.cpp 本地转写"), headerCard);
+    subtitleLabel->setProperty("secondary", true);
+
+    headerLayout->addWidget(titleLabel);
+    headerLayout->addWidget(subtitleLabel);
+
+    auto* configCard = new QWidget(this);
+    configCard->setProperty("card", true);
+    auto* configLayout = new QVBoxLayout(configCard);
+    configLayout->setContentsMargins(14, 12, 14, 12);
+    configLayout->setSpacing(10);
+
+    auto* fileLayout = new QHBoxLayout();
+    fileLabel = new QLabel(QStringLiteral("音频文件"), configCard);
+    filePathEdit = new QLineEdit(configCard);
+    filePathEdit->setPlaceholderText(QStringLiteral("请选择待转写音频文件"));
+    browseButton = new QPushButton(QStringLiteral("浏览"), configCard);
     fileLayout->addWidget(fileLabel);
-    fileLayout->addWidget(filePathEdit);
+    fileLayout->addWidget(filePathEdit, 1);
     fileLayout->addWidget(browseButton);
 
-    // 模型选择
-    modelLabel = new QLabel("模型:", this);
-    modelCombo = new QComboBox(this);
-    modelCombo->addItems({"tiny", "base", "small", "medium", "large"});
-    connect(modelCombo, &QComboBox::currentTextChanged, this,[=](){
-        config_.modelName_ = "ggml-" + modelCombo->currentText() + ".bin";
+    auto* optionLayout = new QHBoxLayout();
+
+    modelLabel = new QLabel(QStringLiteral("模型"), configCard);
+    modelCombo = new QComboBox(configCard);
+    modelCombo->addItems({QStringLiteral("tiny"), QStringLiteral("base"), QStringLiteral("small"), QStringLiteral("medium"), QStringLiteral("large")});
+
+    formatLabel = new QLabel(QStringLiteral("输出格式"), configCard);
+    formatCombo = new QComboBox(configCard);
+    formatCombo->addItems({QStringLiteral("txt"), QStringLiteral("srt"), QStringLiteral("vtt"), QStringLiteral("json"), QStringLiteral("lrc"), QStringLiteral("kar")});
+
+    langLabel = new QLabel(QStringLiteral("音频语言"), configCard);
+    langCombo = new QComboBox(configCard);
+    langCombo->addItems({
+        QStringLiteral("中文"),
+        QStringLiteral("英文"),
+        QStringLiteral("日语"),
+        QStringLiteral("韩语"),
+        QStringLiteral("法语"),
+        QStringLiteral("德语"),
+        QStringLiteral("西班牙语")
     });
-    modelLayout = new QHBoxLayout();
-    modelLayout->addWidget(modelLabel);
-    modelLayout->addWidget(modelCombo);
 
-    // 输出格式选择
-    formatLabel = new QLabel("输出格式:", this);
-    formatCombo = new QComboBox(this);
-    formatCombo->addItems({"txt", "srt", "vtt", "json", "lrc"});
-    connect(formatCombo, &QComboBox::currentTextChanged, this,[=](){
-        config_.outputMode_ = formatCombo->currentText();
-    });
-    formatLayout = new QHBoxLayout();
-    formatLayout->addWidget(formatLabel);
-    formatLayout->addWidget(formatCombo);
+    optionLayout->addWidget(modelLabel);
+    optionLayout->addWidget(modelCombo);
+    optionLayout->addWidget(formatLabel);
+    optionLayout->addWidget(formatCombo);
+    optionLayout->addWidget(langLabel);
+    optionLayout->addWidget(langCombo);
 
-    // 音频语言选择
-    langLabel = new QLabel("音频语言:", this);
-    langCombo = new QComboBox(this);
-    langCombo->addItems({"中文", "英文", "日语", "韩语", "法语", "德语", "西班牙语"});
-    connect(langCombo, &QComboBox::currentTextChanged, this,[=](){
-        config_.language_ = langCombo->currentIndex();
-    });
-    langLayout = new QHBoxLayout();
-    langLayout->addWidget(langLabel);
-    langLayout->addWidget(langCombo);
+    transcribeButton = new QPushButton(QStringLiteral("开始转写"), configCard);
+    transcribeButton->setProperty("accent", true);
 
-    // 转换按钮
-    transcribeButton = new QPushButton("开始转换", this);
-    transcribeButton->setStyleSheet("background-color: #FF4766; color: white; border-radius: 4px; font-size: 16px; padding: 6px 0;");
-    connect(transcribeButton, &QPushButton::clicked, this, &TranslateWidget::on_transcribeButton_clicked);
-
-    // 进度条
-    progressBar = new QProgressBar(this);
+    progressBar = new QProgressBar(configCard);
     progressBar->setRange(0, 100);
     progressBar->setValue(0);
-    progressBar->setTextVisible(true);
-    progressBar->setStyleSheet("QProgressBar{border-radius:6px; background:#f0f0f0; border:1px solid #e0e0e0;} QProgressBar::chunk{background-color:#1DB954; border-radius:6px;}");
 
-    // 结果显示
-    resultEdit = new QTextEdit(this);
-    resultEdit->setPlaceholderText("转换结果将在此显示...");
+    configLayout->addLayout(fileLayout);
+    configLayout->addLayout(optionLayout);
+    configLayout->addWidget(transcribeButton);
+    configLayout->addWidget(progressBar);
+
+    auto* outputCard = new QWidget(this);
+    outputCard->setProperty("card", true);
+    auto* outputLayout = new QVBoxLayout(outputCard);
+    outputLayout->setContentsMargins(14, 12, 14, 12);
+    outputLayout->setSpacing(8);
+
+    auto* previewLabel = new QLabel(QStringLiteral("转写预览"), outputCard);
+    previewLabel->setProperty("secondary", true);
+    resultEdit = new QTextEdit(outputCard);
     resultEdit->setReadOnly(true);
-    resultEdit->setStyleSheet("background: #f8f8f8; border-radius: 6px; border: 1px solid #e0e0e0;");
+    resultEdit->setPlaceholderText(QStringLiteral("转写结果预览将在这里显示"));
 
-    // 结果列表
-    resultListLabel = new QLabel("转换历史记录:", this);
-    resultListLabel->setStyleSheet("font-weight: bold; color: #333; font-size: 14px;");
-    
-    resultList = new QListWidget(this);
-    resultList->setMaximumHeight(150);
-    resultList->setStyleSheet(
-        "QListWidget {"
-        "    background: #ffffff;"
-        "    border: 1px solid #e0e0e0;"
-        "    border-radius: 6px;"
-        "    padding: 4px;"
-        "}"
-        "QListWidget::item {"
-        "    border: none;"
-        "    margin: 1px;"
-        "}"
-    );
+    resultListLabel = new QLabel(QStringLiteral("转写输出记录"), outputCard);
+    resultListLabel->setProperty("secondary", true);
 
-    // 主布局
-    mainLayout = new QVBoxLayout(this);
-    mainLayout->addWidget(headerWidget);  // 添加顶部标题区域
-    mainLayout->addLayout(fileLayout);
-    mainLayout->addLayout(modelLayout);
-    mainLayout->addLayout(formatLayout);
-    mainLayout->addLayout(langLayout);
-    mainLayout->addWidget(transcribeButton);
-    mainLayout->addWidget(progressBar);
-    mainLayout->addWidget(resultEdit);
-    mainLayout->addWidget(resultListLabel);
-    mainLayout->addWidget(resultList);
-    mainLayout->setSpacing(14);
-    mainLayout->setContentsMargins(0, 0, 0, 18);  // 顶部边距为0，因为 header 已经有边距
-    setLayout(mainLayout);
+    resultList = new QListWidget(outputCard);
+    resultList->setMinimumHeight(180);
 
-    QThread *a = new QThread();
-    take_pcm = std::make_shared<TakePcm>();
-    a->start();
-    take_pcm->moveToThread(a);
-    take_pcm->setTranslate(true);
+    outputLayout->addWidget(previewLabel);
+    outputLayout->addWidget(resultEdit);
+    outputLayout->addWidget(resultListLabel);
+    outputLayout->addWidget(resultList);
 
-    connect(browseButton, &QPushButton::clicked, this, [=]() {
-        QString fileName = QFileDialog::getOpenFileName(this, "选择音频文件", "", "音频文件 (*.wav *.mp3 *.aac *.flac)");
+    root->addWidget(headerCard);
+    root->addWidget(configCard);
+    root->addWidget(outputCard, 1);
+
+    mainLayout = root;
+}
+
+void TranslateWidget::bindSignals()
+{
+    connect(modelCombo, &QComboBox::currentTextChanged, this, [this]() {
+        config_.modelName_ = QStringLiteral("ggml-") + modelCombo->currentText() + QStringLiteral(".bin");
+    });
+
+    connect(formatCombo, &QComboBox::currentTextChanged, this, [this]() {
+        config_.outputMode_ = formatCombo->currentText();
+    });
+
+    connect(langCombo, &QComboBox::currentTextChanged, this, [this]() {
+        config_.language_ = langCombo->currentIndex();
+    });
+
+    connect(browseButton, &QPushButton::clicked, this, [this]() {
+        const QString fileName = QFileDialog::getOpenFileName(
+            this,
+            QStringLiteral("选择音频文件"),
+            QString(),
+            QStringLiteral("音频文件 (*.wav *.mp3 *.aac *.flac *.m4a *.ogg)"));
         if (!fileName.isEmpty()) {
             config_.audioPath_ = fileName;
             filePathEdit->setText(fileName);
         }
     });
 
-    // 连接信号槽
+    connect(transcribeButton, &QPushButton::clicked, this, &TranslateWidget::on_transcribeButton_clicked);
+
     connect(this, &TranslateWidget::signal_begin_tranform, this, &TranslateWidget::on_signal_begin_transform);
     connect(this, &TranslateWidget::signal_erorr, this, &TranslateWidget::showTipMessage);
 
@@ -269,278 +284,314 @@ TranslateWidget::TranslateWidget(QWidget *parent) : QWidget(parent)
     connect(take_pcm.get(), &TakePcm::signal_decodeEnd, this, &TranslateWidget::on_signal_decodeEnd);
     connect(this, &TranslateWidget::signal_outFile, this, &TranslateWidget::on_signal_outFile);
 }
-void TranslateWidget::on_signal_decodeEnd(){
+
+void TranslateWidget::on_signal_decodeEnd()
+{
     {
         std::lock_guard<std::mutex> lock(mtx);
-        translating = true;
-    }cv.notify_one();
-}
-void TranslateWidget::on_signal_send_data(uint8_t *buffer, int bufferSize, qint64 timeMap){
-    int16_t* samples = reinterpret_cast<int16_t*>(buffer);
-    int n_samples = bufferSize / sizeof(int16_t) / 2; // 每帧采样点数（每通道）
-    for (int i = 0; i < n_samples; ++i) {
-        // 立体声转单声道（简单平均）
-        float left = samples[2*i] / 32768.0f;
-        float right = samples[2*i+1] / 32768.0f;
-        float mono = (left + right) / 2.0f;
-        pcmf32_.append(mono);
+        pcmReady.store(true);
     }
+    cv.notify_one();
+}
+
+void TranslateWidget::on_signal_send_data(uint8_t *buffer, int bufferSize, qint64 timeMap)
+{
+    Q_UNUSED(timeMap);
+
+    int16_t* samples = reinterpret_cast<int16_t*>(buffer);
+    const int sampleCount = bufferSize / sizeof(int16_t) / 2;
+
+    pcmf32_.reserve(pcmf32_.size() + sampleCount);
+    for (int i = 0; i < sampleCount; ++i) {
+        const float left = samples[i * 2] / 32768.0f;
+        const float right = samples[i * 2 + 1] / 32768.0f;
+        pcmf32_.append((left + right) * 0.5f);
+    }
+
     free(buffer);
 }
-void TranslateWidget::updateProgress(int progress){
-    this->progressBar->setValue(progress);
+
+void TranslateWidget::updateProgress(int progress)
+{
+    progressBar->setValue(progress);
 }
-void TranslateWidget::on_signal_outFile(const QStringList &segments){
+
+void TranslateWidget::on_signal_outFile(const QStringList &segments)
+{
+    resultEdit->clear();
+    for (const QString& line : segments) {
+        resultEdit->append(line);
+    }
 
     QFileDialog dialog(this);
     dialog.setAcceptMode(QFileDialog::AcceptSave);
-    dialog.setWindowTitle("保存输出");
-    dialog.setDirectory("/home/shen");
+    dialog.setWindowTitle(QStringLiteral("保存转写文件"));
 
-    // 设置文件后缀：根据config_.outputMode_动态生成
-    QString suffix = config_.outputMode_;
-    dialog.setDefaultSuffix(suffix);  // 关键设置：自动添加后缀
+    const QFileInfo inputInfo(config_.audioPath_);
+    dialog.setDirectory(inputInfo.absolutePath());
 
-    // 设置名称过滤器（可选）
-    dialog.setNameFilter(QString("%1 files (*.%1)").arg(suffix));
+    const QString suffix = config_.outputMode_.toLower();
+    dialog.setDefaultSuffix(suffix);
+    dialog.setNameFilter(QStringLiteral("%1 files (*.%1)").arg(suffix));
 
     if (dialog.exec()) {
-        QString fileName = dialog.selectedFiles().first();
+        const QString fileName = dialog.selectedFiles().first();
         QFile outFile(fileName);
         if (outFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
             QTextStream out(&outFile);
-            for(const QString &segment : segments) {
+            for (const QString& segment : segments) {
                 out << segment << '\n';
             }
             outFile.close();
-            QMessageBox::information(this, "保存成功", "文件已保存");
-            
-            // 添加到结果列表
+
+            QMessageBox::information(this, QStringLiteral("成功"), QStringLiteral("转写结果已保存。"));
+
             QFileInfo fileInfo(fileName);
             addResultItem(fileInfo.fileName(), fileName);
+        } else {
+            QMessageBox::warning(this, QStringLiteral("提示"), QStringLiteral("无法写入文件：%1").arg(fileName));
         }
     }
-    transcribeButton->setText("开始转换");
-}
-void TranslateWidget::showTipMessage(const QString &msg) {
-    QMessageBox::information(this, "提示", msg);
-}
-void TranslateWidget::on_signal_begin_transform(){
-    QThread* thread = QThread::create([=](){
 
+    resetUiStateAfterTask();
+}
+
+void TranslateWidget::showTipMessage(const QString &msg)
+{
+    QMessageBox::warning(this, QStringLiteral("提示"), msg);
+    resetUiStateAfterTask();
+}
+
+void TranslateWidget::resetUiStateAfterTask()
+{
+    translating.store(false);
+    transcribeButton->setText(QStringLiteral("开始转写"));
+    transcribeButton->setEnabled(true);
+    if (progressBar->value() < progressBar->maximum()) {
+        progressBar->setValue(0);
+    }
+}
+
+void TranslateWidget::on_signal_begin_transform()
+{
+    QThread* worker = QThread::create([this]() {
         struct whisper_context* ctx = whisper_init_from_file((modelPath + config_.modelName_).toStdString().c_str());
         if (!ctx) {
-            emit signal_erorr("模型加载失败");
+            emit signal_erorr(QStringLiteral("模型加载失败，请检查模型路径。"));
             return;
         }
-        struct whisper_full_params params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
+
+        whisper_full_params params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
         params.print_progress = false;
-        params.language = languageMap[config_.language_].toStdString().c_str();  // 或者使用 "chinese"
-        params.detect_language = false;  // 禁用自动语言检测
-        params.initial_prompt = initialPromptMap[languageMap[config_.language_]];
+        params.detect_language = false;
 
-        qDebug()<<languageMap[config_.language_] << initialPromptMap[languageMap[config_.language_]];
-
-        // 可以尝试调整温度参数，有时能改善输出质量
+        const QString lang = languageMap.value(config_.language_, QStringLiteral("zh"));
+        const std::string langStd = lang.toStdString();
+        params.language = langStd.c_str();
+        params.initial_prompt = initialPromptMap.value(lang, "");
         params.temperature = 0.1f;
+
         params.progress_callback = [](struct whisper_context*, struct whisper_state*, int progress, void* user_data) {
-            QMetaObject::invokeMethod((QObject*)user_data, "updateProgress", Qt::QueuedConnection, Q_ARG(int, progress));
+            QMetaObject::invokeMethod(static_cast<QObject*>(user_data),
+                                      "updateProgress",
+                                      Qt::QueuedConnection,
+                                      Q_ARG(int, progress));
         };
         params.progress_callback_user_data = this;
 
         emit signal_begin_take_pcm(config_.audioPath_);
 
-        std::unique_lock<std::mutex> lock(mtx);
-        cv.wait(lock, [=]{return translating.load();});
-        int ret = whisper_full(ctx, params, pcmf32_.data(), pcmf32_.size());
-        if (ret != 0) {
-            emit signal_erorr("转写失败");
+        {
+            std::unique_lock<std::mutex> lock(mtx);
+            const bool ready = cv.wait_for(lock, std::chrono::seconds(30), [this]() { return pcmReady.load(); });
+            if (!ready) {
+                whisper_free(ctx);
+                emit signal_erorr(QStringLiteral("音频解码超时，请重试。"));
+                return;
+            }
+        }
+
+        if (pcmf32_.isEmpty()) {
             whisper_free(ctx);
+            emit signal_erorr(QStringLiteral("未读取到有效音频数据。"));
             return;
         }
-        QStringList outputLines;
-        factory.save(config_.outputMode_,ctx, outputLines);
 
-        emit signal_outFile(outputLines);
+        const int ret = whisper_full(ctx, params, pcmf32_.data(), pcmf32_.size());
+        if (ret != 0) {
+            whisper_free(ctx);
+            emit signal_erorr(QStringLiteral("语音转写失败。"));
+            return;
+        }
+
+        QStringList outputLines;
+        factory.save(config_.outputMode_, ctx, outputLines);
+
         whisper_free(ctx);
-        translating = false;
+        emit signal_outFile(outputLines);
     });
-    connect(thread, &QThread::finished, thread, &QThread::deleteLater);
-    thread->start();
+
+    connect(worker, &QThread::finished, worker, &QThread::deleteLater);
+    worker->start();
 }
 
-void TranslateWidget::on_transcribeButton_clicked(){
-    if(translating.load())
+void TranslateWidget::on_transcribeButton_clicked()
+{
+    if (translating.load()) {
         return;
-    transcribeButton->setText("转换中");
+    }
+
+    config_.audioPath_ = filePathEdit->text().trimmed();
+    if (config_.audioPath_.isEmpty() || !QFileInfo(config_.audioPath_).exists()) {
+        QMessageBox::warning(this, QStringLiteral("提示"), QStringLiteral("请先选择有效的音频文件。"));
+        return;
+    }
+
+    translating.store(true);
+    pcmReady.store(false);
     pcmf32_.clear();
+
+    transcribeButton->setText(QStringLiteral("转写中..."));
+    transcribeButton->setEnabled(false);
+    progressBar->setValue(0);
+
     emit signal_begin_tranform();
 }
 
 void TranslateWidget::paintEvent(QPaintEvent *event)
 {
-    Q_UNUSED(event);
-    // 使用样式表绘制，不需要自定义绘制
     QWidget::paintEvent(event);
 }
 
-void saveTXT(struct whisper_context* ctx, QStringList &outputLines){
-    int n_segments = whisper_full_n_segments(ctx);
+void saveTXT(struct whisper_context* ctx, QStringList &outputLines)
+{
+    const int n_segments = whisper_full_n_segments(ctx);
     for (int i = 0; i < n_segments; ++i) {
-        const char *text = whisper_full_get_segment_text(ctx, i);
-        outputLines << QString::fromUtf8(text);
+        outputLines << QString::fromUtf8(whisper_full_get_segment_text(ctx, i));
     }
 }
-void saveJSON(struct whisper_context* ctx, QStringList &outputLines){
-    QJsonArray lyricsArray;
-    int n_segments = whisper_full_n_segments(ctx);
+
+void saveJSON(struct whisper_context* ctx, QStringList &outputLines)
+{
+    QJsonArray segments;
+    const int n_segments = whisper_full_n_segments(ctx);
 
     for (int i = 0; i < n_segments; ++i) {
-        const char *text = whisper_full_get_segment_text(ctx, i);
-        int64_t start_time = whisper_full_get_segment_t0(ctx, i);
-        int64_t end_time = whisper_full_get_segment_t1(ctx, i);
-
-        QJsonObject lyricObj;
-        lyricObj["start"] = static_cast<double>(start_time * 10); // 毫秒
-        lyricObj["end"] = static_cast<double>(end_time * 10);     // 毫秒
-        lyricObj["text"] = QString::fromUtf8(text).trimmed();
-
-        lyricsArray.append(lyricObj);
+        QJsonObject obj;
+        obj[QStringLiteral("start")] = static_cast<double>(whisper_full_get_segment_t0(ctx, i) * 10);
+        obj[QStringLiteral("end")] = static_cast<double>(whisper_full_get_segment_t1(ctx, i) * 10);
+        obj[QStringLiteral("text")] = QString::fromUtf8(whisper_full_get_segment_text(ctx, i)).trimmed();
+        segments.append(obj);
     }
 
-    QJsonObject rootObj;
-    rootObj["lyrics"] = lyricsArray;
-    QJsonDocument doc(rootObj);
-    outputLines << doc.toJson();
+    QJsonObject root;
+    root[QStringLiteral("lyrics")] = segments;
+    outputLines << QString::fromUtf8(QJsonDocument(root).toJson(QJsonDocument::Indented));
 }
-void saveKAR(struct whisper_context* ctx, QStringList &outputLines){
-    // KAR 卡拉OK格式（简化版）
-    outputLines << "@TITLE Generated Lyrics";
-    outputLines << "@V0100";
-    outputLines << "@KMIDI KARAOKE FILE";
-    outputLines << "";
 
-    int n_segments = whisper_full_n_segments(ctx);
+void saveKAR(struct whisper_context* ctx, QStringList &outputLines)
+{
+    outputLines << QStringLiteral("@TITLE Generated Lyrics");
+    outputLines << QStringLiteral("@V0100");
+    outputLines << QStringLiteral("@KMIDI KARAOKE FILE");
+    outputLines << QString();
+
+    const int n_segments = whisper_full_n_segments(ctx);
     for (int i = 0; i < n_segments; ++i) {
-        const char *text = whisper_full_get_segment_text(ctx, i);
-        int64_t start_time = whisper_full_get_segment_t0(ctx, i);
+        const int64_t startMs = whisper_full_get_segment_t0(ctx, i) * 10;
+        const int minutes = static_cast<int>(startMs / 60000);
+        const int seconds = static_cast<int>((startMs % 60000) / 1000);
+        const int centiseconds = static_cast<int>((startMs % 1000) / 10);
 
-        // 转换为毫秒
-        start_time *= 10;
+        const QString timeTag = QStringLiteral("%1:%2:%3")
+                                    .arg(minutes, 2, 10, QChar('0'))
+                                    .arg(seconds, 2, 10, QChar('0'))
+                                    .arg(centiseconds, 2, 10, QChar('0'));
 
-        // 格式: 分钟:秒:百分秒
-        int minutes = start_time / 60000;
-        int seconds = (start_time % 60000) / 1000;
-        int centiseconds = (start_time % 1000) / 10; // 百分秒
-
-        QString timeTag = QString("%1:%2:%3")
-                .arg(minutes, 2, 10, QChar('0'))
-                .arg(seconds, 2, 10, QChar('0'))
-                .arg(centiseconds, 2, 10, QChar('0'));
-
-        outputLines << timeTag + " [0000][0000][0000] " +
-                       QString::fromUtf8(text).trimmed();
+        const QString text = QString::fromUtf8(whisper_full_get_segment_text(ctx, i)).trimmed();
+        outputLines << QStringLiteral("%1 [0000][0000][0000] %2").arg(timeTag, text);
     }
 }
-void saveLRC(struct whisper_context* ctx, QStringList &outputLines){
-    int n_segments = whisper_full_n_segments(ctx);
+
+void saveLRC(struct whisper_context* ctx, QStringList &outputLines)
+{
+    const int n_segments = whisper_full_n_segments(ctx);
     for (int i = 0; i < n_segments; ++i) {
-        const char *text = whisper_full_get_segment_text(ctx, i);
-        int64_t start_time = whisper_full_get_segment_t0(ctx, i);
+        const int64_t startMs = whisper_full_get_segment_t0(ctx, i) * 10;
+        const int minutes = static_cast<int>(startMs / 60000);
+        const int seconds = static_cast<int>((startMs % 60000) / 1000);
+        const int centiseconds = static_cast<int>((startMs % 1000) / 10);
 
-        int64_t start_ms = start_time * 10;
+        const QString timeTag = QStringLiteral("[%1:%2.%3]")
+                                    .arg(minutes, 2, 10, QChar('0'))
+                                    .arg(seconds, 2, 10, QChar('0'))
+                                    .arg(centiseconds, 2, 10, QChar('0'));
 
-        int minutes = start_ms / 60000;
-        int seconds = (start_ms % 60000) / 1000;
-        int centiseconds = (start_ms % 1000) / 10;
-
-        QString timeTag = QString("[%1:%2.%3]")
-                .arg(minutes, 2, 10, QChar('0'))
-                .arg(seconds, 2, 10, QChar('0'))
-                .arg(centiseconds, 2, 10, QChar('0'));
-
-        QString lrcLine = timeTag + QString::fromUtf8(text).trimmed();
-        outputLines << lrcLine;
+        const QString text = QString::fromUtf8(whisper_full_get_segment_text(ctx, i)).trimmed();
+        outputLines << (timeTag + text);
     }
 }
-void saveVTT(struct whisper_context* ctx, QStringList &outputLines){
-    // WebVTT 字幕格式
-    outputLines << "WEBVTT";
-    outputLines << "";
 
-    int n_segments = whisper_full_n_segments(ctx);
+void saveVTT(struct whisper_context* ctx, QStringList &outputLines)
+{
+    outputLines << QStringLiteral("WEBVTT");
+    outputLines << QString();
+
+    const int n_segments = whisper_full_n_segments(ctx);
     for (int i = 0; i < n_segments; ++i) {
-        const char *text = whisper_full_get_segment_text(ctx, i);
-        int64_t start_time = whisper_full_get_segment_t0(ctx, i);
-        int64_t end_time = whisper_full_get_segment_t1(ctx, i);
+        const int64_t startMs = whisper_full_get_segment_t0(ctx, i) * 10;
+        const int64_t endMs = whisper_full_get_segment_t1(ctx, i) * 10;
 
-        // 转换为毫秒
-        start_time *= 10;
-        end_time *= 10;
+        const QString startStr = QStringLiteral("%1:%2:%3.%4")
+                                     .arg(startMs / 3600000, 2, 10, QChar('0'))
+                                     .arg((startMs % 3600000) / 60000, 2, 10, QChar('0'))
+                                     .arg((startMs % 60000) / 1000, 2, 10, QChar('0'))
+                                     .arg(startMs % 1000, 3, 10, QChar('0'));
 
-        // 格式化时间 (hh:mm:ss.ttt)
-        QString start_str = QString("%1:%2:%3.%4")
-                .arg(start_time / 3600000, 2, 10, QChar('0'))  // 小时
-                .arg((start_time % 3600000) / 60000, 2, 10, QChar('0'))   // 分钟
-                .arg((start_time % 60000) / 1000, 2, 10, QChar('0'))      // 秒
-                .arg(start_time % 1000, 3, 10, QChar('0'));              // 毫秒
-
-        QString end_str = QString("%1:%2:%3.%4")
-                .arg(end_time / 3600000, 2, 10, QChar('0'))
-                .arg((end_time % 3600000) / 60000, 2, 10, QChar('0'))
-                .arg((end_time % 60000) / 1000, 2, 10, QChar('0'))
-                .arg(end_time % 1000, 3, 10, QChar('0'));
+        const QString endStr = QStringLiteral("%1:%2:%3.%4")
+                                   .arg(endMs / 3600000, 2, 10, QChar('0'))
+                                   .arg((endMs % 3600000) / 60000, 2, 10, QChar('0'))
+                                   .arg((endMs % 60000) / 1000, 2, 10, QChar('0'))
+                                   .arg(endMs % 1000, 3, 10, QChar('0'));
 
         outputLines << QString::number(i + 1);
-        outputLines << start_str + " --> " + end_str;
-        outputLines << QString::fromUtf8(text).trimmed();
-        outputLines << "";
+        outputLines << (startStr + QStringLiteral(" --> ") + endStr);
+        outputLines << QString::fromUtf8(whisper_full_get_segment_text(ctx, i)).trimmed();
+        outputLines << QString();
     }
 }
-void saveSRT(struct whisper_context* ctx, QStringList &outputLines){
-    // SRT 字幕格式
-    int n_segments = whisper_full_n_segments(ctx);
+
+void saveSRT(struct whisper_context* ctx, QStringList &outputLines)
+{
+    const int n_segments = whisper_full_n_segments(ctx);
     for (int i = 0; i < n_segments; ++i) {
-        const char *text = whisper_full_get_segment_text(ctx, i);
-        int64_t start_time = whisper_full_get_segment_t0(ctx, i);
-        int64_t end_time = whisper_full_get_segment_t1(ctx, i);
+        const int64_t startMs = whisper_full_get_segment_t0(ctx, i) * 10;
+        const int64_t endMs = whisper_full_get_segment_t1(ctx, i) * 10;
 
-        // 转换为毫秒
-        start_time *= 10;
-        end_time *= 10;
+        const QString startStr = QStringLiteral("%1:%2:%3,%4")
+                                     .arg(startMs / 3600000, 2, 10, QChar('0'))
+                                     .arg((startMs % 3600000) / 60000, 2, 10, QChar('0'))
+                                     .arg((startMs % 60000) / 1000, 2, 10, QChar('0'))
+                                     .arg(startMs % 1000, 3, 10, QChar('0'));
 
-        // 格式化时间 (hh:mm:ss,ttt)
-        QString start_str = QString("%1:%2:%3,%4")
-                .arg(start_time / 3600000, 2, 10, QChar('0'))  // 小时
-                .arg((start_time % 3600000) / 60000, 2, 10, QChar('0'))   // 分钟
-                .arg((start_time % 60000) / 1000, 2, 10, QChar('0'))      // 秒
-                .arg(start_time % 1000, 3, 10, QChar('0'));              // 毫秒
-
-        QString end_str = QString("%1:%2:%3,%4")
-                .arg(end_time / 3600000, 2, 10, QChar('0'))
-                .arg((end_time % 3600000) / 60000, 2, 10, QChar('0'))
-                .arg((end_time % 60000) / 1000, 2, 10, QChar('0'))
-                .arg(end_time % 1000, 3, 10, QChar('0'));
+        const QString endStr = QStringLiteral("%1:%2:%3,%4")
+                                   .arg(endMs / 3600000, 2, 10, QChar('0'))
+                                   .arg((endMs % 3600000) / 60000, 2, 10, QChar('0'))
+                                   .arg((endMs % 60000) / 1000, 2, 10, QChar('0'))
+                                   .arg(endMs % 1000, 3, 10, QChar('0'));
 
         outputLines << QString::number(i + 1);
-        outputLines << start_str + " --> " + end_str;
-        outputLines << QString::fromUtf8(text).trimmed();
-        outputLines << "";
+        outputLines << (startStr + QStringLiteral(" --> ") + endStr);
+        outputLines << QString::fromUtf8(whisper_full_get_segment_text(ctx, i)).trimmed();
+        outputLines << QString();
     }
 }
 
 void TranslateWidget::addResultItem(const QString &fileName, const QString &filePath)
 {
-    // 创建自定义列表项
-    ResultListItem* item = new ResultListItem(fileName, filePath, this);
-    
-    // 创建 QListWidgetItem 并设置自定义控件
-    QListWidgetItem* listItem = new QListWidgetItem(resultList);
-    listItem->setSizeHint(item->sizeHint());
-    
-    // 将自定义控件设置到列表项
-    resultList->setItemWidget(listItem, item);
-    
-    // 滚动到最新添加的项
+    auto* itemWidget = new ResultListItem(fileName, filePath, this);
+    auto* listItem = new QListWidgetItem(resultList);
+    listItem->setSizeHint(itemWidget->sizeHint());
+    resultList->setItemWidget(listItem, itemWidget);
     resultList->scrollToBottom();
 }

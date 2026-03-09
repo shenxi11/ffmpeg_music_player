@@ -119,7 +119,11 @@ VideoRendererGL::VideoRendererGL(QWidget* parent)
     : QOpenGLWidget(parent)
     , m_playing(false)
     , m_buffering(false)
-    , m_bufferingThreshold(15)
+    , m_bufferingThreshold(8)
+    , m_bufferingTimeoutMs(450)
+    , m_bufferingTimeoutLogged(false)
+    , m_earlyWaitPts(-1)
+    , m_earlyWaitLogged(false)
     , m_videoSize(-1, -1)
     , m_pixelAspectRatio(1.0f)
     , m_displayMode(0)
@@ -580,6 +584,9 @@ void VideoRendererGL::pause()
 {
     m_playing = false;
     m_buffering = false;
+    m_earlyWaitPts = -1;
+    m_earlyWaitLogged = false;
+    m_earlyWaitTimer.invalidate();
     m_renderTimer->stop();
     qDebug() << "[VideoRendererGL] Pause";
 }
@@ -588,6 +595,9 @@ void VideoRendererGL::stop()
 {
     m_playing = false;
     m_buffering = false;
+    m_earlyWaitPts = -1;
+    m_earlyWaitLogged = false;
+    m_earlyWaitTimer.invalidate();
     m_renderTimer->stop();
     m_lastPTS = 0;
 
@@ -602,8 +612,13 @@ void VideoRendererGL::stop()
 
 void VideoRendererGL::startBuffering()
 {
+    const int dynamicThreshold = qBound(3, m_targetFPS / 6, 8);
+    m_bufferingThreshold = dynamicThreshold;
     m_buffering = true;
-    qDebug() << "[VideoRendererGL] Start buffering";
+    m_bufferingTimeoutLogged = false;
+    m_bufferingTimer.restart();
+    qDebug() << "[VideoRendererGL] Start buffering, threshold:" << m_bufferingThreshold
+             << "timeout:" << m_bufferingTimeoutMs << "ms";
 }
 
 void VideoRendererGL::setVideoBuffer(VideoBuffer* buffer)
@@ -707,42 +722,104 @@ void VideoRendererGL::setQualityPreset(int preset)
 
 void VideoRendererGL::renderNextFrame()
 {
+    static constexpr qint64 kRenderAheadBaseMs = 120;
+    static constexpr qint64 kDropLateThresholdBaseMs = 350;
+
     if (!m_playing || !m_buffer) {
         return;
     }
 
     if (m_buffering) {
         const int bufferSize = m_buffer->size();
-        if (bufferSize >= m_bufferingThreshold) {
+        const bool enoughFrames = bufferSize >= m_bufferingThreshold;
+        const bool timeoutReached = m_bufferingTimer.isValid() && m_bufferingTimer.elapsed() >= m_bufferingTimeoutMs;
+
+        if (enoughFrames || (timeoutReached && bufferSize > 0)) {
             m_buffering = false;
+            qDebug() << "[VideoRendererGL] Buffering complete, size:" << bufferSize
+                     << "elapsed:" << (m_bufferingTimer.isValid() ? m_bufferingTimer.elapsed() : 0) << "ms";
         } else {
+            if (timeoutReached && bufferSize == 0 && !m_bufferingTimeoutLogged) {
+                m_bufferingTimeoutLogged = true;
+                qWarning() << "[VideoRendererGL] Buffering timeout with empty queue,"
+                           << "waiting for decoder frames";
+            }
             return;
         }
     }
 
     qint64 audioClock = 0;
+    double playbackRate = 1.0;
     if (AudioPlayer::instance().isPlaying()) {
-        audioClock = AudioPlayer::instance().getPlaybackPosition();
+        playbackRate = AudioPlayer::instance().playbackRate();
+        audioClock = AudioPlayer::instance().getSyncPlaybackPosition();
     } else {
         audioClock = m_lastPTS;
     }
+
+    const bool highSpeedMode = playbackRate >= 1.5;
+
+    qint64 renderAheadMs = kRenderAheadBaseMs;
+    if (playbackRate > 1.01) {
+        renderAheadMs = static_cast<qint64>(kRenderAheadBaseMs + (playbackRate - 1.0) * 260.0);
+        renderAheadMs = qBound<qint64>(220, renderAheadMs, 420);
+    }
+    if (highSpeedMode) {
+        // 高倍速优先流畅度：尽量不因“视频略超前”而阻塞渲染。
+        renderAheadMs = 1200;
+    }
+
+    qint64 dropLateThresholdMs = kDropLateThresholdBaseMs;
+    if (playbackRate > 1.01) {
+        dropLateThresholdMs = 260;
+    }
+    if (highSpeedMode) {
+        dropLateThresholdMs = 140;
+    }
+
+    const int maxDropPerTick = highSpeedMode ? 40 : 10;
 
     VideoFrame* frame = m_buffer->peek();
     if (!frame) {
         return;
     }
 
-    if (frame->pts > audioClock + 100) {
-        return;
+    if (!highSpeedMode && frame->pts > audioClock + renderAheadMs) {
+        if (!m_earlyWaitTimer.isValid()) {
+            m_earlyWaitPts = frame->pts;
+            m_earlyWaitLogged = false;
+            m_earlyWaitTimer.restart();
+            return;
+        }
+
+        const int earlyWaitTimeoutMs = (playbackRate > 1.01) ? 90 : 260;
+        const bool waitTooLong = m_earlyWaitTimer.isValid() && m_earlyWaitTimer.elapsed() >= earlyWaitTimeoutMs;
+        if (!waitTooLong) {
+            return;
+        }
+
+        if (!m_earlyWaitLogged) {
+            m_earlyWaitLogged = true;
+            qWarning() << "[VideoRendererGL] Force render after early-frame stall"
+                       << "firstFramePts:" << m_earlyWaitPts
+                       << "currentFramePts:" << frame->pts
+                       << "audioClock:" << audioClock
+                       << "aheadThreshold:" << renderAheadMs
+                       << "rate:" << playbackRate
+                       << "waited:" << m_earlyWaitTimer.elapsed() << "ms";
+        }
     }
+    m_earlyWaitPts = -1;
+    m_earlyWaitLogged = false;
+    m_earlyWaitTimer.invalidate();
 
     int skippedCount = 0;
-    while (frame && audioClock > frame->pts + 200) {
+    while (frame && audioClock > frame->pts + dropLateThresholdMs) {
         ++skippedCount;
         m_buffer->pop();
         delete frame;
         frame = m_buffer->peek();
-        if (skippedCount >= 100) {
+        if (skippedCount >= maxDropPerTick) {
             break;
         }
     }

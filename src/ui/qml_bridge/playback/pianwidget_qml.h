@@ -13,13 +13,13 @@ public:
     explicit PianWidgetQml(QWidget *parent = nullptr)
         : QQuickWidget(parent)
     {
-        // 璁剧疆 QML 婧愭枃浠?
+        // 加载播放页顶部信息条 QML。
         setSource(QUrl("qrc:/qml/components/playback/PianWidget.qml"));
         setResizeMode(QQuickWidget::SizeRootObjectToView);
         
         QQuickItem* root = rootObject();
         if (root) {
-            // 杩炴帴 QML 淇″彿鍒?C++ 淇″彿
+            // 透传“展开/收起”点击信号。
             connect(root, SIGNAL(upClicked()), this, SIGNAL(signal_up_click()));
         }
     }

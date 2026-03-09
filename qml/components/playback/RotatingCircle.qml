@@ -16,7 +16,7 @@ Item {
         radius: width / 2
         color: "black"
         
-        // 鍐呭眰鏃嬭浆鍥剧墖
+        // 内层旋转图片
         Item {
             id: innerCircle
             anchors.centerIn: parent
@@ -33,7 +33,7 @@ Item {
                 visible: false
             }
             
-            // 涓撹緫灏侀潰鍥剧墖
+            // 专辑封面图片
             Image {
                 id: albumImage
                 anchors.fill: parent
@@ -64,23 +64,23 @@ Item {
         }
     }
     
-    // 鏃嬭浆鍔ㄧ敾
+    // 旋转动画
     RotationAnimator {
         id: rotationAnimator
         target: innerCircle
         from: innerCircle.rotation
         to: innerCircle.rotation + 360
-        duration: 12000  // 12绉掕浆涓€鍦?
+        duration: 12000  // 12 秒转一圈
         loops: Animation.Infinite
         running: root.isRotating
         
         onStopped: {
-            // 淇濇寔褰撳墠瑙掑害
+            // 保持当前角度
             root.rotationAngle = innerCircle.rotation % 360
         }
     }
     
-    // 鍏叡鏂规硶
+    // 公共方法
     function startRotation() {
         isRotating = true
     }
@@ -90,7 +90,7 @@ Item {
     }
     
     function setImage(imagePath) {
-        // 澶勭悊璺緞鏍煎紡
+        // 处理路径格式
         if (imagePath.startsWith("file:///")) {
             root.imageSource = imagePath
         } else if (imagePath.startsWith("qrc:/")) {

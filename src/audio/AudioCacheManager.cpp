@@ -3,6 +3,7 @@
 #include <QCryptographicHash>
 #include <QDateTime>
 #include <QDir>
+#include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
 #include <QFileInfoList>
@@ -20,6 +21,7 @@
 #include <QtDebug>
 #include <algorithm>
 #include <memory>
+#include <QVector>
 
 namespace {
 
@@ -40,6 +42,11 @@ bool hasSupportedAudioExtension(const QString& pathLower)
             || pathLower.endsWith(".ogg")
             || pathLower.endsWith(".m4a")
             || pathLower.endsWith(".aac");
+}
+
+bool isFlacUrl(const QUrl& url)
+{
+    return url.path().toLower().endsWith(".flac");
 }
 
 bool isLikelyAudioResponse(const QNetworkReply* reply)
@@ -145,6 +152,88 @@ QString AudioCacheManager::cacheDirectory() const
     return m_cacheDirectory;
 }
 
+bool AudioCacheManager::clearCache(QString* errorMessage,
+                                   qint64* removedBytes,
+                                   qint64* removedFiles)
+{
+    qint64 bytes = 0;
+    qint64 files = 0;
+
+    // Abort pending downloads to avoid writing new cache files during cleanup.
+    const QList<QNetworkReply*> activeReplies = m_downloadTasks.keys();
+    for (QNetworkReply* reply : activeReplies) {
+        if (!reply) {
+            continue;
+        }
+        reply->abort();
+        reply->deleteLater();
+    }
+    m_downloadTasks.clear();
+    m_inflightChunkKeys.clear();
+    m_proxyReadBuffers.clear();
+    {
+        QMutexLocker locker(&m_metaMutex);
+        m_trackMetaCache.clear();
+    }
+
+    QDir cacheRoot(m_cacheDirectory);
+    if (!cacheRoot.exists()) {
+        QDir().mkpath(m_cacheDirectory);
+        m_chunkRootDirectory = QDir(m_cacheDirectory).filePath(QStringLiteral("chunks"));
+        QDir().mkpath(m_chunkRootDirectory);
+        if (removedBytes) {
+            *removedBytes = 0;
+        }
+        if (removedFiles) {
+            *removedFiles = 0;
+        }
+        return true;
+    }
+
+    QDirIterator countIt(m_cacheDirectory, QDir::Files, QDirIterator::Subdirectories);
+    while (countIt.hasNext()) {
+        countIt.next();
+        const QFileInfo info = countIt.fileInfo();
+        bytes += qMax<qint64>(0, info.size());
+        ++files;
+    }
+
+    bool allRemoved = true;
+    QStringList failedPaths;
+    const QFileInfoList entries = cacheRoot.entryInfoList(QDir::AllEntries | QDir::NoDotAndDotDot);
+    for (const QFileInfo& entry : entries) {
+        bool ok = false;
+        if (entry.isDir()) {
+            QDir subDir(entry.absoluteFilePath());
+            ok = subDir.removeRecursively();
+        } else {
+            ok = QFile::remove(entry.absoluteFilePath());
+        }
+
+        if (!ok) {
+            allRemoved = false;
+            failedPaths.append(entry.absoluteFilePath());
+        }
+    }
+
+    QDir().mkpath(m_cacheDirectory);
+    m_chunkRootDirectory = QDir(m_cacheDirectory).filePath(QStringLiteral("chunks"));
+    QDir().mkpath(m_chunkRootDirectory);
+
+    if (removedBytes) {
+        *removedBytes = bytes;
+    }
+    if (removedFiles) {
+        *removedFiles = files;
+    }
+
+    if (!allRemoved && errorMessage) {
+        *errorMessage = QStringLiteral("以下路径删除失败：%1")
+                            .arg(failedPaths.join(QStringLiteral("; ")));
+    }
+    return allRemoved;
+}
+
 QUrl AudioCacheManager::resolvePlaybackUrl(const QUrl& originalUrl) const
 {
     if (!canCacheUrl(originalUrl)) {
@@ -188,7 +277,13 @@ void AudioCacheManager::warmupCache(const QUrl& originalUrl)
     meta.lastAccessMs = currentEpochMs();
     updateTrackMeta(cacheKey, meta.contentLength, meta.durationMs);
 
-    for (int i = 0; i < m_startupPrefetchChunks; ++i) {
+    int startupChunks = m_startupPrefetchChunks;
+    if (isFlacUrl(originalUrl)) {
+        // FLAC 启动预热略高于普通音频，但避免一次性请求过多抢占实时流。
+        startupChunks = qMax(startupChunks, 6);
+    }
+
+    for (int i = 0; i < startupChunks; ++i) {
         const qint64 chunkIndex = i;
         const qint64 start = chunkIndex * m_chunkSizeBytes;
         qint64 end = start + m_chunkSizeBytes - 1;
@@ -198,7 +293,7 @@ void AudioCacheManager::warmupCache(const QUrl& originalUrl)
         if (end < start) {
             continue;
         }
-        queueChunkDownload(originalUrl, cacheKey, chunkIndex, start, end);
+        queueChunkDownload(originalUrl, cacheKey, chunkIndex, start, end, QNetworkRequest::LowPriority);
     }
 }
 
@@ -231,9 +326,19 @@ void AudioCacheManager::prefetchForSeek(const QUrl& originalUrl, qint64 targetMs
         centerByte = 0;
     }
     const qint64 centerChunk = centerByte / m_chunkSizeBytes;
+    const bool flac = isFlacUrl(originalUrl);
+    const qint64 seekWindow = flac ? 4 : 2;
 
-    // Prefetch center ±2 chunks.
-    for (qint64 offset = -2; offset <= 2; ++offset) {
+    // 以“中心块优先，再向前后扩展”的顺序预取，降低首包等待。
+    QVector<qint64> offsets;
+    offsets.reserve(static_cast<int>(seekWindow * 2 + 1));
+    offsets.push_back(0);
+    for (qint64 i = 1; i <= seekWindow; ++i) {
+        offsets.push_back(i);
+        offsets.push_back(-i);
+    }
+
+    for (qint64 offset : offsets) {
         const qint64 chunkIndex = centerChunk + offset;
         if (chunkIndex < 0) {
             continue;
@@ -244,14 +349,22 @@ void AudioCacheManager::prefetchForSeek(const QUrl& originalUrl, qint64 targetMs
         if (end < start) {
             continue;
         }
-        queueChunkDownload(originalUrl, cacheKey, chunkIndex, start, end);
+        QNetworkRequest::Priority priority = QNetworkRequest::LowPriority;
+        if (offset == 0) {
+            priority = QNetworkRequest::HighPriority;
+        } else if (qAbs(offset) <= 1) {
+            priority = QNetworkRequest::NormalPriority;
+        }
+        queueChunkDownload(originalUrl, cacheKey, chunkIndex, start, end, priority);
     }
 
     qDebug() << "[AudioCache] Seek prefetch queued:"
              << "targetMs=" << targetMs
              << "durationMs=" << meta.durationMs
              << "contentLength=" << meta.contentLength
-             << "centerChunk=" << centerChunk;
+             << "centerChunk=" << centerChunk
+             << "window=" << seekWindow
+             << "isFlac=" << flac;
 }
 
 void AudioCacheManager::noteTrackDuration(const QUrl& originalUrl, qint64 durationMs)
@@ -462,20 +575,33 @@ void AudioCacheManager::handleProxyRequest(QTcpSocket* socket, const QByteArray&
     }
 
     const QString cacheKey = makeCacheKey(srcUrl);
-    // Fast path: exact chunk hit can be returned directly without upstream fetch.
-    if (hasRange && rangeStart >= 0 && rangeEnd >= rangeStart) {
-        const qint64 chunkIndex = rangeStart / m_chunkSizeBytes;
-        const qint64 chunkStart = chunkIndex * m_chunkSizeBytes;
-        const bool aligned = (rangeStart == chunkStart);
-        if (aligned && hasChunk(cacheKey, chunkIndex)) {
-            QFile chunkFile(chunkFilePath(cacheKey, chunkIndex));
+    // Fast path: single-chunk hit can be returned directly without upstream fetch.
+    // Supports unaligned byte-range to improve FLAC seek hit rate.
+    if (hasRange && rangeStart >= 0) {
+        qint64 normalizedRangeEnd = rangeEnd;
+        if (normalizedRangeEnd < rangeStart) {
+            normalizedRangeEnd = rangeStart + m_chunkSizeBytes - 1;
+        }
+
+        const qint64 chunkIndexStart = rangeStart / m_chunkSizeBytes;
+        const qint64 chunkIndexEnd = normalizedRangeEnd / m_chunkSizeBytes;
+        if (chunkIndexStart == chunkIndexEnd && hasChunk(cacheKey, chunkIndexStart)) {
+            const qint64 chunkStart = chunkIndexStart * m_chunkSizeBytes;
+            const qint64 offsetInChunk = rangeStart - chunkStart;
+            QFile chunkFile(chunkFilePath(cacheKey, chunkIndexStart));
             if (chunkFile.open(QIODevice::ReadOnly)) {
-                qint64 toRead = chunkFile.size();
-                const qint64 requested = rangeEnd - rangeStart + 1;
-                if (requested > 0) {
-                    toRead = qMin(toRead, requested);
+                qint64 toRead = chunkFile.size() - offsetInChunk;
+                QByteArray payload;
+                if (toRead > 0) {
+                    const qint64 requested = normalizedRangeEnd - rangeStart + 1;
+                    if (requested > 0) {
+                        toRead = qMin(toRead, requested);
+                    }
+                    if (offsetInChunk > 0 && offsetInChunk < chunkFile.size()) {
+                        chunkFile.seek(offsetInChunk);
+                    }
+                    payload = chunkFile.read(toRead);
                 }
-                const QByteArray payload = chunkFile.read(toRead);
                 chunkFile.close();
                 if (!payload.isEmpty()) {
                     const QByteArray extra = QByteArray("Content-Range: bytes ")
@@ -486,7 +612,9 @@ void AudioCacheManager::handleProxyRequest(QTcpSocket* socket, const QByteArray&
                     socket->write(buildHttpHeaders(206, "Partial Content", "audio/mpeg", payload.size(), extra));
                     socket->write(payload);
                     socket->disconnectFromHost();
-                    qDebug() << "[AudioCacheProxy] Chunk hit response, chunk:" << chunkIndex;
+                    qDebug() << "[AudioCacheProxy] Chunk hit response, chunk:" << chunkIndexStart
+                             << "offset:" << offsetInChunk
+                             << "bytes:" << payload.size();
                     return;
                 }
             }
@@ -503,6 +631,7 @@ void AudioCacheManager::handleProxyRequest(QTcpSocket* socket, const QByteArray&
     QNetworkRequest upstreamRequest(srcUrl);
     upstreamRequest.setAttribute(QNetworkRequest::FollowRedirectsAttribute, true);
     upstreamRequest.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("FFmpegMusicPlayer/1.0"));
+    upstreamRequest.setPriority(QNetworkRequest::HighPriority);
     if (hasRange && !rangeHeaderRaw.isEmpty()) {
         upstreamRequest.setRawHeader("Range", rangeHeaderRaw);
     }
@@ -815,7 +944,8 @@ void AudioCacheManager::queueChunkDownload(const QUrl& url,
                                            const QString& cacheKey,
                                            qint64 chunkIndex,
                                            qint64 startByte,
-                                           qint64 endByte)
+                                           qint64 endByte,
+                                           QNetworkRequest::Priority priority)
 {
     if (chunkIndex < 0 || endByte < startByte) {
         return;
@@ -836,6 +966,7 @@ void AudioCacheManager::queueChunkDownload(const QUrl& url,
     QNetworkRequest request(url);
     request.setAttribute(QNetworkRequest::FollowRedirectsAttribute, true);
     request.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("FFmpegMusicPlayer/1.0"));
+    request.setPriority(priority);
     request.setRawHeader("Range", QByteArray("bytes=")
                          + QByteArray::number(startByte)
                          + QByteArray("-")
@@ -878,6 +1009,7 @@ void AudioCacheManager::ensureTrackMeta(const QUrl& url, const QString& cacheKey
     QNetworkRequest request(url);
     request.setAttribute(QNetworkRequest::FollowRedirectsAttribute, true);
     request.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("FFmpegMusicPlayer/1.0"));
+    request.setPriority(QNetworkRequest::HighPriority);
     request.setRawHeader("Range", QByteArray("bytes=0-0"));
 
     QNetworkReply* reply = m_networkManager.get(request);
@@ -1050,3 +1182,4 @@ qint64 AudioCacheManager::totalChunkBytes() const
     }
     return total;
 }
+

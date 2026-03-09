@@ -35,8 +35,7 @@ Rectangle {
         var text = String(value).trim()
         if (text.length === 0) return true
         if (/^[\?？\s]+$/.test(text)) return true
-        var suspicious = text.match(/[鍙鍚鍛鍜鍝鎵鎺鏄鏃鏂鏈鏉鏋鏌鏍鐨缁璁妫娓绛鎻锛]/g)
-        return suspicious && suspicious.length >= 3
+        return text.indexOf("\uFFFD") >= 0
     }
 
     function _baseNameFromPath(path) {

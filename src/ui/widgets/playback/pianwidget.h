@@ -1,4 +1,4 @@
-#ifndef PIANWIDGET_H
+﻿#ifndef PIANWIDGET_H
 #define PIANWIDGET_H
 
 #include <QWidget>

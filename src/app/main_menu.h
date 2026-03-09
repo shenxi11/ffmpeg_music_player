@@ -1,4 +1,4 @@
-#ifndef MAINMENU_H
+﻿#ifndef MAINMENU_H
 #define MAINMENU_H
 
 #include <QWidget>
@@ -12,6 +12,7 @@
 #include <QDebug>
 #include <QVector>
 #include <QPainterPath>
+
 #include "headers.h"
 #include "plugin_manager.h"
 
@@ -21,7 +22,7 @@ class MainMenu : public QWidget
 public:
     explicit MainMenu(QWidget *parent = nullptr);
     void showMenu(const QPoint& position);
-    void refreshPlugins(); // 刷新插件列表
+    void refreshPlugins();
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -29,23 +30,26 @@ protected:
     void leaveEvent(QEvent *event) override;
 
 signals:
-    void pluginRequested(const QString& pluginName); // 通用插件请求信号
+    void pluginRequested(const QString& pluginId);
+    void pluginDiagnosticsRequested();
     void settingsRequested();
     void aboutRequested();
 
 private slots:
-    void onPluginButtonClicked(); // 通用插件按钮点击槽
+    void onPluginButtonClicked();
+    void onPluginDiagnosticsClicked();
     void onSettingsClicked();
     void onAboutClicked();
 
 private:
     void setupUI();
     void hideMenu();
-    void createPluginButtons(); // 创建插件按钮
+    void createPluginButtons();
     QString createButtonStyle();
-    
+
     QVBoxLayout* menuLayout;
-    QVector<QPushButton*> pluginButtons; // 存储插件按钮
+    QVector<QPushButton*> pluginButtons;
+    QPushButton* diagnosticsBtn;
     QPushButton* settingsBtn;
     QPushButton* aboutBtn;
     QTimer* hideTimer;

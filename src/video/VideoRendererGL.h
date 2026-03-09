@@ -2,6 +2,7 @@
 #define VIDEORENDERERGL_H
 
 #include <QMutex>
+#include <QElapsedTimer>
 #include <QOpenGLFunctions_3_3_Core>
 #include <QOpenGLShaderProgram>
 #include <QOpenGLWidget>
@@ -66,6 +67,12 @@ private:
     bool m_playing;
     bool m_buffering;
     int m_bufferingThreshold;
+    int m_bufferingTimeoutMs;
+    bool m_bufferingTimeoutLogged;
+    QElapsedTimer m_bufferingTimer;
+    qint64 m_earlyWaitPts;
+    bool m_earlyWaitLogged;
+    QElapsedTimer m_earlyWaitTimer;
     QSize m_videoSize;
     float m_pixelAspectRatio;
     int m_displayMode;

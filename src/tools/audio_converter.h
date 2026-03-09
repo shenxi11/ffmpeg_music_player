@@ -1,38 +1,29 @@
-#ifndef AUDIOCONVERTER_H
+﻿#ifndef AUDIOCONVERTER_H
 #define AUDIOCONVERTER_H
 
 #include <QWidget>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QTableWidget>
-#include <QTableWidgetItem>
+#include <QCloseEvent>
 #include <QComboBox>
-#include <QLineEdit>
-#include <QPushButton>
-#include <QLabel>
-#include <QFileDialog>
 #include <QDragEnterEvent>
 #include <QDropEvent>
-#include <QMimeData>
-#include <QUrl>
+#include <QLabel>
+#include <QLineEdit>
+#include <QPainter>
 #include <QProcess>
 #include <QProgressBar>
-#include <QTimer>
-#include <QMessageBox>
-#include <QStandardPaths>
-#include <QDir>
-#include <QFileInfo>
-#include <QHeaderView>
-#include <QDesktopServices>
+#include <QPushButton>
+#include <QStringList>
+#include <QTableWidget>
 #include <QTime>
-#include <QCloseEvent>
-#include "headers.h"
 
 class AudioConverter : public QWidget
 {
     Q_OBJECT
 public:
     explicit AudioConverter(QWidget *parent = nullptr);
+
+    // 由插件层注入主程序上下文与授权权限，便于插件在同一架构下运行。
+    void setPluginHostContext(QObject* hostContext, const QStringList& grantedPermissions);
 
 protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
@@ -60,32 +51,34 @@ private:
     void startNextConversion();
     QString getOutputPath(const QString &inputPath);
     QTime getAudioDuration(const QString &filePath);
-    
-    // UI 组件
-    QTableWidget* fileTable;
-    QComboBox* formatCombo;
-    QComboBox* encoderCombo;
-    QComboBox* bitrateCombo;
-    QLineEdit* outputDirEdit;
-    QPushButton* addAudioBtn;
-    QPushButton* importCDBtn;
-    QPushButton* clearCompletedBtn;
-    QPushButton* changeDirBtn;
-    QPushButton* openFolderBtn;
-    QPushButton* startConversionBtn;
-    QProgressBar* progressBar;
-    QLabel* statusLabel;
-    
-    // 转换相关
-    QProcess* ffmpegProcess;
-    QStringList conversionQueue;
-    int currentConversionIndex;
-    QString ffmpegPath;
-    QString outputDirectory;
-    
+
     QString createButtonStyle();
     QString createComboStyle();
     QString createTableStyle();
+
+private:
+    QObject* m_hostContext = nullptr;
+    QStringList m_grantedPermissions;
+
+    QTableWidget* fileTable = nullptr;
+    QComboBox* formatCombo = nullptr;
+    QComboBox* encoderCombo = nullptr;
+    QComboBox* bitrateCombo = nullptr;
+    QLineEdit* outputDirEdit = nullptr;
+    QPushButton* addAudioBtn = nullptr;
+    QPushButton* importCDBtn = nullptr;
+    QPushButton* clearCompletedBtn = nullptr;
+    QPushButton* changeDirBtn = nullptr;
+    QPushButton* openFolderBtn = nullptr;
+    QPushButton* startConversionBtn = nullptr;
+    QProgressBar* progressBar = nullptr;
+    QLabel* statusLabel = nullptr;
+
+    QProcess* ffmpegProcess = nullptr;
+    QStringList conversionQueue;
+    int currentConversionIndex = -1;
+    QString ffmpegPath;
+    QString outputDirectory;
 };
 
 #endif // AUDIOCONVERTER_H

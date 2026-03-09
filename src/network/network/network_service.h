@@ -14,14 +14,14 @@
 namespace Network {
 
 /**
- * @brief 缃戠粶鏈嶅姟绫?- 缁熶竴鐨勭綉缁滆姹傞棬闈?
- * 
- * 鍔熻兘锛?
- * 1. 鎻愪緵绠€娲佺殑API鎺ュ彛
- * 2. 闆嗘垚缂撳瓨銆侀噸璇曘€佽秴鏃剁瓑鍔熻兘
- * 3. 鏀寔JSON搴忓垪鍖?鍙嶅簭鍒楀寲
- * 4. 璇锋眰鍘婚噸
- * 5. 缁熻鍜岀洃鎺?
+ * @brief 网络服务类，提供统一的请求入口。
+ *
+ * 功能：
+ * 1. 提供简洁一致的 HTTP API；
+ * 2. 集成缓存、重试、超时能力；
+ * 3. 支持 JSON 序列化/反序列化；
+ * 4. 请求去重；
+ * 5. 提供统计与监控数据。
  */
 class NetworkService : public QObject {
     Q_OBJECT
@@ -30,23 +30,23 @@ public:
     static NetworkService& instance();
     
     /**
-     * @brief GET璇锋眰
-     * @param url 璇锋眰URL
-     * @param options 璇锋眰閫夐」
-     * @param callback 鍝嶅簲鍥炶皟
-     * @return 璇锋眰ID
+     * @brief GET 请求
+     * @param url 请求 URL
+     * @param options 请求选项
+     * @param callback 响应回调
+     * @return 请求 ID
      */
     QString get(const QString& url, 
                 const RequestOptions& options = RequestOptions(),
                 ResponseCallback callback = nullptr);
     
     /**
-     * @brief POST璇锋眰
-     * @param url 璇锋眰URL
-     * @param data 璇锋眰浣撴暟鎹?
-     * @param options 璇锋眰閫夐」
-     * @param callback 鍝嶅簲鍥炶皟
-     * @return 璇锋眰ID
+     * @brief POST 请求
+     * @param url 请求 URL
+     * @param data 请求体数据
+     * @param options 请求选项
+     * @param callback 响应回调
+     * @return 请求 ID
      */
     QString post(const QString& url, 
                  const QByteArray& data,
@@ -54,12 +54,12 @@ public:
                  ResponseCallback callback = nullptr);
     
     /**
-     * @brief POST JSON璇锋眰
-     * @param url 璇锋眰URL
-     * @param jsonData JSON瀵硅薄
-     * @param options 璇锋眰閫夐」
-     * @param callback 鍝嶅簲鍥炶皟
-     * @return 璇锋眰ID
+     * @brief POST JSON 请求
+     * @param url 请求 URL
+     * @param jsonData JSON 对象
+     * @param options 请求选项
+     * @param callback 响应回调
+     * @return 请求 ID
      */
     QString postJson(const QString& url,
                      const QJsonObject& jsonData,
@@ -67,12 +67,12 @@ public:
                      ResponseCallback callback = nullptr);
     
     /**
-     * @brief PUT璇锋眰
-     * @param url 璇锋眰URL
-     * @param data 璇锋眰浣撴暟鎹?
-     * @param options 璇锋眰閫夐」
-     * @param callback 鍝嶅簲鍥炶皟
-     * @return 璇锋眰ID
+     * @brief PUT 请求
+     * @param url 请求 URL
+     * @param data 请求体数据
+     * @param options 请求选项
+     * @param callback 响应回调
+     * @return 请求 ID
      */
     QString put(const QString& url,
                 const QByteArray& data,
@@ -80,95 +80,95 @@ public:
                 ResponseCallback callback = nullptr);
     
     /**
-     * @brief DELETE璇锋眰
-     * @param url 璇锋眰URL
-     * @param options 璇锋眰閫夐」
-     * @param callback 鍝嶅簲鍥炶皟
-     * @return 璇锋眰ID
+     * @brief DELETE 请求
+     * @param url 请求 URL
+     * @param options 请求选项
+     * @param callback 响应回调
+     * @return 请求 ID
      */
     QString del(const QString& url,
                 const RequestOptions& options = RequestOptions(),
                 ResponseCallback callback = nullptr);
     
     /**
-     * @brief 鍙栨秷璇锋眰
-     * @param requestId 璇锋眰ID
+     * @brief 取消请求
+     * @param requestId 请求 ID
      */
     void cancelRequest(const QString& requestId);
     
     /**
-     * @brief 鍙栨秷鎵€鏈夎姹?
+     * @brief 取消所有请求
      */
     void cancelAllRequests();
     
     /**
-     * @brief 娓呴櫎缂撳瓨
+     * @brief 清除缓存
      */
     void clearCache();
     
     /**
-     * @brief 浣挎寚瀹歎RL鐨勭紦瀛樺け鏁?
+     * @brief 使指定 URL 的缓存失效
      * @param url URL
      */
     void invalidateCache(const QString& url);
     
     /**
-     * @brief 鑾峰彇缁熻淇℃伅
+     * @brief 获取统计信息
      */
     RequestStats getStats() const;
     
     /**
-     * @brief 鑾峰彇缂撳瓨缁熻淇℃伅
+     * @brief 获取缓存统计信息
      */
     ResponseCache::CacheStats getCacheStats() const;
     
     /**
-     * @brief 璁剧疆鍩虹URL
-     * @param baseUrl 鍩虹URL锛堝 http://192.168.1.208:8080/锛?
+     * @brief 设置基础 URL
+     * @param baseUrl 基础 URL（如 http://192.168.1.208:8080/）
      */
     void setBaseUrl(const QString& baseUrl);
     
     /**
-     * @brief 鑾峰彇鍩虹URL
+     * @brief 获取基础 URL
      */
     QString getBaseUrl() const;
     
     /**
-     * @brief 璁剧疆鍏ㄥ眬璇锋眰澶?
-     * @param headers 璇锋眰澶存槧灏?
+     * @brief 设置全局请求头
+     * @param headers 请求头映射
      */
     void setGlobalHeaders(const QMap<QString, QString>& headers);
     
     /**
-     * @brief 娣诲姞鍏ㄥ眬璇锋眰澶?
-     * @param name 璇锋眰澶村悕绉?
-     * @param value 璇锋眰澶村€?
+     * @brief 添加全局请求头
+     * @param name 请求头名称
+     * @param value 请求头值
      */
     void addGlobalHeader(const QString& name, const QString& value);
     
     /**
-     * @brief 绉婚櫎鍏ㄥ眬璇锋眰澶?
-     * @param name 璇锋眰澶村悕绉?
+     * @brief 移除全局请求头
+     * @param name 请求头名称
      */
     void removeGlobalHeader(const QString& name);
     
     /**
-     * @brief DNS棰勭儹
-     * @param hostname 涓绘満鍚?
+     * @brief DNS 预热
+     * @param hostname 主机名
      */
     void prewarmDns(const QString& hostname);
     
     /**
-     * @brief 瑙ｆ瀽JSON鍝嶅簲
-     * @param response 缃戠粶鍝嶅簲
-     * @return JSON瀵硅薄锛堣В鏋愬け璐ヨ繑鍥炵┖瀵硅薄锛?
+     * @brief 解析 JSON 对象响应
+     * @param response 网络响应
+     * @return JSON 对象（解析失败返回空对象）
      */
     static QJsonObject parseJsonObject(const NetworkResponse& response);
     
     /**
-     * @brief 瑙ｆ瀽JSON鏁扮粍鍝嶅簲
-     * @param response 缃戠粶鍝嶅簲
-     * @return JSON鏁扮粍锛堣В鏋愬け璐ヨ繑鍥炵┖鏁扮粍锛?
+     * @brief 解析 JSON 数组响应
+     * @param response 网络响应
+     * @return JSON 数组（解析失败返回空数组）
      */
     static QJsonArray parseJsonArray(const NetworkResponse& response);
     
@@ -204,7 +204,7 @@ private:
     QString m_baseUrl;
     QMap<QString, QString> m_globalHeaders;
     
-    // 璇锋眰鍘婚噸鏄犲皠锛圲RL -> 璇锋眰ID鍒楄〃锛?
+    // 请求去重映射（URL -> 请求 ID 列表）
     QMap<QString, QStringList> m_pendingRequests;
     QMutex m_pendingMutex;
 };

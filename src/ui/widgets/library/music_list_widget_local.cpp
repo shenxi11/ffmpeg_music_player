@@ -1,4 +1,4 @@
-#include "music_list_widget_local.h"
+﻿#include "music_list_widget_local.h"
 #include "play_widget.h"
 #include <QVBoxLayout>
 #include "httprequest_v2.h"

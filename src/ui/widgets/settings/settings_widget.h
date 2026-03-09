@@ -24,6 +24,7 @@ private slots:
     void onChooseDownloadPath();
     void onChooseAudioCachePath();
     void onChooseLogPath();
+    void onClearLocalCacheRequested();
     void onDownloadPathChanged();
     void onDownloadLyricsChanged();
     void onDownloadCoverChanged();

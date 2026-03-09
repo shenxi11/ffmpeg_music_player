@@ -1,15 +1,24 @@
 import QtQuick 2.14
 import QtQuick.Controls 2.14
 import QtQuick.Layouts 1.14
-import QtQuick.Dialogs 1.3
+import "../../theme/Theme.js" as Theme
 
 Rectangle {
     id: root
-    color: "#F5F5F5"
+    color: "transparent"
+
+    property int pagePadding: width >= 1200 ? 24 : (width >= 900 ? 18 : 12)
+    property int sectionPadding: width >= 1200 ? 24 : (width >= 900 ? 20 : 14)
+    property int chooseButtonWidth: width >= 1200 ? 94 : 82
+    property int clearCacheButtonWidth: width >= 1200 ? 130 : 118
+    property int refreshButtonWidth: width >= 1200 ? 104 : 92
+    property int statusSpacerWidth: width >= 1200 ? 80 : 40
+    property int bottomButtonWidth: width >= 1200 ? 112 : 96
 
     signal chooseDownloadPath()
     signal chooseAudioCachePath()
     signal chooseLogPath()
+    signal clearLocalCacheRequested()
     signal refreshPresenceRequested()
     signal settingsClosed()
 
@@ -29,200 +38,193 @@ Rectangle {
 
     Rectangle {
         id: titleBar
-        width: parent.width
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.leftMargin: root.pagePadding
+        anchors.rightMargin: root.pagePadding
+        anchors.topMargin: root.pagePadding
         height: 60
-        color: "#FFFFFF"
+        radius: 14
+        color: Theme.glassLight
+        border.width: 1
+        border.color: Theme.glassBorder
 
         Row {
             anchors.left: parent.left
-            anchors.leftMargin: 20
+            anchors.leftMargin: 16
             anchors.verticalCenter: parent.verticalCenter
             spacing: 10
 
             Image {
-                width: 32
-                height: 32
-                source: "qrc:/new/prefix1/icon/settings.png"
-                anchors.verticalCenter: parent.verticalCenter
+                width: 24
+                height: 24
+                source: "qrc:/design/design_exports/netease_ui_pack_20260309/icon/ui/base/base_icon_settings_default.svg"
+                fillMode: Image.PreserveAspectFit
             }
 
             Text {
-                text: "\u8bbe\u7f6e"
-                font.pixelSize: 20
-                font.bold: true
-                color: "#333333"
-                anchors.verticalCenter: parent.verticalCenter
+                text: "\u64ad\u653e\u4e0e\u7f13\u5b58\u8bbe\u7f6e"
+                font.pixelSize: 18
+                font.weight: Font.DemiBold
+                color: Theme.textPrimary
             }
-        }
-
-        Rectangle {
-            width: parent.width
-            height: 1
-            color: "#E0E0E0"
-            anchors.bottom: parent.bottom
         }
     }
 
     Flickable {
         id: contentFlickable
         anchors.top: titleBar.bottom
+        anchors.topMargin: 10
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.bottom: buttonBar.top
-        anchors.margins: 0
-        contentHeight: contentColumn.height
+        anchors.bottom: bottomBar.top
+        anchors.leftMargin: root.pagePadding
+        anchors.rightMargin: root.pagePadding
         clip: true
+        contentHeight: contentColumn.height
+
+        ScrollBar.vertical: ScrollBar {
+            policy: ScrollBar.AsNeeded
+            width: 8
+        }
 
         Column {
             id: contentColumn
-            width: parent.width
-            spacing: 0
+            width: contentFlickable.width
+            spacing: 10
 
             Rectangle {
                 width: parent.width
-                height: 50
-                color: "transparent"
-
-                Text {
-                    anchors.left: parent.left
-                    anchors.leftMargin: 20
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: "\u4e0b\u8f7d\u8bbe\u7f6e"
-                    font.pixelSize: 16
-                    font.bold: true
-                    color: "#2196F3"
-                }
-            }
-
-            Rectangle {
-                width: parent.width
-                height: 80
-                color: "#FFFFFF"
+                radius: 12
+                color: Theme.bgCard
+                border.width: 1
+                border.color: Theme.glassBorder
+                height: 198
 
                 Column {
                     anchors.fill: parent
-                    anchors.leftMargin: 40
-                    anchors.rightMargin: 40
-                    anchors.topMargin: 15
-                    anchors.bottomMargin: 15
-                    spacing: 8
+                    anchors.margins: root.sectionPadding
+                    spacing: 10
+
+                    Text {
+                        text: "\u4e0b\u8f7d\u76ee\u5f55"
+                        color: Theme.textPrimary
+                        font.pixelSize: 14
+                        font.weight: Font.DemiBold
+                    }
 
                     Text {
                         text: "\u6b4c\u66f2\u4e0b\u8f7d\u4fdd\u5b58\u8def\u5f84"
-                        font.pixelSize: 14
-                        color: "#333333"
+                        color: Theme.textSecondary
+                        font.pixelSize: 12
                     }
 
                     Row {
                         width: parent.width
-                        spacing: 10
+                        spacing: 8
 
                         Rectangle {
-                            width: parent.width - chooseDirBtn.width - parent.spacing
-                            height: 36
+                            width: parent.width - chooseDownloadBtn.width - parent.spacing
+                            height: 34
+                            radius: 8
+                            color: "#F6F8FC"
                             border.width: 1
-                            border.color: "#CCCCCC"
-                            radius: 4
-                            color: "#F9F9F9"
+                            border.color: "#D8DFEB"
 
                             Text {
                                 anchors.fill: parent
                                 anchors.leftMargin: 10
+                                anchors.rightMargin: 10
                                 verticalAlignment: Text.AlignVCenter
                                 text: root.downloadPath || "D:/Music"
-                                font.pixelSize: 13
-                                color: "#666666"
+                                color: Theme.textSecondary
+                                font.pixelSize: 12
                                 elide: Text.ElideMiddle
                             }
                         }
 
-                        Button {
-                            id: chooseDirBtn
-                            width: 80
-                            height: 36
-                            text: "\u9009\u62e9..."
+                        Rectangle {
+                            id: chooseDownloadBtn
+                            width: root.chooseButtonWidth
+                            height: 34
+                            radius: 8
+                            color: chooseDownloadArea.containsMouse ? Theme.accent : "transparent"
+                            border.width: 1
+                            border.color: Theme.accent
 
-                            background: Rectangle {
-                                color: parent.pressed ? "#1976D2" : (parent.hovered ? "#2196F3" : "#42A5F5")
-                                radius: 4
+                            Text {
+                                anchors.centerIn: parent
+                                text: "\u9009\u62e9"
+                                color: chooseDownloadArea.containsMouse ? "#FFFFFF" : Theme.accent
+                                font.pixelSize: 12
+                                font.weight: Font.Medium
                             }
 
-                            contentItem: Text {
-                                text: parent.text
-                                color: "#FFFFFF"
-                                font.pixelSize: 13
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
+                            MouseArea {
+                                id: chooseDownloadArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.chooseDownloadPath()
                             }
-
-                            onClicked: root.chooseDownloadPath()
                         }
                     }
-                }
-            }
-
-            Rectangle {
-                width: parent.width
-                height: 80
-                color: "#FFFFFF"
-
-                Column {
-                    anchors.fill: parent
-                    anchors.leftMargin: 40
-                    anchors.rightMargin: 40
-                    anchors.topMargin: 15
-                    anchors.bottomMargin: 15
-                    spacing: 8
 
                     Text {
                         text: "\u97f3\u9891\u672c\u5730\u7f13\u5b58\u76ee\u5f55"
-                        font.pixelSize: 14
-                        color: "#333333"
+                        color: Theme.textSecondary
+                        font.pixelSize: 12
                     }
 
                     Row {
                         width: parent.width
-                        spacing: 10
+                        spacing: 8
 
                         Rectangle {
                             width: parent.width - chooseAudioCacheBtn.width - parent.spacing
-                            height: 36
+                            height: 34
+                            radius: 8
+                            color: "#F6F8FC"
                             border.width: 1
-                            border.color: "#CCCCCC"
-                            radius: 4
-                            color: "#F9F9F9"
+                            border.color: "#D8DFEB"
 
                             Text {
                                 anchors.fill: parent
                                 anchors.leftMargin: 10
+                                anchors.rightMargin: 10
                                 verticalAlignment: Text.AlignVCenter
                                 text: root.audioCachePath
-                                font.pixelSize: 13
-                                color: "#666666"
+                                color: Theme.textSecondary
+                                font.pixelSize: 12
                                 elide: Text.ElideMiddle
                             }
                         }
 
-                        Button {
+                        Rectangle {
                             id: chooseAudioCacheBtn
-                            width: 80
-                            height: 36
-                            text: "\u9009\u62e9..."
+                            width: root.chooseButtonWidth
+                            height: 34
+                            radius: 8
+                            color: chooseAudioCacheArea.containsMouse ? Theme.accent : "transparent"
+                            border.width: 1
+                            border.color: Theme.accent
 
-                            background: Rectangle {
-                                color: parent.pressed ? "#1976D2" : (parent.hovered ? "#2196F3" : "#42A5F5")
-                                radius: 4
+                            Text {
+                                anchors.centerIn: parent
+                                text: "\u9009\u62e9"
+                                color: chooseAudioCacheArea.containsMouse ? "#FFFFFF" : Theme.accent
+                                font.pixelSize: 12
+                                font.weight: Font.Medium
                             }
 
-                            contentItem: Text {
-                                text: parent.text
-                                color: "#FFFFFF"
-                                font.pixelSize: 13
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
+                            MouseArea {
+                                id: chooseAudioCacheArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.chooseAudioCachePath()
                             }
-
-                            onClicked: root.chooseAudioCachePath()
                         }
                     }
                 }
@@ -230,66 +232,72 @@ Rectangle {
 
             Rectangle {
                 width: parent.width
-                height: 80
-                color: "#FFFFFF"
+                radius: 12
+                color: Theme.bgCard
+                border.width: 1
+                border.color: Theme.glassBorder
+                height: 114
 
                 Column {
                     anchors.fill: parent
-                    anchors.leftMargin: 40
-                    anchors.rightMargin: 40
-                    anchors.topMargin: 15
-                    anchors.bottomMargin: 15
-                    spacing: 8
+                    anchors.margins: root.sectionPadding
+                    spacing: 10
 
                     Text {
-                        text: "\u6253\u5370\u65e5\u5fd7\u6587\u4ef6\u8def\u5f84"
+                        text: "\u65e5\u5fd7\u8f93\u51fa"
+                        color: Theme.textPrimary
                         font.pixelSize: 14
-                        color: "#333333"
+                        font.weight: Font.DemiBold
                     }
 
                     Row {
                         width: parent.width
-                        spacing: 10
+                        spacing: 8
 
                         Rectangle {
                             width: parent.width - chooseLogBtn.width - parent.spacing
-                            height: 36
+                            height: 34
+                            radius: 8
+                            color: "#F6F8FC"
                             border.width: 1
-                            border.color: "#CCCCCC"
-                            radius: 4
-                            color: "#F9F9F9"
+                            border.color: "#D8DFEB"
 
                             Text {
                                 anchors.fill: parent
                                 anchors.leftMargin: 10
+                                anchors.rightMargin: 10
                                 verticalAlignment: Text.AlignVCenter
                                 text: root.logPath || "\u6253\u5370\u65e5\u5fd7.txt"
-                                font.pixelSize: 13
-                                color: "#666666"
+                                color: Theme.textSecondary
+                                font.pixelSize: 12
                                 elide: Text.ElideMiddle
                             }
                         }
 
-                        Button {
+                        Rectangle {
                             id: chooseLogBtn
-                            width: 80
-                            height: 36
-                            text: "\u9009\u62e9..."
+                            width: root.chooseButtonWidth
+                            height: 34
+                            radius: 8
+                            color: chooseLogArea.containsMouse ? Theme.accent : "transparent"
+                            border.width: 1
+                            border.color: Theme.accent
 
-                            background: Rectangle {
-                                color: parent.pressed ? "#1976D2" : (parent.hovered ? "#2196F3" : "#42A5F5")
-                                radius: 4
+                            Text {
+                                anchors.centerIn: parent
+                                text: "\u9009\u62e9"
+                                color: chooseLogArea.containsMouse ? "#FFFFFF" : Theme.accent
+                                font.pixelSize: 12
+                                font.weight: Font.Medium
                             }
 
-                            contentItem: Text {
-                                text: parent.text
-                                color: "#FFFFFF"
-                                font.pixelSize: 13
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
+                            MouseArea {
+                                id: chooseLogArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.chooseLogPath()
                             }
-
-                            onClicked: root.chooseLogPath()
                         }
                     }
                 }
@@ -297,100 +305,115 @@ Rectangle {
 
             Rectangle {
                 width: parent.width
-                height: 1
-                color: "#E0E0E0"
+                radius: 12
+                color: Theme.bgCard
+                border.width: 1
+                border.color: Theme.glassBorder
+                height: 112
+
+                Row {
+                    anchors.fill: parent
+                    anchors.margins: root.sectionPadding
+                    spacing: 10
+
+                    Column {
+                        width: parent.width - clearCacheBtn.width - parent.spacing
+                        spacing: 6
+
+                        Text {
+                            text: "\u672c\u5730\u7f13\u5b58\u6e05\u7406"
+                            color: Theme.textPrimary
+                            font.pixelSize: 14
+                            font.weight: Font.DemiBold
+                        }
+
+                        Text {
+                            width: parent.width
+                            wrapMode: Text.WordWrap
+                            text: "\u6e05\u7406\u97f3\u9891\u5206\u6bb5\u7f13\u5b58\u4e0e\u54cd\u5e94\u7f13\u5b58\uff0c\u4e0d\u5220\u9664\u5df2\u4e0b\u8f7d\u6587\u4ef6\u548c\u8d26\u53f7\u4fe1\u606f\u3002"
+                            color: Theme.textSecondary
+                            font.pixelSize: 12
+                        }
+                    }
+
+                    Rectangle {
+                        id: clearCacheBtn
+                        width: root.clearCacheButtonWidth
+                        height: 34
+                        radius: 8
+                        anchors.verticalCenter: parent.verticalCenter
+                        color: clearCacheArea.containsMouse ? "#D83838" : "#E85A5A"
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "\u6e05\u9664\u7f13\u5b58"
+                            color: "#FFFFFF"
+                            font.pixelSize: 12
+                            font.weight: Font.DemiBold
+                        }
+
+                        MouseArea {
+                            id: clearCacheArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.clearLocalCacheRequested()
+                        }
+                    }
+                }
             }
 
             Rectangle {
                 width: parent.width
-                height: 120
-                color: "#FFFFFF"
+                radius: 12
+                color: Theme.bgCard
+                border.width: 1
+                border.color: Theme.glassBorder
+                height: 128
 
                 Column {
                     anchors.fill: parent
-                    anchors.leftMargin: 40
-                    anchors.rightMargin: 40
-                    anchors.topMargin: 15
-                    anchors.bottomMargin: 15
-                    spacing: 15
+                    anchors.margins: root.sectionPadding
+                    spacing: 10
 
                     Text {
                         text: "\u4e0b\u8f7d\u9009\u9879"
+                        color: Theme.textPrimary
                         font.pixelSize: 14
-                        color: "#333333"
+                        font.weight: Font.DemiBold
                     }
 
                     Row {
-                        spacing: 10
+                        spacing: 8
 
                         CheckBox {
                             id: lyricsCheckBox
                             checked: root.downloadLyrics
-
-                            indicator: Rectangle {
-                                implicitWidth: 20
-                                implicitHeight: 20
-                                radius: 3
-                                border.width: 2
-                                border.color: parent.checked ? "#2196F3" : "#CCCCCC"
-                                color: parent.checked ? "#2196F3" : "#FFFFFF"
-
-                                Image {
-                                    anchors.centerIn: parent
-                                    width: 12
-                                    height: 12
-                                    source: "qrc:/new/prefix1/icon/check.png"
-                                    visible: parent.parent.checked
-                                }
-                            }
-
-                            onCheckedChanged: {
-                                root.downloadLyrics = checked
-                            }
+                            onCheckedChanged: root.downloadLyrics = checked
                         }
 
                         Text {
-                            text: "\u540c\u65f6\u4e0b\u8f7d\u6b4c\u8bcd\u6587\u4ef6"
-                            font.pixelSize: 13
-                            color: "#666666"
                             anchors.verticalCenter: parent.verticalCenter
+                            text: "\u540c\u65f6\u4e0b\u8f7d\u6b4c\u8bcd\u6587\u4ef6"
+                            color: Theme.textSecondary
+                            font.pixelSize: 12
                         }
                     }
 
                     Row {
-                        spacing: 10
+                        spacing: 8
 
                         CheckBox {
                             id: coverCheckBox
                             checked: root.downloadCover
-
-                            indicator: Rectangle {
-                                implicitWidth: 20
-                                implicitHeight: 20
-                                radius: 3
-                                border.width: 2
-                                border.color: parent.checked ? "#2196F3" : "#CCCCCC"
-                                color: parent.checked ? "#2196F3" : "#FFFFFF"
-
-                                Image {
-                                    anchors.centerIn: parent
-                                    width: 12
-                                    height: 12
-                                    source: "qrc:/new/prefix1/icon/check.png"
-                                    visible: parent.parent.checked
-                                }
-                            }
-
-                            onCheckedChanged: {
-                                root.downloadCover = checked
-                            }
+                            onCheckedChanged: root.downloadCover = checked
                         }
 
                         Text {
-                            text: "\u540c\u65f6\u4e0b\u8f7d\u4e13\u8f91\u5c01\u9762\u56fe\u7247"
-                            font.pixelSize: 13
-                            color: "#666666"
                             anchors.verticalCenter: parent.verticalCenter
+                            text: "\u540c\u65f6\u4e0b\u8f7d\u4e13\u8f91\u5c01\u9762\u56fe\u7247"
+                            color: Theme.textSecondary
+                            font.pixelSize: 12
                         }
                     }
                 }
@@ -398,117 +421,118 @@ Rectangle {
 
             Rectangle {
                 width: parent.width
-                height: 1
-                color: "#E0E0E0"
-            }
-
-            Rectangle {
-                width: parent.width
-                height: 210
-                color: "#FFFFFF"
+                radius: 12
+                color: Theme.bgCard
+                border.width: 1
+                border.color: Theme.glassBorder
+                height: 236
 
                 Column {
                     anchors.fill: parent
-                    anchors.leftMargin: 40
-                    anchors.rightMargin: 40
-                    anchors.topMargin: 15
-                    anchors.bottomMargin: 15
-                    spacing: 10
+                    anchors.margins: root.sectionPadding
+                    spacing: 8
 
                     Row {
                         width: parent.width
-                        spacing: 10
+                        spacing: 8
 
                         Text {
-                            text: "在线状态"
+                            text: "\u5728\u7ebf\u72b6\u6001"
                             font.pixelSize: 14
-                            color: "#333333"
-                            verticalAlignment: Text.AlignVCenter
+                            font.weight: Font.DemiBold
+                            color: Theme.textPrimary
+                            anchors.verticalCenter: parent.verticalCenter
                         }
 
                         Rectangle {
                             width: 64
                             height: 24
                             radius: 12
-                            color: root.presenceOnline ? "#E8F5E9" : "#FDECEA"
+                            anchors.verticalCenter: parent.verticalCenter
+                            color: root.presenceOnline ? "#E8F6EC" : "#FDECEC"
                             border.width: 1
-                            border.color: root.presenceOnline ? "#66BB6A" : "#EF9A9A"
+                            border.color: root.presenceOnline ? "#58AE6A" : "#D87070"
 
                             Text {
                                 anchors.centerIn: parent
-                                text: root.presenceOnline ? "在线" : "离线"
-                                color: root.presenceOnline ? "#2E7D32" : "#C62828"
+                                text: root.presenceOnline ? "\u5728\u7ebf" : "\u79bb\u7ebf"
+                                color: root.presenceOnline ? "#2A7D3A" : "#B23434"
                                 font.pixelSize: 12
-                                font.bold: true
+                                font.weight: Font.DemiBold
                             }
                         }
 
-                        Item { width: 120; height: 1 }
+                        Item {
+                            width: root.statusSpacerWidth
+                            height: 1
+                        }
 
-                        Button {
-                            width: 90
+                        Rectangle {
+                            width: root.refreshButtonWidth
                             height: 30
-                            text: "刷新状态"
+                            radius: 8
+                            color: refreshPresenceArea.containsMouse ? Theme.accent : "transparent"
+                            border.width: 1
+                            border.color: Theme.accent
 
-                            background: Rectangle {
-                                color: parent.pressed ? "#1976D2" : (parent.hovered ? "#2196F3" : "#42A5F5")
-                                radius: 4
-                            }
-
-                            contentItem: Text {
-                                text: parent.text
-                                color: "#FFFFFF"
+                            Text {
+                                anchors.centerIn: parent
+                                text: "\u5237\u65b0\u72b6\u6001"
+                                color: refreshPresenceArea.containsMouse ? "#FFFFFF" : Theme.accent
                                 font.pixelSize: 12
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
+                                font.weight: Font.Medium
                             }
 
-                            onClicked: root.refreshPresenceRequested()
+                            MouseArea {
+                                id: refreshPresenceArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.refreshPresenceRequested()
+                            }
                         }
                     }
 
                     Rectangle {
                         width: parent.width
                         height: 1
-                        color: "#EEF1F5"
+                        color: "#E8EDF6"
                     }
 
                     Text {
-                        text: "账号：" + (root.presenceAccount ? root.presenceAccount : "-")
-                        font.pixelSize: 13
-                        color: "#666666"
-                    }
-                    Text {
-                        text: "会话 Token：" + (root.presenceSessionToken ? root.presenceSessionToken : "-")
-                        font.pixelSize: 13
-                        color: "#666666"
-                        elide: Text.ElideMiddle
                         width: parent.width
+                        text: "\u8d26\u53f7\uff1a" + (root.presenceAccount ? root.presenceAccount : "-")
+                        color: Theme.textSecondary
+                        font.pixelSize: 12
                     }
                     Text {
-                        text: "心跳间隔：" + root.presenceHeartbeatIntervalSec + " 秒"
-                        font.pixelSize: 13
-                        color: "#666666"
+                        width: parent.width
+                        text: "Token\uff1a" + (root.presenceSessionToken ? root.presenceSessionToken : "-")
+                        color: Theme.textSecondary
+                        font.pixelSize: 12
+                        elide: Text.ElideMiddle
                     }
                     Text {
-                        text: "在线 TTL：" + root.presenceOnlineTtlSec + " 秒"
-                        font.pixelSize: 13
-                        color: "#666666"
+                        text: "\u5fc3\u8df3\u95f4\u9694\uff1a" + root.presenceHeartbeatIntervalSec + "s"
+                        color: Theme.textSecondary
+                        font.pixelSize: 12
                     }
                     Text {
-                        text: "TTL 剩余：" + root.presenceTtlRemainingSec + " 秒"
-                        font.pixelSize: 13
-                        color: "#666666"
+                        text: "TTL\uff1a" + root.presenceOnlineTtlSec + "s  /  \u5269\u4f59\uff1a" + root.presenceTtlRemainingSec + "s"
+                        color: Theme.textSecondary
+                        font.pixelSize: 12
                     }
                     Text {
-                        text: "最近上报：" + (root.presenceLastSeen ? root.presenceLastSeen : "未上报")
-                        font.pixelSize: 13
-                        color: "#666666"
+                        text: "\u6700\u8fd1\u4e0a\u62a5\uff1a" + (root.presenceLastSeen ? root.presenceLastSeen : "\u672a\u4e0a\u62a5")
+                        color: Theme.textSecondary
+                        font.pixelSize: 12
                     }
                     Text {
-                        text: "状态说明：" + (root.presenceStatusMessage ? root.presenceStatusMessage : "-")
-                        font.pixelSize: 13
-                        color: "#2196F3"
+                        width: parent.width
+                        text: "\u72b6\u6001\u8bf4\u660e\uff1a" + (root.presenceStatusMessage ? root.presenceStatusMessage : "-")
+                        color: Theme.accent
+                        font.pixelSize: 12
+                        elide: Text.ElideRight
                     }
                 }
             }
@@ -516,43 +540,43 @@ Rectangle {
     }
 
     Rectangle {
-        id: buttonBar
-        width: parent.width
-        height: 70
-        color: "#FFFFFF"
+        id: bottomBar
+        anchors.left: parent.left
+        anchors.right: parent.right
         anchors.bottom: parent.bottom
+        anchors.leftMargin: root.pagePadding
+        anchors.rightMargin: root.pagePadding
+        anchors.bottomMargin: root.pagePadding
+        height: 58
+        radius: 12
+        color: Theme.glassLight
+        border.width: 1
+        border.color: Theme.glassBorder
 
         Rectangle {
-            width: parent.width
-            height: 1
-            color: "#E0E0E0"
-            anchors.top: parent.top
-        }
+            width: root.bottomButtonWidth
+            height: 34
+            radius: 8
+            anchors.right: parent.right
+            anchors.rightMargin: 12
+            anchors.verticalCenter: parent.verticalCenter
+            color: closeArea.containsMouse ? Theme.accent : "transparent"
+            border.width: 1
+            border.color: Theme.accent
 
-        Row {
-            anchors.centerIn: parent
-            spacing: 20
-
-            Button {
-                width: 100
-                height: 36
+            Text {
+                anchors.centerIn: parent
                 text: "\u5173\u95ed"
+                color: closeArea.containsMouse ? "#FFFFFF" : Theme.accent
+                font.pixelSize: 12
+                font.weight: Font.Medium
+            }
 
-                background: Rectangle {
-                    color: parent.pressed ? "#E0E0E0" : (parent.hovered ? "#F0F0F0" : "#FFFFFF")
-                    border.width: 1
-                    border.color: "#CCCCCC"
-                    radius: 4
-                }
-
-                contentItem: Text {
-                    text: parent.text
-                    color: "#666666"
-                    font.pixelSize: 13
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                }
-
+            MouseArea {
+                id: closeArea
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
                 onClicked: root.settingsClosed()
             }
         }

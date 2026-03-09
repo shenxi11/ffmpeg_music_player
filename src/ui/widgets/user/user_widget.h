@@ -1,4 +1,4 @@
-#ifndef USERWIDGET_H
+﻿#ifndef USERWIDGET_H
 #define USERWIDGET_H
 
 #include <QWidget>

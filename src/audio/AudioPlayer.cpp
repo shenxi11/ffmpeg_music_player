@@ -4,19 +4,19 @@
 
 AudioPlayer& AudioPlayer::instance()
 {
-    static AudioPlayer instance;  // 闈欐€佸眬閮ㄥ彉閲忥紝绾跨▼瀹夊叏
+    static AudioPlayer instance;  
     return instance;
 }
 
 AudioPlayer::AudioPlayer()
-    : QObject(nullptr),  // 鍗曚緥涓嶉渶瑕佺埗瀵硅薄
+    : QObject(nullptr),  // 单例由静态对象托管，不需要父对象
       m_audioOutput(nullptr),
       m_audioDevice(nullptr),
       m_positionTimer(new QTimer(this)),
-      m_buffer(new AudioBuffer(512 * 1024, 64 * 1024 * 1024)),  // 鍒濆512KB锛屽簲瀵圭綉缁滄尝鍔?
+      m_buffer(new AudioBuffer(512 * 1024, 64 * 1024 * 1024)),  
       m_threadRunning(false),
       m_isPlaying(false),
-      m_isPaused(true),  // 鍒濆涓烘殏鍋滅姸鎬?
+      m_isPaused(true),  // 初始进入暂停态，等待会话显式启动
       m_volume(50),
       m_playbackRate(1.0),
       m_currentTimestamp(0),
@@ -30,10 +30,10 @@ AudioPlayer::AudioPlayer()
 {
     connect(m_positionTimer, &QTimer::timeout, this, &AudioPlayer::onPositionUpdateTimer);
     
-    // 鍒濆鍖栭煶棰戣緭鍑?
+    // 预热音频输出设备，减少首次播放延迟
     initAudioOutput();
     
-    // 绔嬪嵆鍚姩鎾斁绾跨▼锛堜繚鎸佽繍琛岋紝閫氳繃鏆傚仠鐘舵€佹帶鍒讹級
+    
     m_threadRunning = true;
     m_playThread = std::thread(&AudioPlayer::playbackThread, this);
     
@@ -44,7 +44,7 @@ AudioPlayer::AudioPlayer()
 
 AudioPlayer::~AudioPlayer()
 {
-    // 鍋滄鎾斁绾跨▼
+    
     m_stopRequested = true;
     m_threadRunning = false;
     m_cv.notify_all();
@@ -73,15 +73,15 @@ bool AudioPlayer::start()
     }
     
     m_isPlaying = true;
-    m_isPaused = false;  // 鍙栨秷鏆傚仠锛屾挱鏀剧嚎绋嬩細绔嬪嵆寮€濮嬪伐浣?
+    m_isPaused = false;  
     
-    // 绔嬪嵆鍞ら啋鎾斁绾跨▼锛堢嚎绋嬪凡缁忓湪杩愯锛岄煶棰戣澶囦篃宸茬粡鎵撳紑锛?
+    
     m_cv.notify_one();
     
-    // 鍚姩杩涘害鏇存柊瀹氭椂鍣?
+    
     m_playbackTimer.start();
-    m_playbackStartTimestamp = m_currentTimestamp;  // 璁板綍鎾斁寮€濮嬫椂鐨勬椂闂存埑
-    m_positionTimer->start(100); // 姣?00ms鏇存柊涓€娆¤繘搴︼紙鎻愰珮鍝嶅簲鎬э級
+    m_playbackStartTimestamp = m_currentTimestamp;  
+    m_positionTimer->start(100); 
     
     emit playbackStarted();
     qDebug() << "AudioPlayer: Start playback (device already hot, ZERO startup delay)";
@@ -117,7 +117,7 @@ void AudioPlayer::resume()
     m_isPaused = false;
     m_cv.notify_all();
     
-    // 鎭㈠鎾斁鏃堕噸鏂板悓姝ユ椂閽燂紝浣跨敤鏆傚仠鏃朵繚瀛樼殑浣嶇疆
+    
     m_playbackTimer.restart();
     m_playbackStartTimestamp = m_pausedPosition;
     m_positionTimer->start(100);
@@ -131,11 +131,11 @@ void AudioPlayer::stop()
     if (!m_isPlaying) return;
     
     m_isPlaying = false;
-    m_isPaused = true;  // 璁剧疆涓烘殏鍋滅姸鎬侊紝涓嶅仠姝㈢嚎绋?
+    m_isPaused = true;  
     m_cv.notify_all();
     
-    // 涓嶈皟鐢?m_audioOutput->stop()锛屼繚鎸侀煶棰戣澶囩儹鐘舵€?
-    // 鎾斁绾跨▼浼氬仠姝㈠線璁惧鍐欐暟鎹紝IODevice浼氳嚜鐒跺仠姝㈣緭鍑?
+    
+    
     
     m_positionTimer->stop();
     
@@ -149,7 +149,7 @@ void AudioPlayer::resetBuffer()
         m_buffer->clear();
     }
     
-    // 娓呯┖鏃堕棿鎴抽槦鍒?
+    
     {
         std::lock_guard<std::mutex> lock(m_timestampMutex);
         while (!m_timestampQueue.empty()) {
@@ -272,26 +272,26 @@ void AudioPlayer::writeAudioData(const QByteArray& data, qint64 timestampMs, con
                  << "buffer level:" << m_buffer->availableBytes();
     }
     
-    // 鍐欏叆鏁版嵁鍒扮紦鍐插尯
+    // 写入共享环形缓冲区
     m_buffer->write(data.data(), data.size());
     
-    // 鍞ら啋鎾斁绾跨▼
+    
     m_cv.notify_one();
     
-    // 璁板綍鏃堕棿鎴?
+    
     {
         std::lock_guard<std::mutex> lock(m_timestampMutex);
         m_timestampQueue.push({timestampMs, data.size()});
     }
     
-    // 閫氱煡鎾斁绾跨▼
+    
     m_cv.notify_one();
     
-    // 妫€鏌ョ紦鍐插尯鐘舵€?
+    
     int fillLevel = bufferFillLevel();
     emit bufferStatusChanged(fillLevel);
     
-    // 缂撳啿鍖洪ゥ楗胯鍛?
+    // 预留：低水位告警（当前默认关闭，避免日志噪声）
     // if (fillLevel < 10 && m_isPlaying) {
     //     emit bufferUnderrun();
     //     qDebug() << "AudioPlayer: Buffer underrun, fill level:" << fillLevel << "%";
@@ -303,21 +303,21 @@ void AudioPlayer::playbackThread()
     qDebug() << "AudioPlayer: Playback thread started:" << QThread::currentThreadId();
     
     bool firstWrite = true;
-    const int readSize = 4096; // 姣忔璇诲彇4KB
+    const int readSize = 4096; // 每次读取 4KB PCM
     char* readBuffer = new char[readSize];
     int loopCount = 0;
     while (m_threadRunning && !m_stopRequested) {
         {
             std::unique_lock<std::mutex> lock(m_playMutex);
             
-            // 绛夊緟鏉′欢锛氭湁鏁版嵁涓旀湭鍋滄涓旀湭鏆傚仠
+            
             m_cv.wait(lock, [this]() {
                 return (!m_isPaused && m_buffer->availableBytes() > 0) || m_stopRequested;
             });
             
             if (m_stopRequested) break;
             
-            // 妫€鏌ラ煶棰戣澶囨槸鍚︽湁瓒冲绌洪棿
+            
             if (!m_audioOutput || !m_audioDevice) {
                 qDebug() << "AudioPlayer: Audio device not available";
                 break;
@@ -325,11 +325,11 @@ void AudioPlayer::playbackThread()
             
             qint64 bytesFree = m_audioOutput->bytesFree();
             if (bytesFree < readSize * 2) {
-                // 闊抽缂撳啿鍖哄凡婊★紝绛夊緟
+                
                 continue;
             }
             
-            // 浠庣紦鍐插尯璇诲彇鏁版嵁
+            // 从共享缓冲区取出待播放数据
             int bytesRead = m_buffer->read(readBuffer, readSize);
             if (bytesRead <= 0) {
                 continue;
@@ -340,7 +340,7 @@ void AudioPlayer::playbackThread()
                 firstWrite = false;
             }
             
-            // 鍐欏叆闊抽璁惧
+            
             qint64 bytesWritten = m_audioDevice->write(readBuffer, bytesRead);
             if (bytesWritten < 0) {
                 qDebug() << "AudioPlayer: Error writing audio data:" << m_audioDevice->errorString();
@@ -352,13 +352,13 @@ void AudioPlayer::playbackThread()
             updateTimestamp(bytesRead);
         }
         
-        // 瀹氭湡鍙戦€乥uffer鐘舵€侊紙姣?0娆″惊鐜害100ms锛?
+        
         if (++loopCount % 10 == 0) {
             int fillLevel = bufferFillLevel();
             emit bufferStatusChanged(fillLevel);
         }
         
-        // 鐭殏鐫＄湢锛岄伩鍏岰PU鍗犵敤杩囬珮
+        
         QThread::msleep(10);
     }
     
@@ -417,10 +417,10 @@ bool AudioPlayer::initAudioOutput()
         return false;
     }
     
-    // 璁剧疆缂撳啿鍖哄ぇ灏忥紙64KB锛?
+    
     m_audioOutput->setBufferSize(64 * 1024);
     
-    // 鍚姩闊抽杈撳嚭锛堜竴娆℃€у惎鍔紝淇濇寔鐑姸鎬侊級
+    
     m_audioDevice = m_audioOutput->start();
     if (!m_audioDevice) {
         qDebug() << "AudioPlayer: Failed to start audio device";
@@ -429,7 +429,7 @@ bool AudioPlayer::initAudioOutput()
         return false;
     }
     
-    // 璁剧疆鍒濆闊抽噺
+    
     m_audioOutput->setVolume(m_volume / 100.0);
     
     qDebug() << "AudioPlayer: Audio device OPENED and ready (hot state)";
@@ -465,13 +465,13 @@ void AudioPlayer::setCurrentTimestamp(qint64 timestampMs)
     std::lock_guard<std::mutex> lock(m_timestampMutex);
     m_currentTimestamp = timestampMs;
     
-    // 濡傛灉姝ｅ湪鎾斁涓旀湭鏆傚仠锛岄噸鏂板悓姝ユ椂閽?
+    
     if (m_isPlaying && !m_isPaused) {
         m_playbackTimer.restart();
         m_playbackStartTimestamp = timestampMs;
         qDebug() << "AudioPlayer: Timestamp set to" << timestampMs << "ms, clock resynced";
     }
-    // 濡傛灉宸叉殏鍋滐紝鏇存柊鏆傚仠浣嶇疆锛堢敤浜巗eek鍦烘櫙锛?
+    
     else if (m_isPlaying && m_isPaused) {
         m_pausedPosition = timestampMs;
         qDebug() << "AudioPlayer: Paused position updated to" << timestampMs << "ms (for seek)";
@@ -517,6 +517,51 @@ qint64 AudioPlayer::getPlaybackPosition() const
     const double rate = m_playbackRate.load();
     qint64 scaledElapsed = static_cast<qint64>(m_playbackTimer.elapsed() * rate);
     return m_playbackStartTimestamp + scaledElapsed;
+}
+
+qint64 AudioPlayer::getSyncPlaybackPosition() const
+{
+    if (!m_isPlaying) {
+        return 0;
+    }
+
+    if (m_isPaused) {
+        return m_pausedPosition;
+    }
+
+    const qint64 renderedPosition = getCurrentTimestamp();
+    const double rate = m_playbackRate.load();
+    const qint64 estimatedPosition =
+        m_playbackStartTimestamp + static_cast<qint64>(m_playbackTimer.elapsed() * rate);
+
+    if (renderedPosition <= 0) {
+        return estimatedPosition;
+    }
+
+    // 在倍速播放时，渲染时钟（基于设备消费）可能明显慢于估算时钟，
+    // 若继续以渲染时钟为主会导致视频长期等待“未来帧”而卡住。
+    if (rate > 1.01) {
+        const qint64 leadGuardMs = 120;
+        if (estimatedPosition > renderedPosition + leadGuardMs) {
+            return estimatedPosition - leadGuardMs;
+        }
+        return qMax(renderedPosition, estimatedPosition);
+    }
+
+    // 同步时钟采用融合策略：
+    // 1) 渲染时钟优先，避免UI“跑在声音前面”
+    // 2) 当渲染时钟明显落后时，适度向估算时钟靠拢，避免视频长期等待而卡住
+    if (estimatedPosition <= renderedPosition) {
+        return renderedPosition;
+    }
+
+    const qint64 drift = estimatedPosition - renderedPosition;
+    if (drift <= 120) {
+        return renderedPosition;
+    }
+
+    const qint64 maxCatchup = (rate > 1.0) ? 1200 : 400;
+    return renderedPosition + qMin(drift, maxCatchup);
 }
 
 void AudioPlayer::onPositionUpdateTimer()

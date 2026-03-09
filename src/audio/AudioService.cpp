@@ -1,4 +1,4 @@
-﻿#include "AudioService.h"
+#include "AudioService.h"
 #include "AudioCacheManager.h"
 #include "settings_manager.h"
 #include <QDebug>
@@ -35,7 +35,7 @@ bool isRemoteFlacUrl(const QUrl& url)
     return url.path().toLower().endsWith(".flac");
 }
 
-constexpr int kRemoteFlacBufferCapacityBytes = 4 * 1024 * 1024;
+constexpr int kRemoteFlacBufferCapacityBytes = 6 * 1024 * 1024;
 
 QUrl buildHlsCandidate(const QUrl& original)
 {
@@ -48,7 +48,7 @@ QUrl buildHlsCandidate(const QUrl& original)
     if (pathLower.endsWith(".m3u8")) {
         return QUrl();
     }
-    // 远端 FLAC 走直链随机访问更稳定，避免切到 HLS 后 seek 长时间拿不到首包。
+    // 远端 FLAC 不走 HLS，保持随机访问语义。
     if (pathLower.endsWith(".flac")) {
         return QUrl();
     }
@@ -234,19 +234,16 @@ bool AudioService::play(const QUrl& url)
     
     QUrl playbackSource = url;
     if (isRemoteFlacUrl(url)) {
-        qWarning() << "AudioService: disable proxy/cache for remote FLAC to keep seek stable:" << url.toString();
         AudioPlayer::instance().ensureBufferCapacity(kRemoteFlacBufferCapacityBytes);
-    } else {
-        AudioCacheManager::instance().warmupCache(url);
-        playbackSource = AudioCacheManager::instance().resolvePlaybackUrl(url);
     }
+    AudioCacheManager::instance().warmupCache(url);
+    playbackSource = AudioCacheManager::instance().resolvePlaybackUrl(url);
     if (playbackSource != url) {
         qDebug() << "AudioService: using cache/proxy playback source:" << playbackSource.toString();
     }
 
     QUrl loadedSource;
-    const bool forceOriginal = isRemoteFlacUrl(url)
-            || m_disableHlsGlobally
+    const bool forceOriginal = m_disableHlsGlobally
             || m_disableHlsForTrack.contains(url.toString());
     if (loadSessionSourcePreferHls(session, playbackSource, forceOriginal, &loadedSource)
             || (playbackSource != url
@@ -314,7 +311,7 @@ void AudioService::seekTo(qint64 positionMs)
     const qint64 jumpDistance = qAbs(targetMs - currentPos);
     const bool largeJump = jumpDistance >= 45 * 1000;
 
-    if (originalSource.isValid() && !originalSource.isEmpty() && !isRemoteFlacUrl(originalSource)) {
+    if (originalSource.isValid() && !originalSource.isEmpty()) {
         AudioCacheManager::instance().prefetchForSeek(originalSource, targetMs, session->duration());
     }
 
@@ -358,8 +355,13 @@ void AudioService::seekTo(qint64 positionMs)
     m_pendingSeekSessionId = m_currentSessionId;
     m_hasPendingSeek = true;
 
-    // 进度条频繁拖动时，合并 seek 请求，只执行最后一次。
-    m_seekDispatchTimer.start(60);
+    // 降低 seek 合并等待：大跳转立即派发，小跳转仅做极短合并。
+    const int coalesceDelayMs = largeJump ? 0 : 12;
+    if (coalesceDelayMs <= 0) {
+        onSeekDispatchTimeout();
+    } else {
+        m_seekDispatchTimer.start(coalesceDelayMs);
+    }
 }
 
 void AudioService::setPlaylist(const QList<QUrl>& urls)
@@ -480,12 +482,10 @@ void AudioService::playAtIndex(int index)
     QUrl url = m_playlist[index];
     QUrl playbackSource = url;
     if (isRemoteFlacUrl(url)) {
-        qWarning() << "AudioService: disable proxy/cache for remote FLAC in playAtIndex:" << url.toString();
         AudioPlayer::instance().ensureBufferCapacity(kRemoteFlacBufferCapacityBytes);
-    } else {
-        AudioCacheManager::instance().warmupCache(url);
-        playbackSource = AudioCacheManager::instance().resolvePlaybackUrl(url);
     }
+    AudioCacheManager::instance().warmupCache(url);
+    playbackSource = AudioCacheManager::instance().resolvePlaybackUrl(url);
     
     emit currentIndexChanged(m_currentIndex);
     
@@ -496,8 +496,7 @@ void AudioService::playAtIndex(int index)
     if (!session) return;
     
     QUrl loadedSource;
-    const bool forceOriginal = isRemoteFlacUrl(url)
-            || m_disableHlsGlobally
+    const bool forceOriginal = m_disableHlsGlobally
             || m_disableHlsForTrack.contains(url.toString());
     if (loadSessionSourcePreferHls(session, playbackSource, forceOriginal, &loadedSource)
             || (playbackSource != url

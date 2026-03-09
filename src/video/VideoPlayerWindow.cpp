@@ -17,6 +17,7 @@ VideoPlayerWindow::VideoPlayerWindow(QWidget *parent)
     , m_playPauseBtn(nullptr)
     , m_openFileBtn(nullptr)
     , m_displayModeBtn(nullptr)
+    , m_fullScreenBtn(nullptr)
     , m_qualityPresetBox(nullptr)
     , m_playbackRateBox(nullptr)
     , m_progressSlider(nullptr)
@@ -33,7 +34,9 @@ VideoPlayerWindow::VideoPlayerWindow(QWidget *parent)
     setupUI();
     
     setWindowTitle(QStringLiteral(u"\u89c6\u9891\u64ad\u653e\u5668"));
-    setFixedSize(720, 480);
+    setMinimumSize(720, 480);
+    resize(1080, 700);
+    setFocusPolicy(Qt::StrongFocus);
     
     setWindowFlags(Qt::Window | Qt::WindowCloseButtonHint | Qt::WindowMinimizeButtonHint | Qt::WindowMaximizeButtonHint);
 }
@@ -159,6 +162,16 @@ void VideoPlayerWindow::setupUI()
     );
     connect(m_displayModeBtn, &QPushButton::clicked, this, &VideoPlayerWindow::onDisplayModeClicked);
 
+    m_fullScreenBtn = new QPushButton(QStringLiteral(u"\u5168\u5c4f"), controlBar);
+    m_fullScreenBtn->setFixedHeight(40);
+    m_fullScreenBtn->setObjectName("VideoActionButton");
+    m_fullScreenBtn->setStyleSheet(
+        "QPushButton { border: 1px solid #3A414E; border-radius: 8px; background: #262B33; color: #EDF1F7; padding: 0 14px; }"
+        "QPushButton:hover { border-color: #EC4141; background: #2D3440; }"
+        "QPushButton:pressed { background: #232830; }"
+    );
+    connect(m_fullScreenBtn, &QPushButton::clicked, this, &VideoPlayerWindow::onFullScreenClicked);
+
     QLabel* qualityLabel = new QLabel(QStringLiteral(u"\u753b\u8d28"), controlBar);
     qualityLabel->setProperty("secondary", true);
 
@@ -218,6 +231,7 @@ void VideoPlayerWindow::setupUI()
     buttonLayout->addWidget(rateLabel);
     buttonLayout->addWidget(m_playbackRateBox);
     buttonLayout->addStretch();
+    buttonLayout->addWidget(m_fullScreenBtn);
     buttonLayout->addWidget(m_displayModeBtn);
     buttonLayout->addWidget(m_openFileBtn);
     
@@ -248,6 +262,7 @@ void VideoPlayerWindow::setupUI()
     repolishWidget(m_playPauseBtn);
     repolishWidget(m_openFileBtn);
     repolishWidget(m_displayModeBtn);
+    repolishWidget(m_fullScreenBtn);
     repolishWidget(m_qualityPresetBox);
     repolishWidget(m_playbackRateBox);
     repolishWidget(m_progressSlider);
@@ -438,6 +453,23 @@ void VideoPlayerWindow::onDisplayModeClicked()
              << (m_fillDisplayMode ? "Fill" : "Fit");
 }
 
+void VideoPlayerWindow::onFullScreenClicked()
+{
+    if (isFullScreen()) {
+        showNormal();
+        if (m_fullScreenBtn) {
+            m_fullScreenBtn->setText(QStringLiteral(u"\u5168\u5c4f"));
+        }
+        qDebug() << "[VideoPlayerWindow] Exit fullscreen";
+    } else {
+        showFullScreen();
+        if (m_fullScreenBtn) {
+            m_fullScreenBtn->setText(QStringLiteral(u"\u9000\u51fa\u5168\u5c4f"));
+        }
+        qDebug() << "[VideoPlayerWindow] Enter fullscreen";
+    }
+}
+
 void VideoPlayerWindow::onPlaybackRateChanged(int index)
 {
     if (!m_playbackRateBox || index < 0) {
@@ -592,6 +624,9 @@ void VideoPlayerWindow::resizeEvent(QResizeEvent *event)
 void VideoPlayerWindow::closeEvent(QCloseEvent *event)
 {
     qDebug() << "[VideoPlayerWindow] Closing window, cleaning up resources...";
+    if (isFullScreen()) {
+        showNormal();
+    }
     emit playStateChanged(false);
     
     if (m_mediaSession) {
@@ -626,6 +661,9 @@ void VideoPlayerWindow::closeEvent(QCloseEvent *event)
         m_playbackRateBox->setCurrentIndex(2);
         m_playbackRateBox->setEnabled(false);
     }
+    if (m_fullScreenBtn) {
+        m_fullScreenBtn->setText(QStringLiteral(u"\u5168\u5c4f"));
+    }
     
     if (m_renderWidget) {
         m_renderWidget->stop();
@@ -633,6 +671,28 @@ void VideoPlayerWindow::closeEvent(QCloseEvent *event)
     
     qDebug() << "[VideoPlayerWindow] Window closed, all resources cleaned";
     QWidget::closeEvent(event);
+}
+
+void VideoPlayerWindow::keyPressEvent(QKeyEvent *event)
+{
+    if (!event) {
+        QWidget::keyPressEvent(event);
+        return;
+    }
+
+    if (event->key() == Qt::Key_F11) {
+        onFullScreenClicked();
+        event->accept();
+        return;
+    }
+
+    if (event->key() == Qt::Key_Escape && isFullScreen()) {
+        onFullScreenClicked();
+        event->accept();
+        return;
+    }
+
+    QWidget::keyPressEvent(event);
 }
 
 void VideoPlayerWindow::onPositionChanged(qint64 positionMs)

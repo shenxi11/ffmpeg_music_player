@@ -1,8 +1,9 @@
-#include "server_welcome_dialog.h"
+﻿#include "server_welcome_dialog.h"
 
 #include "settings_manager.h"
 
 #include <QAbstractSpinBox>
+#include <QAbstractButton>
 #include <QEventLoop>
 #include <QFrame>
 #include <QGridLayout>
@@ -22,6 +23,9 @@
 #include <QTimer>
 #include <QUrl>
 #include <QVBoxLayout>
+#include <QMouseEvent>
+#include <QGuiApplication>
+#include <QScreen>
 
 namespace {
 
@@ -43,16 +47,18 @@ ServerWelcomeDialog::ServerWelcomeDialog(QWidget* parent)
 {
     setObjectName(QStringLiteral("ServerWelcomeDialog"));
     setWindowTitle(QStringLiteral(u"\u6b22\u8fce\u4f7f\u7528 \u4e91\u97f3\u4e50"));
+    setWindowFlags(Qt::Dialog | Qt::FramelessWindowHint);
+    setAttribute(Qt::WA_TranslucentBackground, true);
     setModal(true);
     setFixedSize(760, 500);
 
     setStyleSheet(QStringLiteral(
         "QDialog#ServerWelcomeDialog {"
-        "  background: qlineargradient(x1:0,y1:0,x2:1,y2:1,"
-        "              stop:0 #fff7f7, stop:0.45 #fffafa, stop:1 #f8f9fc);"
+        "  background: transparent;"
         "}"
         "QFrame#MainCard {"
-        "  background: #ffffff;"
+        "  background: qlineargradient(x1:0,y1:0,x2:1,y2:1,"
+        "              stop:0 #fff7f7, stop:0.45 #fffafa, stop:1 #f8f9fc);"
         "  border: 1px solid #f1d8d8;"
         "  border-radius: 16px;"
         "}"
@@ -153,6 +159,48 @@ ServerWelcomeDialog::ServerWelcomeDialog(QWidget* parent)
         "  background: #f3a1a1;"
         "  color: #fff5f5;"
         "}"
+        "QPushButton#CloseButton {"
+        "  min-height: 0px;"
+        "  max-height: 28px;"
+        "  min-width: 28px;"
+        "  max-width: 28px;"
+        "  border: none;"
+        "  border-radius: 14px;"
+        "  background: transparent;"
+        "  color: #7a818d;"
+        "  font-size: 20px;"
+        "  font-weight: 400;"
+        "  padding: 0px;"
+        "}"
+        "QPushButton#CloseButton:hover {"
+        "  background: #ffe8e8;"
+        "  color: #ec4141;"
+        "}"
+        "QPushButton#CloseButton:pressed {"
+        "  background: #ffd9d9;"
+        "  color: #d83939;"
+        "}"
+        "QPushButton#CenterButton {"
+        "  min-height: 0px;"
+        "  max-height: 28px;"
+        "  min-width: 28px;"
+        "  max-width: 28px;"
+        "  border: none;"
+        "  border-radius: 14px;"
+        "  background: transparent;"
+        "  color: #7a818d;"
+        "  font-size: 12px;"
+        "  font-weight: 700;"
+        "  padding: 0px;"
+        "}"
+        "QPushButton#CenterButton:hover {"
+        "  background: #f1f4fb;"
+        "  color: #3d4451;"
+        "}"
+        "QPushButton#CenterButton:pressed {"
+        "  background: #e7edf9;"
+        "  color: #2f3642;"
+        "}"
     ));
 
     QFrame* card = new QFrame(this);
@@ -166,7 +214,7 @@ ServerWelcomeDialog::ServerWelcomeDialog(QWidget* parent)
     logoLabel->setFixedSize(34, 34);
     logoLabel->move((logoWrap->width() - logoLabel->width()) / 2,
                     (logoWrap->height() - logoLabel->height()) / 2);
-    const QPixmap logo(QStringLiteral(":/new/prefix1/icon/netease.png"));
+    const QPixmap logo(QStringLiteral(":/design/design_exports/netease_ui_pack_20260309/icon/ui/brand/brand_logo_light@2x.png"));
     if (!logo.isNull()) {
         logoLabel->setPixmap(logo.scaled(34, 34, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     }
@@ -243,8 +291,24 @@ ServerWelcomeDialog::ServerWelcomeDialog(QWidget* parent)
     m_verifyButton->setDefault(true);
     m_cancelButton = new QPushButton(QStringLiteral(u"\u9000\u51fa"), card);
     m_cancelButton->setObjectName(QStringLiteral("CancelButton"));
+    m_centerButton = new QPushButton(QStringLiteral("C"), card);
+    m_centerButton->setObjectName(QStringLiteral("CenterButton"));
+    m_centerButton->setToolTip(QStringLiteral(u"\u6062\u590d\u5c45\u4e2d"));
+    m_centerButton->setCursor(Qt::PointingHandCursor);
+    m_centerButton->setFocusPolicy(Qt::NoFocus);
+    m_closeButton = new QPushButton(QStringLiteral(u"\u00d7"), card);
+    m_closeButton->setObjectName(QStringLiteral("CloseButton"));
+    m_closeButton->setToolTip(QStringLiteral(u"\u5173\u95ed"));
+    m_closeButton->setCursor(Qt::PointingHandCursor);
+    m_closeButton->setFocusPolicy(Qt::NoFocus);
     m_verifyButton->setMinimumWidth(138);
     m_cancelButton->setMinimumWidth(104);
+
+    QHBoxLayout* headerLayout = new QHBoxLayout();
+    headerLayout->setContentsMargins(0, 0, 0, 0);
+    headerLayout->addStretch();
+    headerLayout->addWidget(m_centerButton, 0, Qt::AlignRight | Qt::AlignTop);
+    headerLayout->addWidget(m_closeButton, 0, Qt::AlignRight | Qt::AlignTop);
 
     QHBoxLayout* buttonLayout = new QHBoxLayout();
     buttonLayout->setSpacing(10);
@@ -293,18 +357,128 @@ ServerWelcomeDialog::ServerWelcomeDialog(QWidget* parent)
     QVBoxLayout* cardLayout = new QVBoxLayout(card);
     cardLayout->setContentsMargins(22, 20, 22, 20);
     cardLayout->setSpacing(14);
+    cardLayout->addLayout(headerLayout);
     cardLayout->addLayout(brandLayout);
     cardLayout->addLayout(contentLayout, 1);
 
     QVBoxLayout* rootLayout = new QVBoxLayout(this);
-    rootLayout->setContentsMargins(24, 24, 24, 24);
+    rootLayout->setContentsMargins(0, 0, 0, 0);
     rootLayout->addWidget(card);
+
+    if (SettingsManager::instance().hasServerWelcomeWindowPos()) {
+        move(adjustedWindowPos(SettingsManager::instance().serverWelcomeWindowPos(), false));
+    }
 
     connect(m_verifyButton, &QPushButton::clicked, this, &ServerWelcomeDialog::onVerifyClicked);
     connect(m_cancelButton, &QPushButton::clicked, this, &ServerWelcomeDialog::reject);
+    connect(m_centerButton, &QPushButton::clicked, this, [this]() {
+        QScreen* screen = QGuiApplication::screenAt(frameGeometry().center());
+        if (!screen) {
+            screen = QGuiApplication::primaryScreen();
+        }
+        if (!screen) {
+            return;
+        }
+
+        const QRect area = screen->availableGeometry();
+        const QPoint centered(area.left() + (area.width() - width()) / 2,
+                              area.top() + (area.height() - height()) / 2);
+        const QPoint adjusted = adjustedWindowPos(centered, false);
+        move(adjusted);
+        SettingsManager::instance().setServerWelcomeWindowPos(adjusted);
+    });
+    connect(m_closeButton, &QPushButton::clicked, this, &ServerWelcomeDialog::reject);
     connect(new QShortcut(QKeySequence(Qt::Key_Escape), this), &QShortcut::activated,
             this, &ServerWelcomeDialog::reject);
     connect(m_hostEdit, &QLineEdit::returnPressed, this, &ServerWelcomeDialog::onVerifyClicked);
+}
+
+void ServerWelcomeDialog::mousePressEvent(QMouseEvent* event)
+{
+    if (!event || event->button() != Qt::LeftButton) {
+        QDialog::mousePressEvent(event);
+        return;
+    }
+
+    QWidget* hit = childAt(event->pos());
+    if (hit && (qobject_cast<QAbstractButton*>(hit)
+                || qobject_cast<QLineEdit*>(hit)
+                || qobject_cast<QSpinBox*>(hit)
+                || hit->inherits("QAbstractSpinBox"))) {
+        QDialog::mousePressEvent(event);
+        return;
+    }
+
+    m_dragging = true;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    m_dragOffset = event->globalPosition().toPoint() - frameGeometry().topLeft();
+#else
+    m_dragOffset = event->globalPos() - frameGeometry().topLeft();
+#endif
+    event->accept();
+}
+
+void ServerWelcomeDialog::mouseMoveEvent(QMouseEvent* event)
+{
+    if (!event || !m_dragging || !(event->buttons() & Qt::LeftButton)) {
+        QDialog::mouseMoveEvent(event);
+        return;
+    }
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    move(adjustedWindowPos(event->globalPosition().toPoint() - m_dragOffset, false));
+#else
+    move(adjustedWindowPos(event->globalPos() - m_dragOffset, false));
+#endif
+    event->accept();
+}
+
+void ServerWelcomeDialog::mouseReleaseEvent(QMouseEvent* event)
+{
+    if (m_dragging) {
+        const QPoint snapped = adjustedWindowPos(pos(), true);
+        if (snapped != pos()) {
+            move(snapped);
+        }
+        SettingsManager::instance().setServerWelcomeWindowPos(snapped);
+    }
+    m_dragging = false;
+    QDialog::mouseReleaseEvent(event);
+}
+
+QPoint ServerWelcomeDialog::adjustedWindowPos(const QPoint& desiredTopLeft, bool snapToEdges) const
+{
+    QScreen* screen = QGuiApplication::screenAt(desiredTopLeft + QPoint(width() / 2, height() / 2));
+    if (!screen) {
+        screen = QGuiApplication::primaryScreen();
+    }
+    if (!screen) {
+        return desiredTopLeft;
+    }
+
+    const QRect area = screen->availableGeometry();
+    const int maxX = area.left() + area.width() - width();
+    const int maxY = area.top() + area.height() - height();
+
+    int x = qBound(area.left(), desiredTopLeft.x(), maxX);
+    int y = qBound(area.top(), desiredTopLeft.y(), maxY);
+
+    if (snapToEdges) {
+        constexpr int kSnapDistance = 18;
+        if (qAbs(x - area.left()) <= kSnapDistance) {
+            x = area.left();
+        } else if (qAbs(maxX - x) <= kSnapDistance) {
+            x = maxX;
+        }
+
+        if (qAbs(y - area.top()) <= kSnapDistance) {
+            y = area.top();
+        } else if (qAbs(maxY - y) <= kSnapDistance) {
+            y = maxY;
+        }
+    }
+
+    return QPoint(x, y);
 }
 
 void ServerWelcomeDialog::onVerifyClicked()

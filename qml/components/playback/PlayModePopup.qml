@@ -2,18 +2,19 @@ import QtQuick 2.14
 import QtQuick.Window 2.14
 import QtQuick.Controls 2.14
 import QtGraphicalEffects 1.14
+import "../../theme/Theme.js" as Theme
 
-// 循环模式选择弹窗
 Window {
     id: root
-    width: 180
-    height: 200
+    width: 196
+    height: 208
     flags: Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
     color: "transparent"
 
     // 0: 顺序播放, 1: 单曲循环, 2: 列表循环, 3: 随机播放
     property int currentMode: 2
     property bool ignoreNextFocusLoss: false
+    property string playerIconPrefix: "qrc:/design/design_exports/netease_ui_pack_20260309/icon/ui/player/"
 
     signal modeChanged(int mode)
 
@@ -41,236 +42,102 @@ Window {
         }
     }
 
+    ListModel {
+        id: modeModel
+        ListElement { text: "顺序播放"; iconBase: "player_mode_repeat"; mode: 0 }
+        ListElement { text: "单曲循环"; iconBase: "player_mode_single"; mode: 1 }
+        ListElement { text: "列表循环"; iconBase: "player_mode_repeat"; mode: 2 }
+        ListElement { text: "随机播放"; iconBase: "player_mode_shuffle"; mode: 3 }
+    }
+
     Rectangle {
         anchors.fill: parent
-        color: "#FFFFFF"
-        radius: 8
-        border.color: "#E0E0E0"
+        radius: 12
+        color: Theme.glassStrong
         border.width: 1
+        border.color: Theme.glassBorder
 
         layer.enabled: true
         layer.effect: DropShadow {
             horizontalOffset: 0
-            verticalOffset: 2
-            radius: 8
-            samples: 17
-            color: "#40000000"
-        }
-    }
-
-    Column {
-        anchors.fill: parent
-        anchors.margins: 5
-        spacing: 0
-
-        // 顺序播放
-        Rectangle {
-            width: parent.width
-            height: 45
-            color: sequentialMouseArea.containsMouse ? "#F5F5F5" : "transparent"
-            radius: 4
-
-            Row {
-                anchors.fill: parent
-                anchors.leftMargin: 12
-                anchors.rightMargin: 12
-                spacing: 12
-
-                Image {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 20
-                    height: 20
-                    source: "qrc:/new/prefix1/icon/sequential.png"
-                    fillMode: Image.PreserveAspectFit
-                }
-
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: "顺序播放"
-                    font.pixelSize: 14
-                    color: root.currentMode === 0 ? "#EC4141" : "#333333"
-                }
-
-                Item { width: parent.width - 32 - 12 * 2 - 80; height: 1 }
-
-                Image {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 16
-                    height: 16
-                    source: "qrc:/new/prefix1/icon/check.png"
-                    visible: root.currentMode === 0
-                    fillMode: Image.PreserveAspectFit
-                }
-            }
-
-            MouseArea {
-                id: sequentialMouseArea
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: {
-                    root.currentMode = 0
-                    root.modeChanged(0)
-                    root.close()
-                }
-            }
+            verticalOffset: 5
+            radius: 16
+            samples: 25
+            color: "#36000000"
         }
 
-        // 单曲循环
-        Rectangle {
-            width: parent.width
-            height: 45
-            color: repeatOneMouseArea.containsMouse ? "#F5F5F5" : "transparent"
-            radius: 4
+        ListView {
+            anchors.fill: parent
+            anchors.margins: 8
+            clip: true
+            spacing: 4
+            interactive: false
+            model: modeModel
 
-            Row {
-                anchors.fill: parent
-                anchors.leftMargin: 12
-                anchors.rightMargin: 12
-                spacing: 12
+            delegate: Rectangle {
+                width: ListView.view.width
+                height: 44
+                radius: 9
+                color: modeArea.containsMouse ? Theme.accentSoft : "transparent"
+                border.width: root.currentMode === mode ? 1 : 0
+                border.color: Theme.accent
 
-                Image {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 20
-                    height: 20
-                    source: "qrc:/new/prefix1/icon/repeat_one.png"
-                    fillMode: Image.PreserveAspectFit
+                Row {
+                    anchors.fill: parent
+                    anchors.leftMargin: 10
+                    anchors.rightMargin: 10
+                    spacing: 10
+
+                    Image {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 18
+                        height: 18
+                        source: {
+                            if (modeArea.containsMouse) {
+                                return root.playerIconPrefix + iconBase + "_hover.svg"
+                            }
+                            if (root.currentMode === mode) {
+                                if (mode === 2) {
+                                    return root.playerIconPrefix + "player_mode_repeat_active.svg"
+                                }
+                                return root.playerIconPrefix + iconBase + "_active.svg"
+                            }
+                            return root.playerIconPrefix + iconBase + "_default.svg"
+                        }
+                        fillMode: Image.PreserveAspectFit
+                    }
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: model.text
+                        font.pixelSize: 13
+                        font.weight: root.currentMode === mode ? Font.DemiBold : Font.Normal
+                        color: root.currentMode === mode ? Theme.accent : Theme.textPrimary
+                    }
+
+                    Item {
+                        width: parent.width - 116
+                        height: 1
+                    }
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: root.currentMode === mode ? "✓" : ""
+                        font.pixelSize: 14
+                        color: Theme.accent
+                    }
                 }
 
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: "单曲循环"
-                    font.pixelSize: 14
-                    color: root.currentMode === 1 ? "#EC4141" : "#333333"
-                }
-
-                Item { width: 50; height: 1 }
-
-                Image {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 16
-                    height: 16
-                    source: "qrc:/new/prefix1/icon/check.png"
-                    visible: root.currentMode === 1
-                    fillMode: Image.PreserveAspectFit
-                }
-            }
-
-            MouseArea {
-                id: repeatOneMouseArea
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: {
-                    root.currentMode = 1
-                    root.modeChanged(1)
-                    root.close()
-                }
-            }
-        }
-
-        // 列表循环
-        Rectangle {
-            width: parent.width
-            height: 45
-            color: repeatAllMouseArea.containsMouse ? "#F5F5F5" : "transparent"
-            radius: 4
-
-            Row {
-                anchors.fill: parent
-                anchors.leftMargin: 12
-                anchors.rightMargin: 12
-                spacing: 12
-
-                Image {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 20
-                    height: 20
-                    source: "qrc:/new/prefix1/icon/repeat_all.png"
-                    fillMode: Image.PreserveAspectFit
-                }
-
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: "列表循环"
-                    font.pixelSize: 14
-                    color: root.currentMode === 2 ? "#EC4141" : "#333333"
-                }
-
-                Item { width: 50; height: 1 }
-
-                Image {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 16
-                    height: 16
-                    source: "qrc:/new/prefix1/icon/check.png"
-                    visible: root.currentMode === 2
-                    fillMode: Image.PreserveAspectFit
-                }
-            }
-
-            MouseArea {
-                id: repeatAllMouseArea
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: {
-                    root.currentMode = 2
-                    root.modeChanged(2)
-                    root.close()
-                }
-            }
-        }
-
-        // 随机播放
-        Rectangle {
-            width: parent.width
-            height: 45
-            color: shuffleMouseArea.containsMouse ? "#F5F5F5" : "transparent"
-            radius: 4
-
-            Row {
-                anchors.fill: parent
-                anchors.leftMargin: 12
-                anchors.rightMargin: 12
-                spacing: 12
-
-                Image {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 20
-                    height: 20
-                    source: "qrc:/new/prefix1/icon/shuffle.png"
-                    fillMode: Image.PreserveAspectFit
-                }
-
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: "随机播放"
-                    font.pixelSize: 14
-                    color: root.currentMode === 3 ? "#EC4141" : "#333333"
-                }
-
-                Item { width: 50; height: 1 }
-
-                Image {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 16
-                    height: 16
-                    source: "qrc:/new/prefix1/icon/check.png"
-                    visible: root.currentMode === 3
-                    fillMode: Image.PreserveAspectFit
-                }
-            }
-
-            MouseArea {
-                id: shuffleMouseArea
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: {
-                    root.currentMode = 3
-                    root.modeChanged(3)
-                    root.close()
+                MouseArea {
+                    id: modeArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        root.currentMode = mode
+                        root.modeChanged(mode)
+                        root.close()
+                    }
                 }
             }
         }
@@ -280,4 +147,3 @@ Window {
         root.currentMode = mode
     }
 }
-

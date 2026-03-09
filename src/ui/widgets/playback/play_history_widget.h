@@ -1,4 +1,4 @@
-#ifndef PLAY_HISTORY_WIDGET_H
+﻿#ifndef PLAY_HISTORY_WIDGET_H
 #define PLAY_HISTORY_WIDGET_H
 
 #include <QQuickWidget>

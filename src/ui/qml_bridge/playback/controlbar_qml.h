@@ -19,13 +19,13 @@ public:
     explicit ControlBarQml(QWidget *parent = nullptr)
         : QQuickWidget(parent)
     {
-        // 璁剧疆 QML 婧愭枃浠?
+        // 加载底部播放控制栏 QML。
         setSource(QUrl("qrc:/qml/components/playback/ControlBar.qml"));
         setResizeMode(QQuickWidget::SizeRootObjectToView);
         
         QQuickItem* root = rootObject();
         if (root) {
-            // 杩炴帴 QML 淇″彿鍒?C++ 淇″彿
+            // 建立 QML 与 QWidget 的播放控制信号桥接。
             connect(root, SIGNAL(stop()), this, SIGNAL(signal_stop()));
             connect(root, SIGNAL(nextSong()), this, SIGNAL(signal_nextSong()));
             connect(root, SIGNAL(lastSong()), this, SIGNAL(signal_lastSong()));
@@ -92,7 +92,7 @@ public slots:
 private slots:
     void on_loop_state_changed(bool loop)
     {
-        // QML 鍐呴儴宸茬粡鏇存柊浜?loopState锛岃繖閲屽彧闇€璁板綍鏃ュ織鎴栧仛鍏朵粬澶勭悊
+        // 播放模式状态同步说明
         qDebug() << "Loop state changed to:" << loop;
     }
 

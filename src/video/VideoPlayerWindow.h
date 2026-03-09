@@ -13,6 +13,7 @@
 #include <QPainter>
 #include <QTime>
 #include <QTimer>
+#include <QKeyEvent>
 #include "MediaService.h"
 #include "MediaSession.h"
 #include "VideoRendererGL.h"
@@ -53,6 +54,7 @@ public slots:
     void onSliderReleased();
     void onSliderValueChanged(int value);
     void onDisplayModeClicked();
+    void onFullScreenClicked();
     void onPlaybackRateChanged(int index);
     void onQualityPresetChanged(int index);
     void onPositionChanged(qint64 positionMs);
@@ -67,12 +69,14 @@ private:
 protected:
     void resizeEvent(QResizeEvent *event) override;
     void closeEvent(QCloseEvent *event) override;
+    void keyPressEvent(QKeyEvent *event) override;
 
 private:
     VideoRendererGL* m_renderWidget;
     QPushButton* m_playPauseBtn;
     QPushButton* m_openFileBtn;
     QPushButton* m_displayModeBtn;
+    QPushButton* m_fullScreenBtn;
     QComboBox* m_qualityPresetBox;
     QComboBox* m_playbackRateBox;
     QSlider* m_progressSlider;

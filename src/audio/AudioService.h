@@ -11,8 +11,8 @@
 #include "AudioSession.h"
 
 /**
- * @brief 闊抽鏈嶅姟鍗忚皟妯″潡
- * 鑱岃矗锛氱鐞嗗涓煶棰戜細璇濄€佹挱鏀鹃槦鍒楀拰鍏ㄥ眬鐘舵€?
+ * @brief 音频服务协调模块
+ * 职责：管理音频会话、播放队列与全局播放状态，并向 UI 提供统一信号。
  */
 class AudioService : public QObject
 {
@@ -20,20 +20,20 @@ class AudioService : public QObject
 public:
     static AudioService& instance();
     
-    // 浼氳瘽绠＄悊
+    // 会话管理
     QString createSession();
     bool destroySession(const QString& sessionId);
     AudioSession* getSession(const QString& sessionId);
     AudioSession* currentSession();
     
-    // 鎾斁鎺у埗锛堝綋鍓嶄細璇濓級
+    // 当前会话播放控制
     bool play(const QUrl& url);
     void pause();
     void resume();
     void stop();
     void seekTo(qint64 positionMs);
     
-    // 鎾斁鍒楄〃绠＄悊
+    // 播放列表管理
     void setPlaylist(const QList<QUrl>& urls);
     void addToPlaylist(const QUrl& url);
     void removeFromPlaylist(int index);
@@ -41,64 +41,64 @@ public:
     QList<QUrl> playlist() const { return m_playlist; }
     int playlistSize() const { return m_playlist.size(); }
     
-    // 鎵归噺鎿嶄綔
+    // 批量编辑操作
     void insertToPlaylist(int index, const QUrl& url);
     void moveInPlaylist(int from, int to);
     
-    // 鎾斁妯″紡
+    // 播放模式
     enum PlayMode {
-        Sequential,     // 椤哄簭鎾斁
-        RepeatOne,      // 鍗曟洸寰幆
-        RepeatAll,      // 鍒楄〃寰幆
-        Shuffle         // 闅忔満鎾斁
+        Sequential,     // 顺序播放
+        RepeatOne,      // 单曲循环
+        RepeatAll,      // 列表循环
+        Shuffle         // 随机播放
     };
     void setPlayMode(PlayMode mode);
     PlayMode playMode() const { return m_playMode; }
     
-    // 鍒楄〃鎺у埗
+    // 列表切歌控制
     void playNext();
     void playPrevious();
     void playAtIndex(int index);
-    void playPlaylist();  // 浠庡ご寮€濮嬫挱鏀惧垪琛?
+    void playPlaylist();  // 从列表第一个条目开始播放
     
-    // 鍏ㄥ眬闊抽噺
+    // 全局音量
     void setVolume(int volume);
     int volume() const { return m_globalVolume; }
     
-    // 鐘舵€佹煡璇?
+    // 状态查询
     bool isPlaying() const;
     bool isPaused() const;
     int currentIndex() const { return m_currentIndex; }
     QUrl currentUrl() const;
     
 signals:
-    // 鎾斁鐘舵€?
+    // 播放状态信号
     void playbackStarted(const QString& sessionId, const QUrl& url);
     void playbackPaused();
     void playbackResumed();
     void playbackStopped();
     
-    // 褰撳墠浼氳瘽鍙樺寲
+    // 当前会话变化
     void currentSessionChanged(const QString& sessionId);
     
-    // 鎾斁鍒楄〃鍙樺寲
+    // 播放列表变化
     void playlistChanged();
     void currentIndexChanged(int index);
     
-    // 鍏冩暟鎹?
+    // 元数据
     void currentTrackChanged(const QString& title, const QString& artist, qint64 duration);
     void albumArtChanged(const QString& imagePath);
     
-    // 杩涘害
+    // 播放进度
     void positionChanged(qint64 positionMs);
     void durationChanged(qint64 durationMs);
     
-    // 缂撳啿鐘舵€侊紙缃戠粶闊抽鍗￠】鏃讹級
+    // 缓冲状态（网络音频）
     void bufferingStarted();
     void bufferingProgress(int percent);
     void bufferingFinished();
     
-    // 閿欒
+    // 错误信号
     void serviceError(const QString& error);
 
 private slots:
@@ -125,20 +125,20 @@ private:
     int getNextIndex();
     int getPreviousIndex();
     
-    // 浼氳瘽姹?
+    // 会话池
     QMap<QString, AudioSession*> m_sessions;
     QString m_currentSessionId;
     int m_sessionCounter;
     
-    // 鎾斁鍒楄〃
+    // 播放列表
     QList<QUrl> m_playlist;
     int m_currentIndex;
     PlayMode m_playMode;
     
-    // 鍏ㄥ眬璁剧疆
+    // 全局配置
     int m_globalVolume;
     
-    // 闅忔満鎾斁鍘嗗彶
+    // 随机播放历史
     QQueue<int> m_shuffleHistory;
     QHash<QString, QUrl> m_sessionOriginalSource;
     QHash<QString, QUrl> m_sessionLoadedSource;

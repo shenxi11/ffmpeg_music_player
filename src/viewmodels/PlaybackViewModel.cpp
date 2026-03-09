@@ -208,6 +208,9 @@ void PlaybackViewModel::onAudioServicePlaybackResumed()
     qDebug() << "[MVVM-ViewModel] onAudioServicePlaybackResumed";
     updatePlayingState(true);   // 恢复播放后进入播放态（按钮显示“暂停”）
     updatePausedState(false);
+
+    // 暂停后恢复需要显式通知 UI 重启唱片旋转动画。
+    emit shouldStartRotation();
 }
 
 void PlaybackViewModel::onAudioServicePlaybackStopped()

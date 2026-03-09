@@ -10,23 +10,23 @@ LocalAndDownloadWidget::LocalAndDownloadWidget(QWidget *parent)
 {
     qDebug() << "[LocalAndDownloadWidget] Initializing...";
     
-    // 閰嶇疆QML寮曟搸
+    // 补充 qrc 导入路径，确保 QML 组件可解析。
     engine()->addImportPath("qrc:/");
     setResizeMode(QQuickWidget::SizeRootObjectToView);
     
-    // 灏嗘ā鍨嬫毚闇茬粰QML
+    // 将数据模型暴露给 QML 层。
     rootContext()->setContextProperty("downloadTaskModel", m_downloadTaskModel);
     rootContext()->setContextProperty("localMusicModel", m_localMusicModel);
     
-    // 杩炴帴鏈湴闊充箰妯″瀷鐨勬坊鍔犺姹備俊鍙?
+    // 转发“添加本地音乐”请求到上层业务。
     connect(m_localMusicModel, &LocalMusicModel::addMusicRequested,
             this, &LocalAndDownloadWidget::addLocalMusicRequested);
     
-    // 鍒濆鍖栨椂鍒锋柊娲昏穬浠诲姟鍒楄〃
+    // 启动时先刷新一次下载任务状态。
     qDebug() << "[LocalAndDownloadWidget] Initial refresh of active tasks";
     m_downloadTaskModel->refresh(false);
     
-    // 鍔犺浇QML鏂囦欢
+    // 加载本地与下载页面 QML。
     setSource(QUrl("qrc:/qml/components/library/LocalAndDownloadWidget.qml"));
     
     if (status() == QQuickWidget::Error) {
@@ -36,16 +36,16 @@ LocalAndDownloadWidget::LocalAndDownloadWidget(QWidget *parent)
         }
     }
     
-    // 杩炴帴QML淇″彿鍒癈++妲?
+    // 根对象用于连接 QML 事件。
     QQuickItem* root = rootObject();
     if (root) {
         qDebug() << "[LocalAndDownloadWidget] Root object loaded successfully";
         
-        // 杩炴帴playMusic淇″彿
+        // 本地列表播放事件。
         connect(root, SIGNAL(playMusic(QString)), this, SLOT(onPlayMusic(QString)));
-        // 杩炴帴deleteMusic淇″彿
+        // 本地列表删除事件。
         connect(root, SIGNAL(deleteMusic(QString)), this, SLOT(onDeleteMusic(QString)));
-        // 杩炴帴addToFavorite淇″彿
+        // 收藏动作透传给业务层。
         connect(root, SIGNAL(addToFavorite(QString,QString,QString,QString)), 
                 this, SIGNAL(addToFavorite(QString,QString,QString,QString)));
         

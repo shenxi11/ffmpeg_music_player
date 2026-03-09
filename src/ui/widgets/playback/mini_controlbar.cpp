@@ -1,4 +1,4 @@
-#include "mini_controlbar.h"
+﻿#include "mini_controlbar.h"
 
 MiniControlBar::MiniControlBar(QWidget* parent)
     :QWidget(parent)

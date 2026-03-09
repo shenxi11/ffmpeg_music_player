@@ -6,16 +6,10 @@
 #include "music.h"
 
 /**
- * @brief HttpRequest閲嶆瀯鐗堟湰 - 浣跨敤鏂扮殑Network灞?
- * 
- * 杩欐槸涓€涓ず渚嬬被锛屽睍绀哄浣曚娇鐢ㄦ柊鐨凬etworkService閲嶆瀯鐜版湁HttpRequest绫?
- * 
- * 浼樺娍锛?
- * - 鑷姩杩炴帴澶嶇敤锛堟彁鍗?0%鎬ц兘锛?
- * - 鍐呯疆閲嶈瘯鏈哄埗锛堟彁鍗囨垚鍔熺巼锛?
- * - 鏅鸿兘缂撳瓨锛圙ET璇锋眰锛?
- * - 鏇寸畝娲佺殑浠ｇ爜
- * - 缁熶竴鐨勯敊璇鐞?
+ * @brief HttpRequest 重构版本，基于统一 Network 层实现。
+ *
+ * 相比旧实现，这个版本统一了请求构建、重试、缓存和错误处理流程，
+ * 用于承载客户端的登录、媒体列表、收藏、历史、推荐等网络能力。
  */
 class HttpRequestV2 : public QObject {
     Q_OBJECT
@@ -24,126 +18,154 @@ public:
     explicit HttpRequestV2(QObject* parent = nullptr);
     
     /**
-     * @brief 鐢ㄦ埛鐧诲綍
-     * @param account 璐﹀彿
-     * @param password 瀵嗙爜
+     * @brief 用户登录
+     * @param account 账号
+     * @param password 密码
      */
     void login(const QString& account, const QString& password);
     
     /**
-     * @brief 鐢ㄦ埛娉ㄥ唽
-     * @param account 璐﹀彿
-     * @param password 瀵嗙爜
-     * @param username 鐢ㄦ埛鍚?
+     * @brief 用户注册
+     * @param account 账号
+     * @param password 密码
+     * @param username 用户名
      */
     void registerUser(const QString& account, const QString& password, const QString& username);
 
     /**
-     * @brief 閲嶇疆瀵嗙爜锛堝綋鍓嶇増鏈洿鎺ラ噸缃紝涓嶅仛楠岃瘉鐮佹牎楠岋級
-     * @param account 璐﹀彿
-     * @param newPassword 鏂板瘑鐮?     */
+     * @brief 重置密码（当前版本直接重置，不做验证码校验）
+     * @param account 账号
+     * @param newPassword 新密码
+     */
     void resetPassword(const QString& account, const QString& newPassword);
     
     /**
-     * @brief 鑾峰彇鎵€鏈夋枃浠跺垪琛?
-     * @param useCache 鏄惁浣跨敤缂撳瓨锛堥粯璁rue锛岀紦瀛?鍒嗛挓锛?
+     * @brief 获取所有文件列表
+     * @param useCache 是否使用缓存（默认 true，缓存 5 分钟）
      */
     void getAllFiles(bool useCache = true);
     
     /**
-     * @brief 鑾峰彇姝岃瘝
-     * @param url 姝屾洸URL
+     * @brief 获取歌词
+     * @param url 歌曲 URL
      */
     void getLyrics(const QString& url);
     
     /**
-     * @brief 涓嬭浇鏂囦欢锛堜娇鐢―ownloadManager锛?
-     * @param filename 鏂囦欢鍚?
-     * @param downloadFolder 涓嬭浇鐩綍
-     * @param downloadLyrics 鏄惁涓嬭浇姝岃瘝
-     * @param coverUrl 灏侀潰URL
+     * @brief 下载文件（使用 DownloadManager）
+     * @param filename 文件名
+     * @param downloadFolder 下载目录
+     * @param downloadLyrics 是否下载歌词
+     * @param coverUrl 封面 URL
      */
     void downloadFile(const QString& filename, const QString& downloadFolder, 
                      bool downloadLyrics = true, const QString& coverUrl = QString());
     
     /**
-     * @brief 娣诲姞鍠滄闊充箰
+     * @brief 添加喜欢音乐
      */
     void addFavorite(const QString& userAccount, const QString& path, const QString& title,
                     const QString& artist, const QString& duration, bool isLocal);
     
     /**
-     * @brief 鑾峰彇鍠滄闊充箰鍒楄〃
+     * @brief 获取喜欢音乐列表
      */
     void getFavorites(const QString& userAccount, bool useCache = true);
     
     /**
-     * @brief 娣诲姞鎾斁鍘嗗彶
+     * @brief 添加播放历史
      */
     void addPlayHistory(const QString& userAccount, const QString& path, const QString& title,
                        const QString& artist, const QString& album, const QString& duration, bool isLocal);
     
     /**
-     * @brief 鑾峰彇鎾斁鍘嗗彶
+     * @brief 获取播放历史
      */
     void getPlayHistory(const QString& userAccount, int limit = 50, bool useCache = true);
+
+    /**
+     * @brief 获取推荐音乐列表
+     * @param userId 用户账号/ID
+     * @param scene 场景，默认 home
+     * @param limit 数量限制，最大 100
+     * @param excludePlayed 是否排除已播放
+     * @param cursor 分页游标
+     */
+    void getAudioRecommendations(const QString& userId,
+                                 const QString& scene = QStringLiteral("home"),
+                                 int limit = 20,
+                                 bool excludePlayed = true,
+                                 const QString& cursor = QString());
+    void getSimilarRecommendations(const QString& songId, int limit = 20);
+
+    /**
+     * @brief 上报推荐反馈事件
+     */
+    void postRecommendationFeedback(const QString& userId,
+                                    const QString& songId,
+                                    const QString& eventType,
+                                    const QString& scene = QStringLiteral("home"),
+                                    const QString& requestId = QString(),
+                                    const QString& modelVersion = QString(),
+                                    qint64 playMs = -1,
+                                    qint64 durationMs = -1);
     
     /**
-     * @brief 鎼滅储闊充箰
-     * @param keyword 鎼滅储鍏抽敭瀛楋紙鏍囬銆佹瓕鎵嬨€佷笓杈戠瓑锛?
+     * @brief 搜索音乐
+     * @param keyword 搜索关键字（标题、歌手、专辑等）
      */
     void getMusic(const QString& keyword);
     
     /**
-     * @brief 鍒犻櫎鍠滄闊充箰
-     * @param userAccount 鐢ㄦ埛璐﹀彿
-     * @param paths 闊充箰璺緞鍒楄〃
+     * @brief 删除喜欢音乐
+     * @param userAccount 用户账号
+     * @param paths 音乐路径列表
      */
     void removeFavorite(const QString& userAccount, const QStringList& paths);
     
     /**
-     * @brief 鍒犻櫎鎾斁鍘嗗彶
-     * @param userAccount 鐢ㄦ埛璐﹀彿
-     * @param paths 闊充箰璺緞鍒楄〃
+     * @brief 删除播放历史
+     * @param userAccount 用户账号
+     * @param paths 音乐路径列表
      */
     void removePlayHistory(const QString& userAccount, const QStringList& paths);
     
     /**
-     * @brief 鑾峰彇瑙嗛鍒楄〃
+     * @brief 获取视频列表
      */
     void getVideoList();
     
     /**
-     * @brief 鑾峰彇瑙嗛娴乁RL
+     * @brief 获取视频流 URL
      */
     void getVideoStreamUrl(const QString& videoPath);
     
     /**
-     * @brief 鎼滅储姝屾墜
+     * @brief 搜索歌手
      */
     void searchArtist(const QString& artist);
     
     /**
-     * @brief 鏍规嵁姝屾墜鑾峰彇闊充箰
+     * @brief 根据歌手获取音乐
      */
     void getMusicByArtist(const QString& artist);
     
     /**
-     * @brief 鑾峰彇闊充箰娴佹暟鎹紙鍏煎鏃PI锛?
-     * @param fileName 鏂囦欢鍚?
+     * @brief 获取音乐流数据（兼容旧 API）
+     * @param fileName 文件名
      */
     void getMusicData(const QString& fileName);
-    void get_music_data(const QString& fileName) { getMusicData(fileName); } // 鍒悕锛屽吋瀹规棫浠ｇ爜
+    void get_music_data(const QString& fileName) { getMusicData(fileName); } // 别名，兼容旧代码
     
     /**
-     * @brief 娣诲姞闊充箰鍒扮敤鎴峰垪琛?
-     * @param musicPath 闊充箰璺緞
+     * @brief 添加音乐到用户列表
+     * @param musicPath 音乐路径
      */
     void addMusic(const QString& musicPath);
-    void AddMusic(const QString& musicPath) { addMusic(musicPath); } // 鍒悕锛屽吋瀹规棫浠ｇ爜
+    void AddMusic(const QString& musicPath) { addMusic(musicPath); } // 别名，兼容旧代码
     
     /**
-     * @brief 涓嬭浇锛堝吋瀹规棫API锛?
+     * @brief 下载（兼容旧 API）
      */
     void Download(const QString& filename, const QString& downloadFolder, 
                  bool downloadLyrics = true, const QString& coverUrl = QString()) {
@@ -151,7 +173,7 @@ public:
     }
     
 signals:
-    // 涓庡師HttpRequest淇濇寔鍏煎鐨勪俊鍙?
+    // 与原 HttpRequest 保持兼容的信号
     void signal_Loginflag(bool flag);
     void signal_Registerflag(bool flag);
     void signal_RegisterResult(bool success, const QString& message);
@@ -169,7 +191,14 @@ signals:
     void signal_addHistoryResult(bool success);
     void signal_historyList(const QVariantList& history);
     void signal_removeHistoryResult(bool success);
-    void signal_streamurl(bool flag, QString url);  // 闊充箰娴乁RL淇″彿
+    void signal_recommendationList(const QVariantMap& meta, const QVariantList& items);
+    void signal_similarRecommendationList(const QVariantMap& meta,
+                                          const QVariantList& items,
+                                          const QString& anchorSongId);
+    void signal_recommendationFeedbackResult(bool success,
+                                             const QString& eventType,
+                                             const QString& songId);
+    void signal_streamurl(bool flag, QString url);  // 音乐流 URL 信号
     
 private:
     Network::NetworkService& m_networkService;

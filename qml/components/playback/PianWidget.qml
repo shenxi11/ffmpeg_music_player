@@ -1,68 +1,74 @@
-﻿import QtQuick 2.14
+import QtQuick 2.14
 import QtQuick.Controls 2.14
+import "../../theme/Theme.js" as Theme
 
 Item {
     id: root
-    width: 150
-    height: 80
-    
+    width: 170
+    height: 72
+
     signal upClicked()
-    
-    property string songName: "鏆傛棤姝屾洸"
+
+    property string songName: "\u6682\u65e0\u6b4c\u66f2"
     property string picPath: "qrc:/new/prefix1/icon/pian.png"
-    
+
     Rectangle {
         anchors.fill: parent
-        color: "#FAFAFA"
-        
+        radius: 10
+        color: Theme.glassLight
+        border.width: 1
+        border.color: Theme.glassBorder
+
         Row {
             anchors.fill: parent
-            anchors.margins: 2
-            spacing: 5
-            
-            // 灏侀潰鍥剧墖
-            Image {
-                id: coverImage
-                width: 76  // 80 - 4 (margins)
-                height: 76
-                source: root.picPath
-                fillMode: Image.PreserveAspectFit
-                smooth: true
-                antialiasing: true
+            anchors.margins: 6
+            spacing: 10
+
+            Rectangle {
+                width: 58
+                height: 58
+                radius: 6
+                clip: true
+                border.width: 1
+                border.color: "#D8DFEA"
+                color: "#E9ECF5"
+
+                Image {
+                    anchors.fill: parent
+                    source: root.picPath
+                    fillMode: Image.PreserveAspectCrop
+                    smooth: true
+                    asynchronous: true
+                    cache: true
+                }
             }
-            
-            // 姝屾洸鍚嶇О
+
             Text {
-                id: nameText
-                width: 65  // 150 - 80 - 5 = 65
+                width: parent.width - 68
                 height: parent.height
                 text: root.songName
                 wrapMode: Text.WordWrap
                 verticalAlignment: Text.AlignVCenter
                 horizontalAlignment: Text.AlignLeft
                 font.pixelSize: 12
-                color: "#333333"
+                color: Theme.textPrimary
                 elide: Text.ElideRight
-                maximumLineCount: 3
+                maximumLineCount: 2
             }
         }
-        
+
         MouseArea {
             anchors.fill: parent
             cursorShape: Qt.PointingHandCursor
-            onClicked: {
-                root.upClicked()
-            }
+            onClicked: root.upClicked()
         }
     }
-    
-    // 鍏紑缁?C++ 璋冪敤鐨勫嚱鏁?
+
     function setName(name) {
         root.songName = name
     }
-    
+
     function setPicPath(path) {
         root.picPath = path
     }
 }
-

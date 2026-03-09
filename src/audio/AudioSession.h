@@ -5,9 +5,12 @@
 #include <QUrl>
 #include <QTimer>
 #include <QElapsedTimer>
+#include <optional>
 #include "AudioDecoder.h"
 #include "AudioPlayer.h"
 #include "AudioBuffer.h"
+
+class QDebug;
 
 /**
  * AudioSession 表示一次独立的音频播放会话。
@@ -98,10 +101,166 @@ private slots:
     void onSeekRetryTimeout();
 
 private:
+    enum class SeekPhase {
+        Idle,
+        Seeking,
+        Grace
+    };
+
+    enum class DecoderTimestampMode {
+        Passthrough,
+        ProbePending,
+        OffsetApplied
+    };
+
+    enum class DecodePhase {
+        Running,
+        Completed
+    };
+
+    enum class SeekLatencyPhase {
+        Inactive,
+        WaitingFirstPacket,
+        FirstPacketSeen
+    };
+
+    enum class SeekRetryAction {
+        GiveUp,
+        DegradeByHardTimeout,
+        DegradeByRetryBudget,
+        RetryNow
+    };
+
+    enum class ResumeEmitPolicy {
+        PendingOnly,
+        PendingOrUnsuppressed
+    };
+
+    struct PlaybackState {
+        bool manualPaused = false;
+        bool hasStarted = false;
+        bool resumeSignalPending = false;
+        bool internalPausePending = false;
+    };
+
+    struct BufferingState {
+        bool active = false;
+        int percent = 0;
+        bool decoderPausedByFlowControl = false;
+        bool hasRecentResume = false;
+        bool tailWaitLogActive = false;
+    };
+
+    struct ClockState {
+        qint64 lastDecodedMs = 0;
+        qint64 lastPausedPlaybackMs = 0;
+        qint64 baseTimestampMs = 0;
+        qint64 offsetTimestampMs = 0;
+        DecoderTimestampMode timestampMode = DecoderTimestampMode::Passthrough;
+        int minAcceptedDecodeGeneration = 0;
+    };
+
+    struct SeekState {
+        SeekPhase phase = SeekPhase::Idle;
+        bool fastStartMode = false;
+        int retryCount = 0;
+        int maxRetries = 4;
+        std::optional<qint64> pendingTakeoverSeekMs;
+    };
+
+    struct SeekLatencyState {
+        SeekLatencyPhase phase = SeekLatencyPhase::Inactive;
+        qint64 desiredTargetMs = 0;
+        qint64 workingTargetMs = 0;
+        qint64 firstPacketTimestampMs = -1;
+        int accuracyRetryCount = 0;
+        int accuracyMaxRetries = 5;
+        qint64 accuracyToleranceMs = 2500;
+        qint64 hardTimeoutMs = 20000;
+    };
+
+    struct DecodeState {
+        DecodePhase phase = DecodePhase::Running;
+    };
+
+    // 基础生命周期与通用收口
     void connectSignals();
     void cleanup();
+    void requestDecoderStart();
+    void finalizeControlPath(const char* where);
+    QDebug infoLog(const char* domain) const;
+    QDebug warnLog(const char* domain) const;
+
+    // 状态机/阶段迁移
     bool isWriteOwnerActive() const;
     void finalizeSeekLatency(const char* stage);
+    void setSeekPhase(SeekPhase phase, const char* reason);
+    void setSeekLatencyPhase(SeekLatencyPhase phase, const char* reason);
+    void setDecodePhase(DecodePhase phase, const char* reason);
+    void validateState(const char* where) const;
+
+    // Seek 核心控制链
+    void resetRuntimeState();
+    void beginSeekLatencyTracking(qint64 targetMs);
+    void applySeekClockBase(qint64 targetMs);
+    void enterSeekGraceWindow();
+    qint64 resolveResumeTimestamp() const;
+
+    // 播放事件分发与会话信号策略
+    bool shouldSuppressExternalPauseResumeSignals() const;
+    bool consumeResumeSignalPendingAndEmit();
+    bool emitSessionResumedByPolicy(ResumeEmitPolicy policy);
+    bool clearInternalPauseIfOwnershipLost();
+    bool consumeInternalPausePending();
+    void markPlaybackResumedActivity();
+    void finalizeSeekLatencyOnPlaybackResumed();
+
+    // Owner 接管与切换
+    bool shouldTakeOverFromOwner(const QString& currentOwner, bool treatEmptyOwnerAsTakeover) const;
+    void pauseSharedPlayerForTakeover(bool takingOverFromOtherOwner);
+    void assignSessionAsWriteOwner();
+    void resetSharedOutputAfterTakeover(qint64 timestampMs);
+    void deferSeekUntilOwnerTakeover(qint64 positionMs);
+    bool handleResumeOwnerTakeover(const QString& currentOwner);
+    void applyResumeTakeoverAtTimestamp(const QString& currentOwner, qint64 resumeTimestamp);
+    void startOrResumePlayerOutput();
+
+    // 本地 seek 执行链
+    bool isPlayerActivelyPlaying() const;
+    void pausePipelineForLocalSeek(bool wasPlaying);
+    void prepareOutputForLocalSeek(qint64 positionMs, bool wasPlaying);
+    void dispatchDecoderSeekForLocalSeek(qint64 positionMs);
+
+    // 解码时间轴/缓冲阈值/恢复判定
+    bool isRemoteFlacSource() const;
+    void normalizeDecodedTimestamp(qint64 timestampMs, qint64& normalizedTimestampMs);
+    void extendDurationFromDecodedTimestamp(qint64 normalizedTimestampMs);
+    bool handleSeekLatencyOnDecodedTimestamp(qint64 normalizedTimestampMs);
+    void applyDecoderFlowControlBeforeWrite(bool isRemoteFlac, int fillLevelBeforeWrite);
+    bool shouldResumeFromDecodedWrite(int fillLevel, int bufferedBytes, bool isRemoteFlac,
+                                      int& requiredLevel, int& requiredBytes) const;
+    void startPlayerFromDecodedReady(int fillLevel);
+    void resumePlayerFromDecodedReady(int fillLevel, int bufferedBytes, int requiredLevel, int requiredBytes);
+    void completeDecodedReadyResume();
+    bool shouldDebounceBufferingEnter() const;
+    bool handleTailLowBufferFallback(qint64 currentPos, int fillLevel, int bufferedBytes);
+    bool canExitBufferingByThreshold(int fillLevel, int bufferedBytes, bool isRemoteFlac,
+                                     int bufferingResumeMinBytes) const;
+    void exitBufferingAndResume(int fillLevel, int bufferedBytes);
+
+    // Seek 重试与退化策略
+    bool isHlsSeekSource() const;
+    qint64 calculateSeekHardTimeoutMs(bool isHlsSeek, bool isRemoteFlacSeek) const;
+    qint64 calculateSeekGiveUpTimeoutMs(bool isHlsSeek, bool isRemoteFlacSeek, qint64 hardTimeoutMs) const;
+    SeekRetryAction decideSeekRetryAction(qint64 elapsedMs, qint64 hardTimeoutMs, qint64 giveUpTimeoutMs) const;
+    void handleSeekRetryGiveUp(qint64 elapsedMs);
+    void handleSeekRetryDegrade(qint64 elapsedMs, int nextRetryMs, const char* logTag);
+    void handleSeekRetryAttempt(qint64 elapsedMs, bool avoidRepeatReseek);
+    bool isSeekingNow() const { return m_seek.phase != SeekPhase::Idle; }
+    bool isSeekGraceActive() const { return m_seek.phase == SeekPhase::Grace; }
+    bool isDecodeCompletedNow() const { return m_decode.phase == DecodePhase::Completed; }
+    bool isSeekLatencyActiveNow() const { return m_seekLatency.phase != SeekLatencyPhase::Inactive; }
+    bool isSeekFirstPacketSeenNow() const { return m_seekLatency.phase == SeekLatencyPhase::FirstPacketSeen; }
     
     // 会话基础状态
     QString m_sessionId;
@@ -117,50 +276,21 @@ private:
     QString m_artist;
     QString m_albumArt;
     qint64 m_duration;
-    
-    // 缓冲与时间戳状态（用于 seek/切换后恢复）
-    bool m_isBuffering;
-    int m_bufferingPercent;
-    bool m_decoderPausedByFlowControl;
-    bool m_hasStartedPlayback;
-    bool m_manualPaused;
-    qint64 m_lastDecodedTimestampMs;
-    qint64 m_lastPausedPlaybackMs;
-    qint64 m_decoderTimestampBaseMs;
-    qint64 m_decoderTimestampOffsetMs;
-    bool m_decoderTimestampNeedsProbe;
-    bool m_decoderTimestampHasOffset;
-    bool m_pendingResumeSignal;
-    bool m_pendingTakeoverSeek;
-    qint64 m_pendingTakeoverSeekMs;
-    bool m_internalPausePending;
-    bool m_decodeCompleted;
-    
+
+    // 会话运行状态（替代分散标志位）
+    PlaybackState m_playback;
+    BufferingState m_buffering;
+    ClockState m_clock;
+    SeekState m_seek;
+    SeekLatencyState m_seekLatency;
+    DecodeState m_decode;
+
     // seek 宽限窗口，避免 seek 后瞬时状态抖动影响 UI 与自动控制
-    bool m_seekGracePeriod;
     QTimer* m_seekGraceTimer;
     QTimer* m_seekRetryTimer;
-    bool m_isSeeking;
-    bool m_seekFastStartMode;
-    int m_seekRetryCount;
-    int m_seekMaxRetries;
-    int m_minAcceptedDecodeGeneration;
     QElapsedTimer m_lastResumeTimer;
-    bool m_hasRecentResume;
     QElapsedTimer m_tailWaitLogTimer;
-    bool m_tailWaitLogActive;
-
-    // seek链路耗时统计（用于区分客户端策略与服务端/网络瓶颈）
     QElapsedTimer m_seekLatencyTimer;
-    bool m_seekLatencyActive;
-    bool m_seekFirstPacketSeen;
-    qint64 m_seekDesiredTargetMs;
-    qint64 m_seekLatencyTargetMs;
-    qint64 m_seekFirstPacketTimestampMs;
-    int m_seekAccuracyRetryCount;
-    int m_seekAccuracyMaxRetries;
-    qint64 m_seekAccuracyToleranceMs;
-    qint64 m_seekHardTimeoutMs;
 };
 
 #endif // AUDIOSESSION_H

@@ -8,10 +8,10 @@ Item {
     width: 820
     height: 680
     
-    // 绐楀彛鎷栧姩鐩稿叧
+    // 窗口拖动相关
     property point clickPos: Qt.point(0, 0)
     
-    // 涓诲鍣?- 甯﹀渾瑙掑拰闃村奖
+    // 主容器：带圆角和阴影
     Rectangle {
         id: mainContainer
         anchors.fill: parent
@@ -19,7 +19,7 @@ Item {
         radius: 15
         color: "transparent"
         
-        // 闃村奖鏁堟灉
+        // 阴影效果
         layer.enabled: true
         layer.effect: DropShadow {
             transparentBorder: true
@@ -30,7 +30,7 @@ Item {
             color: "#40000000"
         }
         
-        // 鑳屾櫙娓愬彉
+        // 背景渐变
         Rectangle {
             anchors.fill: parent
             radius: parent.radius
@@ -39,7 +39,7 @@ Item {
                 GradientStop { position: 1.0; color: "#e8eef5" }
             }
             
-            // 鑷畾涔夋爣棰樻爮
+            // 自定义标题栏
             Rectangle {
                 id: titleBar
                 width: parent.width
@@ -77,22 +77,22 @@ Item {
                     spacing: 10
                     
                     Label {
-                        text: "馃幍"
+                        text: "♪"
                         font.pixelSize: 20
                         color: "white"
                     }
                     
                     Label {
-                        text: "闊抽鏍煎紡杞崲鍣?
+                        text: "音频格式转换器"
                         font.pixelSize: 16
                         font.bold: true
                         color: "white"
                         Layout.fillWidth: true
                     }
                     
-                    // 鏈€灏忓寲鎸夐挳
+                    // 最小化按钮
                     Button {
-                        text: "鈭?
+                        text: "−"
                         font.pixelSize: 18
                         Layout.preferredWidth: 30
                         Layout.preferredHeight: 30
@@ -112,9 +112,9 @@ Item {
                         }
                     }
                     
-                    // 鍏抽棴鎸夐挳
+                    // 关闭按钮
                     Button {
-                        text: "脳"
+                        text: "×"
                         font.pixelSize: 20
                         Layout.preferredWidth: 30
                         Layout.preferredHeight: 30
@@ -136,7 +136,7 @@ Item {
                 }
             }
             
-            // 鍐呭鍖哄煙
+            // 内容区域
             ScrollView {
                 id: scrollView
                 anchors.fill: parent
@@ -150,7 +150,7 @@ Item {
             width: scrollView.availableWidth
             spacing: 25
             
-            // 杈撳叆鏂囦欢鍗＄墖
+            // 输入文件卡片
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 100
@@ -173,7 +173,7 @@ Item {
                     spacing: 12
                     
                     Label {
-                        text: "馃搨 杈撳叆鏂囦欢"
+                        text: "输入文件"
                         font.pixelSize: 16
                         font.bold: true
                         color: "#2d3748"
@@ -186,7 +186,7 @@ Item {
                         TextField {
                             id: inputFileField
                             text: backend.inputFile
-                            placeholderText: "鐐瑰嚮鍙充晶鎸夐挳閫夋嫨闊抽鏂囦欢..."
+                            placeholderText: "点击右侧按钮选择音频文件..."
                             readOnly: true
                             Layout.fillWidth: true
                             font.pixelSize: 14
@@ -200,7 +200,7 @@ Item {
                         }
                         
                         Button {
-                            text: "娴忚"
+                            text: "浏览"
                             font.pixelSize: 14
                             font.bold: true
                             onClicked: backend.selectInputFile()
@@ -229,7 +229,7 @@ Item {
                 }
             }
             
-            // 杈撳嚭璁剧疆鍗＄墖
+            // 输出设置卡片
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 280
@@ -252,7 +252,7 @@ Item {
                     spacing: 15
                     
                     Label {
-                        text: "鈿欙笍 杈撳嚭璁剧疆"
+                        text: "输出设置"
                         font.pixelSize: 16
                         font.bold: true
                         color: "#2d3748"
@@ -265,7 +265,7 @@ Item {
                         columnSpacing: 15
                         
                         Label {
-                            text: "鏍煎紡:"
+                            text: "格式:"
                             font.pixelSize: 14
                             color: "#4a5568"
                         }
@@ -291,7 +291,7 @@ Item {
                         }
                         
                         Label {
-                            text: "姣旂壒鐜?"
+                            text: "比特率:"
                             font.pixelSize: 14
                             color: "#4a5568"
                         }
@@ -326,7 +326,7 @@ Item {
                         }
                         
                         Label {
-                            text: "閲囨牱鐜?"
+                            text: "采样率:"
                             font.pixelSize: 14
                             color: "#4a5568"
                         }
@@ -351,7 +351,7 @@ Item {
                         }
                         
                         Label {
-                            text: "杈撳嚭鏂囦欢:"
+                            text: "输出文件:"
                             font.pixelSize: 14
                             color: "#4a5568"
                         }
@@ -363,7 +363,7 @@ Item {
                             TextField {
                                 id: outputFileField
                                 text: backend.outputFile
-                                placeholderText: "杈撳嚭鏂囦欢璺緞..."
+                                placeholderText: "输出文件路径..."
                                 readOnly: true
                                 Layout.fillWidth: true
                                 font.pixelSize: 14
@@ -377,7 +377,7 @@ Item {
                             }
                             
                             Button {
-                                text: "鍙﹀瓨涓?
+                                text: "另存为"
                                 font.pixelSize: 13
                                 onClicked: backend.selectOutputFile()
                                 
@@ -401,7 +401,7 @@ Item {
                 }
             }
             
-            // 杩涘害鏉?
+            // 进度条
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 80
@@ -425,7 +425,7 @@ Item {
                     spacing: 10
                     
                     Label {
-                        text: "鈴?杞崲杩涘害"
+                        text: "转换进度"
                         font.pixelSize: 14
                         font.bold: true
                         color: "#2d3748"
@@ -465,13 +465,13 @@ Item {
                 }
             }
             
-            // 鐘舵€佹枃鏈?
+            // 状态文本
             Label {
                 text: backend.statusText
                 font.pixelSize: 14
                 font.bold: true
-                color: backend.statusText.startsWith("閿欒") ? "#e53e3e" : 
-                       backend.statusText.includes("瀹屾垚") ? "#EC4141" : "#EC4141"
+                color: backend.statusText.startsWith("错误") ? "#e53e3e" :
+                       backend.statusText.includes("完成") ? "#EC4141" : "#EC4141"
                 Layout.alignment: Qt.AlignHCenter
                 
                 Behavior on color {
@@ -479,14 +479,14 @@ Item {
                 }
             }
             
-            // 鎿嶄綔鎸夐挳
+            // 操作按钮
             RowLayout {
                 Layout.alignment: Qt.AlignHCenter
                 spacing: 15
                 
                 Button {
                     id: startButton
-                    text: backend.isConverting ? "鈴革笍 鍋滄杞崲" : "鈻讹笍 寮€濮嬭浆鎹?
+                    text: backend.isConverting ? "停止转换" : "开始转换"
                     enabled: backend.inputFile !== "" && backend.outputFile !== ""
                     onClicked: {
                         if (backend.isConverting) {
@@ -529,7 +529,7 @@ Item {
                 }
                 
                 Button {
-                    text: "馃棏锔?娓呯┖"
+                    text: "清空"
                     onClicked: backend.clearAll()
                     enabled: !backend.isConverting
                     font.pixelSize: 15
@@ -569,9 +569,9 @@ Item {
         target: backend
         function onConversionFinished(success, message) {
             if (success) {
-                console.log("鉁?杞崲鎴愬姛:", message)
+                console.log("转换成功:", message)
             } else {
-                console.log("鉂?杞崲澶辫触:", message)
+                console.log("转换失败:", message)
             }
         }
     }

@@ -1,8 +1,8 @@
-#include "audio_converter_plugin.h"
+﻿#include "audio_converter_plugin.h"
+
 #include <QDebug>
 
 AudioConverterPlugin::AudioConverterPlugin()
-    : m_initialized(false)
 {
     qDebug() << "AudioConverterPlugin constructor";
 }
@@ -15,33 +15,30 @@ AudioConverterPlugin::~AudioConverterPlugin()
 
 QString AudioConverterPlugin::pluginName() const
 {
-    return "音频转换器";
+    return QStringLiteral("音频转换器");
 }
 
 QString AudioConverterPlugin::pluginDescription() const
 {
-    return "支持多种音频格式之间的转换，包括 MP3、WAV、FLAC、AAC、OGG 等格式";
+    return QStringLiteral("支持 MP3/WAV/FLAC/AAC/OGG 等音频格式互转");
 }
 
 QString AudioConverterPlugin::pluginVersion() const
 {
-    return "1.0.0";
+    return QStringLiteral("1.0.0");
 }
 
 QIcon AudioConverterPlugin::pluginIcon() const
 {
-    // 可以返回插件图标，如果没有则返回空图标
-    return QIcon(":/icon/Music.png");
+    return QIcon(QStringLiteral(":/icon/Music.png"));
 }
 
 QWidget* AudioConverterPlugin::createWidget(QWidget* parent)
 {
     qDebug() << "Creating AudioConverter widget";
-    
-    // 创建音频转换器窗口
-    AudioConverter* converter = new AudioConverter(parent);
-    
-    return converter;
+    AudioConverter* widget = new AudioConverter(parent);
+    widget->setPluginHostContext(m_hostContext, m_grantedPermissions);
+    return widget;
 }
 
 bool AudioConverterPlugin::initialize()
@@ -49,15 +46,10 @@ bool AudioConverterPlugin::initialize()
     if (m_initialized) {
         return true;
     }
-    
+
     qDebug() << "Initializing AudioConverterPlugin...";
-    
-    // 这里可以进行插件初始化工作
-    // 例如：检查 FFmpeg 是否可用，加载配置等
-    
     m_initialized = true;
     qDebug() << "AudioConverterPlugin initialized successfully";
-    
     return true;
 }
 
@@ -66,11 +58,49 @@ void AudioConverterPlugin::cleanup()
     if (!m_initialized) {
         return;
     }
-    
+
     qDebug() << "Cleaning up AudioConverterPlugin...";
-    
-    // 这里可以进行插件清理工作
-    
     m_initialized = false;
     qDebug() << "AudioConverterPlugin cleaned up";
+}
+
+QString AudioConverterPlugin::pluginId() const
+{
+    return QStringLiteral("cloudmusic.audio_converter");
+}
+
+int AudioConverterPlugin::pluginApiVersion() const
+{
+    return 1;
+}
+
+QStringList AudioConverterPlugin::pluginCapabilities() const
+{
+    return { QStringLiteral("widget"), QStringLiteral("audio.convert") };
+}
+
+QString AudioConverterPlugin::pluginAuthor() const
+{
+    return QStringLiteral("CloudMusic Team");
+}
+
+QStringList AudioConverterPlugin::pluginDependencies() const
+{
+    return {};
+}
+
+QStringList AudioConverterPlugin::pluginPermissions() const
+{
+    return { QStringLiteral("ui.widget"), QStringLiteral("audio.convert"), QStringLiteral("storage.read") };
+}
+
+void AudioConverterPlugin::setHostContext(QObject* hostContext)
+{
+    m_hostContext = hostContext;
+}
+
+void AudioConverterPlugin::setGrantedPermissions(const QStringList& permissions)
+{
+    m_grantedPermissions = permissions;
+    qDebug() << "AudioConverterPlugin granted permissions:" << m_grantedPermissions;
 }

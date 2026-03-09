@@ -1,4 +1,4 @@
-#ifndef ROTATINGCIRCLEIMAGE_H
+﻿#ifndef ROTATINGCIRCLEIMAGE_H
 #define ROTATINGCIRCLEIMAGE_H
 
 #include <QWidget>
