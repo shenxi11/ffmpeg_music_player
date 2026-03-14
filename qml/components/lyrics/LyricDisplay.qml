@@ -65,7 +65,7 @@ Item {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.topMargin: 8
-            spacing: 4
+            spacing: artistText.visible ? 4 : 0
             visible: root.isUp
 
             Text {
@@ -80,8 +80,20 @@ Item {
             }
 
             Text {
+                id: artistText
                 anchors.horizontalCenter: parent.horizontalCenter
-                text: root.artist || ""
+                text: {
+                    var titleText = (root.songTitle || "").toString().trim()
+                    var artistName = (root.artist || "").toString().trim()
+                    if (!artistName || artistName.length === 0) {
+                        return ""
+                    }
+                    if (titleText.length > 0 && artistName === titleText) {
+                        return ""
+                    }
+                    return artistName
+                }
+                visible: text.length > 0
                 color: "#A8B0BD"
                 font.pixelSize: 13
                 elide: Text.ElideRight
