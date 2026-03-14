@@ -7,6 +7,7 @@ Item {
 
     property int currentLine: -1
     property bool isUp: false
+    property bool showSongInfo: true
     property string songTitle: ""
     property string artist: ""
 
@@ -66,7 +67,7 @@ Item {
             anchors.right: parent.right
             anchors.topMargin: 8
             spacing: artistText.visible ? 4 : 0
-            visible: root.isUp
+            visible: root.isUp && root.showSongInfo
 
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter

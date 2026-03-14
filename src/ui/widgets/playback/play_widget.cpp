@@ -1009,6 +1009,9 @@ void PlayWidget::init_LyricDisplay()
     lyricDisplay->setClearColor(QColor(Qt::transparent));
     lyricDisplay->setAttribute(Qt::WA_AlwaysStackOnTop,true);
     lyricDisplay->setMinimumSize(360, 220);
+    if (lyricDisplay->rootObject()) {
+        lyricDisplay->rootObject()->setProperty("showSongInfo", false);
+    }
     lyricDisplay->hide();  // 初始时隐藏歌词，只有展开时才显示
     qDebug() << "LyricDisplay initialized, size:" << lyricDisplay->size() << "position:" << lyricDisplay->pos();
 }
