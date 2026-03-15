@@ -274,18 +274,18 @@ void TranslateWidget::bindSignals()
         }
     });
 
-    connect(transcribeButton, &QPushButton::clicked, this, &TranslateWidget::on_transcribeButton_clicked);
+    connect(transcribeButton, &QPushButton::clicked, this, &TranslateWidget::onTranscribeButtonClicked);
 
-    connect(this, &TranslateWidget::signal_begin_tranform, this, &TranslateWidget::on_signal_begin_transform);
-    connect(this, &TranslateWidget::signal_erorr, this, &TranslateWidget::showTipMessage);
+    connect(this, &TranslateWidget::signalBeginTranform, this, &TranslateWidget::onBeginTransform);
+    connect(this, &TranslateWidget::signalError, this, &TranslateWidget::showTipMessage);
 
-    connect(this, &TranslateWidget::signal_begin_take_pcm, take_pcm.get(), &TakePcm::signal_begin_make_pcm);
-    connect(take_pcm.get(), &TakePcm::signal_send_data, this, &TranslateWidget::on_signal_send_data);
-    connect(take_pcm.get(), &TakePcm::signal_decodeEnd, this, &TranslateWidget::on_signal_decodeEnd);
-    connect(this, &TranslateWidget::signal_outFile, this, &TranslateWidget::on_signal_outFile);
+    connect(this, &TranslateWidget::signalBeginTakePcm, take_pcm.get(), &TakePcm::signalBeginMakePcm);
+    connect(take_pcm.get(), &TakePcm::signalSendData, this, &TranslateWidget::onSendData);
+    connect(take_pcm.get(), &TakePcm::signalDecodeEnd, this, &TranslateWidget::onDecodeEnd);
+    connect(this, &TranslateWidget::signalOutFile, this, &TranslateWidget::onOutFile);
 }
 
-void TranslateWidget::on_signal_decodeEnd()
+void TranslateWidget::onDecodeEnd()
 {
     {
         std::lock_guard<std::mutex> lock(mtx);
@@ -294,7 +294,7 @@ void TranslateWidget::on_signal_decodeEnd()
     cv.notify_one();
 }
 
-void TranslateWidget::on_signal_send_data(uint8_t *buffer, int bufferSize, qint64 timeMap)
+void TranslateWidget::onSendData(uint8_t *buffer, int bufferSize, qint64 timeMap)
 {
     Q_UNUSED(timeMap);
 
@@ -316,7 +316,7 @@ void TranslateWidget::updateProgress(int progress)
     progressBar->setValue(progress);
 }
 
-void TranslateWidget::on_signal_outFile(const QStringList &segments)
+void TranslateWidget::onOutFile(const QStringList &segments)
 {
     resultEdit->clear();
     for (const QString& line : segments) {
@@ -372,12 +372,12 @@ void TranslateWidget::resetUiStateAfterTask()
     }
 }
 
-void TranslateWidget::on_signal_begin_transform()
+void TranslateWidget::onBeginTransform()
 {
     QThread* worker = QThread::create([this]() {
         struct whisper_context* ctx = whisper_init_from_file((modelPath + config_.modelName_).toStdString().c_str());
         if (!ctx) {
-            emit signal_erorr(QStringLiteral("模型加载失败，请检查模型路径。"));
+            emit signalError(QStringLiteral("模型加载失败，请检查模型路径。"));
             return;
         }
 
@@ -399,28 +399,28 @@ void TranslateWidget::on_signal_begin_transform()
         };
         params.progress_callback_user_data = this;
 
-        emit signal_begin_take_pcm(config_.audioPath_);
+        emit signalBeginTakePcm(config_.audioPath_);
 
         {
             std::unique_lock<std::mutex> lock(mtx);
             const bool ready = cv.wait_for(lock, std::chrono::seconds(30), [this]() { return pcmReady.load(); });
             if (!ready) {
                 whisper_free(ctx);
-                emit signal_erorr(QStringLiteral("音频解码超时，请重试。"));
+                emit signalError(QStringLiteral("音频解码超时，请重试。"));
                 return;
             }
         }
 
         if (pcmf32_.isEmpty()) {
             whisper_free(ctx);
-            emit signal_erorr(QStringLiteral("未读取到有效音频数据。"));
+            emit signalError(QStringLiteral("未读取到有效音频数据。"));
             return;
         }
 
         const int ret = whisper_full(ctx, params, pcmf32_.data(), pcmf32_.size());
         if (ret != 0) {
             whisper_free(ctx);
-            emit signal_erorr(QStringLiteral("语音转写失败。"));
+            emit signalError(QStringLiteral("语音转写失败。"));
             return;
         }
 
@@ -428,14 +428,14 @@ void TranslateWidget::on_signal_begin_transform()
         factory.save(config_.outputMode_, ctx, outputLines);
 
         whisper_free(ctx);
-        emit signal_outFile(outputLines);
+        emit signalOutFile(outputLines);
     });
 
     connect(worker, &QThread::finished, worker, &QThread::deleteLater);
     worker->start();
 }
 
-void TranslateWidget::on_transcribeButton_clicked()
+void TranslateWidget::onTranscribeButtonClicked()
 {
     if (translating.load()) {
         return;
@@ -455,7 +455,7 @@ void TranslateWidget::on_transcribeButton_clicked()
     transcribeButton->setEnabled(false);
     progressBar->setValue(0);
 
-    emit signal_begin_tranform();
+    emit signalBeginTranform();
 }
 
 void TranslateWidget::paintEvent(QPaintEvent *event)

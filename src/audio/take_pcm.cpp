@@ -17,12 +17,12 @@ TakePcm::TakePcm()
 
 {
     qDebug() << __FUNCTION__ << QThread::currentThread()->currentThreadId;
-    connect(this,&TakePcm::begin_to_decode,this,&TakePcm::thread_deocde);
-    connect(this, &TakePcm::signal_begin_make_pcm, this, &TakePcm::make_pcm);
+    connect(this,&TakePcm::begin_to_decode,this,&TakePcm::decodeThread);
+    connect(this, &TakePcm::signalBeginMakePcm, this, &TakePcm::makePcm);
 
     thread_ = std::thread(&TakePcm::decode, this);
 }
-void TakePcm::thread_deocde() {
+void TakePcm::decodeThread() {
     qDebug() << __FUNCTION__ << "恢复";
     {
         std::lock_guard<std::mutex> lock(mtx);
@@ -83,17 +83,17 @@ void TakePcm::seekToPosition(int newPosition, bool back_flag)
     //emit Position_Change();
    emit begin_to_decode();
 }
-void TakePcm::take_album()
+void TakePcm::takeAlbum()
 {
 
 }
 
-void TakePcm::make_pcm(QString Path)
+void TakePcm::makePcm(QString Path)
 {
 
     emit begin_to_play();
     // 验证当前执行的线程ID
-    qDebug() << "=== TakePcm::make_pcm SLOT running in thread:" << QThread::currentThreadId() << "===";
+    qDebug() << "=== TakePcm::makePcm SLOT running in thread:" << QThread::currentThreadId() << "===";
     qDebug() << "This should be different from main thread ID (0x3f4)";
     {
         std::lock_guard<std::mutex> lock(mtx);
@@ -111,7 +111,7 @@ void TakePcm::make_pcm(QString Path)
     if(swr_ctx)
         swr_free(&swr_ctx);
 
-    qDebug()<<"TakePcm make_pcm function finished initialization, thread:"<<QThread::currentThreadId();
+    qDebug()<<"TakePcm makePcm function finished initialization, thread:"<<QThread::currentThreadId();
 
     QByteArray utf8Data = Path.toUtf8();
     const char* inputUrl = utf8Data.constData();
@@ -228,11 +228,11 @@ void TakePcm::make_pcm(QString Path)
                 
                 qDebug() << "Album cover extracted to:" << tempPath;
                 qDebug() << "File URL for QML:" << fileUrl;
-                emit signal_send_pic_path(fileUrl);
+                emit signalSendPicPath(fileUrl);
             } else {
                 qDebug() << "Failed to save album cover to:" << tempPath;
                 // 如果提取失败，使用默认图片
-                emit signal_send_pic_path("qrc:/new/prefix1/icon/maxresdefault.jpg");
+                emit signalSendPicPath("qrc:/new/prefix1/icon/maxresdefault.jpg");
             }
             break;
         }
@@ -247,7 +247,7 @@ void TakePcm::make_pcm(QString Path)
     }
     if (!hasCover) {
         qDebug() << "No album cover found, using default image";
-        emit signal_send_pic_path("qrc:/new/prefix1/icon/maxresdefault.jpg");
+        emit signalSendPicPath("qrc:/new/prefix1/icon/maxresdefault.jpg");
     }
 
 
@@ -329,7 +329,7 @@ void TakePcm::decode()
             int ret = av_read_frame(ifmt_ctx, pkt);
             if (ret < 0) {
 
-                emit signal_decodeEnd();
+                emit signalDecodeEnd();
                 continue;
             }
             if (pkt->stream_index == audioStreamIndex)
@@ -380,10 +380,10 @@ void TakePcm::decode()
                             qint64 timestamp_ms = av_rescale_q(pts, time_base, { 1, 1000 });
                             //qDebug() << "Timestamp (ms):" << timestamp_ms;
                             if (isTranslate.load()) {
-                                emit signal_send_data(buffer, converted_buffer_size, timestamp_ms);
+                                emit signalSendData(buffer, converted_buffer_size, timestamp_ms);
                             }
                             else {
-                                send_data(buffer, converted_buffer_size, timestamp_ms);
+                                sendData(buffer, converted_buffer_size, timestamp_ms);
                             }
                         }
 
@@ -397,7 +397,7 @@ void TakePcm::decode()
 }
 
 
-void TakePcm::send_data(uint8_t *buffer, int bufferSize,qint64 timeMap)
+void TakePcm::sendData(uint8_t *buffer, int bufferSize,qint64 timeMap)
 {
     
     QByteArray byteArray(reinterpret_cast<const char*>(buffer), bufferSize);
@@ -408,7 +408,7 @@ void TakePcm::send_data(uint8_t *buffer, int bufferSize,qint64 timeMap)
     {
         qDebug() << __FUNCTION__ << timeMap / 1000;
         printF = false;
-        emit signal_move();
+        emit signalMove();
     }
 }
 

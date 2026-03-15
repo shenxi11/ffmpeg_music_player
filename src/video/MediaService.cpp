@@ -170,21 +170,7 @@ MediaSession* MediaService::createMediaSession(const QUrl& url)
     qDebug() << "[MediaService] Creating media session for:" << url;
     
     MediaSession* session = new MediaSession(this);
-    
-    // 连接信号
-    connect(session, &MediaSession::positionChanged, this, [this](qint64 pos) {
-        // 转发位置变化信号（如果需要）
-        qDebug() << "[MediaService] Position:" << pos << "ms";
-    });
-    
-    connect(session, &MediaSession::metadataReady, this, [this](QString title, QString artist, qint64 duration) {
-        qDebug() << "[MediaService] Metadata ready - Title:" << title << "Duration:" << duration;
-        // TODO: 发送视频元数据信号
-    });
-    
-    connect(session, &MediaSession::stateChanged, this, [](MediaSession::PlaybackState state) {
-        qDebug() << "[MediaService] Playback state changed:" << (int)state;
-    });
+    connectMediaSessionSignals(session);
     
     return session;
 }
@@ -203,4 +189,23 @@ void MediaService::destroyMediaSession(const QString& sessionId)
         
         emit mediaSessionDestroyed(sessionId);
     }
+}
+
+void MediaService::onMediaSessionPositionChanged(qint64 pos)
+{
+    qDebug() << "[MediaService] Position:" << pos << "ms";
+}
+
+void MediaService::onMediaSessionMetadataReady(const QString& title,
+                                               const QString& artist,
+                                               qint64 duration)
+{
+    Q_UNUSED(artist);
+    qDebug() << "[MediaService] Metadata ready - Title:" << title << "Duration:" << duration;
+    // TODO: 发送视频元数据信号
+}
+
+void MediaService::onMediaSessionStateChanged(MediaSession::PlaybackState state)
+{
+    qDebug() << "[MediaService] Playback state changed:" << static_cast<int>(state);
 }

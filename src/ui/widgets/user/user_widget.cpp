@@ -11,6 +11,7 @@ UserPopupWidget::UserPopupWidget(QWidget *parent)
     setFixedSize(180, 140); // 减小弹出窗口尺寸
     
     setupUI();
+    setupConnections();
     
     // 移除阴影效果以避免渲染问题
     // QGraphicsDropShadowEffect 在某些情况下会导致 UpdateLayeredWindowIndirect 错误
@@ -80,7 +81,6 @@ void UserPopupWidget::setupUI()
     mainLayout->addWidget(statusLabel);
     mainLayout->addWidget(actionButton);
     
-    connect(actionButton, &QPushButton::clicked, this, &UserPopupWidget::onActionButtonClicked);
 }
 
 void UserPopupWidget::setUserInfo(const QString &username, const QPixmap &avatar)
@@ -191,11 +191,7 @@ void UserPopupWidget::leaveEvent(QEvent *event)
 {
     Q_UNUSED(event);
     // 添加小延迟，避免鼠标快速移动时的闪烁
-    QTimer::singleShot(100, this, [this]() {
-        if (!underMouse()) {
-            hide();
-        }
-    });
+    QTimer::singleShot(100, this, &UserPopupWidget::onLeaveHideTimeout);
 }
 
 void UserPopupWidget::onActionButtonClicked()
@@ -206,6 +202,13 @@ void UserPopupWidget::onActionButtonClicked()
         emit loginRequested();
     }
     hide();
+}
+
+void UserPopupWidget::onLeaveHideTimeout()
+{
+    if (!underMouse()) {
+        hide();
+    }
 }
 
 // UserWidget 实现
@@ -227,18 +230,10 @@ UserWidget::UserWidget(QWidget *parent)
     hideTimer->setSingleShot(true);
     hideTimer->setInterval(200); // 200ms 延迟隐藏
     
-    connect(hoverTimer, &QTimer::timeout, this, &UserWidget::showPopup);
-    connect(hideTimer, &QTimer::timeout, this, &UserWidget::hidePopup);
-    
     // 创建弹出窗口
     popup = new UserPopupWidget(this);
     popup->hide();
-    
-    connect(popup, &UserPopupWidget::loginRequested, this, &UserWidget::onPopupActionRequested);
-    connect(popup, &UserPopupWidget::logoutRequested, this, [this](){
-        setLoginState(false);
-        emit logoutRequested();
-    });
+    setupConnections();
     
     // 设置初始状态
     setLoginState(false);

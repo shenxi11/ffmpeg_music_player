@@ -57,11 +57,11 @@ signals:
     void songCountChanged();
     
     // ===== 业务逻辑信号 =====
-    void signal_play_click(QString path, QString artist, QString cover);
-    void signal_remove_click(QString path);
-    void signal_download_click(QString path);
-    void signal_next(QString songName);
-    void signal_last(QString songName);
+    void signalPlayClick(QString path, QString artist, QString cover);
+    void signalRemoveClick(QString path);
+    void signalDownloadClick(QString path);
+    void signalNext(QString songName);
+    void signalLast(QString songName);
     void addToFavorite(QString path, QString title, QString artist, QString duration);
 
 private:

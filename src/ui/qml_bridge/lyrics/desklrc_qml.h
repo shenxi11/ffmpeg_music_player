@@ -22,13 +22,13 @@ class DeskLrcQml : public QQuickWidget
     Q_OBJECT
 
 signals:
-    void signal_play_clicked(int state);
-    void signal_next_clicked();
-    void signal_last_clicked();
-    void signal_forward_clicked();
-    void signal_backward_clicked();
-    void signal_settings_clicked();
-    void signal_close_clicked();
+    void signalPlayClicked(int state);
+    void signalNextClicked();
+    void signalLastClicked();
+    void signalForwardClicked();
+    void signalBackwardClicked();
+    void signalSettingsClicked();
+    void signalCloseClicked();
 
 public:
     explicit DeskLrcQml(QWidget *parent = nullptr)
@@ -68,9 +68,8 @@ public:
 
         geometrySaveTimer.setSingleShot(true);
         geometrySaveTimer.setInterval(220);
-        connect(&geometrySaveTimer, &QTimer::timeout, this, [this]() {
-            saveWindowGeometry();
-        });
+        connect(&geometrySaveTimer, &QTimer::timeout,
+                this, &DeskLrcQml::onGeometrySaveTimeout);
 
         if (status() == QQuickWidget::Error) {
             qWarning() << "Failed to load DeskLyric.qml:" << errors();
@@ -194,46 +193,46 @@ private slots:
 
     void onPlayClicked(int state)
     {
-        emit signal_play_clicked(state);
+        emit signalPlayClicked(state);
         if (processSlider) {
-            emit processSlider->signal_play_clicked();
+            emit processSlider->signalPlayClicked();
         }
     }
 
     void onNextClicked()
     {
-        emit signal_next_clicked();
+        emit signalNextClicked();
         if (processSlider) {
-            emit processSlider->signal_nextSong();
+            emit processSlider->signalNextSong();
         }
     }
 
     void onLastClicked()
     {
-        emit signal_last_clicked();
+        emit signalLastClicked();
         if (processSlider) {
-            emit processSlider->signal_lastSong();
+            emit processSlider->signalLastSong();
         }
     }
 
     void onForwardClicked()
     {
-        emit signal_forward_clicked();
+        emit signalForwardClicked();
     }
 
     void onBackwardClicked()
     {
-        emit signal_backward_clicked();
+        emit signalBackwardClicked();
     }
 
     void onSettingsClicked()
     {
-        emit signal_settings_clicked();
+        emit signalSettingsClicked();
     }
 
     void onCloseClicked()
     {
-        emit signal_close_clicked();
+        emit signalCloseClicked();
         saveWindowGeometry();
         hide();
     }
@@ -288,6 +287,11 @@ private slots:
         settings.setValue("DeskLrc/color", lyricColor);
         settings.setValue("DeskLrc/fontSize", lyricFontSize);
         settings.setValue("DeskLrc/fontFamily", lyricFontFamily);
+    }
+
+    void onGeometrySaveTimeout()
+    {
+        saveWindowGeometry();
     }
 
 protected:

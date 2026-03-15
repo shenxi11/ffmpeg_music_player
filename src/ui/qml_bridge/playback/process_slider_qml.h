@@ -53,21 +53,21 @@ public:
         if (root) {
             qDebug() << "ProcessSliderQml: Root object found, connecting signals...";
             // 连接进度拖动和播放控制相关信号。
-            connect(root, SIGNAL(seekTo(int)), this, SIGNAL(signal_Slider_Move(int)));
-            connect(root, SIGNAL(sliderPressedSignal()), this, SIGNAL(signal_sliderPressed()));
-            connect(root, SIGNAL(sliderReleasedSignal()), this, SIGNAL(signal_sliderReleased()));
-            connect(root, SIGNAL(upClicked()), this, SIGNAL(signal_up_click()));
-            connect(root, SIGNAL(playFinished()), this, SIGNAL(signal_playFinished()));
+            connect(root, SIGNAL(seekTo(int)), this, SIGNAL(signalSliderMove(int)));
+            connect(root, SIGNAL(sliderPressedSignal()), this, SIGNAL(signalSliderPressed()));
+            connect(root, SIGNAL(sliderReleasedSignal()), this, SIGNAL(signalSliderReleased()));
+            connect(root, SIGNAL(upClicked()), this, SIGNAL(signalUpClick()));
+            connect(root, SIGNAL(playFinished()), this, SIGNAL(signalPlayFinished()));
             
             // 播放控制栏相关信号
-            connect(root, SIGNAL(stop()), this, SIGNAL(signal_stop()));
-            connect(root, SIGNAL(nextSong()), this, SIGNAL(signal_nextSong()));
-            connect(root, SIGNAL(lastSong()), this, SIGNAL(signal_lastSong()));
-            connect(root, SIGNAL(volumeChanged(int)), this, SIGNAL(signal_volumeChanged(int)));
-            connect(root, SIGNAL(mlistToggled(bool)), this, SIGNAL(signal_mlist_toggled(bool)));
-            connect(root, SIGNAL(playClicked()), this, SIGNAL(signal_play_clicked()));
-            connect(root, SIGNAL(rePlay()), this, SIGNAL(signal_rePlay()));
-            connect(root, SIGNAL(deskToggled(bool)), this, SIGNAL(signal_desk_toggled(bool)));
+            connect(root, SIGNAL(stop()), this, SIGNAL(signalStop()));
+            connect(root, SIGNAL(nextSong()), this, SIGNAL(signalNextSong()));
+            connect(root, SIGNAL(lastSong()), this, SIGNAL(signalLastSong()));
+            connect(root, SIGNAL(volumeChanged(int)), this, SIGNAL(signalVolumeChanged(int)));
+            connect(root, SIGNAL(mlistToggled(bool)), this, SIGNAL(signalMlistToggled(bool)));
+            connect(root, SIGNAL(playClicked()), this, SIGNAL(signalPlayClicked()));
+            connect(root, SIGNAL(rePlay()), this, SIGNAL(signalRePlay()));
+            connect(root, SIGNAL(deskToggled(bool)), this, SIGNAL(signalDeskToggled(bool)));
             connect(root, SIGNAL(loopToggled(bool)), this, SLOT(on_loop_state_changed(bool)));
             
             // 播放模式状态同步说明
@@ -190,14 +190,14 @@ public:
         return false;
     }
     
-    void slot_isUpChanged(bool isUp) {
+    void onIsUpChanged(bool isUp) {
         QQuickItem* root = rootObject();
         if (root) {
             QMetaObject::invokeMethod(root, "setIsUp", Q_ARG(QVariant, isUp));
         }
     }
     
-    void slot_playFinished() {
+    void onPlayFinished() {
         QQuickItem* root = rootObject();
         if (root) {
             QMetaObject::invokeMethod(root, "handlePlayFinished");
@@ -207,7 +207,7 @@ public:
 public slots:
     void on_loop_state_changed(bool loop) {
         qDebug() << "Loop state changed to:" << loop;
-        emit signal_loop_change(loop);
+        emit signalLoopChange(loop);
     }
     
     void on_playMode_changed() {
@@ -215,29 +215,29 @@ public slots:
         if (root) {
             int mode = root->property("playMode").toInt();
             qDebug() << "Play mode changed to:" << mode;
-            emit signal_playModeChanged(mode);
+            emit signalPlayModeChanged(mode);
         }
     }
     
 signals:
     // 用户拖动进度条后的目标秒数。
-    void signal_Slider_Move(int seconds);
-    void signal_sliderPressed();
-    void signal_sliderReleased();
-    void signal_up_click();
-    void signal_playFinished();  // 播放完成信号
+    void signalSliderMove(int seconds);
+    void signalSliderPressed();
+    void signalSliderReleased();
+    void signalUpClick();
+    void signalPlayFinished();  // 播放完成信号
     
     // 播放控制栏相关信号
-    void signal_stop();
-    void signal_nextSong();
-    void signal_lastSong();
-    void signal_volumeChanged(int value);
-    void signal_mlist_toggled(bool checked);
-    void signal_play_clicked();
-    void signal_rePlay();
-    void signal_desk_toggled(bool checked);
-    void signal_loop_change(bool loop);
-    void signal_playModeChanged(int mode);  // 播放模式变更信号
+    void signalStop();
+    void signalNextSong();
+    void signalLastSong();
+    void signalVolumeChanged(int value);
+    void signalMlistToggled(bool checked);
+    void signalPlayClicked();
+    void signalRePlay();
+    void signalDeskToggled(bool checked);
+    void signalLoopChange(bool loop);
+    void signalPlayModeChanged(int mode);  // 播放模式变更信号
 };
 
 #endif // PROCESS_SLIDER_QML_H

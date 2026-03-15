@@ -3,9 +3,9 @@
 
 LrcAnalyze::LrcAnalyze()
 {
-    connect(this, &LrcAnalyze::begin_take_lrc, this, &LrcAnalyze::take_lrc);
+    connect(this, &LrcAnalyze::begin_take_lrc, this, &LrcAnalyze::takeLrc);
 
-    connect(this, &LrcAnalyze::Begin_send, this, &LrcAnalyze::begin_send);
+    connect(this, &LrcAnalyze::Begin_send, this, &LrcAnalyze::beginSend);
     request = new HttpRequestV2(this);
 }
 
@@ -87,7 +87,7 @@ void LrcAnalyze::saveFileAsUtf8(const QString &content, const QString &filePath)
     out << content;
     file.close();
 }
-void LrcAnalyze::take_lrc(QString Path)
+void LrcAnalyze::takeLrc(QString Path)
 {
     // 如果是网络路径，直接跳过本地文件操作
     if (Path.contains("http"))
@@ -145,7 +145,7 @@ void LrcAnalyze::take_lrc(QString Path)
     }
     emit Begin_send(lrcFilePath);
 }
-void LrcAnalyze::begin_send(QString lrcFile)
+void LrcAnalyze::beginSend(QString lrcFile)
 {
 
     lyrics.clear();
@@ -214,35 +214,38 @@ std::map<int, std::string> LrcAnalyze::parseLrcFile(const QString& lrcFile)
 }
 void LrcAnalyze::parseLrcFileFromUrl(const QString& urlString)
 {
+    disconnect(request, &HttpRequestV2::signalLrc, this, &LrcAnalyze::onRemoteLyricsReceived);
+    connect(request, &HttpRequestV2::signalLrc, this, &LrcAnalyze::onRemoteLyricsReceived);
+    request->getLyrics(urlString);
+}
 
-request->getLyrics(urlString);
-    
-    connect(request, &HttpRequestV2::signal_lrc, this, [=](QStringList arg){
+void LrcAnalyze::onRemoteLyricsReceived(QStringList lines)
+{
+    std::map<int, std::string> parsedLyrics;
+    QRegularExpression regexPattern(R"(\[(\d{2}:\d{2}\.\d{2})\](.*))");  // 正则匹配 [mm:ss.xx] 和歌词内容
 
-        std::map<int, std::string> lyrics;
-        QRegularExpression regexPattern(R"(\[(\d{2}:\d{2}\.\d{2})\](.*))");  // 正则匹配 [mm:ss.xx] 和歌词内容
-        QStringList lines = arg;
-        for (const QString& line : lines)
+    for (const QString& line : lines)
+    {
+        const QRegularExpressionMatch match = regexPattern.match(line);
+        if (!match.hasMatch())
         {
-            QRegularExpressionMatch match = regexPattern.match(line);
-            if (match.hasMatch())
-            {
-                QString timeStr = match.captured(1);  // 获取时间戳
-                QString lyricText = match.captured(2);  // 获取歌词文本
-
-                // 检查歌词内容是否为空
-                if (!lyricText.trimmed().isEmpty())
-                {
-                    int timeInMs = timeToMilliseconds(timeStr.toStdString());  // 转换为 std::string
-                    lyrics[timeInMs] = lyricText.toStdString();  // 转换为 std::string 并存储
-                }
-            }
+            continue;
         }
-        this->lyrics = lyrics;
-        emit this->send_lrc(this->lyrics);
-        disconnect(request, &HttpRequestV2::signal_lrc, nullptr, nullptr);
-    });
 
+        const QString timeStr = match.captured(1);  // 获取时间戳
+        const QString lyricText = match.captured(2);  // 获取歌词文本
+        if (lyricText.trimmed().isEmpty())
+        {
+            continue;
+        }
+
+        const int timeInMs = timeToMilliseconds(timeStr.toStdString());
+        parsedLyrics[timeInMs] = lyricText.toStdString();
+    }
+
+    lyrics = std::move(parsedLyrics);
+    emit send_lrc(lyrics);
+    disconnect(request, &HttpRequestV2::signalLrc, this, &LrcAnalyze::onRemoteLyricsReceived);
 }
 
 

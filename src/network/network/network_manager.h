@@ -115,10 +115,18 @@ private:
         ProgressCallback progressCallback;
         QNetworkReply* reply = nullptr;
         QTimer* timeoutTimer = nullptr;
+        QTimer* retryTimer = nullptr;
         QElapsedTimer* elapsedTimer = nullptr;
         int currentRetry = 0;
     };
-    
+
+private slots:
+    void onReplyFinished();
+    void onReplyDownloadProgress(qint64 bytesReceived, qint64 bytesTotal);
+    void onRequestTimeout();
+    void onRetryTimerTimeout();
+
+private:
     void executeRequest(std::shared_ptr<RequestContext> context);
     void handleReplyFinished(std::shared_ptr<RequestContext> context);
     void handleTimeout(std::shared_ptr<RequestContext> context);

@@ -25,9 +25,9 @@ void PianWidget::setName(const QString name)
 }
 void PianWidget::mousePressEvent(QMouseEvent *event)
 {
-    emit signal_up_click(true);
+    emit signalUpClick(true);
 }
-void PianWidget::on_signal_set_pic_path(QString picPath)
+void PianWidget::onSetPicPath(QString picPath)
 {
     QPixmap image = QPixmap(picPath);
     picLabel->setPixmap(image);

@@ -1,139 +1,15 @@
 ﻿#include "main_widget.h"
 #include "plugin_manager.h"
 #include "searchbox_qml.h"
-#include "AudioService.h"
-#include "AudioPlayer.h"
 #include "VideoPlayerWindow.h"
-#include "online_presence_manager.h"
 #include "playback_state_manager.h"
 #include "plugin_host_window.h"
-#include "user.h"
 #include <QApplication>
 #include <QCoreApplication>
 #include <QFileInfo>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QTimer>
-#include <QUrlQuery>
-
-namespace {
-int parseDurationToSeconds(const QString& durationText)
-{
-    const QString trimmed = durationText.trimmed();
-    if (trimmed.isEmpty()) {
-        return 0;
-    }
-
-    if (trimmed.contains(':')) {
-        const QStringList parts = trimmed.split(':');
-        if (parts.size() >= 2) {
-            bool okMin = false;
-            bool okSec = false;
-            const int minutes = parts[0].toInt(&okMin);
-            const int seconds = parts[1].toInt(&okSec);
-            if (okMin && okSec) {
-                return qMax(0, minutes * 60 + seconds);
-            }
-        }
-    }
-
-    bool ok = false;
-    const int seconds = trimmed.toInt(&ok);
-    return ok ? qMax(0, seconds) : 0;
-}
-
-int durationSecondsFromLocalCache(const QString& filePath)
-{
-    for (const LocalMusicInfo& info : LocalMusicCache::instance().getMusicList()) {
-        if (info.filePath == filePath) {
-            return parseDurationToSeconds(info.duration);
-        }
-    }
-    return 0;
-}
-
-QString normalizeArtistForHistory(const QString& artist)
-{
-    const QString trimmed = artist.trimmed();
-    if (trimmed.isEmpty()) {
-        return QString();
-    }
-
-    const QString lower = trimmed.toLower();
-    if (trimmed == QStringLiteral("未知艺术家") ||
-        trimmed == QStringLiteral("未知歌手") ||
-        lower == QStringLiteral("unknown artist") ||
-        lower == QStringLiteral("unknown") ||
-        lower == QStringLiteral("<unknown>")) {
-        return QString();
-    }
-    return trimmed;
-}
-
-QString extractSongIdFromMediaPath(const QString& rawPath)
-{
-    QString text = rawPath.trimmed();
-    if (text.isEmpty()) {
-        return QString();
-    }
-
-    auto extractFromHttpUrl = [](const QUrl& url) -> QString {
-        if (!url.isValid()) {
-            return QString();
-        }
-
-        if (url.path().contains(QStringLiteral("/proxy"), Qt::CaseInsensitive)) {
-            QUrlQuery query(url);
-            const QString src = query.queryItemValue(QStringLiteral("src"), QUrl::FullyDecoded);
-            if (!src.trimmed().isEmpty()) {
-                return src;
-            }
-        }
-
-        QString decodedPath = QUrl::fromPercentEncoding(url.path().toUtf8());
-        if (decodedPath.startsWith(QStringLiteral("/uploads/"), Qt::CaseInsensitive)) {
-            return decodedPath.mid(QStringLiteral("/uploads/").size());
-        }
-
-        while (decodedPath.startsWith('/')) {
-            decodedPath.remove(0, 1);
-        }
-        return decodedPath;
-    };
-
-    if (text.startsWith(QStringLiteral("http://"), Qt::CaseInsensitive) ||
-        text.startsWith(QStringLiteral("https://"), Qt::CaseInsensitive)) {
-        const QString extracted = extractFromHttpUrl(QUrl(text));
-        if (extracted.startsWith(QStringLiteral("http://"), Qt::CaseInsensitive) ||
-            extracted.startsWith(QStringLiteral("https://"), Qt::CaseInsensitive)) {
-            return extractSongIdFromMediaPath(extracted);
-        }
-
-        if (extracted.contains('/')) {
-            return extracted;
-        }
-        return QString();
-    }
-
-    if (text.startsWith(QStringLiteral("file://"), Qt::CaseInsensitive)) {
-        return QString();
-    }
-
-    QString normalized = text;
-    normalized.replace('\\', '/');
-    if (normalized.size() >= 2 && normalized[1] == ':') {
-        return QString();
-    }
-    if (normalized.startsWith(QStringLiteral("uploads/"), Qt::CaseInsensitive)) {
-        normalized = normalized.mid(QStringLiteral("uploads/").size());
-    }
-    while (normalized.startsWith('/')) {
-        normalized.remove(0, 1);
-    }
-
-    return normalized.contains('/') ? normalized : QString();
-}
-}
 
 MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
   ,w(nullptr)
@@ -151,40 +27,27 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     setWindowIcon(QIcon("qrc:/new/prefix1/icon/netease.ico"));
     
     setObjectName("MainWidget");
+    m_viewModel = new MainShellViewModel(this);
 
     m_playbackStateManager = new PlaybackStateManager(this);
-    connect(m_playbackStateManager, &PlaybackStateManager::pauseAudioRequested, this, []() {
-        if (AudioService::instance().isPlaying()) {
-            AudioService::instance().pause();
-        }
-    });
-    connect(m_playbackStateManager, &PlaybackStateManager::pauseVideoRequested, this, [this]() {
-        if (videoListWidget) {
-            videoListWidget->pauseVideoPlayback();
-        } else if (videoPlayerWindow) {
-            videoPlayerWindow->pausePlayback();
-        }
-    });
+    connect(m_playbackStateManager, &PlaybackStateManager::pauseAudioRequested,
+            this, &MainWidget::handlePlaybackPauseAudioRequested);
+    connect(m_playbackStateManager, &PlaybackStateManager::pauseVideoRequested,
+            this, &MainWidget::handlePlaybackPauseVideoRequested);
     
-    PluginManager& pluginManager = PluginManager::instance();
     m_pluginErrorDialogTimer = new QTimer(this);
     m_pluginErrorDialogTimer->setSingleShot(true);
     m_pluginErrorDialogTimer->setInterval(300);
-    connect(m_pluginErrorDialogTimer, &QTimer::timeout, this, [this]() {
-        if (m_pendingPluginErrors.isEmpty()) {
-            return;
-        }
-        QMessageBox::warning(this,
-                             QStringLiteral("插件加载告警"),
-                             QStringLiteral("以下插件加载失败：\n\n") + m_pendingPluginErrors.join(QStringLiteral("\n\n")));
-        m_pendingPluginErrors.clear();
-    });
-    connect(&pluginManager, &PluginManager::pluginLoadFailed, this, &MainWidget::enqueuePluginLoadError);
+    connect(m_pluginErrorDialogTimer, &QTimer::timeout,
+            this, &MainWidget::handlePluginErrorDialogTimeout);
+    connect(m_viewModel, &MainShellViewModel::pluginLoadFailed, this, &MainWidget::enqueuePluginLoadError);
 
     QString pluginPath = QCoreApplication::applicationDirPath() + "/plugin";
-    int loadedCount = pluginManager.loadPlugins(pluginPath);
+    int loadedCount = m_viewModel ? m_viewModel->loadPlugins(pluginPath) : 0;
     qDebug() << "Loaded" << loadedCount << "plugins from" << pluginPath;
-    for (const PluginLoadFailure& failure : pluginManager.loadFailures()) {
+    const QVector<PluginLoadFailure> failures = m_viewModel ? m_viewModel->pluginLoadFailures()
+                                                            : QVector<PluginLoadFailure>();
+    for (const PluginLoadFailure& failure : failures) {
         enqueuePluginLoadError(failure.filePath, failure.reason);
     }
 
@@ -203,12 +66,7 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     closeButton->setObjectName("WindowCloseButton");
     closeButton->setFixedSize(30, 30);
 
-    connect(minimizeButton, &QPushButton::clicked, this, [=](){
-        if(isMaximized())
-            showNormal();
-        else
-            showMaximized();
-    });
+    connect(minimizeButton, &QPushButton::clicked, this, &MainWidget::handleWindowToggleRequested);
     connect(maximizeButton, &QPushButton::clicked, this, &MainWidget::showMinimized);
     connect(closeButton, &QPushButton::clicked, this, &MainWidget::close);
 
@@ -248,9 +106,9 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
 
     loginWidget = new LoginWidgetQml(this);
     loginWidget->setWindowTitle(QStringLiteral(u"\u767b\u5f55"));
-    loginWidget->setSavedAccount(SettingsManager::instance().cachedAccount(),
-                                 SettingsManager::instance().cachedPassword(),
-                                 SettingsManager::instance().cachedUsername());
+    loginWidget->setSavedAccount(m_viewModel ? m_viewModel->cachedAccount() : QString(),
+                                 m_viewModel ? m_viewModel->cachedPassword() : QString(),
+                                 m_viewModel ? m_viewModel->cachedUsername() : QString());
 
     main_list = new MusicListWidgetLocal(this);
     main_list->show();
@@ -350,102 +208,12 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
 
     brandWidget->setLayout(layout_text);
 
-    connect(recommendButton, &QPushButton::toggled, this, [=](bool checked) {
-        if (!checked) {
-            return;
-        }
-
-        recommendMusicWidget->show();
-        main_list->hide();
-        localAndDownloadWidget->hide();
-        net_list->hide();
-        playHistoryWidget->hide();
-        favoriteMusicWidget->hide();
-        if (videoListWidget) videoListWidget->hide();
-
-        if (isUserLoggedIn()) {
-            const QString userAccount = User::getInstance()->get_account();
-            request->getAudioRecommendations(userAccount, QStringLiteral("home"), 24, true);
-        } else {
-            recommendMusicWidget->setLoggedIn(false);
-        }
-    });
-
-    connect(localButton, &QPushButton::toggled, this, [=](bool checked) {
-        if (checked) {
-            main_list->hide();
-            localAndDownloadWidget->show();
-            net_list->hide();
-            playHistoryWidget->hide();
-            favoriteMusicWidget->hide();
-            recommendMusicWidget->hide();
-            if (videoListWidget) videoListWidget->hide();
-        }
-    });
-
-    connect(netButton, &QPushButton::toggled, this, [=](bool checked){
-        if(checked)
-        {
-            net_list->show();
-            main_list->hide();
-            localAndDownloadWidget->hide();
-            playHistoryWidget->hide();
-            favoriteMusicWidget->hide();
-            recommendMusicWidget->hide();
-            if (videoListWidget) videoListWidget->hide();
-        }
-    });
-    
-    connect(historyButton, &QPushButton::toggled, this, [=](bool checked){
-        if(checked)
-        {
-            playHistoryWidget->show();
-            main_list->hide();
-            localAndDownloadWidget->hide();
-            net_list->hide();
-            favoriteMusicWidget->hide();
-            recommendMusicWidget->hide();
-            if (videoListWidget) videoListWidget->hide();
-            
-            if (isUserLoggedIn()) {
-                QString userAccount = User::getInstance()->get_account();
-                request->getPlayHistory(userAccount, 50);
-            }
-        }
-    });
-    
-    connect(favoriteButton, &QPushButton::toggled, this, [=](bool checked){
-        if(checked)
-        {
-            favoriteMusicWidget->show();
-            main_list->hide();
-            localAndDownloadWidget->hide();
-            net_list->hide();
-            playHistoryWidget->hide();
-            recommendMusicWidget->hide();
-            if (videoListWidget) videoListWidget->hide();
-            
-            QString userAccount = User::getInstance()->get_account();
-            request->getFavorites(userAccount);
-        }
-    });
-
-    connect(videoButton, &QPushButton::toggled, this, [=](bool checked) {
-        if (checked) {
-            qDebug() << "[MainWidget] Showing online video list";
-
-            main_list->hide();
-            localAndDownloadWidget->hide();
-            net_list->hide();
-            playHistoryWidget->hide();
-            favoriteMusicWidget->hide();
-            recommendMusicWidget->hide();
-            if (videoListWidget) {
-                videoListWidget->show();
-                videoListWidget->raise();
-            }
-        }
-    });
+    connect(recommendButton, &QPushButton::toggled, this, &MainWidget::handleRecommendTabToggled);
+    connect(localButton, &QPushButton::toggled, this, &MainWidget::handleLocalTabToggled);
+    connect(netButton, &QPushButton::toggled, this, &MainWidget::handleNetTabToggled);
+    connect(historyButton, &QPushButton::toggled, this, &MainWidget::handleHistoryTabToggled);
+    connect(favoriteButton, &QPushButton::toggled, this, &MainWidget::handleFavoriteTabToggled);
+    connect(videoButton, &QPushButton::toggled, this, &MainWidget::handleVideoTabToggled);
 
     localButton->setChecked(true);
 
@@ -458,790 +226,447 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
 
     qDebug() << "[MainWidget] PlayWidget created successfully";
 
-    connect(w, &PlayWidget::signal_playState, this, [this](ProcessSliderQml::State state){
-        if (!m_playbackStateManager) {
-            return;
-        }
-
-        if (state == ProcessSliderQml::Play) {
-            m_playbackStateManager->onAudioPlayIntent();
-        } else if (state == ProcessSliderQml::Stop) {
-            m_playbackStateManager->onAudioInactive();
-        }
-    });
+    connect(w, &PlayWidget::signalPlayState, this, &MainWidget::handlePlayStateChanged);
 
     qDebug() << "[MainWidget] Creating VideoListWidget...";
 
     videoListWidget = new VideoListWidget(w, this);
     videoListWidget->hide();
     videoListWidget->setObjectName("videoList");
-    connect(videoListWidget, &VideoListWidget::videoPlayerWindowReady, this, [this](VideoPlayerWindow* window) {
-        videoPlayerWindow = window;
-        qDebug() << "[MainWidget] VideoPlayerWindow linked from VideoListWidget:" << window;
-    });
-    connect(videoListWidget, &VideoListWidget::videoPlaybackStateChanged, this, [this](bool isPlaying) {
-        if (!m_playbackStateManager) {
-            return;
-        }
-        if (isPlaying) {
-            m_playbackStateManager->onVideoPlayIntent();
-        } else {
-            m_playbackStateManager->onVideoInactive();
-        }
-    });
+    connect(videoListWidget, &VideoListWidget::videoPlayerWindowReady,
+            this, &MainWidget::handleVideoPlayerWindowReady);
+    connect(videoListWidget, &VideoListWidget::videoPlaybackStateChanged,
+            this, &MainWidget::handleVideoPlaybackStateChanged);
 
     qDebug() << "[MainWidget] VideoListWidget created successfully";
 
-    request = new HttpRequestV2(this);
-    PluginManager::instance().hostContext()->registerService(QStringLiteral("mainWidget"), this);
-    PluginManager::instance().hostContext()->registerService(QStringLiteral("httpRequestV2"), request);
-    PluginManager::instance().hostContext()->registerService(QStringLiteral("audioService"), &AudioService::instance());
-    if (m_playbackStateManager) {
-        PluginManager::instance().hostContext()->registerService(QStringLiteral("playbackStateManager"), m_playbackStateManager);
+    if (m_viewModel) {
+        m_viewModel->registerPluginHostService(QStringLiteral("mainWidget"), this);
+        m_viewModel->registerPluginHostService(QStringLiteral("httpRequestV2"),
+                                               m_viewModel->requestGateway());
+        m_viewModel->registerPluginHostService(QStringLiteral("audioService"),
+                                               m_viewModel->audioServiceObject());
+        if (m_playbackStateManager) {
+            m_viewModel->registerPluginHostService(QStringLiteral("playbackStateManager"), m_playbackStateManager);
+        }
     }
 
-    connect(searchBox, &SearchBoxQml::search, this, [=](const QString& keyword) {
-        QString trimmedKeyword = keyword.trimmed();
-        
-        if (trimmedKeyword.isEmpty()) {
-            QMessageBox::information(this,
-                                     QStringLiteral(u"\u63d0\u793a"),
-                                     QStringLiteral(u"\u8bf7\u8f93\u5165\u641c\u7d22\u5173\u952e\u8bcd\u3002"));
-            return;
-        }
-        
-        qDebug() << "[MainWidget] Search keyword:" << trimmedKeyword;
-        net_list->clearList();
-        request->getMusic(trimmedKeyword);
-    });
-    
-    connect(request, &HttpRequestV2::signal_addSong_list, net_list, &MusicListWidgetNet::signal_add_songlist);
-    connect(request, &HttpRequestV2::signal_addSong_list, this, [=](){netButton->setChecked(true);});
-    connect(request, &HttpRequestV2::signal_recommendationList,
+    connect(searchBox, &SearchBoxQml::search, this, &MainWidget::handleSearchRequested);
+
+    connect(m_viewModel, &MainShellViewModel::searchResultsReady, net_list, &MusicListWidgetNet::signalAddSonglist);
+    connect(m_viewModel, &MainShellViewModel::searchResultsReady, this, &MainWidget::handleSearchResultsReady);
+    connect(m_viewModel, &MainShellViewModel::recommendationListReady,
             recommendMusicWidget, &RecommendMusicWidget::loadRecommendations);
-    connect(request, &HttpRequestV2::signal_similarRecommendationList, this,
-            [=](const QVariantMap&, const QVariantList& items, const QString&) {
-        w->setSimilarRecommendations(items);
+    connect(m_viewModel, &MainShellViewModel::similarRecommendationListReady,
+            this, &MainWidget::handleSimilarRecommendationListReady);
 
-        if (!isUserLoggedIn()) {
-            return;
-        }
+    connect(recommendMusicWidget, &RecommendMusicWidget::refreshRequested,
+            this, &MainWidget::handleRecommendRefreshRequested);
+    connect(recommendMusicWidget, &RecommendMusicWidget::loginRequested,
+            this, &MainWidget::handleRecommendLoginRequested);
+    connect(recommendMusicWidget, &RecommendMusicWidget::playMusicWithMetadata,
+            this, &MainWidget::handleRecommendPlayMusicWithMetadata);
+    connect(recommendMusicWidget, &RecommendMusicWidget::addToFavorite,
+            this, &MainWidget::handleRecommendAddToFavorite);
+    connect(recommendMusicWidget, &RecommendMusicWidget::feedbackEvent,
+            this, &MainWidget::handleRecommendFeedbackEvent);
 
-        const QString userAccount = User::getInstance()->get_account();
-        for (const QVariant& value : items) {
-            const QVariantMap item = value.toMap();
-            const QString songId = item.value(QStringLiteral("song_id")).toString();
-            if (songId.trimmed().isEmpty()) {
-                continue;
-            }
-            request->postRecommendationFeedback(userAccount,
-                                                songId,
-                                                QStringLiteral("impression"),
-                                                item.value(QStringLiteral("scene")).toString(),
-                                                item.value(QStringLiteral("request_id")).toString(),
-                                                item.value(QStringLiteral("model_version")).toString(),
-                                                -1,
-                                                -1);
-        }
-    });
+    connect(w, &PlayWidget::signalSimilarSongSelected,
+            this, &MainWidget::handleSimilarSongSelected);
 
-    connect(recommendMusicWidget, &RecommendMusicWidget::refreshRequested, this, [=]() {
-        if (!isUserLoggedIn()) {
-            recommendMusicWidget->setLoggedIn(false);
-            return;
-        }
-        request->getAudioRecommendations(User::getInstance()->get_account(),
-                                         QStringLiteral("home"),
-                                         24,
-                                         true);
-    });
-
-    connect(recommendMusicWidget, &RecommendMusicWidget::loginRequested, this, [=]() {
-        showLoginWindow();
-    });
-
-    connect(recommendMusicWidget, &RecommendMusicWidget::playMusicWithMetadata, w,
-            [=](const QString& filePath,
-                const QString& title,
-                const QString& artist,
-                const QString& cover,
-                const QString& duration,
-                const QString& songId,
-                const QString& requestId,
-                const QString& modelVersion,
-                const QString& scene) {
-        Q_UNUSED(duration);
-        Q_UNUSED(requestId);
-        Q_UNUSED(modelVersion);
-        Q_UNUSED(scene);
-
-        qDebug() << "[RecommendMusicWidget] Play music:" << title
-                 << "songId:" << songId << "path:" << filePath;
-
-        if (!w->get_net_flag()) {
-            main_list->signal_play_button_click(false, "");
-        }
-        net_list->signal_play_button_click(false, "");
-        localAndDownloadWidget->setCurrentPlayingPath("");
-
-        w->set_play_net(true);
-        w->setNetworkMetadata(title, normalizeArtistForHistory(artist), cover);
-        m_networkMusicArtist = normalizeArtistForHistory(artist);
-        m_networkMusicCover = cover;
-        w->_play_click(filePath);
-    });
-
-    connect(recommendMusicWidget, &RecommendMusicWidget::addToFavorite, this,
-            [=](const QString& path, const QString& title, const QString& artist,
-                const QString& duration, bool isLocal) {
-        if (!isUserLoggedIn()) {
-            showLoginWindow();
-            return;
-        }
-        request->addFavorite(User::getInstance()->get_account(), path, title, artist, duration, isLocal);
-    });
-
-    connect(recommendMusicWidget, &RecommendMusicWidget::feedbackEvent, this,
-            [=](const QString& songId,
-                const QString& eventType,
-                int playMs,
-                int durationMs,
-                const QString& scene,
-                const QString& requestId,
-                const QString& modelVersion) {
-        if (!isUserLoggedIn()) {
-            return;
-        }
-        request->postRecommendationFeedback(User::getInstance()->get_account(),
-                                            songId,
-                                            eventType,
-                                            scene,
-                                            requestId,
-                                            modelVersion,
-                                            playMs,
-                                            durationMs);
-    });
-
-    connect(w, &PlayWidget::signal_similarSongSelected, this, [this](const QVariantMap& item) {
-        // 从歌词页 delegate 点击回调进入时，避免同步重入播放器链路导致 QML/播放栈交叉。
-        qDebug() << "[MainWidget] Similar song click received, scheduling async play pipeline";
-        QTimer::singleShot(0, this, [this, item]() {
-            if (!w) {
-                qWarning() << "[MainWidget] Similar song selected but PlayWidget is null";
-                return;
-            }
-
-            const QString filePath = item.value(QStringLiteral("play_path")).toString().trimmed().isEmpty()
-                    ? item.value(QStringLiteral("stream_url")).toString()
-                    : item.value(QStringLiteral("play_path")).toString();
-            if (filePath.trimmed().isEmpty()) {
-                qWarning() << "[MainWidget] Similar song selected but play path is empty";
-                return;
-            }
-
-            const QString title = item.value(QStringLiteral("title")).toString();
-            const QString artist = normalizeArtistForHistory(item.value(QStringLiteral("artist")).toString());
-            const QString cover = item.value(QStringLiteral("cover_art_url")).toString();
-            const QString songId = item.value(QStringLiteral("song_id")).toString();
-            const QString requestId = item.value(QStringLiteral("request_id")).toString();
-            const QString modelVersion = item.value(QStringLiteral("model_version")).toString();
-            const QString scene = item.value(QStringLiteral("scene")).toString().trimmed().isEmpty()
-                    ? QStringLiteral("detail")
-                    : item.value(QStringLiteral("scene")).toString();
-
-            qDebug() << "[MainWidget] Play similar song:" << title << "songId:" << songId;
-
-            if (!w->get_net_flag()) {
-                main_list->signal_play_button_click(false, "");
-            }
-            net_list->signal_play_button_click(false, "");
-            localAndDownloadWidget->setCurrentPlayingPath("");
-
-            w->set_play_net(true);
-            w->setNetworkMetadata(title, artist, cover);
-            m_networkMusicArtist = artist;
-            m_networkMusicCover = cover;
-            w->_play_click(filePath);
-
-            if (isUserLoggedIn() && !songId.trimmed().isEmpty()) {
-                const QString userAccount = User::getInstance()->get_account();
-                request->postRecommendationFeedback(userAccount,
-                                                    songId,
-                                                    QStringLiteral("click"),
-                                                    scene,
-                                                    requestId,
-                                                    modelVersion,
-                                                    -1,
-                                                    -1);
-                request->postRecommendationFeedback(userAccount,
-                                                    songId,
-                                                    QStringLiteral("play"),
-                                                    scene,
-                                                    requestId,
-                                                    modelVersion,
-                                                    0,
-                                                    -1);
-            }
-        });
-    });
-
-    connect(menuButton, &QPushButton::clicked, this, [=](){
-        if (!mainMenu) {
-            mainMenu = new MainMenu(this);
-            
-            connect(mainMenu, &MainMenu::pluginRequested, this, [=](const QString& pluginId){
-                qDebug() << "Plugin requested, id:" << pluginId;
-                
-                PluginManager& pluginManager = PluginManager::instance();
-                PluginInterface* plugin = pluginManager.getPlugin(pluginId);
-                
-                if (plugin) {
-                    PluginHostWindow::Meta meta;
-                    meta.pluginId = pluginId.trimmed();
-                    if (meta.pluginId.isEmpty()) {
-                        meta.pluginId = plugin->pluginId().trimmed();
-                    }
-                    meta.name = plugin->pluginName();
-                    meta.description = plugin->pluginDescription();
-                    meta.version = plugin->pluginVersion();
-                    meta.icon = plugin->pluginIcon().isNull() ? windowIcon() : plugin->pluginIcon();
-
-                    PluginHostWindow* pluginWindow = new PluginHostWindow(meta, this);
-                    QWidget* pluginWidget = plugin->createWidget(pluginWindow);
-                    if (pluginWidget) {
-                        pluginWindow->setPluginContent(pluginWidget);
-                        pluginWindow->show();
-                        pluginWindow->raise();
-                        pluginWindow->activateWindow();
-                    } else {
-                        pluginWindow->deleteLater();
-                    }
-                } else {
-                    qWarning() << "Plugin not found:" << pluginId;
-                    QMessageBox::warning(this,
-                                         QStringLiteral(u"\u9519\u8bef"),
-                                         QStringLiteral(u"\u63d2\u4ef6\u201c") + pluginId
-                                         + QStringLiteral(u"\u201d\u672a\u627e\u5230\u6216\u52a0\u8f7d\u5931\u8d25\u3002"));
-                }
-            });
-
-            connect(mainMenu, &MainMenu::settingsRequested, this, [=](){
-                qDebug() << "Settings requested";
-                if (!settingsWidget) {
-                    // Use a top-level settings window to avoid being embedded into MainWidget.
-                    settingsWidget = new SettingsWidget(nullptr);
-                }
-                settingsWidget->show();
-                settingsWidget->raise();
-                settingsWidget->activateWindow();
-            });
-
-            connect(mainMenu, &MainMenu::pluginDiagnosticsRequested, this, [this]() {
-                showPluginDiagnosticsDialog();
-            });
-
-            connect(mainMenu, &MainMenu::aboutRequested, this, [=](){
-                QMessageBox::about(this,
-                                   QStringLiteral(u"\u5173\u4e8e"),
-                                   QStringLiteral(u"FFmpeg \u97f3\u4e50\u64ad\u653e\u5668 v1.0\\n\u5df2\u96c6\u6210\u97f3\u9891\u8f6c\u6362\u4e0e\u8bed\u97f3\u7ffb\u8bd1\u3002"));
-            });
-        }
-        
-        QPoint globalPos = menuButton->mapToGlobal(QPoint(0, menuButton->height() + 5));
-        
-        qDebug() << "Menu button position:" << globalPos;
-        qDebug() << "Showing main menu...";
-        
-        mainMenu->showMenu(globalPos);
-    });
-
-    /*
-    connect(userWidget, &UserWidget::loginRequested, this, [=](){
-        loginWidget->isVisible = !loginWidget->isVisible;
-
-        if(loginWidget->isVisible)
-        {
-            loginWidget->show();
-        }
-        else
-        {
-            loginWidget->close();
-        }
-    });
-
-    connect(userWidget, &UserWidget::logoutRequested, this, [=](){
-        userWidget->setLoginState(false);
-    });
-    */
-    
-    connect(userWidgetQml, &UserWidgetQml::loginRequested, this, [=](){
-        loginWidget->isVisible = !loginWidget->isVisible;
-
-        if(loginWidget->isVisible)
-        {
-            loginWidget->show();
-        }
-        else
-        {
-            loginWidget->close();
-        }
-    });
-
-    connect(userWidgetQml, &UserWidgetQml::logoutRequested, this, [=](){
-        OnlinePresenceManager::instance().logoutAndClear(false);
-        SettingsManager::instance().setAutoLoginEnabled(false);
-        User::getInstance()->set_account("");
-        User::getInstance()->set_password("");
-        User::getInstance()->set_username("");
-        userWidgetQml->setLoginState(false);
-    });
-
-    connect(&OnlinePresenceManager::instance(), &OnlinePresenceManager::sessionExpired, this, [=]() {
-        qWarning() << "[MainWidget] online session expired, forcing logout";
-        SettingsManager::instance().setAutoLoginEnabled(false);
-        User::getInstance()->set_account("");
-        User::getInstance()->set_password("");
-        User::getInstance()->set_username("");
-        userWidgetQml->setLoginState(false);
-        QMessageBox::warning(this,
-                             QStringLiteral("登录状态失效"),
-                             QStringLiteral("在线会话已失效，请重新登录。"));
-    });
-
-    connect(loginWidget, &LoginWidgetQml::login_, this, [=](QString username){
-        QPixmap userAvatar(":/new/prefix1/icon/denglu.png");
-        userWidgetQml->setUserInfo(username, userAvatar);
-        userWidgetQml->setLoginState(true);
-        loginWidget->close();
-        OnlinePresenceManager::instance().ensureSessionForUser(User::getInstance()->get_account(), username);
-
-        SettingsManager::instance().saveAccountCache(
-            User::getInstance()->get_account(),
-            User::getInstance()->get_password(),
-            username,
-            true
-        );
-        loginWidget->setSavedAccount(SettingsManager::instance().cachedAccount(),
-                                     SettingsManager::instance().cachedPassword(),
-                                     SettingsManager::instance().cachedUsername());
-    });
-
-    const QString cachedAccount = SettingsManager::instance().cachedAccount();
-    const QString cachedPassword = SettingsManager::instance().cachedPassword();
-    if (SettingsManager::instance().autoLoginEnabled()
-            && !cachedAccount.isEmpty()
-            && !cachedPassword.isEmpty()) {
-        QTimer::singleShot(0, this, [this, cachedAccount, cachedPassword]() {
-            qDebug() << "[MainWidget] Auto login with cached account:" << cachedAccount;
-            loginWidget->requestLogin(cachedAccount, cachedPassword, true);
-        });
-    }
-    
-    connect(net_list, &MusicListWidgetNet::loginRequired, this, [=](){
-        qDebug() << "[MainWidget] Download requires login, showing login window";
-        showLoginWindow();
-    });
-    connect(main_list, &MusicListWidgetLocal::signal_add_button_clicked, w, &PlayWidget::openfile);
-
-
-    connect(w, &PlayWidget::signal_Last, main_list, [this](QString songName, bool net_flag){
-        if(net_flag) emit net_list->signal_last(songName);
-        else           emit main_list->signal_last(songName);
-    });
-    connect(w, &PlayWidget::signal_Next, main_list, [this](QString songName, bool net_flag){
-        if(net_flag) emit net_list->signal_next(songName);
-        else           emit main_list->signal_next(songName);
-    });
-    connect(w, &PlayWidget::signal_netFlagChanged,[this](bool net_flag){
-        //if(net_flag)
-    });
-    connect(w,&PlayWidget::signal_add_song,main_list,&MusicListWidgetLocal::on_signal_add_song);
-    
-    connect(w, &PlayWidget::signal_add_song, [=](const QString fileName, const QString path){
-        qDebug() << "[LocalMusicCache] Adding music:" << fileName << path;
-        LocalMusicInfo info;
-        info.filePath = path;
-        info.fileName = fileName;
-        LocalMusicCache::instance().addMusic(info);
-    });
-    connect(w, &PlayWidget::signal_play_button_click,main_list,&MusicListWidgetLocal::on_signal_play_button_click);
-    connect(w, &PlayWidget::signal_play_button_click, net_list, &MusicListWidgetNet::on_signal_play_button_click);
-    
-    connect(w, &PlayWidget::signal_play_button_click, [=](bool playing, const QString& filename) {
-        playHistoryWidget->setPlayingState(filename, playing);
-        recommendMusicWidget->setPlayingState(filename, playing);
-        if (!w->get_net_flag() && !filename.isEmpty()) {
-            localAndDownloadWidget->setCurrentPlayingPath(playing ? filename : "");
-        }
-    });
-    
-    connect(w, &PlayWidget::signal_metadata_updated, main_list, &MusicListWidgetLocal::on_signal_update_metadata);
-    
-    connect(w, &PlayWidget::signal_metadata_updated, [=](const QString& filePath, const QString& coverUrl, const QString& duration) {
-        qDebug() << "[LocalMusicCache] Updating metadata:" << filePath << coverUrl << duration;
-        LocalMusicCache::instance().updateMetadata(filePath, coverUrl, duration);
-    });
-
-    connect(main_list, &MusicListWidgetLocal::signal_play_click, w, [=](const QString name, bool flag){
-        if (w->get_net_flag()) {
-            qDebug() << "[Switch source] Network music -> local music, clear network playing state";
-            net_list->signal_play_button_click(false, "");
-        }
-        localAndDownloadWidget->setCurrentPlayingPath("");
-        w->set_play_net(flag);
-        
-        m_networkMusicArtist.clear();
-        m_networkMusicCover.clear();
-        
-        
-        w->_play_click(name);
-
-    });
-    connect(main_list, &MusicListWidgetLocal::signal_remove_click, w, &PlayWidget::_remove_click);
-
-    connect(localAndDownloadWidget, &LocalAndDownloadWidget::playMusic, w, [=](const QString filename){
-        qDebug() << "[LocalAndDownloadWidget] Play music:" << filename;
-        if (w->get_net_flag()) {
-            net_list->signal_play_button_click(false, "");
-        }
-        main_list->signal_play_button_click(false, "");
-        localAndDownloadWidget->setCurrentPlayingPath(filename);
-        w->set_play_net(false);
-        w->_play_click(filename);
-    });
-    
-    connect(localAndDownloadWidget, &LocalAndDownloadWidget::addLocalMusicRequested, w, &PlayWidget::openfile);
-    
-    connect(localAndDownloadWidget, &LocalAndDownloadWidget::deleteMusic, [=](const QString filename){
-        qDebug() << "[LocalAndDownloadWidget] Delete music:" << filename;
-        
-        LocalMusicCache::instance().removeMusic(filename);
-        
-        QFile file(filename);
-        if (file.exists()) {
-            if (file.remove()) {
-                qDebug() << "[LocalAndDownloadWidget] File deleted successfully:" << filename;
-                
-                QFileInfo fileInfo(filename);
-                QString folderPath = fileInfo.dir().absolutePath();
-                QDir parentDir = fileInfo.dir();
-                parentDir.cdUp();
-                
-                QString baseName = fileInfo.completeBaseName();
-                QString sameFolderPath = parentDir.absoluteFilePath(baseName);
-                QDir sameFolder(sameFolderPath);
-                
-                if (sameFolder.exists() && folderPath.contains(baseName)) {
-                    if (sameFolder.removeRecursively()) {
-                        qDebug() << "[LocalAndDownloadWidget] Folder deleted successfully:" << sameFolderPath;
-                    } else {
-                        qWarning() << "[LocalAndDownloadWidget] Failed to delete folder:" << sameFolderPath;
-                    }
-                }
-            } else {
-                qWarning() << "[LocalAndDownloadWidget] Failed to delete file:" << filename;
-            }
-        } else {
-            qWarning() << "[LocalAndDownloadWidget] File not found:" << filename;
-        }
-    });
-
-    connect(net_list, &MusicListWidgetNet::signal_play_click, w, [=](const QString name, const QString artist, const QString cover, bool flag){
-        qDebug() << "[MainWidget] ========== NET MUSIC PLAY SIGNAL ==========";
-        qDebug() << "[MainWidget] name:" << name;
-        qDebug() << "[MainWidget] artist:" << artist;
-        qDebug() << "[MainWidget] cover:" << cover;
-        qDebug() << "[MainWidget] flag:" << flag;
-        qDebug() << "[MainWidget] ===============================================";
-        
-        if (!w->get_net_flag()) {
-            qDebug() << "[Switch source] Local music -> network music, clear local playing state";
-            main_list->signal_play_button_click(false, "");
-        }
-        localAndDownloadWidget->setCurrentPlayingPath("");
-        w->set_play_net(flag);
-        
-        const QString normalizedArtist = normalizeArtistForHistory(artist);
-        w->setNetworkMetadata(normalizedArtist, cover);
-
-        m_networkMusicArtist = normalizedArtist;
-        m_networkMusicCover = cover;
-        
-        
-        w->_play_click(name);
-    });
-    
-    
-    connect(playHistoryWidget, &PlayHistoryWidget::playMusic, w, [=](const QString filePath){
-        qDebug() << "[PlayHistoryWidget] Play music:" << filePath;
-        if (w->get_net_flag()) {
-            net_list->signal_play_button_click(false, "");
-        }
-        main_list->signal_play_button_click(false, "");
-        localAndDownloadWidget->setCurrentPlayingPath("");
-        
-        bool isLocal = !filePath.startsWith("http");
-        w->set_play_net(!isLocal);
-        w->_play_click(filePath);
-    });
-
-    connect(playHistoryWidget, &PlayHistoryWidget::playMusicWithMetadata, w,
-            [=](const QString filePath, const QString title, const QString artist, const QString cover){
-        qDebug() << "[PlayHistoryWidget] Play music with metadata:" << filePath
-                 << "title:" << title << "artist:" << artist << "cover:" << cover;
-
-        if (w->get_net_flag()) {
-            net_list->signal_play_button_click(false, "");
-        }
-        main_list->signal_play_button_click(false, "");
-        localAndDownloadWidget->setCurrentPlayingPath("");
-
-        const bool isLocal = !filePath.startsWith("http");
-        w->set_play_net(!isLocal);
-        // Preload metadata so playlist history can render correct title/artist/cover
-        // before decoder album-art callback finishes.
-        const QString normalizedArtist = normalizeArtistForHistory(artist);
-        w->setNetworkMetadata(title, normalizedArtist, cover);
-        if (!isLocal) {
-            m_networkMusicArtist = normalizedArtist;
-            m_networkMusicCover = cover;
-        }
-        w->_play_click(filePath);
-    });
-    
-    connect(playHistoryWidget, &PlayHistoryWidget::deleteHistory, this, [=](const QStringList& paths){
-        qDebug() << "[PlayHistoryWidget] Delete history, count:" << paths.size();
-        
-        QString userAccount = User::getInstance()->get_account();
-        if (!userAccount.isEmpty()) {
-            request->removePlayHistory(userAccount, paths);
-        } else {
-            qWarning() << "[PlayHistoryWidget] Cannot delete history: user not logged in";
-        }
-    });
-    
-    connect(request, &HttpRequestV2::signal_removeHistoryResult, this, [=](bool success){
-        if (success) {
-            qDebug() << "[PlayHistoryWidget] Delete history success, refreshing list";
-            QString userAccount = User::getInstance()->get_account();
-            if (!userAccount.isEmpty()) {
-                request->getPlayHistory(userAccount, 50, false);
-            }
-        } else {
-            qWarning() << "[PlayHistoryWidget] Delete history failed";
-        }
-    });
-
-    connect(playHistoryWidget, &PlayHistoryWidget::addToFavorite, this,
-            [=](const QString& path, const QString& title, const QString& artist, const QString& duration, bool isLocal){
-        qDebug() << "[PlayHistoryWidget] Add to favorite:" << title << "path:" << path << "isLocal:" << isLocal;
-        if (!isUserLoggedIn()) {
-            showLoginWindow();
-            return;
-        }
-        QString userAccount = User::getInstance()->get_account();
-        request->addFavorite(userAccount, path, title, artist, duration, isLocal);
-    });
-    
-    connect(playHistoryWidget, &PlayHistoryWidget::loginRequested, this, [=](){
-        qDebug() << "[PlayHistoryWidget] Login requested";
-        showLoginWindow();
-    });
-    
-    connect(playHistoryWidget, &PlayHistoryWidget::refreshRequested, this, [=](){
-        qDebug() << "[PlayHistoryWidget] Refresh requested";
-        if (isUserLoggedIn()) {
-            QString userAccount = User::getInstance()->get_account();
-            request->getPlayHistory(userAccount, 50, false);
-        }
-    });
-    
-    connect(request, &HttpRequestV2::signal_historyList, playHistoryWidget, &PlayHistoryWidget::loadHistory);
-    
-    
-    connect(favoriteMusicWidget, &FavoriteMusicWidget::playMusic, w, [=](const QString filePath){
-        qDebug() << "[FavoriteMusicWidget] Play music:" << filePath;
-        if (w->get_net_flag()) {
-            net_list->signal_play_button_click(false, "");
-        }
-        main_list->signal_play_button_click(false, "");
-        localAndDownloadWidget->setCurrentPlayingPath("");
-        
-        bool isLocal = !filePath.startsWith("http");
-        w->set_play_net(!isLocal);
-        w->_play_click(filePath);
-    });
-    
-    connect(favoriteMusicWidget, &FavoriteMusicWidget::removeFavorite, this, [=](const QStringList& paths){
-        qDebug() << "[FavoriteMusicWidget] Remove favorite, count:" << paths.size();
-        QString userAccount = User::getInstance()->get_account();
-        request->removeFavorite(userAccount, paths);
-    });
-    
-    connect(favoriteMusicWidget, &FavoriteMusicWidget::refreshRequested, this, [=](){
-        qDebug() << "[FavoriteMusicWidget] Refresh requested";
-        QString userAccount = User::getInstance()->get_account();
-        request->getFavorites(userAccount);
-    });
-    
-    connect(request, &HttpRequestV2::signal_favoritesList, favoriteMusicWidget, &FavoriteMusicWidget::loadFavorites);
-    
-    connect(request, &HttpRequestV2::signal_removeFavoriteResult, this, [=](bool success){
-        if (success) {
-            qDebug() << "[MainWidget] Remove favorite success, refreshing list";
-            QString userAccount = User::getInstance()->get_account();
-            request->getFavorites(userAccount, false);
-        } else {
-            qWarning() << "[MainWidget] Remove favorite failed";
-        }
-    });
-    
-    
-    connect(localAndDownloadWidget, &LocalAndDownloadWidget::addToFavorite, 
-            this, [=](const QString& path, const QString& title, const QString& artist, const QString& duration){
-        qDebug() << "[MainWidget] Add to favorite from local/download:" << title;
-        if (!isUserLoggedIn()) {
-            showLoginWindow();
-            return;
-        }
-        QString userAccount = User::getInstance()->get_account();
-        request->addFavorite(userAccount, path, title, artist, duration, true);  // is_local = true
-    });
-    
-    connect(net_list, &MusicListWidgetNet::addToFavorite,
-            this, [=](const QString& path, const QString& title, const QString& artist, const QString& duration){
-        qDebug() << "[MainWidget] Add to favorite from online:" << title;
-        if (!isUserLoggedIn()) {
-            showLoginWindow();
-            return;
-        }
-        QString userAccount = User::getInstance()->get_account();
-        request->addFavorite(userAccount, path, title, artist, duration, false);  // is_local = false
-    });
-    
-    connect(request, &HttpRequestV2::signal_addFavoriteResult, this, [=](bool success){
-        if (success) {
-            qDebug() << "[MainWidget] Add to favorite success, refreshing list";
-        } else {
-            qWarning() << "[MainWidget] Add to favorite failed, try refreshing list to sync latest state";
-        }
-
-        QString userAccount = User::getInstance()->get_account();
-        if (!userAccount.isEmpty()) {
-            request->getFavorites(userAccount, false);
-        }
-    });
-    
-    connect(userWidgetQml, &UserWidgetQml::loginStateChanged, this, [=](bool loggedIn){
-        qDebug() << "[MainWidget] Login state changed:" << loggedIn;
-        
-        QString userAccount = loggedIn ? User::getInstance()->get_account() : "";
-        playHistoryWidget->setLoggedIn(loggedIn, userAccount);
-        favoriteMusicWidget->setUserAccount(userAccount);
-        recommendMusicWidget->setLoggedIn(loggedIn, userAccount);
-
-        if (favoriteButton) {
-            favoriteButton->setVisible(loggedIn);
-            qDebug() << "[MainWidget] Favorite music button visibility:" << loggedIn;
-        }
-        updateSideNavLayout();
-        
-        if (!loggedIn) {
-            favoriteMusicWidget->clearFavorites();
-            playHistoryWidget->clearHistory();
-            recommendMusicWidget->clearRecommendations();
-        } else if (recommendButton && recommendButton->isChecked()) {
-            request->getAudioRecommendations(userAccount, QStringLiteral("home"), 24, true);
-        }
-    });
-    
-    connect(&AudioService::instance(), &AudioService::playbackStarted, this, [=](const QString& sessionId, const QUrl& url) {
-        if (m_playbackStateManager) {
-            m_playbackStateManager->onAudioPlayIntent();
-        }
-        qDebug() << "[MainWidget] playbackStarted signal received! sessionId:" << sessionId << "url:" << url;
-        
-        QString filePath = url.toLocalFile();
-        if (filePath.isEmpty()) {
-            filePath = url.toString();
-        }
-        
-        qDebug() << "[MainWidget] Extracted filePath:" << filePath;
-        
-        qDebug() << "[MainWidget] About to call setCurrentPlayingPath on both widgets...";
-        playHistoryWidget->setCurrentPlayingPath(filePath);
-        favoriteMusicWidget->setCurrentPlayingPath(filePath);
-        recommendMusicWidget->setCurrentPlayingPath(filePath);
-        recommendMusicWidget->setPlayingState(filePath, true);
-        qDebug() << "[MainWidget] setCurrentPlayingPath calls completed";
-
-        const QString songId = extractSongIdFromMediaPath(filePath);
-        if (!songId.isEmpty()) {
-            request->getSimilarRecommendations(songId, 12);
-        } else {
-            w->clearSimilarRecommendations();
-        }
-        
-        QString userAccount = User::getInstance()->get_account();
-        if (userAccount.isEmpty()) {
-            qDebug() << "[MainWidget] User not logged in, skipping history add";
-            return;
-        }
-        
-        submitPlayHistoryWithRetry(sessionId, filePath, userAccount, 1);
-    });
-    
-    connect(&AudioService::instance(), &AudioService::playbackPaused, this, [this]() {
-        if (m_playbackStateManager) {
-            m_playbackStateManager->onAudioInactive();
-        }
-    });
-
-    connect(&AudioService::instance(), &AudioService::playbackResumed, this, [this]() {
-        if (m_playbackStateManager) {
-            m_playbackStateManager->onAudioPlayIntent();
-        }
-    });
-
-    connect(&AudioService::instance(), &AudioService::playbackStopped, this, [=]() {
-        if (m_playbackStateManager) {
-            m_playbackStateManager->onAudioInactive();
-        }
-        qDebug() << "[MainWidget] playbackStopped signal received, clearing currentPlayingPath";
-        playHistoryWidget->setCurrentPlayingPath("");
-        favoriteMusicWidget->setCurrentPlayingPath("");
-        recommendMusicWidget->setCurrentPlayingPath("");
-        recommendMusicWidget->setPlayingState("", false);
-        w->clearSimilarRecommendations();
-    });
-
-    connect(w,&PlayWidget::signal_big_clicked,this,[=](bool checked){
-        qDebug() << "[MainWidget] signal_big_clicked checked =" << checked;
-        if(checked)
-        {
-            searchBox->hide();
-            userWidgetQml->hide();
-            
-            w->raise();
-            w->clearMask();
-            w->set_isUp(true);
-            update();
-        }
-        else
-        {
-            searchBox->show();
-            userWidgetQml->show();
-            
-            // 收起态也保持播放层在最上方，避免底部点击事件被其他面板抢占。
-            w->raise();
-            w->set_isUp(false);
-            update();
-            w->setPianWidgetEnable(false);
-            updateAdaptiveLayout();
-        }
-    });
+    setupMenuAndAccountConnections();
+    setupPlaybackAndListConnections();
+    setupLibraryConnections();
 
     updateAdaptiveLayout();
+}
+
+void MainWidget::handlePlaybackPauseAudioRequested()
+{
+    if (m_viewModel) {
+        m_viewModel->pauseAudioIfPlaying();
+    }
+}
+
+void MainWidget::handlePlaybackPauseVideoRequested()
+{
+    if (videoListWidget) {
+        videoListWidget->pauseVideoPlayback();
+    } else if (videoPlayerWindow) {
+        videoPlayerWindow->pausePlayback();
+    }
+}
+
+void MainWidget::handlePluginErrorDialogTimeout()
+{
+    if (m_pendingPluginErrors.isEmpty()) {
+        return;
+    }
+    QMessageBox::warning(this,
+                         QStringLiteral("插件加载告警"),
+                         QStringLiteral("以下插件加载失败：\n\n")
+                             + m_pendingPluginErrors.join(QStringLiteral("\n\n")));
+    m_pendingPluginErrors.clear();
+}
+
+void MainWidget::handleWindowToggleRequested()
+{
+    if (isMaximized()) {
+        showNormal();
+    } else {
+        showMaximized();
+    }
+}
+
+void MainWidget::showContentPanel(QWidget* activeWidget)
+{
+    if (recommendMusicWidget) {
+        recommendMusicWidget->setVisible(activeWidget == recommendMusicWidget);
+    }
+    if (main_list) {
+        main_list->setVisible(activeWidget == main_list);
+    }
+    if (localAndDownloadWidget) {
+        localAndDownloadWidget->setVisible(activeWidget == localAndDownloadWidget);
+    }
+    if (net_list) {
+        net_list->setVisible(activeWidget == net_list);
+    }
+    if (playHistoryWidget) {
+        playHistoryWidget->setVisible(activeWidget == playHistoryWidget);
+    }
+    if (favoriteMusicWidget) {
+        favoriteMusicWidget->setVisible(activeWidget == favoriteMusicWidget);
+    }
+    if (videoListWidget) {
+        const bool showVideo = (activeWidget == videoListWidget);
+        videoListWidget->setVisible(showVideo);
+        if (showVideo) {
+            videoListWidget->raise();
+        }
+    }
+}
+
+void MainWidget::handleRecommendTabToggled(bool checked)
+{
+    if (!checked) {
+        return;
+    }
+
+    showContentPanel(recommendMusicWidget);
+
+    if (isUserLoggedIn()) {
+        const QString userAccount = m_viewModel ? m_viewModel->currentUserAccount() : QString();
+        if (m_viewModel) {
+            m_viewModel->requestRecommendations(userAccount, QStringLiteral("home"), 24, true);
+        }
+    } else if (recommendMusicWidget) {
+        recommendMusicWidget->setLoggedIn(false);
+    }
+}
+
+void MainWidget::handleLocalTabToggled(bool checked)
+{
+    if (!checked) {
+        return;
+    }
+    showContentPanel(localAndDownloadWidget);
+}
+
+void MainWidget::handleNetTabToggled(bool checked)
+{
+    if (!checked) {
+        return;
+    }
+    showContentPanel(net_list);
+}
+
+void MainWidget::handleHistoryTabToggled(bool checked)
+{
+    if (!checked) {
+        return;
+    }
+    showContentPanel(playHistoryWidget);
+
+    if (isUserLoggedIn()) {
+        const QString userAccount = m_viewModel ? m_viewModel->currentUserAccount() : QString();
+        if (m_viewModel) {
+            m_viewModel->requestHistory(userAccount, 50);
+        }
+    }
+}
+
+void MainWidget::handleFavoriteTabToggled(bool checked)
+{
+    if (!checked) {
+        return;
+    }
+    showContentPanel(favoriteMusicWidget);
+
+    const QString userAccount = m_viewModel ? m_viewModel->currentUserAccount() : QString();
+    if (m_viewModel) {
+        m_viewModel->requestFavorites(userAccount);
+    }
+}
+
+void MainWidget::handleVideoTabToggled(bool checked)
+{
+    if (!checked) {
+        return;
+    }
+    qDebug() << "[MainWidget] Showing online video list";
+    showContentPanel(videoListWidget);
+}
+
+void MainWidget::handlePlayStateChanged(ProcessSliderQml::State state)
+{
+    if (!m_playbackStateManager) {
+        return;
+    }
+
+    if (state == ProcessSliderQml::Play) {
+        m_playbackStateManager->onAudioPlayIntent();
+    } else if (state == ProcessSliderQml::Stop) {
+        m_playbackStateManager->onAudioInactive();
+    }
+}
+
+void MainWidget::handleVideoPlayerWindowReady(VideoPlayerWindow* window)
+{
+    videoPlayerWindow = window;
+    qDebug() << "[MainWidget] VideoPlayerWindow linked from VideoListWidget:" << window;
+}
+
+void MainWidget::handleVideoPlaybackStateChanged(bool isPlaying)
+{
+    if (!m_playbackStateManager) {
+        return;
+    }
+
+    if (isPlaying) {
+        m_playbackStateManager->onVideoPlayIntent();
+    } else {
+        m_playbackStateManager->onVideoInactive();
+    }
+}
+
+void MainWidget::handleSearchRequested(const QString& keyword)
+{
+    const QString trimmedKeyword = keyword.trimmed();
+    if (trimmedKeyword.isEmpty()) {
+        QMessageBox::information(this,
+                                 QStringLiteral("提示"),
+                                 QStringLiteral("请输入搜索关键词。"));
+        return;
+    }
+
+    qDebug() << "[MainWidget] Search keyword:" << trimmedKeyword;
+    net_list->clearList();
+    if (m_viewModel) {
+        m_viewModel->searchMusic(trimmedKeyword);
+    }
+}
+
+void MainWidget::handleSearchResultsReady()
+{
+    if (netButton) {
+        netButton->setChecked(true);
+    }
+}
+
+void MainWidget::handleSimilarRecommendationListReady(const QVariantMap& meta,
+                                                      const QVariantList& items,
+                                                      const QString& anchorSongId)
+{
+    Q_UNUSED(meta);
+    Q_UNUSED(anchorSongId);
+
+    if (w) {
+        w->setSimilarRecommendations(items);
+    }
+
+    if (!isUserLoggedIn() || !m_viewModel) {
+        return;
+    }
+
+    const QString userAccount = m_viewModel->currentUserAccount();
+    for (const QVariant& value : items) {
+        const QVariantMap item = value.toMap();
+        const QString songId = item.value(QStringLiteral("song_id")).toString();
+        if (songId.trimmed().isEmpty()) {
+            continue;
+        }
+        m_viewModel->submitRecommendationFeedback(userAccount,
+                                                  songId,
+                                                  QStringLiteral("impression"),
+                                                  item.value(QStringLiteral("scene")).toString(),
+                                                  item.value(QStringLiteral("request_id")).toString(),
+                                                  item.value(QStringLiteral("model_version")).toString(),
+                                                  -1,
+                                                  -1);
+    }
+}
+
+void MainWidget::handleRecommendRefreshRequested()
+{
+    if (!isUserLoggedIn()) {
+        if (recommendMusicWidget) {
+            recommendMusicWidget->setLoggedIn(false);
+        }
+        return;
+    }
+
+    if (m_viewModel) {
+        m_viewModel->requestRecommendations(m_viewModel->currentUserAccount(),
+                                            QStringLiteral("home"),
+                                            24,
+                                            true);
+    }
+}
+
+void MainWidget::handleRecommendLoginRequested()
+{
+    showLoginWindow();
+}
+
+void MainWidget::handleRecommendPlayMusicWithMetadata(const QString& filePath,
+                                                      const QString& title,
+                                                      const QString& artist,
+                                                      const QString& cover,
+                                                      const QString& duration,
+                                                      const QString& songId,
+                                                      const QString& requestId,
+                                                      const QString& modelVersion,
+                                                      const QString& scene)
+{
+    Q_UNUSED(duration);
+    Q_UNUSED(requestId);
+    Q_UNUSED(modelVersion);
+    Q_UNUSED(scene);
+
+    qDebug() << "[RecommendMusicWidget] Play music:" << title
+             << "songId:" << songId << "path:" << filePath;
+
+    if (!w->getNetFlag()) {
+        main_list->signalPlayButtonClick(false, "");
+    }
+    net_list->signalPlayButtonClick(false, "");
+    localAndDownloadWidget->setCurrentPlayingPath("");
+
+    const QString normalizedArtist = normalizeArtistForHistory(artist);
+    w->setPlayNet(true);
+    w->setNetworkMetadata(title, normalizedArtist, cover);
+    m_networkMusicArtist = normalizedArtist;
+    m_networkMusicCover = cover;
+    w->playClick(filePath);
+}
+
+void MainWidget::handleRecommendAddToFavorite(const QString& path,
+                                              const QString& title,
+                                              const QString& artist,
+                                              const QString& duration,
+                                              bool isLocal)
+{
+    if (!isUserLoggedIn()) {
+        showLoginWindow();
+        return;
+    }
+    if (m_viewModel) {
+        m_viewModel->addFavorite(m_viewModel->currentUserAccount(),
+                                 path, title, artist, duration, isLocal);
+    }
+}
+
+void MainWidget::handleRecommendFeedbackEvent(const QString& songId,
+                                              const QString& eventType,
+                                              int playMs,
+                                              int durationMs,
+                                              const QString& scene,
+                                              const QString& requestId,
+                                              const QString& modelVersion)
+{
+    if (!isUserLoggedIn() || !m_viewModel) {
+        return;
+    }
+
+    m_viewModel->submitRecommendationFeedback(m_viewModel->currentUserAccount(),
+                                              songId,
+                                              eventType,
+                                              scene,
+                                              requestId,
+                                              modelVersion,
+                                              playMs,
+                                              durationMs);
+}
+
+void MainWidget::handleSimilarSongSelected(const QVariantMap& item)
+{
+    qDebug() << "[MainWidget] Similar song click received, scheduling async play pipeline";
+    m_pendingSimilarSongItem = item;
+    QTimer::singleShot(0, this, &MainWidget::handlePendingSimilarSongPlayback);
+}
+
+void MainWidget::handlePendingSimilarSongPlayback()
+{
+    if (!w) {
+        qWarning() << "[MainWidget] Similar song selected but PlayWidget is null";
+        return;
+    }
+
+    const QVariantMap item = m_pendingSimilarSongItem;
+    m_pendingSimilarSongItem.clear();
+
+    const QString filePath = item.value(QStringLiteral("play_path")).toString().trimmed().isEmpty()
+            ? item.value(QStringLiteral("stream_url")).toString()
+            : item.value(QStringLiteral("play_path")).toString();
+    if (filePath.trimmed().isEmpty()) {
+        qWarning() << "[MainWidget] Similar song selected but play path is empty";
+        return;
+    }
+
+    const QString title = item.value(QStringLiteral("title")).toString();
+    const QString artist = normalizeArtistForHistory(item.value(QStringLiteral("artist")).toString());
+    const QString cover = item.value(QStringLiteral("cover_art_url")).toString();
+    const QString songId = item.value(QStringLiteral("song_id")).toString();
+    const QString requestId = item.value(QStringLiteral("request_id")).toString();
+    const QString modelVersion = item.value(QStringLiteral("model_version")).toString();
+    const QString scene = item.value(QStringLiteral("scene")).toString().trimmed().isEmpty()
+            ? QStringLiteral("detail")
+            : item.value(QStringLiteral("scene")).toString();
+
+    qDebug() << "[MainWidget] Play similar song:" << title << "songId:" << songId;
+
+    if (!w->getNetFlag()) {
+        main_list->signalPlayButtonClick(false, "");
+    }
+    net_list->signalPlayButtonClick(false, "");
+    localAndDownloadWidget->setCurrentPlayingPath("");
+
+    w->setPlayNet(true);
+    w->setNetworkMetadata(title, artist, cover);
+    m_networkMusicArtist = artist;
+    m_networkMusicCover = cover;
+    w->playClick(filePath);
+
+    if (isUserLoggedIn() && !songId.trimmed().isEmpty() && m_viewModel) {
+        const QString userAccount = m_viewModel->currentUserAccount();
+        m_viewModel->submitRecommendationFeedback(userAccount,
+                                                  songId,
+                                                  QStringLiteral("click"),
+                                                  scene,
+                                                  requestId,
+                                                  modelVersion,
+                                                  -1,
+                                                  -1);
+        m_viewModel->submitRecommendationFeedback(userAccount,
+                                                  songId,
+                                                  QStringLiteral("play"),
+                                                  scene,
+                                                  requestId,
+                                                  modelVersion,
+                                                  0,
+                                                  -1);
+    }
 }
 
 void MainWidget::submitPlayHistoryWithRetry(const QString& sessionId,
@@ -1249,47 +674,36 @@ void MainWidget::submitPlayHistoryWithRetry(const QString& sessionId,
                                             const QString& userAccount,
                                             int retryCount)
 {
-    if (!request || userAccount.trimmed().isEmpty()) {
+    if (!m_viewModel || userAccount.trimmed().isEmpty()) {
         return;
     }
 
-    AudioSession* session = AudioService::instance().getSession(sessionId);
-    if (!session) {
-        session = AudioService::instance().currentSession();
-    }
-    if (!session) {
+    QString title;
+    QString artist;
+    QString album;
+    qint64 durationMs = 0;
+    bool isLocal = true;
+    if (!m_viewModel->resolveHistorySnapshot(sessionId,
+                                             filePath,
+                                             m_networkMusicArtist,
+                                             &title,
+                                             &artist,
+                                             &album,
+                                             &durationMs,
+                                             &isLocal)) {
         qDebug() << "[MainWidget] Skip history add: session not available for" << filePath;
         return;
-    }
-
-    QString title = session->title();
-    const QString sessionArtist = normalizeArtistForHistory(session->artist());
-    const QString cachedArtist = normalizeArtistForHistory(m_networkMusicArtist);
-    QString artist = !sessionArtist.isEmpty() ? sessionArtist : cachedArtist;
-    QString album = "";
-    qint64 durationMs = session->duration();
-    const bool isLocal = !filePath.startsWith("http");
-
-    if (title.isEmpty()) {
-        QFileInfo fileInfo(filePath);
-        title = fileInfo.completeBaseName();
-    }
-
-    if (artist.isEmpty()) {
-        artist = QStringLiteral("未知艺术家");
     }
 
     if (durationMs <= 0 && retryCount > 0) {
         qDebug() << "[MainWidget] History add delayed: duration not ready for" << filePath
                  << "retry left:" << retryCount;
-        QTimer::singleShot(1200, this, [this, sessionId, filePath, userAccount, retryCount]() {
-            submitPlayHistoryWithRetry(sessionId, filePath, userAccount, retryCount - 1);
-        });
+        schedulePlayHistoryRetry(sessionId, filePath, userAccount, retryCount - 1);
         return;
     }
 
     if (durationMs <= 0 && isLocal) {
-        const int cachedSeconds = durationSecondsFromLocalCache(filePath);
+        const int cachedSeconds = m_viewModel ? m_viewModel->localMusicCacheDurationSeconds(filePath) : 0;
         if (cachedSeconds > 0) {
             durationMs = static_cast<qint64>(cachedSeconds) * 1000;
             qDebug() << "[MainWidget] History duration filled from local cache:" << cachedSeconds << "s";
@@ -1301,8 +715,52 @@ void MainWidget::submitPlayHistoryWithRetry(const QString& sessionId,
              << "durationSec:" << durationSec
              << "isLocal:" << isLocal;
 
-    request->addPlayHistory(userAccount, filePath, title, artist, album,
-                            QString::number(durationSec), isLocal);
+    m_viewModel->addPlayHistory(userAccount, filePath, title, artist, album,
+                                QString::number(durationSec), isLocal);
+}
+
+void MainWidget::schedulePlayHistoryRetry(const QString& sessionId,
+                                          const QString& filePath,
+                                          const QString& userAccount,
+                                          int retryCount)
+{
+    m_pendingHistorySessionId = sessionId;
+    m_pendingHistoryFilePath = filePath;
+    m_pendingHistoryUserAccount = userAccount;
+    m_pendingHistoryRetryCount = retryCount;
+    QTimer::singleShot(1200, this, &MainWidget::handlePlayHistoryRetryTimeout);
+}
+
+void MainWidget::handlePlayHistoryRetryTimeout()
+{
+    if (m_pendingHistoryRetryCount < 0) {
+        return;
+    }
+
+    const QString sessionId = m_pendingHistorySessionId;
+    const QString filePath = m_pendingHistoryFilePath;
+    const QString userAccount = m_pendingHistoryUserAccount;
+    const int retryCount = m_pendingHistoryRetryCount;
+
+    m_pendingHistorySessionId.clear();
+    m_pendingHistoryFilePath.clear();
+    m_pendingHistoryUserAccount.clear();
+    m_pendingHistoryRetryCount = -1;
+
+    submitPlayHistoryWithRetry(sessionId, filePath, userAccount, retryCount);
+}
+
+int MainWidget::placeSideNavButton(int row,
+                                   QPushButton* button,
+                                   int navStartY,
+                                   int itemHeight,
+                                   int panelWidth)
+{
+    if (!button) {
+        return row;
+    }
+    button->setGeometry(0, navStartY + row * itemHeight, panelWidth, itemHeight);
+    return row + 1;
 }
 
 void MainWidget::enqueuePluginLoadError(const QString& pluginFilePath, const QString& reason)
@@ -1319,8 +777,7 @@ void MainWidget::enqueuePluginLoadError(const QString& pluginFilePath, const QSt
 
 void MainWidget::showPluginDiagnosticsDialog()
 {
-    PluginManager& manager = PluginManager::instance();
-    const QString report = manager.diagnosticsReport();
+    const QString report = m_viewModel ? m_viewModel->pluginDiagnosticsReport() : QString();
 
     QMessageBox box(this);
     box.setWindowTitle(QStringLiteral("插件诊断"));
@@ -1358,22 +815,15 @@ void MainWidget::updateSideNavLayout()
 
     const int navStartY = brandTop + brandHeight + 14;
     int row = 0;
-    auto placeButton = [&](QPushButton* btn) {
-        if (!btn) {
-            return;
-        }
-        btn->setGeometry(0, navStartY + row * itemHeight, panelWidth, itemHeight);
-        row++;
-    };
-
-    placeButton(recommendButton);
-    placeButton(localButton);
-    placeButton(netButton);
-    placeButton(historyButton);
+    row = placeSideNavButton(row, recommendButton, navStartY, itemHeight, panelWidth);
+    row = placeSideNavButton(row, localButton, navStartY, itemHeight, panelWidth);
+    row = placeSideNavButton(row, netButton, navStartY, itemHeight, panelWidth);
+    row = placeSideNavButton(row, historyButton, navStartY, itemHeight, panelWidth);
     if (favoriteButton && favoriteButton->isVisible()) {
-        placeButton(favoriteButton);
+        row = placeSideNavButton(row, favoriteButton, navStartY, itemHeight, panelWidth);
     }
-    placeButton(videoButton);
+    row = placeSideNavButton(row, videoButton, navStartY, itemHeight, panelWidth);
+    Q_UNUSED(row);
 }
 
 void MainWidget::updateAdaptiveLayout()
@@ -1445,7 +895,7 @@ void MainWidget::updateAdaptiveLayout()
     updateSideNavLayout();
 }
 
-void MainWidget::Update_paint()
+void MainWidget::updatePaint()
 {
     main_list->update();
 }
@@ -1485,7 +935,9 @@ void MainWidget::resizeEvent(QResizeEvent *event)
 void MainWidget::closeEvent(QCloseEvent *event)
 {
     qDebug() << "[MainWidget] closeEvent: start shutdown";
-    OnlinePresenceManager::instance().logoutAndClear(true, 1200);
+    if (m_viewModel) {
+        m_viewModel->logoutCurrentUser(true, 1200);
+    }
 
     if (mainMenu) {
         mainMenu->close();
@@ -1528,10 +980,9 @@ MainWidget::~MainWidget()
     if (videoPlayerWindow) {
         videoPlayerWindow->pausePlayback();
     }
-    AudioService::instance().stop();
-    AudioPlayer::instance().stop();
-    AudioPlayer::instance().clearWriteOwner();
-    AudioPlayer::instance().resetBuffer();
+    if (m_viewModel) {
+        m_viewModel->shutdownAudioPipeline();
+    }
     
     if(w) {
         qDebug() << "MainWidget: Deleting PlayWidget...";
@@ -1566,8 +1017,11 @@ MainWidget::~MainWidget()
     QThreadPool::globalInstance()->waitForDone(3000);
     
     qDebug() << "MainWidget: Unloading plugins...";
-    PluginManager::instance().unloadAllPlugins();
+    if (m_viewModel) {
+        m_viewModel->unloadAllPlugins();
+    }
     
     qDebug() << "MainWidget::~MainWidget() - Cleanup complete";
 }
+
 

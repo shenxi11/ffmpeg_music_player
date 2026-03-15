@@ -83,6 +83,9 @@ private slots:
     void onTaskRemoved(const QString& taskId, const QString& filename);
 
 private:
+    // 连接拆分：集中管理下载管理器到模型层的事件绑定。
+    void setupConnections();
+
     QList<DownloadTask> m_tasks;
     bool m_showCompleted;
     QString m_currentPlayingPath;

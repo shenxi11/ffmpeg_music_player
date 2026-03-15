@@ -1,61 +1,62 @@
-﻿#ifndef MUSICLISTWIDGETNET_H
+#ifndef MUSICLISTWIDGETNET_H
 #define MUSICLISTWIDGETNET_H
 
-#include <QObject>
-#include <QWidget>
-#include <QStringList>
 #include <QMap>
-#include "music_list_widget_net_qml.h"
-#include "httprequest_v2.h"
-#include "music.h"
+#include <QObject>
+#include <QStringList>
+#include <QWidget>
 
-// 前向声明，避免循环依赖
+#include "music.h"
+#include "music_list_widget_net_qml.h"
+#include "viewmodels/OnlineMusicListViewModel.h"
+
 class MainWidget;
 
 class MusicListWidgetNet : public QWidget
 {
     Q_OBJECT
 public:
-    explicit MusicListWidgetNet(QWidget *parent = nullptr);
-    
-    // 获取内部的QML列表控件
+    explicit MusicListWidgetNet(QWidget* parent = nullptr);
+
     MusicListWidgetNetQml* getListWidget() const { return listWidget; }
-    
-    // 清空音乐列表
-    void clearList() {
+
+    void clearList()
+    {
         if (listWidget) {
             listWidget->clearAll();
         }
     }
-    
-    void on_signal_play_click(const QString name, const QString artist, const QString cover);
-    void on_signal_remove_click(const QString name);
-    void on_signal_play_button_click(bool flag, const QString filename);
-    void on_signal_download_music(QString songName);
-    void on_signal_translate_button_clicked();
+
+    void onPlayClick(const QString name, const QString artist, const QString cover);
+    void onRemoveClick(const QString name);
+    void onPlayButtonClick(bool flag, const QString filename);
+    void onDownloadMusic(QString songName);
+    void onTranslateButtonClicked();
+
 signals:
-    void signal_add_songlist(const QList<Music>& musicList);
-    void signal_play_click(const QString songName, const QString artist, const QString cover, bool net);
-    void signal_play_button_click(bool flag, const QString filename);
-    void signal_last(QString songName);
-    void signal_next(QString songName);
-    void signal_translate_button_clicked();
-    void loginRequired();  // 下载时需要登录的信号
+    void signalAddSonglist(const QList<Music>& musicList);
+    void signalPlayClick(const QString songName, const QString artist, const QString cover, bool net);
+    void signalPlayButtonClick(bool flag, const QString filename);
+    void signalLast(QString songName);
+    void signalNext(QString songName);
+    void signalTranslateButtonClicked();
+    void loginRequired();
     void addToFavorite(const QString& path, const QString& title, const QString& artist, const QString& duration);
-    //void signal_netFlag
+
 public:
     void setMainWidget(QWidget* widget) { mainWidget = widget; }
-    
+
 private:
-    MusicListWidgetNetQml* listWidget;
+    // 连接拆分：将在线列表信号绑定集中到独立实现中维护。
+    void setupConnections();
 
+    MusicListWidgetNetQml* listWidget = nullptr;
     QMap<QString, double> song_duration;
-    QMap<QString, QString> song_cover;  // 存储歌曲封面URL
-
-    HttpRequestV2* request;
-    QString currentSongArtist;  // 当前歌曲的艺术家
-    QString currentSongCover;   // 当前歌曲的封面
-    QWidget* mainWidget;  // MainWidget指针，用于检查登录状态
+    QMap<QString, QString> song_cover;
+    OnlineMusicListViewModel* m_viewModel = nullptr;
+    QString currentSongArtist;
+    QString currentSongCover;
+    QWidget* mainWidget = nullptr;
 };
 
 #endif // MUSICLISTWIDGETNET_H

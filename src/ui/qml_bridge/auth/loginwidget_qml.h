@@ -7,8 +7,7 @@
 #include <QVariant>
 #include <QtDebug>
 
-#include "httprequest_v2.h"
-#include "settings_manager.h"
+#include "viewmodels/LoginViewModel.h"
 
 class LoginWidgetQml : public QObject
 {
@@ -19,7 +18,7 @@ public:
         : QObject(parent)
         , m_window(nullptr)
         , m_engine(new QQmlApplicationEngine(this))
-        , request(new HttpRequestV2(this))
+        , m_viewModel(new LoginViewModel(this))
         , isVisible(false)
     {
         qDebug() << "LoginWidgetQml: Initializing...";
@@ -45,24 +44,24 @@ public:
         connect(m_window, SIGNAL(resetPasswordRequested(QString, QString)),
                 this, SLOT(onResetPasswordRequested(QString, QString)));
 
-        connect(request, &HttpRequestV2::signal_getusername,
+        connect(m_viewModel, &LoginViewModel::loginSucceeded,
                 this, &LoginWidgetQml::onUsernameReceived);
-        connect(request, &HttpRequestV2::signal_Loginflag,
-                this, &LoginWidgetQml::onLoginFlag);
-        connect(request, &HttpRequestV2::signal_Registerflag,
-                this, &LoginWidgetQml::onRegisterResult);
-        connect(request, &HttpRequestV2::signal_RegisterResult,
+        connect(m_viewModel, &LoginViewModel::loginFailed,
+                this, &LoginWidgetQml::onLoginFailed);
+        connect(m_viewModel, &LoginViewModel::switchToLoginModeRequested,
+                this, &LoginWidgetQml::onSwitchToLoginModeRequested);
+        connect(m_viewModel, &LoginViewModel::registerCompleted,
                 this, &LoginWidgetQml::onRegisterResultMessage);
-        connect(request, &HttpRequestV2::signal_ResetPasswordResult,
+        connect(m_viewModel, &LoginViewModel::resetPasswordCompleted,
                 this, &LoginWidgetQml::onResetPasswordResult);
 
-        connect(m_window, &QQuickWindow::visibleChanged, this, [this]() {
-            isVisible = m_window && m_window->isVisible();
-        });
+        connect(m_window, &QQuickWindow::visibleChanged,
+                this, &LoginWidgetQml::onWindowVisibleChanged);
 
         // Keep login page aware of cached account for one-click login.
-        const SettingsManager& settings = SettingsManager::instance();
-        setSavedAccount(settings.cachedAccount(), settings.cachedPassword(), settings.cachedUsername());
+        setSavedAccount(m_viewModel->cachedAccount(),
+                        m_viewModel->cachedPassword(),
+                        m_viewModel->cachedUsername());
 
         qDebug() << "LoginWidgetQml: Initialized";
     }
@@ -134,13 +133,13 @@ private slots:
     void onRegisterRequested(const QString &account, const QString &password, const QString &username)
     {
         qDebug() << "LoginWidgetQml: Register requested for account:" << account;
-        request->registerUser(account, password, username);
+        m_viewModel->requestRegister(account, password, username);
     }
 
     void onResetPasswordRequested(const QString &account, const QString &newPassword)
     {
         qDebug() << "LoginWidgetQml: Reset password requested for account:" << account;
-        request->resetPassword(account, newPassword);
+        m_viewModel->requestResetPassword(account, newPassword);
     }
 
     void onUsernameReceived(const QString &username)
@@ -148,8 +147,6 @@ private slots:
         if (username.trimmed().isEmpty()) {
             return;
         }
-
-        m_loginInFlight = false;
 
         emit login_(username);
         qDebug() << "LoginWidgetQml: Login successful, username:" << username;
@@ -160,27 +157,9 @@ private slots:
         }
     }
 
-    void onLoginFlag(bool success)
+    void onLoginFailed(const QString& message)
     {
-        if (!m_loginInFlight) {
-            return;
-        }
-
-        if (success) {
-            return;
-        }
-
-        m_loginInFlight = false;
-        qWarning() << "LoginWidgetQml: Login failed for account:" << m_lastRequestedAccount;
-
-        if (m_lastRequestIsAutoLogin) {
-            SettingsManager::instance().setAutoLoginEnabled(false);
-        }
-
         if (m_window) {
-            const QString message = m_lastRequestIsAutoLogin
-                    ? QStringLiteral("自动登录失败，请手动登录")
-                    : QStringLiteral("账号或密码错误");
             QMetaObject::invokeMethod(
                 m_window,
                 "onLoginFailed",
@@ -189,9 +168,9 @@ private slots:
         }
     }
 
-    void onRegisterResult(bool success)
+    void onSwitchToLoginModeRequested()
     {
-        if (success && m_window) {
+        if (m_window) {
             QMetaObject::invokeMethod(m_window, "switchToLoginMode");
         }
     }
@@ -222,41 +201,23 @@ private slots:
         );
     }
 
+    void onWindowVisibleChanged()
+    {
+        isVisible = m_window && m_window->isVisible();
+    }
+
 private:
     void performLogin(const QString& account, const QString& password, bool autoLogin)
     {
-        const QString trimmedAccount = account.trimmed();
-        const QString trimmedPassword = password.trimmed();
-        if (trimmedAccount.isEmpty() || trimmedPassword.isEmpty()) {
-            if (m_window) {
-                QMetaObject::invokeMethod(
-                    m_window,
-                    "onLoginFailed",
-                    Q_ARG(QVariant, QVariant(QStringLiteral("账号或密码不能为空")))
-                );
-            }
-            return;
-        }
-
-        m_lastRequestedAccount = trimmedAccount;
-        m_lastRequestedPassword = trimmedPassword;
-        m_lastRequestIsAutoLogin = autoLogin;
-        m_loginInFlight = true;
-
-        qDebug() << "LoginWidgetQml: Login requested for account:" << trimmedAccount
+        qDebug() << "LoginWidgetQml: Login requested for account:" << account.trimmed()
                  << "auto:" << autoLogin;
-        request->login(trimmedAccount, trimmedPassword);
+        m_viewModel->requestLogin(account, password, autoLogin);
     }
 
 private:
     QQuickWindow *m_window;
     QQmlApplicationEngine *m_engine;
-    HttpRequestV2 *request;
-
-    QString m_lastRequestedAccount;
-    QString m_lastRequestedPassword;
-    bool m_lastRequestIsAutoLogin = false;
-    bool m_loginInFlight = false;
+    LoginViewModel* m_viewModel;
 };
 
 #endif // LOGINWIDGET_QML_H

@@ -53,9 +53,9 @@ WhisperBackend::WhisperBackend(QObject *parent)
     take_pcm->setTranslate(true);
     
     // 连接信号
-    connect(this, &WhisperBackend::signal_begin_take_pcm, take_pcm.get(), &TakePcm::signal_begin_make_pcm);
-    connect(take_pcm.get(), &TakePcm::signal_send_data, this, &WhisperBackend::on_signal_send_data);
-    connect(take_pcm.get(), &TakePcm::signal_decodeEnd, this, &WhisperBackend::on_signal_decodeEnd);
+    connect(this, &WhisperBackend::signalBeginTakePcm, take_pcm.get(), &TakePcm::signalBeginMakePcm);
+    connect(take_pcm.get(), &TakePcm::signalSendData, this, &WhisperBackend::onSendData);
+    connect(take_pcm.get(), &TakePcm::signalDecodeEnd, this, &WhisperBackend::onDecodeEnd);
     
     // 扫描可用模型
     scanForModels();
@@ -232,10 +232,10 @@ void WhisperBackend::performTranscription()
         translating = false;
         
         updateStatus("正在解码音频...");
-        qDebug() << "[Thread] Starting audio decode, emitting signal_begin_take_pcm...";
+        qDebug() << "[Thread] Starting audio decode, emitting signalBeginTakePcm...";
         
         // 启动音频解码(异步)
-        emit signal_begin_take_pcm(m_audioFile);
+        emit signalBeginTakePcm(m_audioFile);
         
         // 等待音频解码完成
         qDebug() << "[Thread] Waiting for audio decode to complete...";
@@ -453,7 +453,7 @@ void WhisperBackend::updateProgressSlot(int value)
     updateProgress(value);
 }
 
-void WhisperBackend::on_signal_send_data(uint8_t *buffer, int bufferSize, qint64 timeMap)
+void WhisperBackend::onSendData(uint8_t *buffer, int bufferSize, qint64 timeMap)
 {
     int16_t* samples = reinterpret_cast<int16_t*>(buffer);
     int n_samples = bufferSize / sizeof(int16_t) / 2; // 每帧采样点数（每通道）
@@ -480,7 +480,7 @@ void WhisperBackend::on_signal_send_data(uint8_t *buffer, int bufferSize, qint64
     }
 }
 
-void WhisperBackend::on_signal_decodeEnd()
+void WhisperBackend::onDecodeEnd()
 {
     // 防止重复触发
     if (translating.load()) {

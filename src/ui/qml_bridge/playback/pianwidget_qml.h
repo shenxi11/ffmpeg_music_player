@@ -20,7 +20,7 @@ public:
         QQuickItem* root = rootObject();
         if (root) {
             // 透传“展开/收起”点击信号。
-            connect(root, SIGNAL(upClicked()), this, SIGNAL(signal_up_click()));
+            connect(root, SIGNAL(upClicked()), this, SIGNAL(signalUpClick()));
         }
     }
     
@@ -31,7 +31,7 @@ public:
         }
     }
     
-    void on_signal_set_pic_path(QString picPath) {
+    void onSetPicPath(QString picPath) {
         QQuickItem* root = rootObject();
         if (root) {
             QMetaObject::invokeMethod(root, "setPicPath", Q_ARG(QVariant, picPath));
@@ -39,7 +39,7 @@ public:
     }
     
 signals:
-    void signal_up_click();
+    void signalUpClick();
 };
 
 #endif // PIANWIDGET_QML_H

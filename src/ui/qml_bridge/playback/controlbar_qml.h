@@ -26,14 +26,14 @@ public:
         QQuickItem* root = rootObject();
         if (root) {
             // 建立 QML 与 QWidget 的播放控制信号桥接。
-            connect(root, SIGNAL(stop()), this, SIGNAL(signal_stop()));
-            connect(root, SIGNAL(nextSong()), this, SIGNAL(signal_nextSong()));
-            connect(root, SIGNAL(lastSong()), this, SIGNAL(signal_lastSong()));
-            connect(root, SIGNAL(volumeChanged(int)), this, SIGNAL(signal_volumeChanged(int)));
-            connect(root, SIGNAL(mlistToggled(bool)), this, SIGNAL(signal_mlist_toggled(bool)));
-            connect(root, SIGNAL(playClicked()), this, SIGNAL(signal_play_clicked()));
-            connect(root, SIGNAL(rePlay()), this, SIGNAL(signal_rePlay()));
-            connect(root, SIGNAL(deskToggled(bool)), this, SIGNAL(signal_desk_toggled(bool)));
+            connect(root, SIGNAL(stop()), this, SIGNAL(signalStop()));
+            connect(root, SIGNAL(nextSong()), this, SIGNAL(signalNextSong()));
+            connect(root, SIGNAL(lastSong()), this, SIGNAL(signalLastSong()));
+            connect(root, SIGNAL(volumeChanged(int)), this, SIGNAL(signalVolumeChanged(int)));
+            connect(root, SIGNAL(mlistToggled(bool)), this, SIGNAL(signalMlistToggled(bool)));
+            connect(root, SIGNAL(playClicked()), this, SIGNAL(signalPlayClicked()));
+            connect(root, SIGNAL(rePlay()), this, SIGNAL(signalRePlay()));
+            connect(root, SIGNAL(deskToggled(bool)), this, SIGNAL(signalDeskToggled(bool)));
             connect(root, SIGNAL(loopStateChanged(bool)), this, SLOT(on_loop_state_changed(bool)));
         }
     }
@@ -63,7 +63,7 @@ public:
     }
 
 public slots:
-    void slot_playState(State state_)
+    void onPlayState(State state_)
     {
         QQuickItem* root = rootObject();
         if (root) {
@@ -72,7 +72,7 @@ public slots:
         }
     }
 
-    void slot_playFinished()
+    void onPlayFinished()
     {
         QQuickItem* root = rootObject();
         if (root) {
@@ -80,7 +80,7 @@ public slots:
         }
     }
 
-    void slot_isUpChanged(bool flag)
+    void onIsUpChanged(bool flag)
     {
         QQuickItem* root = rootObject();
         if (root) {
@@ -97,14 +97,14 @@ private slots:
     }
 
 signals:
-    void signal_stop();
-    void signal_nextSong();
-    void signal_lastSong();
-    void signal_volumeChanged(int value);
-    void signal_mlist_toggled(bool checked);
-    void signal_play_clicked();
-    void signal_rePlay();
-    void signal_desk_toggled(bool checked);
+    void signalStop();
+    void signalNextSong();
+    void signalLastSong();
+    void signalVolumeChanged(int value);
+    void signalMlistToggled(bool checked);
+    void signalPlayClicked();
+    void signalRePlay();
+    void signalDeskToggled(bool checked);
 };
 
 #endif // CONTROLBAR_QML_H

@@ -102,6 +102,10 @@ signals:
     void serviceError(const QString& error);
 
 private slots:
+    void onAudioCachePathChanged();
+    void onSessionStarted();
+    void onSessionPaused();
+    void onSessionResumed();
     void onSessionFinished();
     void onSessionError(const QString& error);
     void onMetadataReady(const QString& title, const QString& artist, qint64 duration);
@@ -118,6 +122,9 @@ private:
     ~AudioService();
     AudioService(const AudioService&) = delete;
     AudioService& operator=(const AudioService&) = delete;
+
+    void setupServiceConnections();
+    void connectSessionSignals(AudioSession* session);
     
     void switchToSession(const QString& sessionId);
     void playCurrentIndex();

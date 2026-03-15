@@ -56,8 +56,8 @@ Item {
             anchors.fill: parent
             radius: 12
             color: root.isUp ? "#18000000" : "transparent"
-            border.width: root.isUp ? 1 : 0
-            border.color: "#22FFFFFF"
+            border.width: 0
+            border.color: "transparent"
         }
 
         Column {
@@ -272,8 +272,8 @@ Item {
         visible: root.isUp
         color: "#1F202734"
         radius: 12
-        border.color: "#33FFFFFF"
-        border.width: 1
+        border.color: "transparent"
+        border.width: 0
 
         Item {
             anchors.fill: parent

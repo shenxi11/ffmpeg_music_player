@@ -2,12 +2,10 @@
 #define MEDIASERVICE_H
 
 #include "AudioService.h"
+#include "MediaSession.h"
 #include <QObject>
 #include <QMap>
 #include <QUrl>
-
-// 前向声明
-class MediaSession;
 
 /**
  * @brief 媒体服务 - 扩展音频服务以支持视频
@@ -54,7 +52,13 @@ signals:
 private:
     explicit MediaService(QObject *parent = nullptr);
     ~MediaService() override;
-    
+
+private slots:
+    void onMediaSessionPositionChanged(qint64 pos);
+    void onMediaSessionMetadataReady(const QString& title, const QString& artist, qint64 duration);
+    void onMediaSessionStateChanged(MediaSession::PlaybackState state);
+
+private:
     // 禁止拷贝
     MediaService(const MediaService&) = delete;
     MediaService& operator=(const MediaService&) = delete;
@@ -62,6 +66,7 @@ private:
     // 媒体类型检测
     bool detectHasVideo(const QUrl& url);
     QString detectMediaType(const QUrl& url);
+    void connectMediaSessionSignals(MediaSession* session);
     
     // 会话管理
     MediaSession* createMediaSession(const QUrl& url);

@@ -12,10 +12,11 @@ public:
 
     ~LrcAnalyze();
 private slots:
-    void begin_send(QString lrcFile);
+    void beginSend(QString lrcFile);
+    void onRemoteLyricsReceived(QStringList lines);
 
 private:
-    void take_lrc(QString Path);
+    void takeLrc(QString Path);
     int timeToMilliseconds(const std::string& timeStr);
     std::map<int, std::string> parseLrcFile(const QString& lrcFile);
     QString detectEncodingWithUchardet(const QString& filePath);

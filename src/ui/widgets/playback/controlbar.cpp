@@ -84,27 +84,27 @@ ControlBar::ControlBar(QWidget *parent)
                 "}"
                 );
 
-    connect(next, &QPushButton::clicked, this, &ControlBar::signal_nextSong);
-    connect(last, &QPushButton::clicked, this, &ControlBar::signal_lastSong);
-    connect(loop, &QPushButton::clicked, this, &ControlBar::slot_loop_clicked);
-    connect(volume, &QPushButton::toggled, this, &ControlBar::slot_volume_toggled);
-    connect(volumeSlider, &QSlider::valueChanged, this, &ControlBar::signal_volumeChanged);
-    connect(mlist, &QPushButton::toggled, this, &ControlBar::signal_mlist_toggled);
-    connect(play, &QPushButton::clicked, this, &ControlBar::signal_play_clicked);
-    connect(desk, &QPushButton::toggled, this, &ControlBar::signal_desk_toggled);
+    connect(next, &QPushButton::clicked, this, &ControlBar::signalNextSong);
+    connect(last, &QPushButton::clicked, this, &ControlBar::signalLastSong);
+    connect(loop, &QPushButton::clicked, this, &ControlBar::onLoopClicked);
+    connect(volume, &QPushButton::toggled, this, &ControlBar::onVolumeToggled);
+    connect(volumeSlider, &QSlider::valueChanged, this, &ControlBar::signalVolumeChanged);
+    connect(mlist, &QPushButton::toggled, this, &ControlBar::signalMlistToggled);
+    connect(play, &QPushButton::clicked, this, &ControlBar::signalPlayClicked);
+    connect(desk, &QPushButton::toggled, this, &ControlBar::signalDeskToggled);
 }
-void ControlBar::slot_playFinished(){
+void ControlBar::onPlayFinished(){
     if(loopState_){
-        emit signal_rePlay();
+        emit signalRePlay();
     }else{
-        slot_playState(Stop);
-        emit signal_stop();
+        onPlayState(Stop);
+        emit signalStop();
     }
 }
 bool ControlBar::getLoopFlag(){
     return loopState_;
 }
-void ControlBar::slot_playState(State state){
+void ControlBar::onPlayState(State state){
     if(state == State::Play){
         if(!isUp)
             play->setStyleSheet(
@@ -134,7 +134,7 @@ void ControlBar::slot_playState(State state){
     }
     state_ = state;
 }
-void ControlBar::slot_isUpChanged(bool flag){
+void ControlBar::onIsUpChanged(bool flag){
     isUp = flag;
     if(isUp){
         volume->setStyleSheet(
@@ -229,7 +229,7 @@ void ControlBar::slot_isUpChanged(bool flag){
 
     }
 }
-void ControlBar::slot_volume_toggled(bool checked){
+void ControlBar::onVolumeToggled(bool checked){
     if(checked)
     {
         auto Position = volume->pos();
@@ -245,7 +245,7 @@ void ControlBar::slot_volume_toggled(bool checked){
         }
     }
 }
-void ControlBar::slot_loop_clicked(){
+void ControlBar::onLoopClicked(){
     if(loopState_){
         if(!isUp)
             loop->setStyleSheet(

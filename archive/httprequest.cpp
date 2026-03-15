@@ -1,4 +1,4 @@
-#include "httprequest.h"
+﻿#include "httprequest.h"
 #include "music.h"
 
 User* User::instance = nullptr;
@@ -11,44 +11,44 @@ User::User(QString account, QString password, QString username)
 }
 
 // User类setter实现
-void User::set_username(QString username)
+void User::setUsername(QString username)
 {
     this->username = username;
 }
 
-void User::set_account(QString account)
+void User::setAccount(QString account)
 {
     this->account = account;
 }
 
-void User::set_password(QString password)
+void User::setPassword(QString password)
 {
     this->password = password;
 }
 
-void User::set_music_path(QStringList musics)
+void User::setMusicPath(QStringList musics)
 {
     this->music_path = musics;
-    emit signal_add_songs();
+    emit signalAddSongs();
 }
 
 // User类getter实现
-QString User::get_username()
+QString User::getUsername()
 {
     return username;
 }
 
-QString User::get_account()
+QString User::getAccount()
 {
     return account;
 }
 
-QString User::get_password()
+QString User::getPassword()
 {
     return password;
 }
 
-QStringList User::get_music_path()
+QStringList User::getMusicPath()
 {
     return this->music_path;
 }
@@ -57,7 +57,7 @@ HttpRequest::HttpRequest(QObject *parent)
 {
 
 }
-bool HttpRequest::AddMusic(const QString music_path)
+bool HttpRequest::addMusic(const QString music_path)
 {   if(!manager)
         manager = new QNetworkAccessManager();
     QUrl url = localUrl + "users/add_music";
@@ -66,7 +66,7 @@ bool HttpRequest::AddMusic(const QString music_path)
 
     auto user = User::getInstance();
     QJsonObject json;
-    json["username"] = user->get_username();
+    json["username"] = user->getUsername();
     json["music_path"] = music_path;
     QJsonDocument jsonDoc(json);
     QByteArray jsonData = jsonDoc.toJson();
@@ -89,7 +89,7 @@ bool HttpRequest::AddMusic(const QString music_path)
     });
     return true;
 }
-bool HttpRequest::Login(const QString& account, const QString& password)
+bool HttpRequest::login(const QString& account, const QString& password)
 {
     if(!manager)
             manager = new QNetworkAccessManager();
@@ -130,14 +130,14 @@ bool HttpRequest::Login(const QString& account, const QString& password)
                 auto user = User::getInstance();
                 
                 // 设置账号和密码
-                user->set_account(account);
-                user->set_password(password);
+                user->setAccount(account);
+                user->setPassword(password);
                 
                 // 设置用户名（从 username 字段获取）
                 if (jsonObject.contains("username")) {
                     QString username = jsonObject.value("username").toString();
-                    user->set_username(username);
-                    emit signal_getusername(username);
+                    user->setUsername(username);
+                    emit signalGetusername(username);
                     qDebug() << "Login successful, username:" << username;
                 }
                 
@@ -148,20 +148,20 @@ bool HttpRequest::Login(const QString& account, const QString& password)
                     for (const auto& songPath : songPathArray) {
                         musics << songPath.toString();
                     }
-                    user->set_music_path(musics);
-                    emit signal_add_songs();
+                    user->setMusicPath(musics);
+                    emit signalAddSongs();
                     qDebug() << "User's favorite songs:" << musics;
                 }
                 
-                emit signal_Loginflag(true);
+                emit signalLoginFlag(true);
             } else {
                 qDebug() << "Login failed: invalid credentials";
-                emit signal_Loginflag(false);
+                emit signalLoginFlag(false);
             }
 
         } else {
             qDebug() << "Login request error:" << reply->errorString();
-            emit signal_Loginflag(false);
+            emit signalLoginFlag(false);
         }
         reply->deleteLater();
     });
@@ -190,17 +190,17 @@ bool HttpRequest:: Register(const QString& account, const QString& password, con
         if (reply->error() == QNetworkReply::NoError) {
             QByteArray response_data = reply->readAll();
             qDebug() << "Response:" << response_data;
-            emit signal_Registerflag(true);
+            emit signalRegisterFlag(true);
         } else {
             qDebug() << "Error:" << reply->errorString();
-            emit signal_Registerflag(false);
+            emit signalRegisterFlag(false);
         }
         reply->deleteLater();
     });
     return true;
 }
 
-bool HttpRequest::Upload(const QString &path)
+bool HttpRequest::upload(const QString &path)
 {
     if(!manager)
             manager = new QNetworkAccessManager();
@@ -256,7 +256,7 @@ QString extractWithQUrl(const QString& fullUrl) {
         .arg(url.port() > 0 ? ":" + QString::number(url.port()) : "") // 端口（:8080）
         .arg(dirPath);              // 目录路径（/uploads/东风破）
 }
-bool HttpRequest::get_file(const QString url)
+bool HttpRequest::getFile(const QString url)
 {
     if(!manager)
             manager = new QNetworkAccessManager();
@@ -277,7 +277,7 @@ bool HttpRequest::get_file(const QString url)
                 {
                     lines<<it->toString();
                 }
-                emit signal_lrc(lines);
+                emit signalLrc(lines);
             }
 
         } else {
@@ -291,7 +291,7 @@ bool HttpRequest::get_file(const QString url)
 }
 
 
-bool HttpRequest::Download(const QString& filename, const QString download_folder, bool downloadLyrics, const QString& coverUrl)
+bool HttpRequest::download(const QString& filename, const QString download_folder, bool downloadLyrics, const QString& coverUrl)
 {
     // 构建下载URL
     QString downloadUrl = localUrl + "download";
@@ -382,7 +382,7 @@ bool HttpRequest::getAllFiles() {
                         qDebug() << "File Path:" << filePath << ", Duration:" << durationValue << ", Cover:" << coverUrl << ", Artist:" << artist;
                     }
                 }
-                emit signal_addSong_list(musicList);
+                emit signalAddSongList(musicList);
             } else {
                 qWarning() << "Failed to parse JSON array.";
             }
@@ -397,7 +397,7 @@ bool HttpRequest::getAllFiles() {
 }
 
 
-void HttpRequest::get_music_data(const QString &fileName) {
+void HttpRequest::getMusicData(const QString &fileName) {
     if(!manager)
             manager = new QNetworkAccessManager();
     QJsonObject json;
@@ -435,7 +435,7 @@ void HttpRequest::get_music_data(const QString &fileName) {
                     music->setSinger(responseObject["singer"].toString());
                 }
 
-                emit signal_streamurl(true, streamUrl);
+                emit signalStreamurl(true, streamUrl);
             } else {
                 qDebug() << "Error: 'stream_url' not found in response.";
             }
@@ -529,7 +529,7 @@ bool HttpRequest::getMusic(const QString& name) {
                         qDebug() << "File Path:" << filePath << ", Duration:" << durationValue << ", Cover:" << coverUrl << ", Artist:" << artist;
                     }
                 }
-                emit signal_addSong_list(musicList);
+                emit signalAddSongList(musicList);
             } else {
                 qWarning() << "Failed to parse JSON array.";
             }
@@ -583,7 +583,7 @@ bool HttpRequest::getVideoList() {
                 }
                 
                 qDebug() << "[HttpRequest] Parsed" << videoList.size() << "videos";
-                emit signal_videoList(videoList);
+                emit signalVideoList(videoList);
             } else {
                 qWarning() << "[HttpRequest] Failed to parse video list JSON";
             }
@@ -626,7 +626,7 @@ bool HttpRequest::getVideoStreamUrl(const QString& videoPath) {
                 QJsonObject obj = jsonDoc.object();
                 QString videoUrl = obj["url"].toString();
                 qDebug() << "[HttpRequest] Video stream URL:" << videoUrl;
-                emit signal_videoStreamUrl(videoUrl);
+                emit signalVideoStreamUrl(videoUrl);
             } else {
                 qWarning() << "[HttpRequest] Failed to parse video stream URL JSON";
             }
@@ -669,14 +669,14 @@ void HttpRequest::searchArtist(const QString& artist) {
                 QJsonObject obj = jsonDoc.object();
                 bool exists = obj["exists"].toBool();
                 qDebug() << "[HttpRequest] Artist exists:" << exists;
-                emit signal_artistExists(exists, artist);
+                emit signalArtistExists(exists, artist);
             } else {
                 qWarning() << "[HttpRequest] Failed to parse artist search JSON";
-                emit signal_artistExists(false, artist);
+                emit signalArtistExists(false, artist);
             }
         } else {
             qWarning() << "[HttpRequest] Artist search request failed:" << reply->errorString();
-            emit signal_artistExists(false, artist);
+            emit signalArtistExists(false, artist);
         }
         
         reply->deleteLater();
@@ -752,14 +752,14 @@ void HttpRequest::getMusicByArtist(const QString& artist) {
                 }
                 
                 qDebug() << "[HttpRequest] Successfully parsed" << musicList.size() << "songs for artist:" << artist;
-                emit signal_artistMusicList(musicList, artist);
+                emit signalArtistMusicList(musicList, artist);
             } else {
                 qWarning() << "[HttpRequest] Failed to parse artist music list JSON";
-                emit signal_artistMusicList(QList<Music>(), artist);
+                emit signalArtistMusicList(QList<Music>(), artist);
             }
         } else {
             qWarning() << "[HttpRequest] Artist music list request failed:" << reply->errorString();
-            emit signal_artistMusicList(QList<Music>(), artist);
+            emit signalArtistMusicList(QList<Music>(), artist);
         }
         
         reply->deleteLater();
@@ -818,7 +818,7 @@ void HttpRequest::addFavorite(const QString& userAccount, const QString& path, c
             qWarning() << "[HttpRequest] Add favorite request failed:" << reply->errorString();
         }
         
-        emit signal_addFavoriteResult(success);
+        emit signalAddFavoriteResult(success);
         reply->deleteLater();
     });
 }
@@ -863,7 +863,7 @@ void HttpRequest::removeFavorite(const QString& userAccount, const QStringList& 
             qWarning() << "[HttpRequest] Remove favorite request failed:" << reply->errorString();
         }
         
-        emit signal_removeFavoriteResult(success);
+        emit signalRemoveFavoriteResult(success);
         reply->deleteLater();
     });
 }
@@ -925,7 +925,7 @@ void HttpRequest::getFavorites(const QString& userAccount) {
             qWarning() << "[HttpRequest] Favorites request failed:" << reply->errorString();
         }
         
-        emit signal_favoritesList(favoritesList);
+        emit signalFavoritesList(favoritesList);
         reply->deleteLater();
     });
 }
@@ -992,7 +992,7 @@ void HttpRequest::addPlayHistory(const QString& userAccount, const QString& path
             qWarning() << "[HttpRequest] Add history request failed:" << reply->errorString();
         }
         
-        emit signal_addHistoryResult(success);
+        emit signalAddHistoryResult(success);
         reply->deleteLater();
     });
 }
@@ -1056,7 +1056,7 @@ void HttpRequest::getPlayHistory(const QString& userAccount, int limit) {
             qWarning() << "[HttpRequest] History request failed:" << reply->errorString();
         }
         
-        emit signal_historyList(historyList);
+        emit signalHistoryList(historyList);
         reply->deleteLater();
     });
 }
@@ -1107,7 +1107,7 @@ void HttpRequest::removePlayHistory(const QString& userAccount, const QStringLis
             qWarning() << "[HttpRequest] Delete history request failed:" << reply->errorString();
         }
         
-        emit signal_removeHistoryResult(success);
+        emit signalRemoveHistoryResult(success);
         reply->deleteLater();
     });
 }

@@ -49,12 +49,12 @@ signals:
      * @param videoPath 视频路径（相对路径，如 an_hao.mp4）
      * @param videoName 视频名称
      */
-    void signal_video_selected(QString videoPath, QString videoName);
+    void signalVideoSelected(QString videoPath, QString videoName);
     
     /**
      * @brief 刷新请求信号
      */
-    void signal_refresh_requested();
+    void signalRefreshRequested();
 };
 
 #endif // VIDEO_LIST_WIDGET_QML_H

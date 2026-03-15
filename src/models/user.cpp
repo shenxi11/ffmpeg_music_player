@@ -10,44 +10,44 @@ User::User(QString account, QString password, QString username)
 }
 
 // User类setter实现
-void User::set_username(QString username)
+void User::setUsername(QString username)
 {
     this->username = username;
 }
 
-void User::set_account(QString account)
+void User::setAccount(QString account)
 {
     this->account = account;
 }
 
-void User::set_password(QString password)
+void User::setPassword(QString password)
 {
     this->password = password;
 }
 
-void User::set_music_path(QStringList musics)
+void User::setMusicPath(QStringList musics)
 {
     this->music_path = musics;
-    emit signal_add_songs();
+    emit signalAddSongs();
 }
 
 // User类getter实现
-QString User::get_username()
+QString User::getUsername()
 {
     return username;
 }
 
-QString User::get_account()
+QString User::getAccount()
 {
     return account;
 }
 
-QString User::get_password()
+QString User::getPassword()
 {
     return password;
 }
 
-QStringList User::get_music_path()
+QStringList User::getMusicPath()
 {
     return this->music_path;
 }

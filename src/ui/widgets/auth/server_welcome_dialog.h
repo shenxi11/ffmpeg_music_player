@@ -2,15 +2,14 @@
 #define SERVER_WELCOME_DIALOG_H
 
 #include <QDialog>
-#include <QJsonObject>
 #include <QPoint>
 
 class QLineEdit;
 class QSpinBox;
 class QLabel;
 class QPushButton;
-class QNetworkAccessManager;
 class QFrame;
+class ServerWelcomeViewModel;
 
 class ServerWelcomeDialog : public QDialog
 {
@@ -28,10 +27,11 @@ private slots:
     void onVerifyClicked();
 
 private:
+    // 连接拆分：统一维护按钮、快捷键与输入触发行为。
+    void setupInteractionConnections();
+    void moveToScreenCenter();
+
     QPoint adjustedWindowPos(const QPoint& desiredTopLeft, bool snapToEdges) const;
-    bool verifyServer(QString* errorMessage);
-    bool getJson(const QString& fullUrl, QJsonObject* root, QString* errorMessage);
-    static QString normalizeHostInput(const QString& rawHost, int* portInOut);
     void setUiBusy(bool busy);
     void setStatusMessage(const QString& message, bool isError);
 
@@ -43,7 +43,7 @@ private:
     QPushButton* m_closeButton = nullptr;
     QPushButton* m_verifyButton = nullptr;
     QPushButton* m_cancelButton = nullptr;
-    QNetworkAccessManager* m_networkManager = nullptr;
+    ServerWelcomeViewModel* m_viewModel = nullptr;
     bool m_dragging = false;
     QPoint m_dragOffset;
 };

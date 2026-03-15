@@ -492,18 +492,42 @@ void AudioCacheManager::onProxyNewConnection()
             continue;
         }
 
-        connect(socket, &QObject::destroyed, this, [this, socket]() {
-            m_proxyReadBuffers.remove(socket);
-        });
-
-        connect(socket, &QTcpSocket::readyRead, this, [this, socket]() {
-            onProxySocketReadyRead(socket);
-        });
-        connect(socket, &QTcpSocket::disconnected, this, [this, socket]() {
-            m_proxyReadBuffers.remove(socket);
-            socket->deleteLater();
-        });
+        const auto destroyedSignal = static_cast<void (QObject::*)(QObject*)>(&QObject::destroyed);
+        const auto readyReadSlot = static_cast<void (AudioCacheManager::*)()>(&AudioCacheManager::onProxySocketReadyRead);
+        connect(socket, destroyedSignal, this, &AudioCacheManager::onProxySocketDestroyed);
+        connect(socket, &QTcpSocket::readyRead, this, readyReadSlot);
+        connect(socket, &QTcpSocket::disconnected,
+                this, &AudioCacheManager::onProxySocketDisconnected);
     }
+}
+
+void AudioCacheManager::onProxySocketReadyRead()
+{
+    auto* socket = qobject_cast<QTcpSocket*>(sender());
+    if (!socket) {
+        return;
+    }
+    onProxySocketReadyRead(socket);
+}
+
+void AudioCacheManager::onProxySocketDisconnected()
+{
+    auto* socket = qobject_cast<QTcpSocket*>(sender());
+    if (!socket) {
+        return;
+    }
+
+    m_proxyReadBuffers.remove(socket);
+    socket->deleteLater();
+}
+
+void AudioCacheManager::onProxySocketDestroyed(QObject* obj)
+{
+    auto* socket = qobject_cast<QTcpSocket*>(obj);
+    if (!socket) {
+        return;
+    }
+    m_proxyReadBuffers.remove(socket);
 }
 
 void AudioCacheManager::onProxySocketReadyRead(QTcpSocket* socket)
@@ -637,153 +661,218 @@ void AudioCacheManager::handleProxyRequest(QTcpSocket* socket, const QByteArray&
     }
 
     QNetworkReply* reply = m_networkManager.get(upstreamRequest);
-    struct ProxyStreamState {
-        QPointer<QTcpSocket> socket;
-        bool headerSent = false;
-        qint64 bytesForwarded = 0;
-        QByteArray collectedForCache;
-    };
-    const auto state = std::make_shared<ProxyStreamState>();
-    state->socket = socket;
+    ProxyStreamState state;
+    state.socket = socket;
+    state.hasRange = hasRange;
+    state.rangeStart = rangeStart;
+    state.rangeEnd = rangeEnd;
+    state.cacheKey = cacheKey;
+    m_proxyStreamStates.insert(reply, state);
 
-    auto sendHeaderIfNeeded = [this, reply, state, hasRange, cacheKey]() {
-        if (state->headerSent || state->socket.isNull()
-                || state->socket->state() == QAbstractSocket::UnconnectedState) {
-            return;
-        }
+    const auto destroyedSignal = static_cast<void (QObject::*)(QObject*)>(&QObject::destroyed);
+    connect(socket, destroyedSignal, reply, &QNetworkReply::abort);
+    connect(reply, &QNetworkReply::readyRead,
+            this, &AudioCacheManager::onProxyUpstreamReadyRead);
+    connect(reply, &QNetworkReply::finished,
+            this, &AudioCacheManager::onProxyUpstreamFinished);
+}
 
-        const int upstreamStatus = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-        const int statusCode = upstreamStatus > 0 ? upstreamStatus : (hasRange ? 206 : 200);
-        QByteArray reason = reply->attribute(QNetworkRequest::HttpReasonPhraseAttribute).toByteArray();
-        if (reason.isEmpty()) {
-            reason = (statusCode == 206) ? QByteArray("Partial Content") : QByteArray("OK");
-        }
+void AudioCacheManager::onProxyUpstreamReadyRead()
+{
+    auto* reply = qobject_cast<QNetworkReply*>(sender());
+    if (!reply) {
+        return;
+    }
 
-        QByteArray contentType = reply->header(QNetworkRequest::ContentTypeHeader).toByteArray();
-        if (contentType.isEmpty()) {
-            contentType = "audio/mpeg";
-        }
+    auto it = m_proxyStreamStates.find(reply);
+    if (it == m_proxyStreamStates.end()) {
+        return;
+    }
+    ProxyStreamState& state = it.value();
 
-        qint64 contentLength = reply->header(QNetworkRequest::ContentLengthHeader).toLongLong();
-        QByteArray extraHeaders;
-        const QByteArray contentRange = reply->rawHeader("Content-Range");
-        if (!contentRange.isEmpty()) {
-            extraHeaders += "Content-Range: " + contentRange + "\r\n";
-            const qint64 parsed = parseContentRangeLength(contentRange);
-            if (parsed > 0) {
-                TrackMeta meta;
-                loadTrackMeta(cacheKey, &meta);
-                meta.contentLength = parsed;
-                meta.lastAccessMs = currentEpochMs();
-                updateTrackMeta(cacheKey, meta.contentLength, meta.durationMs);
-            }
-        }
+    if (!ensureProxyHeadersSent(reply, &state)) {
+        return;
+    }
 
-        state->socket->write(buildHttpHeaders(statusCode, reason, contentType, contentLength, extraHeaders));
-        state->headerSent = true;
-    };
+    const QByteArray chunk = reply->readAll();
+    if (chunk.isEmpty() || state.socket.isNull()) {
+        return;
+    }
 
-    connect(socket, &QObject::destroyed, reply, [reply]() {
-        if (reply && !reply->isFinished()) {
-            reply->abort();
-        }
-    });
+    state.bytesForwarded += chunk.size();
+    state.socket->write(chunk);
 
-    connect(reply, &QNetworkReply::readyRead, this, [this, reply, state, sendHeaderIfNeeded, hasRange, rangeStart, rangeEnd]() mutable {
-        if (!reply || state->socket.isNull() || state->socket->state() == QAbstractSocket::UnconnectedState) {
-            return;
-        }
-        sendHeaderIfNeeded();
-        const QByteArray chunk = reply->readAll();
-        if (chunk.isEmpty()) {
-            return;
-        }
-        state->bytesForwarded += chunk.size();
-        state->socket->write(chunk);
+    if (state.hasRange
+            && state.rangeStart >= 0
+            && state.rangeEnd >= state.rangeStart
+            && (state.rangeStart % m_chunkSizeBytes == 0)
+            && (state.rangeEnd - state.rangeStart + 1) <= m_chunkSizeBytes
+            && state.collectedForCache.size() < m_chunkSizeBytes) {
+        state.collectedForCache.append(chunk);
+    }
+}
 
-        if (hasRange && rangeStart >= 0 && rangeEnd >= rangeStart
-                && (rangeStart % m_chunkSizeBytes == 0)
-                && (rangeEnd - rangeStart + 1) <= m_chunkSizeBytes
-                && state->collectedForCache.size() < m_chunkSizeBytes) {
-            state->collectedForCache.append(chunk);
-        }
-    });
+void AudioCacheManager::onProxyUpstreamFinished()
+{
+    auto* reply = qobject_cast<QNetworkReply*>(sender());
+    if (!reply) {
+        return;
+    }
 
-    connect(reply, &QNetworkReply::finished, this, [this, reply, state, sendHeaderIfNeeded, cacheKey, hasRange, rangeStart, rangeEnd]() mutable {
-        if (!reply) {
-            return;
-        }
-
-        if (state->socket.isNull() || state->socket->state() == QAbstractSocket::UnconnectedState) {
-            reply->deleteLater();
-            return;
-        }
-
-        if (reply->error() != QNetworkReply::NoError) {
-            qWarning() << "[AudioCacheProxy] Upstream error:" << reply->errorString();
-            if (!state->headerSent) {
-                sendProxyError(state->socket, 502, "Bad Gateway");
-            } else {
-                state->socket->disconnectFromHost();
-            }
-            reply->deleteLater();
-            return;
-        }
-
-        sendHeaderIfNeeded();
-        const QByteArray tail = reply->readAll();
-        if (!tail.isEmpty()) {
-            state->bytesForwarded += tail.size();
-            state->socket->write(tail);
-            if (hasRange && rangeStart >= 0 && rangeEnd >= rangeStart
-                    && (rangeStart % m_chunkSizeBytes == 0)
-                    && (rangeEnd - rangeStart + 1) <= m_chunkSizeBytes
-                    && state->collectedForCache.size() < m_chunkSizeBytes) {
-                state->collectedForCache.append(tail);
-            }
-        }
-
-        state->socket->flush();
-        state->socket->disconnectFromHost();
-
-        if (hasRange && rangeStart >= 0 && rangeEnd >= rangeStart && (rangeStart % m_chunkSizeBytes == 0)) {
-            const qint64 expected = rangeEnd - rangeStart + 1;
-            if (expected == state->collectedForCache.size() && expected <= m_chunkSizeBytes) {
-                const qint64 chunkIndex = rangeStart / m_chunkSizeBytes;
-                QDir().mkpath(trackCacheDir(cacheKey));
-                const QString finalPath = chunkFilePath(cacheKey, chunkIndex);
-                const QString partPath = finalPath + ".part";
-                QFile file(partPath);
-                if (file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-                    file.write(state->collectedForCache);
-                    file.close();
-                    QFile::remove(finalPath);
-                    if (QFile::rename(partPath, finalPath)) {
-                        qDebug() << "[AudioCacheProxy] Persisted aligned chunk from passthrough:" << chunkIndex;
-                    } else {
-                        QFile::remove(partPath);
-                    }
-                }
-            }
-        }
-
-        qint64 contentLength = reply->header(QNetworkRequest::ContentLengthHeader).toLongLong();
-        const qint64 parsedLength = parseContentRangeLength(reply->rawHeader("Content-Range"));
-        if (parsedLength > 0) {
-            contentLength = parsedLength;
-        }
-        if (contentLength > 0) {
-            TrackMeta meta;
-            loadTrackMeta(cacheKey, &meta);
-            meta.contentLength = contentLength;
-            meta.lastAccessMs = currentEpochMs();
-            updateTrackMeta(cacheKey, meta.contentLength, meta.durationMs);
-        }
-
-        maybeRunLruCleanup();
-        qDebug() << "[AudioCacheProxy] Response finished, bytes:" << state->bytesForwarded;
+    auto it = m_proxyStreamStates.find(reply);
+    if (it == m_proxyStreamStates.end()) {
         reply->deleteLater();
-    });
+        return;
+    }
+    ProxyStreamState state = it.value();
+    m_proxyStreamStates.erase(it);
+
+    if (state.socket.isNull() || state.socket->state() == QAbstractSocket::UnconnectedState) {
+        reply->deleteLater();
+        return;
+    }
+
+    if (reply->error() != QNetworkReply::NoError) {
+        qWarning() << "[AudioCacheProxy] Upstream error:" << reply->errorString();
+        if (!state.headerSent) {
+            sendProxyError(state.socket, 502, "Bad Gateway");
+        } else {
+            state.socket->disconnectFromHost();
+        }
+        reply->deleteLater();
+        return;
+    }
+
+    if (!ensureProxyHeadersSent(reply, &state)) {
+        reply->deleteLater();
+        return;
+    }
+
+    const QByteArray tail = reply->readAll();
+    if (!tail.isEmpty()) {
+        state.bytesForwarded += tail.size();
+        state.socket->write(tail);
+        if (state.hasRange
+                && state.rangeStart >= 0
+                && state.rangeEnd >= state.rangeStart
+                && (state.rangeStart % m_chunkSizeBytes == 0)
+                && (state.rangeEnd - state.rangeStart + 1) <= m_chunkSizeBytes
+                && state.collectedForCache.size() < m_chunkSizeBytes) {
+            state.collectedForCache.append(tail);
+        }
+    }
+
+    state.socket->flush();
+    state.socket->disconnectFromHost();
+
+    persistAlignedProxyChunk(state);
+    updateTrackMetaFromProxyReply(state.cacheKey, reply);
+    maybeRunLruCleanup();
+
+    qDebug() << "[AudioCacheProxy] Response finished, bytes:" << state.bytesForwarded;
+    reply->deleteLater();
+}
+
+bool AudioCacheManager::ensureProxyHeadersSent(QNetworkReply* reply, ProxyStreamState* state)
+{
+    if (!reply || !state) {
+        return false;
+    }
+
+    if (state->headerSent) {
+        return !state->socket.isNull()
+                && state->socket->state() != QAbstractSocket::UnconnectedState;
+    }
+
+    if (state->socket.isNull() || state->socket->state() == QAbstractSocket::UnconnectedState) {
+        return false;
+    }
+
+    const int upstreamStatus = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+    const int statusCode = upstreamStatus > 0 ? upstreamStatus : (state->hasRange ? 206 : 200);
+    QByteArray reason = reply->attribute(QNetworkRequest::HttpReasonPhraseAttribute).toByteArray();
+    if (reason.isEmpty()) {
+        reason = (statusCode == 206) ? QByteArray("Partial Content") : QByteArray("OK");
+    }
+
+    QByteArray contentType = reply->header(QNetworkRequest::ContentTypeHeader).toByteArray();
+    if (contentType.isEmpty()) {
+        contentType = "audio/mpeg";
+    }
+
+    qint64 contentLength = reply->header(QNetworkRequest::ContentLengthHeader).toLongLong();
+    QByteArray extraHeaders;
+    const QByteArray contentRange = reply->rawHeader("Content-Range");
+    if (!contentRange.isEmpty()) {
+        extraHeaders += "Content-Range: " + contentRange + "\r\n";
+        const qint64 parsed = parseContentRangeLength(contentRange);
+        if (parsed > 0) {
+            TrackMeta meta;
+            loadTrackMeta(state->cacheKey, &meta);
+            meta.contentLength = parsed;
+            meta.lastAccessMs = currentEpochMs();
+            updateTrackMeta(state->cacheKey, meta.contentLength, meta.durationMs);
+        }
+    }
+
+    state->socket->write(buildHttpHeaders(statusCode, reason, contentType, contentLength, extraHeaders));
+    state->headerSent = true;
+    return true;
+}
+
+void AudioCacheManager::persistAlignedProxyChunk(const ProxyStreamState& state)
+{
+    if (!state.hasRange || state.rangeStart < 0 || state.rangeEnd < state.rangeStart) {
+        return;
+    }
+    if (state.rangeStart % m_chunkSizeBytes != 0) {
+        return;
+    }
+
+    const qint64 expected = state.rangeEnd - state.rangeStart + 1;
+    if (expected != state.collectedForCache.size() || expected > m_chunkSizeBytes) {
+        return;
+    }
+
+    const qint64 chunkIndex = state.rangeStart / m_chunkSizeBytes;
+    QDir().mkpath(trackCacheDir(state.cacheKey));
+    const QString finalPath = chunkFilePath(state.cacheKey, chunkIndex);
+    const QString partPath = finalPath + ".part";
+    QFile file(partPath);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        return;
+    }
+
+    file.write(state.collectedForCache);
+    file.close();
+    QFile::remove(finalPath);
+    if (QFile::rename(partPath, finalPath)) {
+        qDebug() << "[AudioCacheProxy] Persisted aligned chunk from passthrough:" << chunkIndex;
+    } else {
+        QFile::remove(partPath);
+    }
+}
+
+void AudioCacheManager::updateTrackMetaFromProxyReply(const QString& cacheKey, QNetworkReply* reply)
+{
+    if (!reply) {
+        return;
+    }
+
+    qint64 contentLength = reply->header(QNetworkRequest::ContentLengthHeader).toLongLong();
+    const qint64 parsedLength = parseContentRangeLength(reply->rawHeader("Content-Range"));
+    if (parsedLength > 0) {
+        contentLength = parsedLength;
+    }
+    if (contentLength <= 0) {
+        return;
+    }
+
+    TrackMeta meta;
+    loadTrackMeta(cacheKey, &meta);
+    meta.contentLength = contentLength;
+    meta.lastAccessMs = currentEpochMs();
+    updateTrackMeta(cacheKey, meta.contentLength, meta.durationMs);
 }
 
 bool AudioCacheManager::parseHttpRange(const QByteArray& rangeHeader, qint64* start, qint64* end) const

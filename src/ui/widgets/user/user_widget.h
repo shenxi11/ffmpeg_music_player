@@ -36,6 +36,7 @@ signals:
 
 private slots:
     void onActionButtonClicked();
+    void onLeaveHideTimeout();
 
 private:
     QLabel* avatarLabel;
@@ -45,6 +46,7 @@ private:
     bool isLoggedIn;
     
     void setupUI();
+    void setupConnections();
     void updateContent();
 };
 
@@ -70,6 +72,7 @@ private slots:
     void showPopup();
     void hidePopup();
     void onPopupActionRequested();
+    void onPopupLogoutRequested();
 
 private:
     QLabel* avatarLabel;
@@ -83,6 +86,7 @@ private:
     bool isLoggedIn;
     
     void setupUI();
+    void setupConnections();
     void updateDisplay();
     QPixmap createCircularAvatar(const QPixmap &source, int size);
 };

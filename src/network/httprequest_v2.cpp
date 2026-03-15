@@ -373,15 +373,15 @@ void HttpRequestV2::login(const QString& account, const QString& password)
                 
                 if (loginSuccess) {
                     auto user = User::getInstance();
-                    user->set_account(account);
-                    user->set_password(password);
+                    user->setAccount(account);
+                    user->setPassword(password);
 
                     QString username;
                     
                     if (result.contains("username")) {
                         username = result.value("username").toString();
-                        user->set_username(username);
-                        emit signal_getusername(username);
+                        user->setUsername(username);
+                        emit signalGetusername(username);
                         qDebug() << "[HttpRequestV2] Login successful, username:" << username;
                     }
 
@@ -398,18 +398,18 @@ void HttpRequestV2::login(const QString& account, const QString& password)
                         for (const auto& songPath : songPathArray) {
                             musics << songPath.toString();
                         }
-                        user->set_music_path(musics);
+                        user->setMusicPath(musics);
                         qDebug() << "[HttpRequestV2] User's favorite songs:" << musics.size();
                     }
                     
-                    emit signal_Loginflag(true);
+                    emit signalLoginFlag(true);
                 } else {
                     qDebug() << "[HttpRequestV2] Login failed: invalid credentials";
-                    emit signal_Loginflag(false);
+                    emit signalLoginFlag(false);
                 }
             } else {
                 qWarning() << "[HttpRequestV2] Login request error:" << response.errorString;
-                emit signal_Loginflag(false);
+                emit signalLoginFlag(false);
             }
         }
     );
@@ -432,13 +432,13 @@ void HttpRequestV2::registerUser(const QString& account, const QString& password
         [this](const Network::NetworkResponse& response) {
             if (response.isSuccess()) {
                 qDebug() << "[HttpRequestV2] Registration successful";
-                emit signal_Registerflag(true);
-                emit signal_RegisterResult(true, QString::fromUtf8("娉ㄥ唽鎴愬姛"));
+                emit signalRegisterFlag(true);
+                emit signalRegisterResult(true, QString::fromUtf8("娉ㄥ唽鎴愬姛"));
             } else {
                 const QString message = extractErrorMessage(response, response.errorString);
                 qWarning() << "[HttpRequestV2] Registration error:" << response.statusCode << message;
-                emit signal_Registerflag(false);
-                emit signal_RegisterResult(false, message);
+                emit signalRegisterFlag(false);
+                emit signalRegisterResult(false, message);
             }
         }
     );
@@ -460,11 +460,11 @@ void HttpRequestV2::resetPassword(const QString& account, const QString& newPass
         [this](const Network::NetworkResponse& response) {
             if (response.isSuccess()) {
                 qDebug() << "[HttpRequestV2] Reset password successful";
-                emit signal_ResetPasswordResult(true, QString::fromUtf8("瀵嗙爜閲嶇疆鎴愬姛"));
+                emit signalResetPasswordResult(true, QString::fromUtf8("瀵嗙爜閲嶇疆鎴愬姛"));
             } else {
                 const QString message = extractErrorMessage(response, response.errorString);
                 qWarning() << "[HttpRequestV2] Reset password error:" << response.statusCode << message;
-                emit signal_ResetPasswordResult(false, message);
+                emit signalResetPasswordResult(false, message);
             }
         }
     );
@@ -521,7 +521,7 @@ void HttpRequestV2::getAllFiles(bool useCache)
                     }
                 }
                 
-                emit signal_addSong_list(musicList);
+                emit signalAddSongList(musicList);
             } else {
                 qWarning() << "[HttpRequestV2] Get all files error:" << response.errorString;
             }
@@ -586,7 +586,7 @@ void HttpRequestV2::getLyrics(const QString& url)
                 }
 
                 qDebug() << "[HttpRequestV2] Lyrics received:" << lines.size() << "lines";
-                emit signal_lrc(lines);
+                emit signalLrc(lines);
             } else {
                 qWarning() << "[HttpRequestV2] Get lyrics error:" << response.errorString;
             }
@@ -630,7 +630,7 @@ void HttpRequestV2::addFavorite(const QString& userAccount, const QString& path,
 {
     if (userAccount.trimmed().isEmpty()) {
         qWarning() << "[HttpRequestV2] addFavorite skipped: userAccount is empty";
-        emit signal_addFavoriteResult(false);
+        emit signalAddFavoriteResult(false);
         return;
     }
 
@@ -678,7 +678,7 @@ void HttpRequestV2::addFavorite(const QString& userAccount, const QString& path,
                     m_networkService.invalidateCache(QString("user/favorites?user_account=%1").arg(userAccount));
                 }
                 qDebug() << "[HttpRequestV2] Add favorite" << (success ? "success" : "failed") << title;
-                emit signal_addFavoriteResult(success);
+                emit signalAddFavoriteResult(success);
             } else {
                 const QString bodyText = QString::fromUtf8(response.body);
                 const bool alreadyExists =
@@ -689,14 +689,14 @@ void HttpRequestV2::addFavorite(const QString& userAccount, const QString& path,
                 if (alreadyExists) {
                     qDebug() << "[HttpRequestV2] Favorite already exists, treat as success:" << title;
                     m_networkService.invalidateCache(QString("user/favorites?user_account=%1").arg(userAccount));
-                    emit signal_addFavoriteResult(true);
+                    emit signalAddFavoriteResult(true);
                     return;
                 }
 
                 qWarning() << "[HttpRequestV2] Add favorite error:" << response.errorString
                            << "status:" << response.statusCode
                            << "body:" << bodyText;
-                emit signal_addFavoriteResult(false);
+                emit signalAddFavoriteResult(false);
             }
         }
     );
@@ -776,7 +776,7 @@ void HttpRequestV2::getFavorites(const QString& userAccount, bool useCache)
                 
                 qDebug() << "[HttpRequestV2] Favorites received:" << favorites.size()
                          << (response.isFromCache ? "(from cache)" : "");
-                emit signal_favoritesList(favorites);
+                emit signalFavoritesList(favorites);
             } else {
                 qWarning() << "[HttpRequestV2] Get favorites error:" << response.errorString;
             }
@@ -789,7 +789,7 @@ void HttpRequestV2::addPlayHistory(const QString& userAccount, const QString& pa
 {
     if (userAccount.trimmed().isEmpty()) {
         qWarning() << "[HttpRequestV2] addPlayHistory skipped: userAccount is empty";
-        emit signal_addHistoryResult(false);
+        emit signalAddHistoryResult(false);
         return;
     }
 
@@ -831,10 +831,10 @@ void HttpRequestV2::addPlayHistory(const QString& userAccount, const QString& pa
             if (response.isSuccess()) {
                 QJsonObject result = Network::NetworkService::parseJsonObject(response);
                 bool success = result.value("success").toBool();
-                emit signal_addHistoryResult(success);
+                emit signalAddHistoryResult(success);
             } else {
                 qDebug() << "[HttpRequestV2] Add history failed (not critical):" << response.errorString;
-                emit signal_addHistoryResult(false);
+                emit signalAddHistoryResult(false);
             }
         }
     );
@@ -918,7 +918,7 @@ void HttpRequestV2::getPlayHistory(const QString& userAccount, int limit, bool u
                 
                 qDebug() << "[HttpRequestV2] History received:" << history.size()
                          << (response.isFromCache ? "(from cache)" : "");
-                emit signal_historyList(history);
+                emit signalHistoryList(history);
             } else {
                 qWarning() << "[HttpRequestV2] Get history error:" << response.errorString;
             }
@@ -935,7 +935,7 @@ void HttpRequestV2::getAudioRecommendations(const QString& userId,
     const QString trimmedUser = userId.trimmed();
     if (trimmedUser.isEmpty()) {
         qWarning() << "[HttpRequestV2] getAudioRecommendations skipped: userId is empty";
-        emit signal_recommendationList(QVariantMap(), QVariantList());
+        emit signalRecommendationList(QVariantMap(), QVariantList());
         return;
     }
 
@@ -968,7 +968,7 @@ void HttpRequestV2::getAudioRecommendations(const QString& userId,
         [this](const Network::NetworkResponse& response) {
             if (!response.isSuccess()) {
                 qWarning() << "[HttpRequestV2] Get recommendations error:" << response.errorString;
-                emit signal_recommendationList(QVariantMap(), QVariantList());
+                emit signalRecommendationList(QVariantMap(), QVariantList());
                 return;
             }
 
@@ -1034,7 +1034,7 @@ void HttpRequestV2::getAudioRecommendations(const QString& userId,
             }
 
             qDebug() << "[HttpRequestV2] Recommendations received:" << items.size();
-            emit signal_recommendationList(meta, items);
+            emit signalRecommendationList(meta, items);
         }
     );
 }
@@ -1044,7 +1044,7 @@ void HttpRequestV2::getSimilarRecommendations(const QString& songId, int limit)
     const QString trimmedSongId = songId.trimmed();
     if (trimmedSongId.isEmpty()) {
         qWarning() << "[HttpRequestV2] getSimilarRecommendations skipped: songId is empty";
-        emit signal_similarRecommendationList(QVariantMap(), QVariantList(), QString());
+        emit signalSimilarRecommendationList(QVariantMap(), QVariantList(), QString());
         return;
     }
 
@@ -1064,7 +1064,7 @@ void HttpRequestV2::getSimilarRecommendations(const QString& songId, int limit)
             if (!response.isSuccess()) {
                 qWarning() << "[HttpRequestV2] Get similar recommendations error:"
                            << response.errorString << "status:" << response.statusCode;
-                emit signal_similarRecommendationList(QVariantMap(), QVariantList(), trimmedSongId);
+                emit signalSimilarRecommendationList(QVariantMap(), QVariantList(), trimmedSongId);
                 return;
             }
 
@@ -1136,7 +1136,7 @@ void HttpRequestV2::getSimilarRecommendations(const QString& songId, int limit)
 
             qDebug() << "[HttpRequestV2] Similar recommendations received:" << items.size()
                      << "anchorSongId:" << trimmedSongId;
-            emit signal_similarRecommendationList(meta, items, trimmedSongId);
+            emit signalSimilarRecommendationList(meta, items, trimmedSongId);
         }
     );
 }
@@ -1159,7 +1159,7 @@ void HttpRequestV2::postRecommendationFeedback(const QString& userId,
                    << "userIdEmpty=" << trimmedUser.isEmpty()
                    << "songIdEmpty=" << trimmedSongId.isEmpty()
                    << "eventTypeEmpty=" << trimmedEventType.isEmpty();
-        emit signal_recommendationFeedbackResult(false, trimmedEventType, trimmedSongId);
+        emit signalRecommendationFeedbackResult(false, trimmedEventType, trimmedSongId);
         return;
     }
 
@@ -1201,7 +1201,7 @@ void HttpRequestV2::postRecommendationFeedback(const QString& userId,
                            << "status:" << response.statusCode;
             }
 
-            emit signal_recommendationFeedbackResult(success, trimmedEventType, trimmedSongId);
+            emit signalRecommendationFeedbackResult(success, trimmedEventType, trimmedSongId);
         }
     );
 }
@@ -1226,7 +1226,7 @@ void HttpRequestV2::getVideoList()
                 }
                 
                 qDebug() << "[HttpRequestV2] Video list:" << videoList.size();
-                emit signal_videoList(videoList);
+                emit signalVideoList(videoList);
             } else {
                 qWarning() << "[HttpRequestV2] Get video list error:" << response.errorString;
             }
@@ -1246,7 +1246,7 @@ void HttpRequestV2::getVideoStreamUrl(const QString& videoPath)
                 QString videoUrl = rewriteServiceUrlToBase(result["url"].toString(), m_baseUrl);
                 
                 qDebug() << "[HttpRequestV2] Video stream URL:" << videoUrl;
-                emit signal_videoStreamUrl(videoUrl);
+                emit signalVideoStreamUrl(videoUrl);
             } else {
                 qWarning() << "[HttpRequestV2] Get video stream error:" << response.errorString;
             }
@@ -1269,10 +1269,10 @@ void HttpRequestV2::searchArtist(const QString& artist)
                 bool exists = result["exists"].toBool();
                 
                 qDebug() << "[HttpRequestV2] Artist" << artist << "exists:" << exists;
-                emit signal_artistExists(exists, artist);
+                emit signalArtistExists(exists, artist);
             } else {
                 qWarning() << "[HttpRequestV2] Search artist error:" << response.errorString;
-                emit signal_artistExists(false, artist);
+                emit signalArtistExists(false, artist);
             }
         }
     );
@@ -1344,7 +1344,7 @@ void HttpRequestV2::getMusicByArtist(const QString& artist)
                 }
                 
                 qDebug() << "[HttpRequestV2] Music by artist" << artist << ":" << musicList.size();
-                emit signal_artistMusicList(musicList, artist);
+                emit signalArtistMusicList(musicList, artist);
             } else {
                 qWarning() << "[HttpRequestV2] Get music by artist error:" << response.errorString;
             }
@@ -1357,7 +1357,7 @@ void HttpRequestV2::getMusicData(const QString& fileName)
     const QString trimmedName = fileName.trimmed();
     if (trimmedName.isEmpty()) {
         qWarning() << "[HttpRequestV2] getMusicData called with empty filename";
-        emit signal_streamurl(false, "");
+        emit signalStreamurl(false, "");
         return;
     }
 
@@ -1365,7 +1365,7 @@ void HttpRequestV2::getMusicData(const QString& fileName)
     if (trimmedName.startsWith("http://", Qt::CaseInsensitive) ||
         trimmedName.startsWith("https://", Qt::CaseInsensitive)) {
         const QString resolved = rewriteServiceUrlToBase(trimmedName, m_baseUrl);
-        emit signal_streamurl(true, resolved);
+        emit signalStreamurl(true, resolved);
         return;
     }
 
@@ -1381,7 +1381,7 @@ void HttpRequestV2::getMusicData(const QString& fileName)
     if (relativePath.contains('/')) {
         const QString directUrl = QUrl(m_baseUrl + "uploads/" + relativePath).toString();
         qDebug() << "[HttpRequestV2] Fast stream URL (skip /stream):" << directUrl;
-        emit signal_streamurl(true, directUrl);
+        emit signalStreamurl(true, directUrl);
         return;
     }
 
@@ -1404,18 +1404,18 @@ void HttpRequestV2::getMusicData(const QString& fileName)
                     if (obj.contains("stream_url")) {
                         QString streamUrl = rewriteServiceUrlToBase(obj["stream_url"].toString(), m_baseUrl);
                         qDebug() << "[HttpRequestV2] Music stream URL:" << streamUrl;
-                        emit signal_streamurl(true, streamUrl);
+                        emit signalStreamurl(true, streamUrl);
                     } else {
                         qWarning() << "[HttpRequestV2] stream_url not found in response";
-                        emit signal_streamurl(false, "");
+                        emit signalStreamurl(false, "");
                     }
                 } else {
                     qWarning() << "[HttpRequestV2] Invalid JSON in get music data response";
-                    emit signal_streamurl(false, "");
+                    emit signalStreamurl(false, "");
                 }
             } else {
                 qWarning() << "[HttpRequestV2] Get music data error:" << response.errorString;
-                emit signal_streamurl(false, "");
+                emit signalStreamurl(false, "");
             }
         });
 }
@@ -1426,7 +1426,7 @@ void HttpRequestV2::addMusic(const QString& musicPath)
     
     auto user = User::getInstance();
     QJsonObject jsonObj;
-    jsonObj["username"] = user->get_username();
+    jsonObj["username"] = user->getUsername();
     jsonObj["music_path"] = musicPath;
     QJsonDocument jsonDoc(jsonObj);
     QByteArray postData = jsonDoc.toJson();
@@ -1493,7 +1493,7 @@ void HttpRequestV2::getMusic(const QString& keyword)
                     }
                 }
                 
-                emit signal_addSong_list(musicList);
+                emit signalAddSongList(musicList);
             } else {
                 qWarning() << "[HttpRequestV2] Search music error:" << response.errorString;
             }
@@ -1504,7 +1504,7 @@ void HttpRequestV2::removeFavorite(const QString& userAccount, const QStringList
 {
     if (paths.isEmpty()) {
         qWarning() << "[HttpRequestV2] removeFavorite called with empty paths";
-        emit signal_removeFavoriteResult(false);
+        emit signalRemoveFavoriteResult(false);
         return;
     }
     
@@ -1528,7 +1528,7 @@ void HttpRequestV2::removeFavorite(const QString& userAccount, const QStringList
             } else {
                 qWarning() << "[HttpRequestV2] Remove favorite error:" << response.errorString;
             }
-            emit signal_removeFavoriteResult(success);
+            emit signalRemoveFavoriteResult(success);
         });
 }
 
@@ -1536,7 +1536,7 @@ void HttpRequestV2::removePlayHistory(const QString& userAccount, const QStringL
 {
     if (paths.isEmpty()) {
         qWarning() << "[HttpRequestV2] removePlayHistory called with empty paths";
-        emit signal_removeHistoryResult(false);
+        emit signalRemoveHistoryResult(false);
         return;
     }
     
@@ -1568,7 +1568,7 @@ void HttpRequestV2::removePlayHistory(const QString& userAccount, const QStringL
                 qWarning() << "[HttpRequestV2] Delete history error:" << response.errorString;
             }
             
-            emit signal_removeHistoryResult(success);
+            emit signalRemoveHistoryResult(success);
         });
 }
 

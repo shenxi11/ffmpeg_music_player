@@ -8,7 +8,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # MSVC 编译器特定设置
 if(MSVC)
     # 设置 UTF-8 源文件编码
-    add_compile_options(/utf-8)
+    add_compile_options(/utf-8 /FS)
 endif()
 
 # 自动处理 Qt 的 MOC、UIC、RCC
@@ -75,9 +75,53 @@ file(GLOB_RECURSE PROJECT_SOURCES CONFIGURE_DEPENDS
     "${SRC_ROOT}/*.h"
 )
 
+list(APPEND PROJECT_SOURCES
+    "${SRC_ROOT}/app/main_widget.menu_auth.cpp"
+    "${SRC_ROOT}/app/main_widget.library_connections.cpp"
+    "${SRC_ROOT}/app/main_widget.playback_connections.cpp"
+    "${SRC_ROOT}/app/main_widget.playback_list_handlers.cpp"
+    "${SRC_ROOT}/app/main_widget.playback_state_handlers.cpp"
+    "${SRC_ROOT}/app/main_widget.playback_utils.cpp"
+    "${SRC_ROOT}/ui/widgets/playback/play_widget.viewmodel_connections.cpp"
+    "${SRC_ROOT}/ui/widgets/playback/play_widget.controls_connections.cpp"
+    "${SRC_ROOT}/ui/widgets/playback/play_widget.core_connections.cpp"
+    "${SRC_ROOT}/ui/widgets/settings/settings_widget.connections.cpp"
+    "${SRC_ROOT}/ui/widgets/auth/server_welcome_dialog.connections.cpp"
+    "${SRC_ROOT}/ui/widgets/auth/loginwidget.connections.cpp"
+    "${SRC_ROOT}/ui/widgets/library/music_list_widget_local.connections.cpp"
+    "${SRC_ROOT}/ui/widgets/library/music_list_widget_net.connections.cpp"
+    "${SRC_ROOT}/ui/widgets/video/video_list_widget.connections.cpp"
+    "${SRC_ROOT}/app/main_menu.connections.cpp"
+    "${SRC_ROOT}/app/plugin_host_window.connections.cpp"
+    "${SRC_ROOT}/ui/widgets/user/user_widget.connections.cpp"
+    "${SRC_ROOT}/viewmodels/MainShellViewModel.connections.cpp"
+    "${SRC_ROOT}/viewmodels/OnlineMusicListViewModel.connections.cpp"
+    "${SRC_ROOT}/download/download_task_model.connections.cpp"
+    "${SRC_ROOT}/audio/AudioService.connections.cpp"
+    "${SRC_ROOT}/audio/AudioSession.connections.cpp"
+    "${SRC_ROOT}/video/MediaService.connections.cpp"
+    "${SRC_ROOT}/video/VideoPlayerWindow.connections.cpp"
+    "${SRC_ROOT}/viewmodels/MainShellViewModel.cpp"
+    "${SRC_ROOT}/viewmodels/MainShellViewModel.h"
+    "${SRC_ROOT}/viewmodels/LoginViewModel.cpp"
+    "${SRC_ROOT}/viewmodels/LoginViewModel.h"
+    "${SRC_ROOT}/viewmodels/LocalMusicListViewModel.cpp"
+    "${SRC_ROOT}/viewmodels/LocalMusicListViewModel.h"
+    "${SRC_ROOT}/viewmodels/OnlineMusicListViewModel.cpp"
+    "${SRC_ROOT}/viewmodels/OnlineMusicListViewModel.h"
+    "${SRC_ROOT}/viewmodels/ServerWelcomeViewModel.cpp"
+    "${SRC_ROOT}/viewmodels/ServerWelcomeViewModel.h"
+    "${SRC_ROOT}/viewmodels/SettingsViewModel.cpp"
+    "${SRC_ROOT}/viewmodels/SettingsViewModel.h"
+    "${SRC_ROOT}/viewmodels/VideoListViewModel.cpp"
+    "${SRC_ROOT}/viewmodels/VideoListViewModel.h"
+)
+
 # ?????????????????
 list(FILTER PROJECT_SOURCES EXCLUDE REGEX ".*/PlayViewModel\.cpp$")
 list(FILTER PROJECT_SOURCES EXCLUDE REGEX ".*/main_qml\.cpp$")
+list(FILTER PROJECT_SOURCES EXCLUDE REGEX ".*/qml_bridge\.cpp$")
+list(FILTER PROJECT_SOURCES EXCLUDE REGEX ".*/qml_bridge\.h$")
 
 # include ?????? include + ????
 set(PROJECT_INCLUDE_DIRS

@@ -65,16 +65,16 @@ class MiniControlBar : public QWidget
 public:
     MiniControlBar(QWidget* parent = nullptr);
 signals:
-    void signal_next_clicked();
-    void signal_last_clicked();
-    void signal_forward_clicked();
-    void signal_backward_clicked();
-    void signal_set_clicked();
-    void signal_close_clicked();
-    void signal_lock_clicked();
-    void signal_play_clicked();
+    void signalNextClicked();
+    void signalLastClicked();
+    void signalForwardClicked();
+    void signalBackwardClicked();
+    void signalSetClicked();
+    void signalCloseClicked();
+    void signalLockClicked();
+    void signalPlayClicked();
 public slots:
-    void slot_playChanged(ProcessSliderQml::State);
+    void onPlayChanged(ProcessSliderQml::State);
 private:
     Button* play_;
     Button* next_;

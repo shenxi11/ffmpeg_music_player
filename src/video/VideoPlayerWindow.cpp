@@ -30,6 +30,7 @@ VideoPlayerWindow::VideoPlayerWindow(QWidget *parent)
     , m_currentPosition(0)
     , m_replayPendingSeek(false)
     , m_fillDisplayMode(false)
+    , m_pendingStoppedSeekPosition(0)
 {
     setupUI();
     
@@ -81,7 +82,6 @@ void VideoPlayerWindow::setupUI()
         "  color: #FFFFFF;"
         "}"
     );
-    connect(closeBtn, &QPushButton::clicked, this, &VideoPlayerWindow::close);
     
     titleLayout->addWidget(m_fileNameLabel);
     titleLayout->addStretch();
@@ -90,11 +90,6 @@ void VideoPlayerWindow::setupUI()
     m_renderWidget = new VideoRendererGL(this);
     m_renderWidget->setDisplayMode(0);  // Fit
     m_renderWidget->setQualityPreset(static_cast<int>(VideoRendererGL::Standard1080P));
-    connect(m_renderWidget, &VideoRendererGL::videoSizeChanged, this, [this](const QSize&) {
-        if (m_renderWidget) {
-            m_renderWidget->setDisplayMode(m_fillDisplayMode ? 1 : 0);
-        }
-    });
     
     QWidget* controlBar = new QWidget(this);
     controlBar->setFixedHeight(100);
@@ -117,9 +112,6 @@ void VideoPlayerWindow::setupUI()
         "border-radius: 6px; border: 1px solid #EC4141; background: #FFFFFF; }"
     );
     
-    connect(m_progressSlider, &QSlider::sliderPressed, this, &VideoPlayerWindow::onSliderPressed);
-    connect(m_progressSlider, &QSlider::sliderReleased, this, &VideoPlayerWindow::onSliderReleased);
-    connect(m_progressSlider, &QSlider::valueChanged, this, &VideoPlayerWindow::onSliderValueChanged);
     
     QHBoxLayout* buttonLayout = new QHBoxLayout();
     buttonLayout->setSpacing(15);
@@ -139,7 +131,6 @@ void VideoPlayerWindow::setupUI()
         "QPushButton:pressed { background: #D93636; border-color: #C53030; }"
         "QPushButton:disabled { background: #7F3E3E; border-color: #7F3E3E; color: #E9CACA; }"
     );
-    connect(m_playPauseBtn, &QPushButton::clicked, this, &VideoPlayerWindow::onPlayPauseClicked);
     
     m_openFileBtn = new QPushButton(QStringLiteral(u"\u6253\u5f00\u89c6\u9891"), controlBar);
     m_openFileBtn->setFixedHeight(40);
@@ -149,7 +140,6 @@ void VideoPlayerWindow::setupUI()
         "QPushButton:hover { border-color: #EC4141; background: #2D3440; }"
         "QPushButton:pressed { background: #232830; }"
     );
-    connect(m_openFileBtn, &QPushButton::clicked, this, &VideoPlayerWindow::onOpenFileClicked);
 
     // 显示“下一步动作”：当前默认是 Fit，因此按钮显示“填充”
     m_displayModeBtn = new QPushButton(QStringLiteral(u"\u586b\u5145"), controlBar);
@@ -160,7 +150,6 @@ void VideoPlayerWindow::setupUI()
         "QPushButton:hover { border-color: #EC4141; background: #2D3440; }"
         "QPushButton:pressed { background: #232830; }"
     );
-    connect(m_displayModeBtn, &QPushButton::clicked, this, &VideoPlayerWindow::onDisplayModeClicked);
 
     m_fullScreenBtn = new QPushButton(QStringLiteral(u"\u5168\u5c4f"), controlBar);
     m_fullScreenBtn->setFixedHeight(40);
@@ -170,7 +159,6 @@ void VideoPlayerWindow::setupUI()
         "QPushButton:hover { border-color: #EC4141; background: #2D3440; }"
         "QPushButton:pressed { background: #232830; }"
     );
-    connect(m_fullScreenBtn, &QPushButton::clicked, this, &VideoPlayerWindow::onFullScreenClicked);
 
     QLabel* qualityLabel = new QLabel(QStringLiteral(u"\u753b\u8d28"), controlBar);
     qualityLabel->setProperty("secondary", true);
@@ -192,8 +180,6 @@ void VideoPlayerWindow::setupUI()
         "QComboBox QAbstractItemView { border: 1px solid #3A414E; border-radius: 8px; background: #262B33; color: #EDF1F7;"
         "selection-background-color: #EC4141; selection-color: #FFFFFF; }"
     );
-    connect(m_qualityPresetBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, &VideoPlayerWindow::onQualityPresetChanged);
 
     QLabel* rateLabel = new QLabel(QStringLiteral(u"\u500d\u901f"), controlBar);
     rateLabel->setProperty("secondary", true);
@@ -216,8 +202,6 @@ void VideoPlayerWindow::setupUI()
         "QComboBox QAbstractItemView { border: 1px solid #3A414E; border-radius: 8px; background: #262B33; color: #EDF1F7;"
         "selection-background-color: #EC4141; selection-color: #FFFFFF; }"
     );
-    connect(m_playbackRateBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, &VideoPlayerWindow::onPlaybackRateChanged);
     
     m_timeLabel = new QLabel("00:00 / 00:00", controlBar);
     m_timeLabel->setProperty("secondary", true);
@@ -247,6 +231,8 @@ void VideoPlayerWindow::setupUI()
     setObjectName("VideoPlayerWindow");
     setAttribute(Qt::WA_StyledBackground, true);
     setStyleSheet("QWidget#VideoPlayerWindow { background:#0F1115; }");
+
+    connectUiSignals(closeBtn);
 
     // 强制重刷样式，确保对象名选择器和本地样式立即生效
     auto repolishWidget = [](QWidget* w) {
@@ -323,17 +309,7 @@ void VideoPlayerWindow::loadVideo(const QString& filePath)
     }
     
     m_mediaSession = new MediaSession(this);
-    
-    connect(m_mediaSession, &MediaSession::positionChanged,
-            this, &VideoPlayerWindow::onPositionChanged);
-    connect(m_mediaSession, &MediaSession::durationChanged,
-            this, &VideoPlayerWindow::onDurationChanged);
-    connect(m_mediaSession, &MediaSession::playbackFinished,
-            this, &VideoPlayerWindow::onPlaybackFinished);
-    connect(m_mediaSession, &MediaSession::stateChanged,
-            this, [this](MediaSession::PlaybackState state) {
-        qDebug() << "[VideoPlayerWindow] State changed:" << (int)state;
-    });
+    connectMediaSessionSignals();
     
     QUrl url = QUrl::fromLocalFile(filePath);
     if (!m_mediaSession->loadSource(url)) {
@@ -552,11 +528,8 @@ void VideoPlayerWindow::onSliderReleased()
     if (wasStopped) {
         // Stopped态先进入播放，再定位到目标时间，避免play()重置到0。
         m_mediaSession->play();
-        QTimer::singleShot(0, this, [this, targetPosition]() {
-            if (m_mediaSession) {
-                m_mediaSession->seekTo(targetPosition);
-            }
-        });
+        m_pendingStoppedSeekPosition = targetPosition;
+        QTimer::singleShot(0, this, &VideoPlayerWindow::onDeferredSeekAfterStopped);
     } else if (wasPaused) {
         // Paused态先显式seek，再恢复播放，避免play()里的handoff强制seek
         // 与用户seek形成双重seek链路。
@@ -581,6 +554,26 @@ void VideoPlayerWindow::onSliderReleased()
     m_replayPendingSeek = false;
 
     emit progressChanged(targetPosition);
+}
+
+void VideoPlayerWindow::onVideoSizeChanged(const QSize& size)
+{
+    Q_UNUSED(size);
+    if (m_renderWidget) {
+        m_renderWidget->setDisplayMode(m_fillDisplayMode ? 1 : 0);
+    }
+}
+
+void VideoPlayerWindow::onMediaSessionStateChanged(MediaSession::PlaybackState state)
+{
+    qDebug() << "[VideoPlayerWindow] State changed:" << static_cast<int>(state);
+}
+
+void VideoPlayerWindow::onDeferredSeekAfterStopped()
+{
+    if (m_mediaSession) {
+        m_mediaSession->seekTo(m_pendingStoppedSeekPosition);
+    }
 }
 
 void VideoPlayerWindow::onSliderValueChanged(int value)

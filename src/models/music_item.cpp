@@ -37,10 +37,10 @@ MusicItem::MusicItem(const QString& name, const QString& path, const QString& pi
                 "}"
                 );
     play->hide();
-    connect(play, &QPushButton::clicked, this, &MusicItem::_play_click);
+    connect(play, &QPushButton::clicked, this, &MusicItem::playClick);
 
 }
-void MusicItem::button_op(bool flag)
+void MusicItem::buttonOp(bool flag)
 {
     if(flag)
     {
@@ -60,19 +60,19 @@ void MusicItem::button_op(bool flag)
                     );
     }
 }
-void MusicItem::play_to_click()
+void MusicItem::playToClick()
 {
-    emit signal_play_click(music->getSongPath());
+    emit signalPlayClick(music->getSongPath());
 }
-void MusicItem::_remove_click()
+void MusicItem::removeClick()
 {
-    emit signal_remove_click(music->getSongPath());
+    emit signalRemoveClick(music->getSongPath());
 }
-void MusicItem::_play_click()
+void MusicItem::playClick()
 {
-    emit signal_play_click(music->getSongPath());
+    emit signalPlayClick(music->getSongPath());
 }
-void MusicItem::set_netflag(bool flag)
+void MusicItem::setNetFlag(bool flag)
 {
     this->isNetMusic = flag;
     if(this->isNetMusic)
@@ -88,7 +88,7 @@ void MusicItem::set_netflag(bool flag)
                         "}"
                         );
             download->hide();
-            connect(download, &QPushButton::clicked, this, &MusicItem::on_signal_download_clicked);
+            connect(download, &QPushButton::clicked, this, &MusicItem::onDownloadClicked);
 
         }
     }
@@ -105,7 +105,7 @@ void MusicItem::set_netflag(bool flag)
                         "}"
                         );
             remove->hide();
-            connect(remove, &QPushButton::clicked, this, &MusicItem::_remove_click);
+            connect(remove, &QPushButton::clicked, this, &MusicItem::removeClick);
         }
     }
 }
@@ -119,7 +119,7 @@ std::shared_ptr<Music> MusicItem::getMusic()
     return this->music;
 }
 
-void MusicItem::on_signal_download_clicked()
+void MusicItem::onDownloadClicked()
 {
-    emit signal_download_click(music->getSongName());
+    emit signalDownloadClick(music->getSongName());
 }

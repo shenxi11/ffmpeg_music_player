@@ -27,7 +27,7 @@ Rectangle {
     signal downloadRequested(string filePath)
     signal addToFavorite(string path, string title, string artist, string duration)
 
-    function _looksUnreadable(value) {
+    function looksUnreadable(value) {
         if (value === undefined || value === null) return true
         var text = String(value).trim()
         if (text.length === 0) return true
@@ -35,7 +35,7 @@ Rectangle {
         return text.indexOf("\uFFFD") >= 0
     }
 
-    function _baseNameFromPath(path) {
+    function baseNameFromPath(path) {
         if (!path) return ""
         var value = String(path)
         var qPos = value.indexOf("?")
@@ -52,14 +52,14 @@ Rectangle {
     }
 
     function normalizeText(value, fallbackText) {
-        if (_looksUnreadable(value)) return fallbackText
+        if (looksUnreadable(value)) return fallbackText
         return String(value)
     }
 
     function displayTitle(item) {
         var title = normalizeText(item.songName, "")
         if (title.length > 0) return title
-        var fromPath = normalizeText(_baseNameFromPath(item.filePath), "")
+        var fromPath = normalizeText(baseNameFromPath(item.filePath), "")
         return fromPath.length > 0 ? fromPath : "未知歌曲"
     }
 
@@ -383,7 +383,7 @@ Rectangle {
     function addSong(songName, filePath, artist, duration, cover) {
         var normalizedName = normalizeText(songName, "")
         if (normalizedName.length === 0) {
-            normalizedName = normalizeText(_baseNameFromPath(filePath), "未知歌曲")
+            normalizedName = normalizeText(baseNameFromPath(filePath), "未知歌曲")
         }
         musicListModel.append({
                                   "songName": normalizedName,
@@ -401,7 +401,7 @@ Rectangle {
         for (var i = 0; i < songNames.length; i++) {
             var normalizedName = normalizeText(songNames[i], "")
             if (normalizedName.length === 0) {
-                normalizedName = normalizeText(_baseNameFromPath(relativePaths[i]), "未知歌曲")
+                normalizedName = normalizeText(baseNameFromPath(relativePaths[i]), "未知歌曲")
             }
             musicListModel.append({
                                       "songName": normalizedName,

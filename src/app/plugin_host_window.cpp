@@ -1,6 +1,6 @@
 #include "plugin_host_window.h"
 
-#include "settings_manager.h"
+#include "viewmodels/PluginHostWindowViewModel.h"
 
 #include <QCloseEvent>
 #include <QHBoxLayout>
@@ -14,6 +14,7 @@
 PluginHostWindow::PluginHostWindow(const Meta& meta, QWidget* parent)
     : QDialog(parent, Qt::Window)
     , m_meta(meta)
+    , m_viewModel(new PluginHostWindowViewModel(this))
 {
     setAttribute(Qt::WA_DeleteOnClose, true);
     setObjectName(QStringLiteral("PluginHostWindow"));
@@ -67,7 +68,7 @@ PluginHostWindow::PluginHostWindow(const Meta& meta, QWidget* parent)
     auto* helpButton = new QPushButton(QStringLiteral("帮助"), headerCard);
     helpButton->setObjectName(QStringLiteral("PluginHeaderHelpButton"));
     helpButton->setVisible(!m_meta.description.trimmed().isEmpty());
-    connect(helpButton, &QPushButton::clicked, this, &PluginHostWindow::showHelpDialog);
+    setupConnections(helpButton);
 
     headerLayout->addWidget(iconLabel);
     headerLayout->addLayout(textLayout, 1);
@@ -151,7 +152,7 @@ void PluginHostWindow::restoreWindowGeometry()
         return;
     }
 
-    const QByteArray geometry = SettingsManager::instance().pluginWindowGeometry(m_meta.pluginId);
+    const QByteArray geometry = m_viewModel ? m_viewModel->loadWindowGeometry(m_meta.pluginId) : QByteArray();
     if (!geometry.isEmpty() && restoreGeometry(geometry)) {
         return;
     }
@@ -164,5 +165,7 @@ void PluginHostWindow::persistWindowGeometry() const
     if (m_meta.pluginId.trimmed().isEmpty()) {
         return;
     }
-    SettingsManager::instance().setPluginWindowGeometry(m_meta.pluginId, saveGeometry());
+    if (m_viewModel) {
+        m_viewModel->saveWindowGeometry(m_meta.pluginId, saveGeometry());
+    }
 }

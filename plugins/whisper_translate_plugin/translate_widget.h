@@ -85,7 +85,7 @@ public:
 
     void setPluginHostContext(QObject* hostContext, const QStringList& grantedPermissions);
 
-    void on_transcribeButton_clicked();
+    void onTranscribeButtonClicked();
     void showTipMessage(const QString &msg);
     void addResultItem(const QString &fileName, const QString &filePath);
 
@@ -161,16 +161,16 @@ private:
     };
 
 signals:
-    void signal_begin_tranform();
-    void signal_erorr(const QString&);
-    void signal_begin_take_pcm(QString path);
-    void signal_outFile(const QStringList &);
+    void signalBeginTranform();
+    void signalError(const QString&);
+    void signalBeginTakePcm(QString path);
+    void signalOutFile(const QStringList &);
 
 public slots:
-    void on_signal_begin_transform();
-    void on_signal_send_data(uint8_t *buffer, int bufferSize, qint64 timeMap);
-    void on_signal_decodeEnd();
-    void on_signal_outFile(const QStringList &);
+    void onBeginTransform();
+    void onSendData(uint8_t *buffer, int bufferSize, qint64 timeMap);
+    void onDecodeEnd();
+    void onOutFile(const QStringList &);
     void updateProgress(int);
 };
 

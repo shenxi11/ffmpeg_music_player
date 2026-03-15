@@ -12,9 +12,9 @@ VideoListWidgetQml::VideoListWidgetQml(QWidget *parent)
     if (root) {
         // 将 QML 侧“选中视频”事件转发给 QWidget 层。
         connect(root, SIGNAL(videoSelected(QString, QString)), 
-                this, SIGNAL(signal_video_selected(QString, QString)));
+                this, SIGNAL(signalVideoSelected(QString, QString)));
         connect(root, SIGNAL(refreshRequested()), 
-                this, SIGNAL(signal_refresh_requested()));
+                this, SIGNAL(signalRefreshRequested()));
     } else {
         qWarning() << "VideoListWidgetQml: Failed to load QML root object";
     }

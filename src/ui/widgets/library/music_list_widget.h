@@ -16,20 +16,20 @@ public:
 
 
 public slots:
-    void receive_song_op(bool flag, QString fileName);
-    void _play_click(QString songPath);
-    void _remove_click(QString songPath);
-    void Last_click(QString songName);
-    void Next_click(QString songName);
+    void receiveSongOp(bool flag, QString fileName);
+    void playClick(QString songPath);
+    void removeClick(QString songPath);
+    void lastClick(QString songName);
+    void nextClick(QString songName);
 
-    void on_signal_add_song(const QString songName,const QString path, bool isNetMusic = false);
-    void on_signal_add_songlist(const QStringList filename_list, const QList<double> duration);
-    void remove_all();
+    void onAddSong(const QString songName,const QString path, bool isNetMusic = false);
+    void onAddSonglist(const QStringList filename_list, const QList<double> duration);
+    void removeAll();
 signals:
     void selectMusic(QString path);
     void play_click(QString songName);
     void remove_click(QString songName);
-    void signal_download_click(QString songName);
+    void signalDownloadClick(QString songName);
 private:
     std::map<QString, QWidget*> pathMap;  // 改为 QWidget* 以兼容 MusicItem 和 MusicItemQml
 protected:

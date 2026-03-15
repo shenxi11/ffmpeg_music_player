@@ -14,9 +14,9 @@ public:
     explicit PianWidget(QWidget *parent = nullptr);
 
     void setName(const QString name);
-    void on_signal_set_pic_path(QString picPath);
+    void onSetPicPath(QString picPath);
 signals:
-    void signal_up_click(bool flag);
+    void signalUpClick(bool flag);
 protected:
     void mousePressEvent(QMouseEvent *event) override;
 private:

@@ -112,17 +112,17 @@ public:
     }
 
 signals:
-    void signal_current_lrc(const QString &lyricText);
-    void signal_lyric_seek(int timeMs);
-    void signal_lyric_drag_start();
-    void signal_lyric_drag_preview(int timeMs);
-    void signal_lyric_drag_end();
-    void signal_similar_play_requested(const QVariantMap& item);
+    void signalCurrentLrc(const QString &lyricText);
+    void signalLyricSeek(int timeMs);
+    void signalLyricDragStart();
+    void signalLyricDragPreview(int timeMs);
+    void signalLyricDragEnd();
+    void signalSimilarPlayRequested(const QVariantMap& item);
 
 private slots:
     void onQmlSignal(const QString &lyricText)
     {
-        emit signal_current_lrc(lyricText);
+        emit signalCurrentLrc(lyricText);
     }
 
     void onLyricClicked(int lineIndex)
@@ -130,33 +130,33 @@ private slots:
         const int actualLyricIndex = lineIndex - 5;
         if (actualLyricIndex >= 0 && actualLyricIndex < static_cast<int>(lyricTimes.size())) {
             const int timeMs = lyricTimes[actualLyricIndex];
-            emit signal_lyric_seek(timeMs);
+            emit signalLyricSeek(timeMs);
         }
     }
 
     void onLyricDragStarted()
     {
-        emit signal_lyric_drag_start();
+        emit signalLyricDragStart();
     }
 
     void onLyricDragPreview(int timeMs)
     {
-        emit signal_lyric_drag_preview(timeMs);
+        emit signalLyricDragPreview(timeMs);
     }
 
     void onLyricDragSeek(int timeMs)
     {
-        emit signal_lyric_seek(timeMs);
+        emit signalLyricSeek(timeMs);
     }
 
     void onLyricDragEnded()
     {
-        emit signal_lyric_drag_end();
+        emit signalLyricDragEnd();
     }
 
     void onSimilarPlayRequested(const QVariant& item)
     {
-        emit signal_similar_play_requested(item.toMap());
+        emit signalSimilarPlayRequested(item.toMap());
     }
 
 private:

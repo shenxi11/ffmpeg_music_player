@@ -15,9 +15,9 @@ public:
     ~TakePcm();
     void setTranslate(bool flag){this->isTranslate = flag;};
 public slots:
-    void make_pcm(QString Path);
+    void makePcm(QString Path);
     void seekToPosition(int newPosition, bool back_flag);
-    void thread_deocde();
+    void decodeThread();
 signals:
     void begin_take_lrc(QString Path);
     void begin_to_play();
@@ -27,20 +27,20 @@ signals:
     void data(const QByteArray &data, qint64 timeMap);
     void Position_Change();
     void begin_to_decode();
-    void signal_begin_make_pcm(QString path);
-    void signal_send_pic_path(QString picPath);
-    void signal_send_data(uint8_t *buffer, int bufferSize, qint64 timeMap);
-    void signal_decodeEnd();
-    void signal_seetToPosition(int newPosition);
-    void signal_reconnect();
-    void signal_worker_play();
-    void signal_move();
+    void signalBeginMakePcm(QString path);
+    void signalSendPicPath(QString picPath);
+    void signalSendData(uint8_t *buffer, int bufferSize, qint64 timeMap);
+    void signalDecodeEnd();
+    void signalSeekToPosition(int newPosition);
+    void signalReconnect();
+    void signalWorkerPlay();
+    void signalMove();
 private:
-    void send_data(uint8_t *buffer, int bufferSize, qint64 timeMap);
-    void take_album();
+    void sendData(uint8_t *buffer, int bufferSize, qint64 timeMap);
+    void takeAlbum();
     void decode();
     void run_async() {
-            QtConcurrent::run(std::bind(&TakePcm::take_album, this));
+            QtConcurrent::run(std::bind(&TakePcm::takeAlbum, this));
         }
 
     AVFormatContext *ifmt_ctx;

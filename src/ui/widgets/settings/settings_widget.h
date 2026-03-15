@@ -1,24 +1,23 @@
-﻿#ifndef SETTINGS_WIDGET_H
+#ifndef SETTINGS_WIDGET_H
 #define SETTINGS_WIDGET_H
 
+#include <QDebug>
+#include <QFileDialog>
+#include <QFileInfo>
+#include <QQuickItem>
 #include <QQuickWidget>
 #include <QQmlContext>
 #include <QQmlEngine>
-#include <QQuickItem>
-#include <QFileDialog>
-#include <QFileInfo>
 #include <QTimer>
-#include <QDebug>
 
-#include "online_presence_manager.h"
-#include "settings_manager.h"
+#include "viewmodels/SettingsViewModel.h"
 
 class SettingsWidget : public QQuickWidget
 {
     Q_OBJECT
 
 public:
-    explicit SettingsWidget(QWidget *parent = nullptr);
+    explicit SettingsWidget(QWidget* parent = nullptr);
 
 private slots:
     void onChooseDownloadPath();
@@ -31,17 +30,17 @@ private slots:
     void onAudioCachePathChanged();
     void onLogPathChanged();
     void onRefreshPresenceRequested();
-    void onPresenceSnapshotChanged(const QString& account,
-                                   const QString& sessionToken,
-                                   bool online,
-                                   int heartbeatIntervalSec,
-                                   int onlineTtlSec,
-                                   int ttlRemainingSec,
-                                   const QString& statusMessage,
-                                   qint64 lastSeenAt);
+    void syncViewModelToRoot();
+    void syncPresenceToRoot();
 
 private:
+    // 连接拆分：保持构造函数聚焦于 UI 构建流程。
+    void setupRootConnections(QQuickItem* root);
+    void setupViewModelConnections();
+    void setupRefreshTimer();
+
     QTimer m_presenceRefreshTimer;
+    SettingsViewModel* m_viewModel = nullptr;
 };
 
 #endif // SETTINGS_WIDGET_H

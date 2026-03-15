@@ -63,19 +63,16 @@ DeskLrcWidget::DeskLrcWidget(QWidget* parent)
         "}"
     );
 
-    connect(controlBar, &MiniControlBar::signal_close_clicked, this, &DeskLrcWidget::hide);
-    connect(controlBar, &MiniControlBar::signal_play_clicked, this, [=](){
-        // MiniControlBar 的 signal_play_clicked 没有参数，需要转发为带状态参数的信号
-        // 这里简单地发送一个切换信号，让接收方自己判断当前状态
-        emit signal_play_Clicked(ProcessSliderQml::Play);
-    });
-    // 注意：不要连接 signal_play_Clicked → slot_playChanged，这会造成循环
-    // slot_playChanged 应该由外部（PlayWidget）的 signal_playState 触发
-    connect(controlBar, &MiniControlBar::signal_next_clicked, this, &DeskLrcWidget::signal_next_clicked);
-    connect(controlBar, &MiniControlBar::signal_last_clicked, this, &DeskLrcWidget::signal_last_clicked);
-    connect(controlBar, &MiniControlBar::signal_forward_clicked, this, &DeskLrcWidget::signal_forward_clicked);
-    connect(controlBar, &MiniControlBar::signal_backward_clicked, this, &DeskLrcWidget::signal_backward_clicked);
-    connect(controlBar, &MiniControlBar::signal_set_clicked, this, &DeskLrcWidget::slot_settings_clicked);
+    connect(controlBar, &MiniControlBar::signalCloseClicked, this, &DeskLrcWidget::hide);
+    connect(controlBar, &MiniControlBar::signalPlayClicked,
+            this, &DeskLrcWidget::onControlBarPlayClicked);
+    // 注意：不要连接 signalPlayClicked → onPlayChanged，这会造成循环
+    // onPlayChanged 应该由外部（PlayWidget）的 signalPlayState 触发
+    connect(controlBar, &MiniControlBar::signalNextClicked, this, &DeskLrcWidget::signalNextClicked);
+    connect(controlBar, &MiniControlBar::signalLastClicked, this, &DeskLrcWidget::signalLastClicked);
+    connect(controlBar, &MiniControlBar::signalForwardClicked, this, &DeskLrcWidget::signalForwardClicked);
+    connect(controlBar, &MiniControlBar::signalBackwardClicked, this, &DeskLrcWidget::signalBackwardClicked);
+    connect(controlBar, &MiniControlBar::signalSetClicked, this, &DeskLrcWidget::onSettingsClicked);
     
     // 加载保存的设置
     loadLrcSettings();
@@ -140,23 +137,29 @@ void DeskLrcWidget::mouseReleaseEvent(QMouseEvent *event) {
     }
 }
 
-void DeskLrcWidget::slot_receive_lrc(const QString lrc_){
+void DeskLrcWidget::onReceiveLrc(const QString lrc_){
     lrc->setText(lrc_);
 }
 
-void DeskLrcWidget::slot_playState_changed(ProcessSliderQml::State state) {
+void DeskLrcWidget::onPlayStateChanged(ProcessSliderQml::State state) {
     // 更新 MiniControlBar 的按钮图标
     if (controlBar) {
-        controlBar->slot_playChanged(state);
+        controlBar->onPlayChanged(state);
     }
 }
 
-void DeskLrcWidget::slot_settings_clicked()
+void DeskLrcWidget::onControlBarPlayClicked()
+{
+    // MiniControlBar 的 signalPlayClicked 没有参数，这里统一转发为播放意图。
+    emit signalPlayClicked(ProcessSliderQml::Play);
+}
+
+void DeskLrcWidget::onSettingsClicked()
 {
     if (!settingsDialog) {
         settingsDialog = new DeskLrcSettings(this);
         connect(settingsDialog, &DeskLrcSettings::settingsChanged, 
-                this, &DeskLrcWidget::slot_settings_changed);
+                this, &DeskLrcWidget::onSettingsChanged);
     }
     
     // 从当前歌词控件获取实际设置
@@ -182,7 +185,7 @@ void DeskLrcWidget::slot_settings_clicked()
     settingsDialog->activateWindow();
 }
 
-void DeskLrcWidget::slot_settings_changed(const QColor &color, int fontSize, const QFont &font)
+void DeskLrcWidget::onSettingsChanged(const QColor &color, int fontSize, const QFont &font)
 {
     // 更新歌词样式 - 保持美化效果
     QFont newFont = font;

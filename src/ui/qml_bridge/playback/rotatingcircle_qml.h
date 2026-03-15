@@ -56,7 +56,7 @@ public:
 
 public slots:
     // 根据布尔状态控制旋转动画启停。
-    void on_signal_stop_rotate(bool flag) {
+    void onStopRotate(bool flag) {
         if (flag) {
             startRotation();
         } else {

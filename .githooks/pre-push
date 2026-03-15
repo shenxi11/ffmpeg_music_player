@@ -1,0 +1,17 @@
+#!/bin/sh
+
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+cd "$repo_root" || exit 1
+
+if command -v python >/dev/null 2>&1; then
+  python "scripts/git_push_review.py"
+  exit $?
+fi
+
+if command -v py >/dev/null 2>&1; then
+  py -3 "scripts/git_push_review.py"
+  exit $?
+fi
+
+echo "pre-push review requires Python 3. Install Python or push with --no-verify."
+exit 1

@@ -19,20 +19,21 @@ public:
     int value();
     int maxValue();
 
-    void slot_isUpChanged(bool flag);
-    void slot_forward();
-    void slot_backward();
-    void slot_change_duartion(qint64 value);
+    void onIsUpChanged(bool flag);
+    void onForward();
+    void onBackward();
+    void onDurationChanged(qint64 value);
     int getPressPosition() { return press_position; }
     void setPrintF(bool flag) { printF = flag; };
 signals:
-    void signal_sliderPressed();
-    void signal_sliderReleased();
-    void signal_playFinished();
+    void signalSliderPressed();
+    void signalSliderReleased();
+    void signalPlayFinished();
 private slots:
-    void slot_valueChanged(int value);
+    void onSliderPressed();
+    void onValueChanged(int value);
 private:
-    void update_time();
+    void updateTime();
     int seconds_ = 0;
     QSlider* slider;
     QLabel* endTime_label;

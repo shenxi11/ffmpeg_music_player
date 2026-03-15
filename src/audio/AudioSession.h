@@ -98,6 +98,7 @@ private slots:
     void onPlaybackResumed();
     void onPlaybackStopped();
     void onPlaybackFinished();
+    void onSeekGraceTimeout();
     void onSeekRetryTimeout();
 
 private:

@@ -52,6 +52,11 @@ private:
     OnlinePresenceManager(const OnlinePresenceManager&) = delete;
     OnlinePresenceManager& operator=(const OnlinePresenceManager&) = delete;
 
+private slots:
+    void onHeartbeatTimerTimeout();
+    void triggerImmediateHeartbeat();
+
+private:
     void startSessionIfNeeded();
     void sendHeartbeat();
     void emitSnapshot(const QString& statusMessage = QString());

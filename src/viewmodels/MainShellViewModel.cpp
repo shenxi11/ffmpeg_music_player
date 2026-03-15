@@ -1,0 +1,347 @@
+#include "MainShellViewModel.h"
+
+#include <QFileInfo>
+
+#include "AudioPlayer.h"
+#include "AudioService.h"
+#include "local_music_cache.h"
+#include "online_presence_manager.h"
+#include "plugin_manager.h"
+#include "settings_manager.h"
+#include "user.h"
+
+namespace {
+
+QString normalizeArtist(const QString& artist)
+{
+    const QString trimmed = artist.trimmed();
+    if (trimmed.isEmpty()) {
+        return QString();
+    }
+
+    const QString lower = trimmed.toLower();
+    if (trimmed == QStringLiteral("未知艺术家") ||
+        trimmed == QStringLiteral("未知歌手") ||
+        lower == QStringLiteral("unknown artist") ||
+        lower == QStringLiteral("unknown") ||
+        lower == QStringLiteral("<unknown>")) {
+        return QString();
+    }
+    return trimmed;
+}
+
+int parseDurationToSeconds(const QString& durationText)
+{
+    const QString trimmed = durationText.trimmed();
+    if (trimmed.isEmpty()) {
+        return 0;
+    }
+
+    if (trimmed.contains(':')) {
+        const QStringList parts = trimmed.split(':');
+        if (parts.size() >= 2) {
+            bool okMin = false;
+            bool okSec = false;
+            const int minutes = parts[0].toInt(&okMin);
+            const int seconds = parts[1].toInt(&okSec);
+            if (okMin && okSec) {
+                return qMax(0, minutes * 60 + seconds);
+            }
+        }
+    }
+
+    bool ok = false;
+    const int seconds = trimmed.toInt(&ok);
+    return ok ? qMax(0, seconds) : 0;
+}
+
+}
+
+MainShellViewModel::MainShellViewModel(QObject* parent)
+    : BaseViewModel(parent)
+    , m_request(this)
+{
+    setupConnections();
+}
+
+QObject* MainShellViewModel::audioServiceObject() const
+{
+    return &AudioService::instance();
+}
+
+QString MainShellViewModel::cachedAccount() const
+{
+    return SettingsManager::instance().cachedAccount();
+}
+
+QString MainShellViewModel::cachedPassword() const
+{
+    return SettingsManager::instance().cachedPassword();
+}
+
+QString MainShellViewModel::cachedUsername() const
+{
+    return SettingsManager::instance().cachedUsername();
+}
+
+bool MainShellViewModel::autoLoginEnabled() const
+{
+    return SettingsManager::instance().autoLoginEnabled();
+}
+
+QString MainShellViewModel::currentUserAccount() const
+{
+    return User::getInstance()->getAccount();
+}
+
+QString MainShellViewModel::currentUserPassword() const
+{
+    return User::getInstance()->getPassword();
+}
+
+bool MainShellViewModel::hasLoggedInUser() const
+{
+    return !currentUserAccount().trimmed().isEmpty();
+}
+
+void MainShellViewModel::clearCurrentUserProfile()
+{
+    User::getInstance()->setAccount(QString());
+    User::getInstance()->setPassword(QString());
+    User::getInstance()->setUsername(QString());
+}
+
+void MainShellViewModel::searchMusic(const QString& keyword)
+{
+    m_request.getMusic(keyword);
+}
+
+void MainShellViewModel::requestRecommendations(const QString& userAccount,
+                                                const QString& scene,
+                                                int limit,
+                                                bool excludePlayed)
+{
+    m_request.getAudioRecommendations(userAccount, scene, limit, excludePlayed);
+}
+
+void MainShellViewModel::requestSimilarRecommendations(const QString& songId, int limit)
+{
+    m_request.getSimilarRecommendations(songId, limit);
+}
+
+void MainShellViewModel::submitRecommendationFeedback(const QString& userId,
+                                                      const QString& songId,
+                                                      const QString& eventType,
+                                                      const QString& scene,
+                                                      const QString& requestId,
+                                                      const QString& modelVersion,
+                                                      qint64 playMs,
+                                                      qint64 durationMs)
+{
+    m_request.postRecommendationFeedback(userId,
+                                         songId,
+                                         eventType,
+                                         scene,
+                                         requestId,
+                                         modelVersion,
+                                         playMs,
+                                         durationMs);
+}
+
+void MainShellViewModel::requestHistory(const QString& userAccount, int limit, bool useCache)
+{
+    m_request.getPlayHistory(userAccount, limit, useCache);
+}
+
+void MainShellViewModel::addPlayHistory(const QString& userAccount,
+                                        const QString& path,
+                                        const QString& title,
+                                        const QString& artist,
+                                        const QString& album,
+                                        const QString& duration,
+                                        bool isLocal)
+{
+    m_request.addPlayHistory(userAccount, path, title, artist, album, duration, isLocal);
+}
+
+void MainShellViewModel::removeHistory(const QString& userAccount, const QStringList& paths)
+{
+    m_request.removePlayHistory(userAccount, paths);
+}
+
+void MainShellViewModel::requestFavorites(const QString& userAccount, bool useCache)
+{
+    m_request.getFavorites(userAccount, useCache);
+}
+
+void MainShellViewModel::addFavorite(const QString& userAccount,
+                                     const QString& path,
+                                     const QString& title,
+                                     const QString& artist,
+                                     const QString& duration,
+                                     bool isLocal)
+{
+    m_request.addFavorite(userAccount, path, title, artist, duration, isLocal);
+}
+
+void MainShellViewModel::removeFavorite(const QString& userAccount, const QStringList& paths)
+{
+    m_request.removeFavorite(userAccount, paths);
+}
+
+void MainShellViewModel::handleLoginSuccess(const QString& account,
+                                            const QString& password,
+                                            const QString& username)
+{
+    OnlinePresenceManager::instance().ensureSessionForUser(account, username);
+    SettingsManager::instance().saveAccountCache(account, password, username, true);
+    emit accountCacheChanged();
+}
+
+void MainShellViewModel::logoutCurrentUser(bool graceful, int gracefulTimeoutMs)
+{
+    SettingsManager::instance().setAutoLoginEnabled(false);
+    OnlinePresenceManager::instance().logoutAndClear(graceful, gracefulTimeoutMs);
+    clearCurrentUserProfile();
+    emit accountCacheChanged();
+}
+
+void MainShellViewModel::pauseAudioIfPlaying()
+{
+    if (AudioService::instance().isPlaying()) {
+        AudioService::instance().pause();
+    }
+}
+
+void MainShellViewModel::stopAudio()
+{
+    AudioService::instance().stop();
+}
+
+void MainShellViewModel::shutdownAudioPipeline()
+{
+    AudioService::instance().stop();
+    AudioPlayer::instance().stop();
+    AudioPlayer::instance().clearWriteOwner();
+    AudioPlayer::instance().resetBuffer();
+}
+
+int MainShellViewModel::loadPlugins(const QString& pluginPath)
+{
+    return PluginManager::instance().loadPlugins(pluginPath);
+}
+
+QVector<PluginLoadFailure> MainShellViewModel::pluginLoadFailures() const
+{
+    return PluginManager::instance().loadFailures();
+}
+
+QVector<PluginInfo> MainShellViewModel::pluginInfos() const
+{
+    return PluginManager::instance().getPluginInfos();
+}
+
+PluginInterface* MainShellViewModel::pluginById(const QString& pluginId) const
+{
+    return PluginManager::instance().getPlugin(pluginId);
+}
+
+QString MainShellViewModel::pluginDiagnosticsReport() const
+{
+    return PluginManager::instance().diagnosticsReport();
+}
+
+void MainShellViewModel::registerPluginHostService(const QString& serviceName, QObject* service)
+{
+    PluginManager::instance().hostContext()->registerService(serviceName, service);
+}
+
+void MainShellViewModel::unloadAllPlugins()
+{
+    PluginManager::instance().unloadAllPlugins();
+}
+
+void MainShellViewModel::addLocalMusicCacheEntry(const QString& filePath, const QString& fileName)
+{
+    LocalMusicInfo info;
+    info.filePath = filePath;
+    info.fileName = fileName;
+    LocalMusicCache::instance().addMusic(info);
+}
+
+void MainShellViewModel::updateLocalMusicCacheMetadata(const QString& filePath,
+                                                       const QString& coverUrl,
+                                                       const QString& duration)
+{
+    LocalMusicCache::instance().updateMetadata(filePath, coverUrl, duration);
+}
+
+void MainShellViewModel::removeLocalMusicCacheEntry(const QString& filePath)
+{
+    LocalMusicCache::instance().removeMusic(filePath);
+}
+
+int MainShellViewModel::localMusicCacheDurationSeconds(const QString& filePath) const
+{
+    for (const LocalMusicInfo& info : LocalMusicCache::instance().getMusicList()) {
+        if (info.filePath == filePath) {
+            return parseDurationToSeconds(info.duration);
+        }
+    }
+    return 0;
+}
+
+bool MainShellViewModel::resolveHistorySnapshot(const QString& sessionId,
+                                                const QString& filePath,
+                                                const QString& fallbackArtist,
+                                                QString* title,
+                                                QString* artist,
+                                                QString* album,
+                                                qint64* durationMs,
+                                                bool* isLocal) const
+{
+    AudioSession* session = AudioService::instance().getSession(sessionId);
+    if (!session) {
+        session = AudioService::instance().currentSession();
+    }
+    if (!session) {
+        return false;
+    }
+
+    QString resolvedTitle = session->title();
+    if (resolvedTitle.trimmed().isEmpty()) {
+        resolvedTitle = QFileInfo(filePath).completeBaseName();
+    }
+
+    QString resolvedArtist = normalizeArtist(session->artist());
+    if (resolvedArtist.isEmpty()) {
+        resolvedArtist = normalizeArtist(fallbackArtist);
+    }
+    if (resolvedArtist.isEmpty()) {
+        resolvedArtist = QStringLiteral("未知艺术家");
+    }
+
+    if (title) {
+        *title = resolvedTitle;
+    }
+    if (artist) {
+        *artist = resolvedArtist;
+    }
+    if (album) {
+        *album = QString();
+    }
+    if (durationMs) {
+        *durationMs = session->duration();
+    }
+    if (isLocal) {
+        *isLocal = !filePath.startsWith(QStringLiteral("http"), Qt::CaseInsensitive);
+    }
+
+    return true;
+}
+
+void MainShellViewModel::onSessionExpired()
+{
+    SettingsManager::instance().setAutoLoginEnabled(false);
+    emit sessionExpired();
+}

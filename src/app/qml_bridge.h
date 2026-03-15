@@ -150,16 +150,16 @@ signals:
     void usernameChanged(QString username);
     
     // ===== 原有业务信号（保留） =====
-    void signal_worker_play();
-    void signal_filepath(QString filePath);
-    void signal_begin_to_play(QString path);
-    void signal_begin_take_lrc(QString str);
-    void signal_play_changed(bool flag);
-    void signal_set_SliderMove(bool flag);
-    void signal_process_Change(qint64 newPosition, bool back_flag);
-    void signal_add_song(const QString fileName, const QString path);
-    void signal_remove_click();
-    void signal_stop_rotate(bool flag);
+    void signalWorkerPlay();
+    void signalFilepath(QString filePath);
+    void signalBeginToPlay(QString path);
+    void signalBeginTakeLrc(QString str);
+    void signalPlayChanged(bool flag);
+    void signalSetSliderMove(bool flag);
+    void signalProcessChange(qint64 newPosition, bool back_flag);
+    void signalAddSong(const QString fileName, const QString path);
+    void signalRemoveClick();
+    void signalStopRotate(bool flag);
     
 private slots:
     // ===== 连接原有C++组件的槽函数 =====

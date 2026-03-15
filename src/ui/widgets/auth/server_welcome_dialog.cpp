@@ -1,49 +1,27 @@
 ﻿#include "server_welcome_dialog.h"
 
-#include "settings_manager.h"
+#include "viewmodels/ServerWelcomeViewModel.h"
 
 #include <QAbstractSpinBox>
 #include <QAbstractButton>
-#include <QEventLoop>
 #include <QFrame>
 #include <QGridLayout>
 #include <QHBoxLayout>
-#include <QJsonDocument>
-#include <QJsonParseError>
 #include <QKeySequence>
 #include <QLabel>
 #include <QLineEdit>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
-#include <QNetworkRequest>
 #include <QPixmap>
 #include <QPushButton>
 #include <QShortcut>
 #include <QSpinBox>
-#include <QTimer>
-#include <QUrl>
 #include <QVBoxLayout>
 #include <QMouseEvent>
 #include <QGuiApplication>
 #include <QScreen>
 
-namespace {
-
-QString extractResponseMessage(const QJsonObject& root)
-{
-    const QString message = root.value("message").toString().trimmed();
-    if (!message.isEmpty()) {
-        return message;
-    }
-    const QJsonObject data = root.value("data").toObject();
-    return data.value("message").toString().trimmed();
-}
-
-} // namespace
-
 ServerWelcomeDialog::ServerWelcomeDialog(QWidget* parent)
     : QDialog(parent)
-    , m_networkManager(new QNetworkAccessManager(this))
+    , m_viewModel(new ServerWelcomeViewModel(this))
 {
     setObjectName(QStringLiteral("ServerWelcomeDialog"));
     setWindowTitle(QStringLiteral(u"\u6b22\u8fce\u4f7f\u7528 \u4e91\u97f3\u4e50"));
@@ -259,13 +237,13 @@ ServerWelcomeDialog::ServerWelcomeDialog(QWidget* parent)
     hostLabel->setObjectName(QStringLiteral("SectionTitle"));
     m_hostEdit = new QLineEdit(card);
     m_hostEdit->setPlaceholderText(QStringLiteral(u"\u4f8b\u5982\uff1a192.168.1.208 \u6216 music.local"));
-    m_hostEdit->setText(SettingsManager::instance().serverHost());
+    m_hostEdit->setText(m_viewModel ? m_viewModel->serverHost() : QString());
 
     QLabel* portLabel = new QLabel(QStringLiteral(u"\u7aef\u53e3"), card);
     portLabel->setObjectName(QStringLiteral("SectionTitle"));
     m_portSpin = new QSpinBox(card);
     m_portSpin->setRange(1, 65535);
-    m_portSpin->setValue(SettingsManager::instance().serverPort());
+    m_portSpin->setValue(m_viewModel ? m_viewModel->serverPort() : 8080);
     m_portSpin->setButtonSymbols(QAbstractSpinBox::NoButtons);
     m_portSpin->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
 
@@ -365,32 +343,11 @@ ServerWelcomeDialog::ServerWelcomeDialog(QWidget* parent)
     rootLayout->setContentsMargins(0, 0, 0, 0);
     rootLayout->addWidget(card);
 
-    if (SettingsManager::instance().hasServerWelcomeWindowPos()) {
-        move(adjustedWindowPos(SettingsManager::instance().serverWelcomeWindowPos(), false));
+    if (m_viewModel && m_viewModel->hasWindowPos()) {
+        move(adjustedWindowPos(m_viewModel->windowPos(), false));
     }
 
-    connect(m_verifyButton, &QPushButton::clicked, this, &ServerWelcomeDialog::onVerifyClicked);
-    connect(m_cancelButton, &QPushButton::clicked, this, &ServerWelcomeDialog::reject);
-    connect(m_centerButton, &QPushButton::clicked, this, [this]() {
-        QScreen* screen = QGuiApplication::screenAt(frameGeometry().center());
-        if (!screen) {
-            screen = QGuiApplication::primaryScreen();
-        }
-        if (!screen) {
-            return;
-        }
-
-        const QRect area = screen->availableGeometry();
-        const QPoint centered(area.left() + (area.width() - width()) / 2,
-                              area.top() + (area.height() - height()) / 2);
-        const QPoint adjusted = adjustedWindowPos(centered, false);
-        move(adjusted);
-        SettingsManager::instance().setServerWelcomeWindowPos(adjusted);
-    });
-    connect(m_closeButton, &QPushButton::clicked, this, &ServerWelcomeDialog::reject);
-    connect(new QShortcut(QKeySequence(Qt::Key_Escape), this), &QShortcut::activated,
-            this, &ServerWelcomeDialog::reject);
-    connect(m_hostEdit, &QLineEdit::returnPressed, this, &ServerWelcomeDialog::onVerifyClicked);
+    setupInteractionConnections();
 }
 
 void ServerWelcomeDialog::mousePressEvent(QMouseEvent* event)
@@ -440,7 +397,9 @@ void ServerWelcomeDialog::mouseReleaseEvent(QMouseEvent* event)
         if (snapped != pos()) {
             move(snapped);
         }
-        SettingsManager::instance().setServerWelcomeWindowPos(snapped);
+        if (m_viewModel) {
+            m_viewModel->setWindowPos(snapped);
+        }
     }
     m_dragging = false;
     QDialog::mouseReleaseEvent(event);
@@ -487,7 +446,20 @@ void ServerWelcomeDialog::onVerifyClicked()
     setStatusMessage(QStringLiteral(u"\u6b63\u5728\u9a8c\u8bc1\u670d\u52a1\u5668\uff0c\u8bf7\u7a0d\u5019..."), false);
 
     QString errorMessage;
-    if (verifyServer(&errorMessage)) {
+    QString normalizedHost;
+    int normalizedPort = m_portSpin ? m_portSpin->value() : 8080;
+    if (m_viewModel
+        && m_viewModel->verifyServer(m_hostEdit ? m_hostEdit->text() : QString(),
+                                     normalizedPort,
+                                     &normalizedHost,
+                                     &normalizedPort,
+                                     &errorMessage)) {
+        if (m_hostEdit) {
+            m_hostEdit->setText(normalizedHost);
+        }
+        if (m_portSpin) {
+            m_portSpin->setValue(normalizedPort);
+        }
         setStatusMessage(QStringLiteral(u"\u670d\u52a1\u5668\u9a8c\u8bc1\u901a\u8fc7\uff0c\u6b63\u5728\u8fdb\u5165\u4e3b\u754c\u9762..."), false);
         accept();
         return;
@@ -498,181 +470,6 @@ void ServerWelcomeDialog::onVerifyClicked()
                          : errorMessage,
                      true);
     setUiBusy(false);
-}
-
-bool ServerWelcomeDialog::verifyServer(QString* errorMessage)
-{
-    int port = m_portSpin->value();
-    const QString host = normalizeHostInput(m_hostEdit->text(), &port);
-    if (host.isEmpty()) {
-        if (errorMessage) {
-            *errorMessage = QStringLiteral(u"\u8bf7\u8f93\u5165\u6709\u6548\u7684\u670d\u52a1\u5668 IP \u6216\u57df\u540d\u3002");
-        }
-        return false;
-    }
-    m_hostEdit->setText(host);
-    m_portSpin->setValue(port);
-
-    const QString baseUrl = QStringLiteral("http://%1:%2/").arg(host, QString::number(port));
-
-    QJsonObject pingRoot;
-    if (!getJson(baseUrl + "client/ping", &pingRoot, errorMessage)) {
-        return false;
-    }
-    const int pingCode = pingRoot.value("code").toInt(0);
-    if (pingCode != 0) {
-        if (errorMessage) {
-            const QString message = extractResponseMessage(pingRoot);
-            *errorMessage = message.isEmpty()
-                    ? QStringLiteral(u"\u8fde\u901a\u6027\u68c0\u67e5\u5931\u8d25\uff0c\u8bf7\u786e\u8ba4\u670d\u52a1\u7aef\u7f51\u5173\u53ef\u8bbf\u95ee\u3002")
-                    : message;
-        }
-        return false;
-    }
-    const QJsonObject pingData = pingRoot.value("data").toObject();
-    const QString pingStatus = pingData.value("status").toString().trimmed().toLower();
-    if (!pingStatus.isEmpty() && pingStatus != "ok") {
-        if (errorMessage) {
-            *errorMessage = QStringLiteral(u"\u670d\u52a1\u7aef /client/ping \u8fd4\u56de\u72b6\u6001\u5f02\u5e38\u3002");
-        }
-        return false;
-    }
-
-    QJsonObject bootstrapRoot;
-    if (!getJson(baseUrl + "client/bootstrap", &bootstrapRoot, errorMessage)) {
-        return false;
-    }
-    const int bootstrapCode = bootstrapRoot.value("code").toInt(0);
-    if (bootstrapCode != 0) {
-        if (errorMessage) {
-            const QString message = extractResponseMessage(bootstrapRoot);
-            *errorMessage = message.isEmpty()
-                    ? QStringLiteral(u"\u670d\u52a1\u7aef\u5f15\u5bfc\u68c0\u67e5\u5931\u8d25\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5\u3002")
-                    : message;
-        }
-        return false;
-    }
-
-    const QJsonObject bootstrapData = bootstrapRoot.value("data").toObject();
-    if (bootstrapData.isEmpty()) {
-        if (errorMessage) {
-            *errorMessage = QStringLiteral(u"\u670d\u52a1\u7aef\u5f15\u5bfc\u54cd\u5e94\u7f3a\u5c11 data \u5b57\u6bb5\u3002");
-        }
-        return false;
-    }
-
-    const bool ready = bootstrapData.value("ready").toBool(false);
-    if (!ready) {
-        const QJsonObject checks = bootstrapData.value("checks").toObject();
-        const bool dbReady = checks.value("database").toBool(false);
-        const bool redisReady = checks.value("redis").toBool(false);
-        if (errorMessage) {
-            *errorMessage = QStringLiteral(u"\u670d\u52a1\u7aef\u5c1a\u672a\u5c31\u7eea\uff08database=%1, redis=%2\uff09\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5\u3002")
-                    .arg(dbReady ? QStringLiteral("true") : QStringLiteral("false"),
-                         redisReady ? QStringLiteral("true") : QStringLiteral("false"));
-        }
-        return false;
-    }
-
-    SettingsManager::instance().setServerEndpoint(host, port);
-    return true;
-}
-
-bool ServerWelcomeDialog::getJson(const QString& fullUrl, QJsonObject* root, QString* errorMessage)
-{
-    QNetworkRequest request{QUrl(fullUrl)};
-    request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
-    request.setRawHeader("Accept", "application/json");
-
-    QNetworkReply* reply = m_networkManager->get(request);
-
-    QEventLoop loop;
-    QTimer timer;
-    timer.setSingleShot(true);
-    bool timedOut = false;
-
-    connect(&timer, &QTimer::timeout, this, [&]() {
-        timedOut = true;
-        if (reply) {
-            reply->abort();
-        }
-    });
-    connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
-
-    timer.start(5000);
-    loop.exec();
-    timer.stop();
-
-    const QByteArray body = reply->readAll();
-    const QNetworkReply::NetworkError networkError = reply->error();
-    const QString networkErrorText = reply->errorString();
-    reply->deleteLater();
-
-    if (timedOut) {
-        if (errorMessage) {
-            *errorMessage = QStringLiteral(u"\u8bf7\u6c42\u8d85\u65f6\uff1a%1").arg(fullUrl);
-        }
-        return false;
-    }
-
-    if (networkError != QNetworkReply::NoError) {
-        if (errorMessage) {
-            *errorMessage = QStringLiteral(u"\u8bf7\u6c42\u5931\u8d25\uff1a%1\uff08%2\uff09").arg(fullUrl, networkErrorText);
-        }
-        return false;
-    }
-
-    QJsonParseError parseError;
-    const QJsonDocument doc = QJsonDocument::fromJson(body, &parseError);
-    if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
-        if (errorMessage) {
-            *errorMessage = QStringLiteral(u"\u670d\u52a1\u7aef\u54cd\u5e94\u4e0d\u662f\u6709\u6548 JSON\uff1a%1").arg(fullUrl);
-        }
-        return false;
-    }
-
-    if (root) {
-        *root = doc.object();
-    }
-    return true;
-}
-
-QString ServerWelcomeDialog::normalizeHostInput(const QString& rawHost, int* portInOut)
-{
-    QString host = rawHost.trimmed();
-    if (host.isEmpty()) {
-        return QString();
-    }
-
-    QUrl url(host);
-    if (url.isValid() && !url.scheme().isEmpty()) {
-        if (!url.host().isEmpty()) {
-            host = url.host().trimmed();
-        }
-        if (portInOut && url.port() > 0) {
-            *portInOut = url.port();
-        }
-        return host;
-    }
-
-    int slashIndex = host.indexOf('/');
-    if (slashIndex >= 0) {
-        host = host.left(slashIndex).trimmed();
-    }
-
-    const int colonIndex = host.lastIndexOf(':');
-    const bool hasSinglePort = colonIndex > 0 && host.indexOf(':') == colonIndex;
-    if (hasSinglePort) {
-        bool ok = false;
-        const int parsedPort = host.mid(colonIndex + 1).toInt(&ok);
-        if (ok && parsedPort > 0 && parsedPort <= 65535) {
-            if (portInOut) {
-                *portInOut = parsedPort;
-            }
-            host = host.left(colonIndex).trimmed();
-        }
-    }
-    return host.trimmed();
 }
 
 void ServerWelcomeDialog::setUiBusy(bool busy)

@@ -124,31 +124,102 @@ void Network::NetworkManager::executeRequest(std::shared_ptr<RequestContext> con
     }
     
     context->reply = reply;
+    reply->setProperty("requestId", context->requestId);
     
     // 连接完成信号。
-    connect(reply, &QNetworkReply::finished, this, [this, context]() {
-        handleReplyFinished(context);
-    });
+    connect(reply, &QNetworkReply::finished, this, &NetworkManager::onReplyFinished);
     
     // 连接进度信号。
     if (context->progressCallback) {
-        connect(reply, &QNetworkReply::downloadProgress, this, 
-                [this, context](qint64 bytesReceived, qint64 bytesTotal) {
-            if (context->progressCallback) {
-                context->progressCallback(bytesReceived, bytesTotal);
-            }
-            emit requestProgress(context->requestId, bytesReceived, bytesTotal);
-        });
+        connect(reply, &QNetworkReply::downloadProgress,
+                this, &NetworkManager::onReplyDownloadProgress);
     }
     
     // 设置超时定时器
     int timeout = context->options.timeout > 0 ? context->options.timeout : m_globalTimeout;
-    context->timeoutTimer = new QTimer();
+    context->timeoutTimer = new QTimer(this);
     context->timeoutTimer->setSingleShot(true);
-    connect(context->timeoutTimer, &QTimer::timeout, this, [this, context]() {
-        handleTimeout(context);
-    });
+    context->timeoutTimer->setProperty("requestId", context->requestId);
+    connect(context->timeoutTimer, &QTimer::timeout,
+            this, &NetworkManager::onRequestTimeout);
     context->timeoutTimer->start(timeout);
+}
+
+void Network::NetworkManager::onReplyFinished()
+{
+    auto* reply = qobject_cast<QNetworkReply*>(sender());
+    if (!reply) {
+        return;
+    }
+
+    const QString requestId = reply->property("requestId").toString();
+    if (requestId.isEmpty()) {
+        qWarning() << "[NetworkManager] Missing requestId on reply";
+        return;
+    }
+
+    std::shared_ptr<RequestContext> context;
+    {
+        QMutexLocker locker(&m_mutex);
+        context = m_activeRequests.value(requestId);
+    }
+    if (!context) {
+        qWarning() << "[NetworkManager] Context not found for finished reply:" << requestId;
+        return;
+    }
+
+    handleReplyFinished(context);
+}
+
+void Network::NetworkManager::onReplyDownloadProgress(qint64 bytesReceived, qint64 bytesTotal)
+{
+    auto* reply = qobject_cast<QNetworkReply*>(sender());
+    if (!reply) {
+        return;
+    }
+
+    const QString requestId = reply->property("requestId").toString();
+    if (requestId.isEmpty()) {
+        return;
+    }
+
+    std::shared_ptr<RequestContext> context;
+    {
+        QMutexLocker locker(&m_mutex);
+        context = m_activeRequests.value(requestId);
+    }
+    if (!context) {
+        return;
+    }
+
+    if (context->progressCallback) {
+        context->progressCallback(bytesReceived, bytesTotal);
+    }
+    emit requestProgress(context->requestId, bytesReceived, bytesTotal);
+}
+
+void Network::NetworkManager::onRequestTimeout()
+{
+    auto* timer = qobject_cast<QTimer*>(sender());
+    if (!timer) {
+        return;
+    }
+
+    const QString requestId = timer->property("requestId").toString();
+    if (requestId.isEmpty()) {
+        return;
+    }
+
+    std::shared_ptr<RequestContext> context;
+    {
+        QMutexLocker locker(&m_mutex);
+        context = m_activeRequests.value(requestId);
+    }
+    if (!context) {
+        return;
+    }
+
+    handleTimeout(context);
 }
 
 void Network::NetworkManager::handleReplyFinished(std::shared_ptr<RequestContext> context)
@@ -163,6 +234,11 @@ void Network::NetworkManager::handleReplyFinished(std::shared_ptr<RequestContext
         context->timeoutTimer->stop();
         context->timeoutTimer->deleteLater();
         context->timeoutTimer = nullptr;
+    }
+    if (context->retryTimer) {
+        context->retryTimer->stop();
+        context->retryTimer->deleteLater();
+        context->retryTimer = nullptr;
     }
     
     QNetworkReply* reply = context->reply;
@@ -261,6 +337,11 @@ void Network::NetworkManager::handleTimeout(std::shared_ptr<RequestContext> cont
         if (context->reply) {
             context->reply->deleteLater();
         }
+        if (context->retryTimer) {
+            context->retryTimer->stop();
+            context->retryTimer->deleteLater();
+            context->retryTimer = nullptr;
+        }
         delete context->elapsedTimer;
         
         QMutexLocker locker(&m_mutex);
@@ -276,12 +357,46 @@ void Network::NetworkManager::retryRequest(std::shared_ptr<RequestContext> conte
     int delay = calculateRetryDelay(context->currentRetry, context->options);
     
     qDebug() << "[NetworkManager] Retrying request in" << delay << "ms:" << context->requestId;
-    
-    // 使用定时器延迟重试
-    QTimer::singleShot(delay, this, [this, context]() {
-        context->elapsedTimer->restart();
-        executeRequest(context);
-    });
+
+    if (context->retryTimer) {
+        context->retryTimer->stop();
+        context->retryTimer->deleteLater();
+        context->retryTimer = nullptr;
+    }
+
+    context->retryTimer = new QTimer(this);
+    context->retryTimer->setSingleShot(true);
+    context->retryTimer->setProperty("requestId", context->requestId);
+    connect(context->retryTimer, &QTimer::timeout,
+            this, &NetworkManager::onRetryTimerTimeout);
+    context->retryTimer->start(delay);
+}
+
+void Network::NetworkManager::onRetryTimerTimeout()
+{
+    auto* retryTimer = qobject_cast<QTimer*>(sender());
+    if (!retryTimer) {
+        return;
+    }
+
+    const QString requestId = retryTimer->property("requestId").toString();
+    std::shared_ptr<RequestContext> context;
+    {
+        QMutexLocker locker(&m_mutex);
+        context = m_activeRequests.value(requestId);
+    }
+    if (!context) {
+        retryTimer->deleteLater();
+        return;
+    }
+
+    if (context->retryTimer == retryTimer) {
+        context->retryTimer = nullptr;
+    }
+    retryTimer->deleteLater();
+
+    context->elapsedTimer->restart();
+    executeRequest(context);
 }
 
 int Network::NetworkManager::calculateRetryDelay(int retry, const RequestOptions& options)
@@ -308,11 +423,18 @@ void Network::NetworkManager::cancelRequest(const QString& requestId)
         if (context->reply) {
             context->reply->abort();
             context->reply->deleteLater();
+            context->reply = nullptr;
         }
         
         if (context->timeoutTimer) {
             context->timeoutTimer->stop();
             context->timeoutTimer->deleteLater();
+            context->timeoutTimer = nullptr;
+        }
+        if (context->retryTimer) {
+            context->retryTimer->stop();
+            context->retryTimer->deleteLater();
+            context->retryTimer = nullptr;
         }
         
         delete context->elapsedTimer;
@@ -331,11 +453,18 @@ void Network::NetworkManager::cancelAllRequests()
         if (context->reply) {
             context->reply->abort();
             context->reply->deleteLater();
+            context->reply = nullptr;
         }
         
         if (context->timeoutTimer) {
             context->timeoutTimer->stop();
             context->timeoutTimer->deleteLater();
+            context->timeoutTimer = nullptr;
+        }
+        if (context->retryTimer) {
+            context->retryTimer->stop();
+            context->retryTimer->deleteLater();
+            context->retryTimer = nullptr;
         }
         
         delete context->elapsedTimer;

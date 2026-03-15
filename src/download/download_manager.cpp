@@ -22,6 +22,35 @@ void DownloadThread::abort()
     m_aborted.storeRelease(1);
 }
 
+void DownloadThread::handleReplyDownloadProgress(qint64 bytesReceived, qint64 bytesTotal)
+{
+    if (m_aborted.loadAcquire()) {
+        if (m_currentReply) {
+            m_currentReply->abort();
+        }
+        return;
+    }
+
+    const qint64 totalSize = bytesTotal + m_startByte;
+    const qint64 receivedSize = bytesReceived + m_startByte;
+    emit progressUpdated(m_taskId, receivedSize, totalSize);
+}
+
+void DownloadThread::handleReplyReadyRead()
+{
+    if (m_aborted.loadAcquire()) {
+        if (m_currentReply) {
+            m_currentReply->abort();
+        }
+        return;
+    }
+
+    if (!m_currentReply || !m_currentFile) {
+        return;
+    }
+    m_currentFile->write(m_currentReply->readAll());
+}
+
 void DownloadThread::run()
 {
     qDebug() << "[DownloadThread]" << m_taskId << "started in thread" << QThread::currentThreadId();
@@ -45,6 +74,7 @@ void DownloadThread::run()
     QNetworkReply* reply = !m_postData.isEmpty() ?
         networkManager.post(request, m_postData) :
         networkManager.get(request);
+    m_currentReply = reply;
     
     // 打开文件用于写入
     QFile file(m_savePath);
@@ -56,32 +86,17 @@ void DownloadThread::run()
         reply->abort();
         reply->deleteLater();
         emit finished(m_taskId, false, "Failed to open file: " + file.errorString());
+        m_currentReply = nullptr;
         return;
     }
+    m_currentFile = &file;
     
-    qint64 totalSize = 0;
-    qint64 receivedSize = m_startByte;
-    
-    // 连接信号进行进度跟踪
-    QObject::connect(reply, &QNetworkReply::downloadProgress, [&](qint64 bytesReceived, qint64 bytesTotal) {
-        if (m_aborted.loadAcquire()) {
-            reply->abort();
-            return;
-        }
-        
-        totalSize = bytesTotal + m_startByte;
-        receivedSize = bytesReceived + m_startByte;
-        emit progressUpdated(m_taskId, receivedSize, totalSize);
-    });
-    
-    // 连接 readyRead 信号写入文件
-    QObject::connect(reply, &QNetworkReply::readyRead, [&]() {
-        if (m_aborted.loadAcquire()) {
-            reply->abort();
-            return;
-        }
-        file.write(reply->readAll());
-    });
+    QObject::connect(reply, &QNetworkReply::downloadProgress,
+                     this, &DownloadThread::handleReplyDownloadProgress,
+                     Qt::DirectConnection);
+    QObject::connect(reply, &QNetworkReply::readyRead,
+                     this, &DownloadThread::handleReplyReadyRead,
+                     Qt::DirectConnection);
     
     // 使用事件循环等待下载完成
     QEventLoop loop;
@@ -92,6 +107,8 @@ void DownloadThread::run()
     if (m_aborted.loadAcquire()) {
         file.close();
         reply->deleteLater();
+        m_currentReply = nullptr;
+        m_currentFile = nullptr;
         emit finished(m_taskId, false, "Download aborted by user");
         return;
     }
@@ -102,6 +119,8 @@ void DownloadThread::run()
         qDebug() << "[DownloadThread]" << m_taskId << "Network error:" << errorMsg;
         file.close();
         reply->deleteLater();
+        m_currentReply = nullptr;
+        m_currentFile = nullptr;
         emit finished(m_taskId, false, errorMsg);
         return;
     }
@@ -115,6 +134,8 @@ void DownloadThread::run()
     file.flush();
     file.close();
     reply->deleteLater();
+    m_currentReply = nullptr;
+    m_currentFile = nullptr;
     
     qDebug() << "[DownloadThread]" << m_taskId << "completed successfully";
     emit finished(m_taskId, true, QString());
@@ -376,62 +397,12 @@ void DownloadManager::startDownload(DownloadTask& task, bool isResume)
     );
     
     // 连接信号
-    connect(thread, &DownloadThread::started, this, [this](const QString& taskId) {
-        QMutexLocker locker(&m_tasksMutex);
-        if (!m_allTasks.contains(taskId)) return;
-        DownloadTask& t = m_allTasks[taskId];
-        t.state = DownloadState::Downloading;
-        saveTaskInfo(t);
-        emit downloadStarted(taskId, t.filename);
-    }, Qt::QueuedConnection);
-    
-    connect(thread, &DownloadThread::progressUpdated, this, 
-            [this](const QString& taskId, qint64 bytesReceived, qint64 bytesTotal) {
-        QMutexLocker locker(&m_tasksMutex);
-        if (!m_allTasks.contains(taskId)) return;
-        DownloadTask& t = m_allTasks[taskId];
-        
-        t.downloadedSize = bytesReceived;
-        if (bytesTotal > 0) t.totalSize = bytesTotal;
-        
-        // 限流：只在进度变化超过1%时发送信号
-        int currentProgress = t.progress();
-        if (currentProgress > t.lastReportedProgress) {
-            t.lastReportedProgress = currentProgress;
-            saveTaskInfo(t);
-            emit downloadProgress(taskId, t.filename, bytesReceived, bytesTotal);
-        }
-    }, Qt::QueuedConnection);
-    
-    connect(thread, &DownloadThread::finished, this, 
-            [this](const QString& taskId, bool success, const QString& errorMsg) {
-        QMutexLocker locker(&m_tasksMutex);
-        
-        // 从活跃线程列表移除
-        m_activeThreads.remove(taskId);
-        
-        if (!m_allTasks.contains(taskId)) {
-            locker.unlock();
-            processQueue();
-            return;
-        }
-        
-        DownloadTask& t = m_allTasks[taskId];
-        
-        if (success) {
-            t.state = DownloadState::Completed;
-            saveTaskInfo(t);
-            emit downloadFinished(taskId, t.filename, t.savePath);
-        } else {
-            t.state = DownloadState::Failed;
-            t.errorMsg = errorMsg;
-            saveTaskInfo(t);
-            emit downloadFailed(taskId, t.filename, errorMsg);
-        }
-        
-        locker.unlock();
-        processQueue(); // 启动队列中的下一个任务
-    }, Qt::QueuedConnection);
+    connect(thread, &DownloadThread::started,
+            this, &DownloadManager::onThreadStarted, Qt::QueuedConnection);
+    connect(thread, &DownloadThread::progressUpdated,
+            this, &DownloadManager::onThreadProgressUpdated, Qt::QueuedConnection);
+    connect(thread, &DownloadThread::finished,
+            this, &DownloadManager::onThreadFinished, Qt::QueuedConnection);
     
     // 添加到活跃线程列表
     m_activeThreads.insert(task.taskId, thread);
@@ -440,6 +411,71 @@ void DownloadManager::startDownload(DownloadTask& task, bool isResume)
     m_threadPool->start(thread);
     
     qDebug() << "[DownloadManager] Thread submitted to pool, active threads:" << m_activeThreads.size();
+}
+
+void DownloadManager::onThreadStarted(const QString& taskId)
+{
+    QMutexLocker locker(&m_tasksMutex);
+    if (!m_allTasks.contains(taskId)) {
+        return;
+    }
+
+    DownloadTask& task = m_allTasks[taskId];
+    task.state = DownloadState::Downloading;
+    saveTaskInfo(task);
+    emit downloadStarted(taskId, task.filename);
+}
+
+void DownloadManager::onThreadProgressUpdated(const QString& taskId,
+                                              qint64 bytesReceived,
+                                              qint64 bytesTotal)
+{
+    QMutexLocker locker(&m_tasksMutex);
+    if (!m_allTasks.contains(taskId)) {
+        return;
+    }
+
+    DownloadTask& task = m_allTasks[taskId];
+    task.downloadedSize = bytesReceived;
+    if (bytesTotal > 0) {
+        task.totalSize = bytesTotal;
+    }
+
+    const int currentProgress = task.progress();
+    if (currentProgress > task.lastReportedProgress) {
+        task.lastReportedProgress = currentProgress;
+        saveTaskInfo(task);
+        emit downloadProgress(taskId, task.filename, bytesReceived, bytesTotal);
+    }
+}
+
+void DownloadManager::onThreadFinished(const QString& taskId,
+                                       bool success,
+                                       const QString& errorMsg)
+{
+    QMutexLocker locker(&m_tasksMutex);
+    m_activeThreads.remove(taskId);
+
+    if (!m_allTasks.contains(taskId)) {
+        locker.unlock();
+        processQueue();
+        return;
+    }
+
+    DownloadTask& task = m_allTasks[taskId];
+    if (success) {
+        task.state = DownloadState::Completed;
+        saveTaskInfo(task);
+        emit downloadFinished(taskId, task.filename, task.savePath);
+    } else {
+        task.state = DownloadState::Failed;
+        task.errorMsg = errorMsg;
+        saveTaskInfo(task);
+        emit downloadFailed(taskId, task.filename, errorMsg);
+    }
+
+    locker.unlock();
+    processQueue();
 }
 
 bool DownloadManager::createDirectories(const QString& filePath)

@@ -60,9 +60,14 @@ public slots:
     void onPositionChanged(qint64 positionMs);
     void onDurationChanged(qint64 durationMs);
     void onPlaybackFinished();
+    void onVideoSizeChanged(const QSize& size);
+    void onMediaSessionStateChanged(MediaSession::PlaybackState state);
+    void onDeferredSeekAfterStopped();
 
 private:
     void setupUI();
+    void connectUiSignals(QPushButton* closeBtn);
+    void connectMediaSessionSignals();
     void updateTimeLabel(qint64 currentMs, qint64 totalMs);
     QString formatTime(qint64 ms);
 
@@ -92,6 +97,7 @@ private:
     qint64 m_currentPosition;
     bool m_replayPendingSeek;
     bool m_fillDisplayMode;
+    qint64 m_pendingStoppedSeekPosition;
 };
 
 #endif // VIDEOPLAYERWINDOW_H

@@ -3,6 +3,7 @@
 VideoListWidget::VideoListWidget(PlayWidget* playWidget, QWidget *parent)
     : QWidget(parent)
     , m_playWidget(playWidget)
+    , m_viewModel(new VideoListViewModel(this))
 {
     
     listWidget = new VideoListWidgetQml(this);
@@ -11,20 +12,8 @@ VideoListWidget::VideoListWidget(PlayWidget* playWidget, QWidget *parent)
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(listWidget);
     setLayout(layout);
-    
-    request = new HttpRequestV2(this);
-    
-    connect(listWidget, &VideoListWidgetQml::signal_refresh_requested, 
-            this, &VideoListWidget::onRefreshRequested);
-    
-    connect(listWidget, &VideoListWidgetQml::signal_video_selected,
-            this, &VideoListWidget::onVideoSelected);
-    
-    connect(request, &HttpRequestV2::signal_videoList,
-            this, &VideoListWidget::onVideoListReceived);
-    
-    connect(request, &HttpRequestV2::signal_videoStreamUrl,
-            this, &VideoListWidget::onVideoStreamUrlReceived);
+
+    setupConnections();
 }
 
 VideoListWidget::~VideoListWidget()
@@ -36,7 +25,7 @@ void VideoListWidget::onRefreshRequested()
 {
     qDebug() << "[VideoListWidget] Refresh requested, fetching video list...";
     listWidget->clearAll();
-    request->getVideoList();
+    m_viewModel->refresh();
 }
 
 void VideoListWidget::onVideoListReceived(const QVariantList& videoList)
@@ -51,8 +40,7 @@ void VideoListWidget::onVideoSelected(const QString& videoPath, const QString& v
     qDebug() << "[VideoListWidget] Video selected:" << videoName << "(" << videoPath << ")";
     
     m_selectedVideoName = videoName;
-    
-    request->getVideoStreamUrl(videoPath);
+    m_viewModel->resolveVideoStream(videoPath, videoName);
 }
 
 void VideoListWidget::onVideoStreamUrlReceived(const QString& videoUrl)
@@ -63,10 +51,8 @@ void VideoListWidget::onVideoStreamUrlReceived(const QString& videoUrl)
         videoPlayerWindow = new VideoPlayerWindow(nullptr);
         videoPlayerWindow->setAttribute(Qt::WA_DeleteOnClose, false);
         emit videoPlayerWindowReady(videoPlayerWindow);
-        
-        connect(videoPlayerWindow, &VideoPlayerWindow::playStateChanged, this, [this](bool isPlaying){
-            emit videoPlaybackStateChanged(isPlaying);
-        });
+
+        setupVideoPlayerConnections();
     }
     
     videoPlayerWindow->loadVideo(videoUrl);

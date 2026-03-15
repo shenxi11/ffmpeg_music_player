@@ -38,23 +38,23 @@ public:
             rootItem->setProperty("isNet", false);
 
             // 转发单行歌曲项的播放/删除/下载操作。
-            connect(rootItem, SIGNAL(playRequested(QString)), this, SIGNAL(signal_play_click(QString)));
-            connect(rootItem, SIGNAL(removeRequested(QString)), this, SIGNAL(signal_remove_click(QString)));
-            connect(rootItem, SIGNAL(downloadRequested(QString)), this, SIGNAL(signal_download_click(QString)));
+            connect(rootItem, SIGNAL(playRequested(QString)), this, SIGNAL(signalPlayClick(QString)));
+            connect(rootItem, SIGNAL(removeRequested(QString)), this, SIGNAL(signalRemoveClick(QString)));
+            connect(rootItem, SIGNAL(downloadRequested(QString)), this, SIGNAL(signalDownloadClick(QString)));
         }
 
         setFixedSize(size);
     }
 
     // 同步单条目播放态（用于显示播放图标）。
-    void button_op(bool flag) {
+    void buttonOp(bool flag) {
         QQuickItem *rootItem = rootObject();
         if (rootItem) {
             QMetaObject::invokeMethod(rootItem, "setPlayingState", Q_ARG(QVariant, flag));
         }
     }
 
-    void play_to_click() {
+    void playToClick() {
         QQuickItem *rootItem = rootObject();
         if (rootItem) {
             QMetaObject::invokeMethod(rootItem, "triggerPlay");
@@ -62,9 +62,9 @@ public:
     }
 
 signals:
-    void signal_play_click(QString songName);
-    void signal_remove_click(QString songName);
-    void signal_download_click(QString songName);
+    void signalPlayClick(QString songName);
+    void signalRemoveClick(QString songName);
+    void signalDownloadClick(QString songName);
 };
 
 #endif // MUSIC_ITEM_QML_H

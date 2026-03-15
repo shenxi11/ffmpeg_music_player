@@ -27,9 +27,8 @@ OnlinePresenceManager::OnlinePresenceManager(QObject* parent)
     m_deviceId = buildDeviceId();
 
     m_heartbeatTimer.setSingleShot(false);
-    connect(&m_heartbeatTimer, &QTimer::timeout, this, [this]() {
-        sendHeartbeat();
-    });
+    connect(&m_heartbeatTimer, &QTimer::timeout,
+            this, &OnlinePresenceManager::onHeartbeatTimerTimeout);
 }
 
 void OnlinePresenceManager::onLoginSucceeded(const QString& account,
@@ -50,9 +49,7 @@ void OnlinePresenceManager::onLoginSucceeded(const QString& account,
         m_statusMessage = QStringLiteral("在线会话已建立");
         restartHeartbeatTimer();
         emitSnapshot(m_statusMessage);
-        QTimer::singleShot(0, this, [this]() {
-            sendHeartbeat();
-        });
+        QTimer::singleShot(0, this, &OnlinePresenceManager::triggerImmediateHeartbeat);
         return;
     }
 
@@ -123,9 +120,7 @@ void OnlinePresenceManager::logoutAndClear(bool blocking, int timeoutMs)
     timer.setSingleShot(true);
     bool done = false;
 
-    connect(&timer, &QTimer::timeout, &loop, [&]() {
-        loop.quit();
-    });
+    connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
 
     m_networkService.postJson("users/online/logout", json, options,
         [&](const Network::NetworkResponse& response) {
@@ -223,6 +218,16 @@ bool OnlinePresenceManager::hasSession() const
 QString OnlinePresenceManager::currentToken() const
 {
     return m_sessionToken;
+}
+
+void OnlinePresenceManager::onHeartbeatTimerTimeout()
+{
+    sendHeartbeat();
+}
+
+void OnlinePresenceManager::triggerImmediateHeartbeat()
+{
+    sendHeartbeat();
 }
 
 void OnlinePresenceManager::startSessionIfNeeded()

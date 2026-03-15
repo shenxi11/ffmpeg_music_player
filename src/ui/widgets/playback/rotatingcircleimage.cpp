@@ -92,7 +92,7 @@ void RotatingCircleImage::paintEvent(QPaintEvent *event) {
     }
 
 }
-void RotatingCircleImage::on_signal_stop_rotate(bool flag) {
+void RotatingCircleImage::onStopRotate(bool flag) {
     if (flag) {
         timer->start();
     } else {

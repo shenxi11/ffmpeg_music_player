@@ -16,16 +16,17 @@ public:
     explicit DeskLrcWidget(QWidget *parent = nullptr);
 
 signals:
-    void signal_play_Clicked(ProcessSliderQml::State);
-    void signal_next_clicked();
-    void signal_last_clicked();
-    void signal_forward_clicked();
-    void signal_backward_clicked();
+    void signalPlayClicked(ProcessSliderQml::State);
+    void signalNextClicked();
+    void signalLastClicked();
+    void signalForwardClicked();
+    void signalBackwardClicked();
 public slots:
-    void slot_receive_lrc(const QString lrc_);
-    void slot_settings_clicked();
-    void slot_settings_changed(const QColor &color, int fontSize, const QFont &font);
-    void slot_playState_changed(ProcessSliderQml::State state);
+    void onReceiveLrc(const QString lrc_);
+    void onSettingsClicked();
+    void onSettingsChanged(const QColor &color, int fontSize, const QFont &font);
+    void onPlayStateChanged(ProcessSliderQml::State state);
+    void onControlBarPlayClicked();
 protected:
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;

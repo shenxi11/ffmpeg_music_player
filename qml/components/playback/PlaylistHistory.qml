@@ -30,7 +30,7 @@ Rectangle {
     property string currentPlayingPath: ""
     property bool isPaused: false  // 是否处于暂停状态
 
-    function _looksUnreadable(value) {
+    function looksUnreadable(value) {
         if (value === undefined || value === null) return true
         var text = String(value).trim()
         if (text.length === 0) return true
@@ -38,7 +38,7 @@ Rectangle {
         return text.indexOf("\uFFFD") >= 0
     }
 
-    function _baseNameFromPath(path) {
+    function baseNameFromPath(path) {
         if (!path) return ""
         var value = String(path)
         var qPos = value.indexOf("?")
@@ -55,14 +55,14 @@ Rectangle {
     }
 
     function normalizeText(value, fallbackText) {
-        if (_looksUnreadable(value)) return fallbackText
+        if (looksUnreadable(value)) return fallbackText
         return String(value)
     }
 
     function displayTitle(item) {
         var title = normalizeText(item.title, "")
         if (title.length > 0) return title
-        var fromPath = normalizeText(_baseNameFromPath(item.filePath), "")
+        var fromPath = normalizeText(baseNameFromPath(item.filePath), "")
         return fromPath.length > 0 ? fromPath : "未知歌曲"
     }
 
@@ -364,7 +364,7 @@ Rectangle {
 
         var normalizedTitle = normalizeText(title, "")
         if (normalizedTitle.length === 0) {
-            normalizedTitle = normalizeText(_baseNameFromPath(filePath), "未知歌曲")
+            normalizedTitle = normalizeText(baseNameFromPath(filePath), "未知歌曲")
         }
         var normalizedArtist = normalizeText(artist, "未知艺术家")
 

@@ -19,21 +19,21 @@ public:
     State getState();
     bool getLoopFlag();
 public slots:
-    void slot_playState(State state_);
-    void slot_playFinished();
-    void slot_isUpChanged(bool flag);
+    void onPlayState(State state_);
+    void onPlayFinished();
+    void onIsUpChanged(bool flag);
 signals:
-    void signal_stop();
-    void signal_nextSong();
-    void signal_lastSong();
-    void signal_volumeChanged(int value);
-    void signal_mlist_toggled(bool checked);
-    void signal_play_clicked();
-    void signal_rePlay();
-    void signal_desk_toggled(bool checked);
+    void signalStop();
+    void signalNextSong();
+    void signalLastSong();
+    void signalVolumeChanged(int value);
+    void signalMlistToggled(bool checked);
+    void signalPlayClicked();
+    void signalRePlay();
+    void signalDeskToggled(bool checked);
 private slots:
-    void slot_loop_clicked();
-    void slot_volume_toggled(bool checked);
+    void onLoopClicked();
+    void onVolumeToggled(bool checked);
 private:
     QPushButton *last;
     QPushButton *next;

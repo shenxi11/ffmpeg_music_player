@@ -14,7 +14,7 @@ MainMenu::MainMenu(QWidget *parent)
     hideTimer = new QTimer(this);
     hideTimer->setSingleShot(true);
     hideTimer->setInterval(200);
-    connect(hideTimer, &QTimer::timeout, this, &MainMenu::hideMenu);
+    setupBaseConnections();
 
     setupUI();
     createPluginButtons();
@@ -44,14 +44,29 @@ void MainMenu::setupUI()
 
 void MainMenu::createPluginButtons()
 {
-    for (QPushButton* btn : pluginButtons) {
-        menuLayout->removeWidget(btn);
-        delete btn;
+    if (!menuLayout) {
+        return;
     }
-    pluginButtons.clear();
 
-    PluginManager& manager = PluginManager::instance();
-    const QVector<PluginInfo> plugins = manager.getPluginInfos();
+    // 仅保留第 0 项标题，其余动态项（插件按钮/分隔线/功能按钮/stretch）全部清理，
+    // 避免每次刷新时重复叠加。
+    while (menuLayout->count() > 1) {
+        QLayoutItem* item = menuLayout->takeAt(1);
+        if (!item) {
+            break;
+        }
+        if (QWidget* widget = item->widget()) {
+            widget->deleteLater();
+        }
+        delete item;
+    }
+
+    pluginButtons.clear();
+    diagnosticsBtn = nullptr;
+    settingsBtn = nullptr;
+    aboutBtn = nullptr;
+
+    const QVector<PluginInfo> plugins = m_pluginInfos;
 
     qDebug() << "Creating buttons for" << plugins.size() << "plugins";
 
@@ -70,7 +85,7 @@ void MainMenu::createPluginButtons()
         btn->setProperty("pluginId", info.id);
         btn->setProperty("pluginName", info.name);
 
-        connect(btn, &QPushButton::clicked, this, &MainMenu::onPluginButtonClicked);
+        connectPluginButton(btn);
 
         menuLayout->addWidget(btn);
         pluginButtons.append(btn);
@@ -89,20 +104,19 @@ void MainMenu::createPluginButtons()
     diagnosticsBtn = new QPushButton(QStringLiteral("插件诊断"), this);
     diagnosticsBtn->setFixedHeight(40);
     diagnosticsBtn->setStyleSheet(createButtonStyle());
-    connect(diagnosticsBtn, &QPushButton::clicked, this, &MainMenu::onPluginDiagnosticsClicked);
     menuLayout->addWidget(diagnosticsBtn);
 
     settingsBtn = new QPushButton(QStringLiteral("设置"), this);
     settingsBtn->setFixedHeight(40);
     settingsBtn->setStyleSheet(createButtonStyle());
-    connect(settingsBtn, &QPushButton::clicked, this, &MainMenu::onSettingsClicked);
     menuLayout->addWidget(settingsBtn);
 
     aboutBtn = new QPushButton(QStringLiteral("关于"), this);
     aboutBtn->setFixedHeight(40);
     aboutBtn->setStyleSheet(createButtonStyle());
-    connect(aboutBtn, &QPushButton::clicked, this, &MainMenu::onAboutClicked);
     menuLayout->addWidget(aboutBtn);
+
+    connectActionButtons();
 
     menuLayout->addStretch();
 }
@@ -211,6 +225,28 @@ void MainMenu::refreshPlugins()
 
     const int buttonCount = pluginButtons.size() + 4;
     setFixedSize(220, 60 + buttonCount * 48);
+}
+
+void MainMenu::setPluginInfos(const QVector<PluginInfo>& plugins)
+{
+    auto samePlugins = [](const QVector<PluginInfo>& a, const QVector<PluginInfo>& b) -> bool {
+        if (a.size() != b.size()) {
+            return false;
+        }
+        for (int i = 0; i < a.size(); ++i) {
+            if (a[i].id != b[i].id || a[i].name != b[i].name || a[i].version != b[i].version) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    if (samePlugins(m_pluginInfos, plugins)) {
+        return;
+    }
+
+    m_pluginInfos = plugins;
+    refreshPlugins();
 }
 
 void MainMenu::showMenu(const QPoint& position)

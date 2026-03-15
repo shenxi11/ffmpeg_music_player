@@ -5,26 +5,25 @@
 #include "music_list_widget_local.h"
 #include "music_list_widget_net.h"
 #include "local_and_download_widget.h"
-#include "local_music_cache.h"
 #include "loginwidget_qml.h"
 #include "searchbox_qml.h"
 #include "user_widget.h"
 #include "userwidget_qml.h"
 #include "main_menu.h"
-#include "httprequest_v2.h"
-#include "plugin_manager.h"
 #include "VideoPlayerWindow.h"
 #include "video_list_widget.h"
 #include "settings_widget.h"
-#include "settings_manager.h"
 #include "play_history_widget.h"
 #include "favorite_music_widget.h"
 #include "recommend_music_widget.h"
+#include "viewmodels/MainShellViewModel.h"
 #include <QWidget>
 #include <QButtonGroup>
 #include <QScreen>
 #include <QGuiApplication>
 #include <QStringList>
+#include <QVariantMap>
+#include <QVariantList>
 #include <QPainter>
 #include <QLinearGradient>
 #include <QMouseEvent>
@@ -32,6 +31,7 @@
 class PlaybackStateManager;
 class QCloseEvent;
 class QTimer;
+class QUrl;
 
 class MainWidget : public QWidget
 {
@@ -39,7 +39,7 @@ class MainWidget : public QWidget
 public:
     explicit MainWidget(QWidget *parent = nullptr);
     ~MainWidget();
-    void Update_paint();
+    void updatePaint();
     
     // 检查登录状态（Q_INVOKABLE 供 QMetaObject::invokeMethod 调用）
     Q_INVOKABLE bool isUserLoggedIn() const { 
@@ -86,7 +86,7 @@ private:
     SettingsWidget* settingsWidget;    // 设置窗口
 
     QPushButton* Login;
-    HttpRequestV2* request;
+    MainShellViewModel* m_viewModel = nullptr;
     
     // 在线音乐元数据缓存（用于追加最近播放记录）
     QString m_networkMusicArtist;
@@ -94,6 +94,11 @@ private:
     PlaybackStateManager* m_playbackStateManager = nullptr;
     QTimer* m_pluginErrorDialogTimer = nullptr;
     QStringList m_pendingPluginErrors;
+    QVariantMap m_pendingSimilarSongItem;
+    QString m_pendingHistorySessionId;
+    QString m_pendingHistoryFilePath;
+    QString m_pendingHistoryUserAccount;
+    int m_pendingHistoryRetryCount = -1;
 
     QPoint pos_ = QPoint(0, 0);
     bool dragging = false;
@@ -121,15 +126,138 @@ protected:
     void closeEvent(QCloseEvent *event) override;
 
 private:
+    // 菜单与账号相关信号连接拆分到独立实现文件，避免构造函数臃肿。
+    void setupMenuAndAccountConnections();
+    // 播放控制、列表联动与播放状态相关连接拆分到独立实现文件。
+    void setupPlaybackAndListConnections();
+    // 收藏、历史、登录态联动连接拆分到独立实现文件。
+    void setupLibraryConnections();
+
     void submitPlayHistoryWithRetry(const QString& sessionId,
                                     const QString& filePath,
                                     const QString& userAccount,
                                     int retryCount);
+    static QString normalizeArtistForHistory(const QString& artist);
+    static QString extractSongIdFromMediaPath(const QString& rawPath);
     QRect computeContentRect() const;
     void updateAdaptiveLayout();
     void updateSideNavLayout();
     void enqueuePluginLoadError(const QString& pluginFilePath, const QString& reason);
     void showPluginDiagnosticsDialog();
+
+    // 播放连接层命名处理函数，避免大量 lambda 堆叠影响可读性。
+    void handleNetLoginRequired();
+    void handlePlayWidgetLast(const QString& songName, bool netFlag);
+    void handlePlayWidgetNext(const QString& songName, bool netFlag);
+    void handlePlayWidgetNetFlagChanged(bool netFlag);
+    void handlePlayWidgetAddSongToCache(const QString& fileName, const QString& path);
+    void handlePlayWidgetButtonState(bool playing, const QString& filename);
+    void handlePlayWidgetMetadataUpdated(const QString& filePath, const QString& coverUrl, const QString& duration);
+    void handleLocalListPlayClick(const QString& name, bool flag);
+    void handleLocalAndDownloadPlayMusic(const QString& filename);
+    void handleLocalAndDownloadDeleteMusic(const QString& filename);
+    void handleNetListPlayClick(const QString& name, const QString& artist, const QString& cover, bool flag);
+    void handleHistoryPlayMusic(const QString& filePath);
+    void handleHistoryPlayMusicWithMetadata(const QString& filePath,
+                                            const QString& title,
+                                            const QString& artist,
+                                            const QString& cover);
+    void handleAudioPlaybackStarted(const QString& sessionId, const QUrl& url);
+    void handleAudioPlaybackPaused();
+    void handleAudioPlaybackResumed();
+    void handleAudioPlaybackStopped();
+    void handlePlayWidgetBigClicked(bool checked);
+
+    void handleMenuButtonClicked();
+    void ensureMainMenuCreated();
+    void handleMainMenuPluginRequested(const QString& pluginId);
+    void handleMainMenuSettingsRequested();
+    void handleMainMenuPluginDiagnosticsRequested();
+    void handleMainMenuAboutRequested();
+    void handleUserLoginRequested();
+    void handleUserLogoutRequested();
+    void handleSessionExpired();
+    void handleLoginWidgetSuccess(const QString& username);
+    void triggerAutoLoginIfNeeded();
+    void handleHistoryDeleteRequested(const QStringList& paths);
+    void handleRemoveHistoryResult(bool success);
+    void handleHistoryAddToFavorite(const QString& path,
+                                    const QString& title,
+                                    const QString& artist,
+                                    const QString& duration,
+                                    bool isLocal);
+    void handleHistoryLoginRequested();
+    void handleHistoryRefreshRequested();
+    void handleFavoritePlayMusic(const QString& filePath);
+    void handleFavoriteRemoveRequested(const QStringList& paths);
+    void handleFavoriteRefreshRequested();
+    void handleRemoveFavoriteResult(bool success);
+    void handleLocalAddToFavorite(const QString& path,
+                                  const QString& title,
+                                  const QString& artist,
+                                  const QString& duration);
+    void handleNetAddToFavorite(const QString& path,
+                                const QString& title,
+                                const QString& artist,
+                                const QString& duration);
+    void handleAddFavoriteResult(bool success);
+    void handleUserLoginStateChanged(bool loggedIn);
+
+    // 主窗口首页联动处理（替代构造函数内大段 lambda）。
+    void handlePlaybackPauseAudioRequested();
+    void handlePlaybackPauseVideoRequested();
+    void handlePluginErrorDialogTimeout();
+    void handleWindowToggleRequested();
+    void showContentPanel(QWidget* activeWidget);
+    void handleRecommendTabToggled(bool checked);
+    void handleLocalTabToggled(bool checked);
+    void handleNetTabToggled(bool checked);
+    void handleHistoryTabToggled(bool checked);
+    void handleFavoriteTabToggled(bool checked);
+    void handleVideoTabToggled(bool checked);
+    void handlePlayStateChanged(ProcessSliderQml::State state);
+    void handleVideoPlayerWindowReady(VideoPlayerWindow* window);
+    void handleVideoPlaybackStateChanged(bool isPlaying);
+    void handleSearchRequested(const QString& keyword);
+    void handleSearchResultsReady();
+    void handleSimilarRecommendationListReady(const QVariantMap& meta,
+                                              const QVariantList& items,
+                                              const QString& anchorSongId);
+    void handleRecommendRefreshRequested();
+    void handleRecommendLoginRequested();
+    void handleRecommendPlayMusicWithMetadata(const QString& filePath,
+                                              const QString& title,
+                                              const QString& artist,
+                                              const QString& cover,
+                                              const QString& duration,
+                                              const QString& songId,
+                                              const QString& requestId,
+                                              const QString& modelVersion,
+                                              const QString& scene);
+    void handleRecommendAddToFavorite(const QString& path,
+                                      const QString& title,
+                                      const QString& artist,
+                                      const QString& duration,
+                                      bool isLocal);
+    void handleRecommendFeedbackEvent(const QString& songId,
+                                      const QString& eventType,
+                                      int playMs,
+                                      int durationMs,
+                                      const QString& scene,
+                                      const QString& requestId,
+                                      const QString& modelVersion);
+    void handleSimilarSongSelected(const QVariantMap& item);
+    void handlePendingSimilarSongPlayback();
+    void schedulePlayHistoryRetry(const QString& sessionId,
+                                  const QString& filePath,
+                                  const QString& userAccount,
+                                  int retryCount);
+    void handlePlayHistoryRetryTimeout();
+    int placeSideNavButton(int row,
+                           QPushButton* button,
+                           int navStartY,
+                           int itemHeight,
+                           int panelWidth);
 };
 
 #endif // TEST_WIDGET_H

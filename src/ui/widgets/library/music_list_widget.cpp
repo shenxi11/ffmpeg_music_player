@@ -5,7 +5,7 @@ MusicListWidget::MusicListWidget(QWidget *parent)
 {
     setSpacing(5);
 }
-void MusicListWidget::on_signal_add_song(const QString songName, const QString path, bool isNetMusic)
+void MusicListWidget::onAddSong(const QString songName, const QString path, bool isNetMusic)
 {
     if(pathMap[songName])
     {
@@ -14,31 +14,31 @@ void MusicListWidget::on_signal_add_song(const QString songName, const QString p
     QSize size(width(), 60);  // 增加高度以适应 QML 版本
     // 使用 QML 版本的 MusicItem
     MusicItemQml* itemWidget = new MusicItemQml(songName, path, "", size);
-    // itemWidget->set_netflag(isNetMusic);  // QML 版本通过 setProperty 设置
+    // itemWidget->setNetFlag(isNetMusic);  // QML 版本通过 setProperty 设置
 
     QListWidgetItem *item = new QListWidgetItem(this);
     item->setData(Qt::UserRole, songName);
 
     pathMap[songName] = itemWidget;
 
-    connect(itemWidget, &MusicItemQml::signal_play_click, this, &MusicListWidget::_play_click);
-    connect(itemWidget, &MusicItemQml::signal_remove_click, this, &MusicListWidget::_remove_click);
-    connect(itemWidget, &MusicItemQml::signal_download_click, this, &MusicListWidget::signal_download_click);
+    connect(itemWidget, &MusicItemQml::signalPlayClick, this, &MusicListWidget::playClick);
+    connect(itemWidget, &MusicItemQml::signalRemoveClick, this, &MusicListWidget::removeClick);
+    connect(itemWidget, &MusicItemQml::signalDownloadClick, this, &MusicListWidget::signalDownloadClick);
 
     setItemWidget(item,itemWidget);
 }
 
-void MusicListWidget::receive_song_op(bool flag, QString fileName)
+void MusicListWidget::receiveSongOp(bool flag, QString fileName)
 {
     if(pathMap[fileName])
     {
         // 尝试转换为 MusicItemQml
         if (auto qmlItem = qobject_cast<MusicItemQml*>(pathMap[fileName])) {
-            qmlItem->button_op(flag);
+            qmlItem->buttonOp(flag);
         }
         // 兼容旧版 MusicItem
         else if (auto oldItem = qobject_cast<MusicItem*>(pathMap[fileName])) {
-            oldItem->button_op(flag);
+            oldItem->buttonOp(flag);
         }
     }
 
@@ -49,20 +49,20 @@ void MusicListWidget::receive_song_op(bool flag, QString fileName)
             if(i.first != fileName)
             {
                 if (auto qmlItem = qobject_cast<MusicItemQml*>(i.second)) {
-                    qmlItem->button_op(false);
+                    qmlItem->buttonOp(false);
                 }
                 else if (auto oldItem = qobject_cast<MusicItem*>(i.second)) {
-                    oldItem->button_op(false);
+                    oldItem->buttonOp(false);
                 }
             }
         }
     }
 }
-void MusicListWidget::_play_click(QString songPath)
+void MusicListWidget::playClick(QString songPath)
 {
     emit play_click(songPath);
 }
-void MusicListWidget::_remove_click(QString songPath)
+void MusicListWidget::removeClick(QString songPath)
 {
     QFileInfo fileInfo(songPath);
     QString songName = fileInfo.fileName();
@@ -84,7 +84,7 @@ void MusicListWidget::_remove_click(QString songPath)
         }
     }
 }
-void MusicListWidget::Next_click(QString songName)
+void MusicListWidget::nextClick(QString songName)
 {
     if(this->count() <= 1)
     {
@@ -102,9 +102,9 @@ void MusicListWidget::Next_click(QString songName)
                 QListWidgetItem* item1 = this->item(i + 1);
                 QWidget* widget = pathMap[item1->data(Qt::UserRole).toString()];
                 if (auto qmlItem = qobject_cast<MusicItemQml*>(widget)) {
-                    qmlItem->play_to_click();
+                    qmlItem->playToClick();
                 } else if (auto oldItem = qobject_cast<MusicItem*>(widget)) {
-                    oldItem->play_to_click();
+                    oldItem->playToClick();
                 }
             }
             else
@@ -112,16 +112,16 @@ void MusicListWidget::Next_click(QString songName)
                 QListWidgetItem* item1 = this->item(0);
                 QWidget* widget = pathMap[item1->data(Qt::UserRole).toString()];
                 if (auto qmlItem = qobject_cast<MusicItemQml*>(widget)) {
-                    qmlItem->play_to_click();
+                    qmlItem->playToClick();
                 } else if (auto oldItem = qobject_cast<MusicItem*>(widget)) {
-                    oldItem->play_to_click();
+                    oldItem->playToClick();
                 }
             }
             break;
         }
     }
 }
-void MusicListWidget::Last_click(QString songName)
+void MusicListWidget::lastClick(QString songName)
 {
     if(this->count() <= 1)
     {
@@ -140,9 +140,9 @@ void MusicListWidget::Last_click(QString songName)
                 QListWidgetItem* item1 = this->item(i - 1);
                 QWidget* widget = pathMap[item1->data(Qt::UserRole).toString()];
                 if (auto qmlItem = qobject_cast<MusicItemQml*>(widget)) {
-                    qmlItem->play_to_click();
+                    qmlItem->playToClick();
                 } else if (auto oldItem = qobject_cast<MusicItem*>(widget)) {
-                    oldItem->play_to_click();
+                    oldItem->playToClick();
                 }
             }
             else
@@ -150,24 +150,24 @@ void MusicListWidget::Last_click(QString songName)
                 QListWidgetItem* item1 = this->item(this->count() - 1);
                 QWidget* widget = pathMap[item1->data(Qt::UserRole).toString()];
                 if (auto qmlItem = qobject_cast<MusicItemQml*>(widget)) {
-                    qmlItem->play_to_click();
+                    qmlItem->playToClick();
                 } else if (auto oldItem = qobject_cast<MusicItem*>(widget)) {
-                    oldItem->play_to_click();
+                    oldItem->playToClick();
                 }
             }
             break;
         }
     }
 }
-void MusicListWidget::on_signal_add_songlist(const QStringList filename_list, const QList<double> duration)
+void MusicListWidget::onAddSonglist(const QStringList filename_list, const QList<double> duration)
 {
     clear();
     for(auto i: filename_list)
     {
-        on_signal_add_song(i, i, true);
+        onAddSong(i, i, true);
     }
 }
-void MusicListWidget::remove_all()
+void MusicListWidget::removeAll()
 {
     clear();
 }

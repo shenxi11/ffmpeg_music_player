@@ -1,41 +1,50 @@
-﻿#ifndef MUSICLISTWIDGETLOCAL_H
+#ifndef MUSICLISTWIDGETLOCAL_H
 #define MUSICLISTWIDGETLOCAL_H
 
 #include <QObject>
+#include <QStringList>
 #include <QWidget>
+
 #include "music_list_widget_qml.h"
-#include "httprequest_v2.h"
+#include "viewmodels/LocalMusicListViewModel.h"
 
 class MusicListWidgetLocal : public QWidget
 {
     Q_OBJECT
 public:
-    explicit MusicListWidgetLocal(QWidget *parent = nullptr);
-    
-    // 获取内部的QML列表控件
+    explicit MusicListWidgetLocal(QWidget* parent = nullptr);
+
     MusicListWidgetQml* getListWidget() const { return listWidget; }
-    
+
 public slots:
-    void on_signal_add_button_clicked();
-    void on_signal_add_song(const QString filename, const QString path);
-    void on_signal_play_button_click(bool flag, const QString filename);
-    void on_signal_play_click(const QString songName);
-    void on_signal_remove_click(const QString songeName);
-    void on_signal_translate_button_clicked();
-    void on_signal_update_metadata(QString filePath, QString coverUrl, QString duration);
+    void onAddButtonClicked();
+    void onAddSong(const QString filename, const QString path);
+    void onPlayButtonClick(bool flag, const QString filename);
+    void onPlayClick(const QString songName);
+    void onRemoveClick(const QString songeName);
+    void onTranslateButtonClicked();
+    void onUpdateMetadata(QString filePath, QString coverUrl, QString duration);
+
 signals:
-    void signal_add_button_clicked();
-    void signal_add_song(const QString filename, const QString path);
-    void signal_play_button_click(bool flag, const QString filename);
-    void signal_play_click(const QString songName, bool flag);
-    void signal_remove_click(const QString songName);
-    void signal_last(QString songName);
-    void signal_next(QString songName);
-    void signal_translate_button_clicked();
+    void signalAddButtonClicked();
+    void signalAddSong(const QString filename, const QString path);
+    void signalPlayButtonClick(bool flag, const QString filename);
+    void signalPlayClick(const QString songName, bool flag);
+    void signalRemoveClick(const QString songName);
+    void signalLast(QString songName);
+    void signalNext(QString songName);
+    void signalTranslateButtonClicked();
+
 private:
-    MusicListWidgetQml* listWidget;
-    QPushButton* add;
-    HttpRequestV2* request;
+    // 连接拆分：将列表交互信号集中在独立实现中维护。
+    void setupConnections();
+    void handleAddSongToListAndModel(const QString& filename, const QString& path);
+    void handlePlayButtonStateChanged(bool flag, const QString& filename);
+    void handleLocalMusicPathsReady(const QStringList& musicPaths);
+
+    MusicListWidgetQml* listWidget = nullptr;
+    QPushButton* add = nullptr;
+    LocalMusicListViewModel* m_viewModel = nullptr;
 };
 
 #endif // MUSICLISTWIDGETLOCAL_H

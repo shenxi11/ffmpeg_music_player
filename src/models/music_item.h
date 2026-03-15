@@ -13,16 +13,16 @@ public:
     ~MusicItem();
 
     std::shared_ptr<Music> getMusic();
-    void button_op(bool flag);
-    void _play_click();
-    void _remove_click();
-    void play_to_click();
-    void on_signal_download_clicked();
-    void set_netflag(bool flag);
+    void buttonOp(bool flag);
+    void playClick();
+    void removeClick();
+    void playToClick();
+    void onDownloadClicked();
+    void setNetFlag(bool flag);
 signals:
-    void signal_play_click(QString songName);
-    void signal_remove_click(QString songName);
-    void signal_download_click(QString songName);
+    void signalPlayClick(QString songName);
+    void signalRemoveClick(QString songName);
+    void signalDownloadClick(QString songName);
 private:
     const QSize size;
     QLabel* label;

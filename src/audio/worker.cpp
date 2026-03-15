@@ -37,43 +37,43 @@ Worker::~Worker()
     }
 }
 
-void Worker::receive_totalDuration(qint64 total)
+void Worker::receiveTotalDuration(qint64 total)
 {
     this->totalAudioDurationInMS=total;
 }
-void Worker::receive_lrc(std::map<int, std::string> lyrics)
+void Worker::receiveLrc(std::map<int, std::string> lyrics)
 {
     std::lock_guard<std::mutex>lock(mtx);
     this->lyrics=lyrics;
 }
 
-void Worker::stop_play()
+void Worker::stopPlay()
 {
     //qDebug() << __FUNCTION__ << "播放按钮点击";
     //emit stopPlay();
-    Pause();
+    pausePlayback();
 }
-void Worker::slot_setMove() {
+void Worker::onSetMove() {
     //qDebug() << __FUNCTION__ << "停止";
     {
         std::lock_guard<std::mutex> lock(mtx);
         m_moveFlag = !m_moveFlag;
     }cv.notify_one();
 }
-void Worker::Set_Volume(int value)
+void Worker::setVolume(int value)
 {
     if(audioOutput)
         audioOutput->setVolume(value/100.0);
 }
-void Worker::set_SliderMove(bool flag)
+void Worker::setSliderMove(bool flag)
 {
     this->sliderMove=flag;
     qDebug() << __FUNCTION__ << "set slider move" << flag;
-    emit stopPlay();
+    emit signalStopPlay();
 }
-void Worker::Pause()
+void Worker::pausePlayback()
 {
-    qDebug() << "[TIMING] Worker::Pause START, isPaused=" << isPaused << QTime::currentTime().toString("hh:mm:ss.zzz");
+    qDebug() << "[TIMING] Worker::pausePlayback START, isPaused=" << isPaused << QTime::currentTime().toString("hh:mm:ss.zzz");
     if (!isPaused||this->sliderMove)
     {
         isPaused = true;
@@ -86,10 +86,10 @@ void Worker::Pause()
         stopPlayback();
         emit Begin();
     }
-    qDebug() << "[TIMING] Worker::Pause END" << QTime::currentTime().toString("hh:mm:ss.zzz");
+    qDebug() << "[TIMING] Worker::pausePlayback END" << QTime::currentTime().toString("hh:mm:ss.zzz");
 }
 
-void Worker::reset_play()
+void Worker::resetPlay()
 {
     qDebug() << __FUNCTION__ << "重置播放";
     {
@@ -97,7 +97,7 @@ void Worker::reset_play()
         audioBuffer.clear();  
     }
     cv.notify_one(); 
-    emit signal_reconnect();
+    emit signalReconnect();
     qDebug() << __FUNCTION__ << "重置播放完成";
 }
 
@@ -180,7 +180,7 @@ void Worker::onTimeOut()
 }
 
 
-void Worker::receive_data(const QByteArray &data,qint64 timeMap)
+void Worker::receiveData(const QByteArray &data,qint64 timeMap)
 {
     {
         std::lock_guard<std::mutex>lock(mtx);
@@ -196,7 +196,7 @@ void Worker::setPATH(QString Path)
     this->PATH = Path;
 
 }
-void Worker::play_pcm()
+void Worker::playPcm()
 {
     qDebug()<<__FUNCTION__<<"准备开始播放1"<<QTime::currentTime().toString("hh:mm:ss.zzz");
     if (!first_flag)
@@ -207,7 +207,7 @@ void Worker::play_pcm()
             audioBuffer.clear();
         }
         cv.notify_one();
-        disconnect(this, &Worker::stopPlay, this, nullptr);
+        disconnect(this, &Worker::signalStopPlay, this, nullptr);
 
     }
     else
@@ -216,14 +216,14 @@ void Worker::play_pcm()
     }
     stopPlayback();
 
-    connect(this, &Worker::stopPlay, this, &Worker::Pause);
+    connect(this, &Worker::signalStopPlay, this, &Worker::pausePlayback);
 
     emit Begin();
     qDebug()<<__FUNCTION__<<"开始播放"<<QTime::currentTime().toString("hh:mm:ss.zzz");
 
 }
 
-void Worker::reset_status()
+void Worker::resetStatus()
 {
     if( audioOutput)
     {

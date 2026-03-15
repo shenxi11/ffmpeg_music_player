@@ -26,16 +26,16 @@ public:
             
             // 桥接播放、删除、下载、添加操作信号。
             connect(root, SIGNAL(playRequested(QString)), 
-                    this, SIGNAL(signal_play_button_click(QString)));
+                    this, SIGNAL(signalPlayButtonClick(QString)));
             connect(root, SIGNAL(removeRequested(QString)), 
-                    this, SIGNAL(signal_remove_click(QString)));
+                    this, SIGNAL(signalRemoveClick(QString)));
             connect(root, SIGNAL(downloadRequested(QString)), 
-                    this, SIGNAL(signal_download_click(QString)));
+                    this, SIGNAL(signalDownloadClick(QString)));
             connect(root, SIGNAL(addButtonClicked()), 
                     this, SLOT(on_add_button_clicked()));
         }
-        connect(this, &MusicListWidgetQml::signal_next, this, &MusicListWidgetQml::playNext);
-        connect(this, &MusicListWidgetQml::signal_last, this, &MusicListWidgetQml::playLast);
+        connect(this, &MusicListWidgetQml::signalNext, this, &MusicListWidgetQml::playNext);
+        connect(this, &MusicListWidgetQml::signalLast, this, &MusicListWidgetQml::playLast);
 
     }
 
@@ -125,16 +125,16 @@ public:
         }
     }
 signals:
-    void signal_play_button_click(QString path);
-    void signal_remove_click(QString path);
-    void signal_download_click(QString path);
-    void signal_add_song();
-    void signal_next(QString songName);
-    void signal_last(QString songName);
+    void signalPlayButtonClick(QString path);
+    void signalRemoveClick(QString path);
+    void signalDownloadClick(QString path);
+    void signalAddSong();
+    void signalNext(QString songName);
+    void signalLast(QString songName);
 private slots:
     void on_add_button_clicked()
     {
-        emit signal_add_song();
+        emit signalAddSong();
     }
 };
 

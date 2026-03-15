@@ -41,16 +41,16 @@ MusicListWidgetNetQml::MusicListWidgetNetQml(QWidget *parent)
     if (root) {
         // 透传播放、删除、下载、收藏等操作。
         connect(root, SIGNAL(playRequested(QString,QString,QString)), 
-                this, SIGNAL(signal_play_click(QString,QString,QString)));
+                this, SIGNAL(signalPlayClick(QString,QString,QString)));
         connect(root, SIGNAL(removeRequested(QString)), 
-                this, SIGNAL(signal_remove_click(QString)));
+                this, SIGNAL(signalRemoveClick(QString)));
         connect(root, SIGNAL(downloadRequested(QString)), 
-                this, SIGNAL(signal_download_click(QString)));
+                this, SIGNAL(signalDownloadClick(QString)));
         connect(root, SIGNAL(addToFavorite(QString,QString,QString,QString)), 
                 this, SIGNAL(addToFavorite(QString,QString,QString,QString)));
     }
-    connect(this, &MusicListWidgetNetQml::signal_next, this, &MusicListWidgetNetQml::playNext);
-    connect(this, &MusicListWidgetNetQml::signal_last, this, &MusicListWidgetNetQml::playLast);
+    connect(this, &MusicListWidgetNetQml::signalNext, this, &MusicListWidgetNetQml::playNext);
+    connect(this, &MusicListWidgetNetQml::signalLast, this, &MusicListWidgetNetQml::playLast);
 }
 
 void MusicListWidgetNetQml::setCurrentPlayingPath(const QString& path)

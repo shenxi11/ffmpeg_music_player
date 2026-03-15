@@ -16,47 +16,47 @@ public:
 
 public slots:
 
-    void stop_play();
+    void stopPlay();
 
-    void receive_lrc(std::map<int, std::string> lyrics);
+    void receiveLrc(std::map<int, std::string> lyrics);
 
-    void Set_Volume(int value);
+    void setVolume(int value);
 
-    void set_SliderMove(bool flag);
+    void setSliderMove(bool flag);
 
-    void receive_totalDuration(qint64 total);
+    void receiveTotalDuration(qint64 total);
 
-    void play_pcm();
+    void playPcm();
 
-    void receive_data(const QByteArray &data, qint64 timeMap);
+    void receiveData(const QByteArray &data, qint64 timeMap);
 
-    void reset_play();
+    void resetPlay();
 
     void setPATH(QString Path);
 
-    void reset_status();
+    void resetStatus();
 
     void onDataReceived(QByteArray data);
 
     void stopPlayback();
     void stopPlayBack();
 
-    void Pause();
-    void slot_setMove();
+    void pausePlayback();
+    void onSetMove();
 private slots:
     void onTimeOut();
 
 
 signals:
     void durations(qint64 value);
-    void stopPlay();
+    void signalStopPlay();
     void send_lrc(int line);
     void Stop();
     void Begin();
     void rePlay();
     void pause();
     void begin_to_decode();
-    void signal_reconnect();
+    void signalReconnect();
 private:
     std::map<int, std::string> lyrics;
 

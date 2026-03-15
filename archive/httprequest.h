@@ -1,4 +1,4 @@
-#ifndef HTTPREQUEST_H
+﻿#ifndef HTTPREQUEST_H
 #define HTTPREQUEST_H
 
 #include <QObject>
@@ -42,17 +42,17 @@ public:
         return instance;
     }
 
-    void set_username(QString username);
-    void set_account(QString account);
-    void set_password(QString password);
-    void set_music_path(QStringList musics);
+    void setUsername(QString username);
+    void setAccount(QString account);
+    void setPassword(QString password);
+    void setMusicPath(QStringList musics);
 
-    QString get_username();
-    QString get_account();
-    QString get_password();
-    QStringList get_music_path();
+    QString getUsername();
+    QString getAccount();
+    QString getPassword();
+    QStringList getMusicPath();
 signals:
-    void signal_add_songs();
+    void signalAddSongs();
 private:
     User(QString account = "", QString password = "", QString username = "");
     User& operator=(const User a) = delete;
@@ -71,16 +71,16 @@ class HttpRequest:public QObject
     Q_OBJECT
 public:
     explicit  HttpRequest(QObject *parent = nullptr);
-    bool Login(const QString& account, const QString& password);
+    bool login(const QString& account, const QString& password);
     bool Register(const QString& account, const QString& password, const QString& username);
-    bool Upload(const QString& path);
-    bool Download(const QString& filename, const QString download_folder, bool downloadLyrics = true, const QString& coverUrl = QString());
-    bool AddMusic(const QString username);
+    bool upload(const QString& path);
+    bool download(const QString& filename, const QString download_folder, bool downloadLyrics = true, const QString& coverUrl = QString());
+    bool addMusic(const QString username);
     bool getAllFiles();
-    void get_music_data(const QString &fileName);
+    void getMusicData(const QString &fileName);
     void sendAcknowledgment();
     bool getMusic(const QString& name);
-    bool get_file(const QString url);
+    bool getFile(const QString url);
     
     // 视频相关接口
     bool getVideoList();  // 获取视频列表 GET /videos
@@ -105,32 +105,32 @@ public:
     void setIsUsing(bool flag_);
     bool getIsUsing();
 signals:
-    void signal_Loginflag(bool flag);
-    void signal_Registerflag(bool flag);
-    void signal_getusername(QString username);
-    void signal_send_Packet(QByteArray chunk);
-    void signal_addSong_list(const QList<Music>& musicList);
-    void signal_streamurl(bool flag, QString path);
-    void signal_add_songs();
-    void signal_lrc(QStringList content);
+    void signalLoginFlag(bool flag);
+    void signalRegisterFlag(bool flag);
+    void signalGetusername(QString username);
+    void signalSendPacket(QByteArray chunk);
+    void signalAddSongList(const QList<Music>& musicList);
+    void signalStreamurl(bool flag, QString path);
+    void signalAddSongs();
+    void signalLrc(QStringList content);
     
     // 视频相关信号
-    void signal_videoList(const QVariantList& videoList);  // 视频列表信号
-    void signal_videoStreamUrl(const QString& videoUrl);    // 视频流URL信号
+    void signalVideoList(const QVariantList& videoList);  // 视频列表信号
+    void signalVideoStreamUrl(const QString& videoUrl);    // 视频流URL信号
     
     // 歌手相关信号
-    void signal_artistExists(bool exists, const QString& artist);  // 歌手是否存在信号
-    void signal_artistMusicList(const QList<Music>& musicList, const QString& artist);  // 歌手音乐列表信号
+    void signalArtistExists(bool exists, const QString& artist);  // 歌手是否存在信号
+    void signalArtistMusicList(const QList<Music>& musicList, const QString& artist);  // 歌手音乐列表信号
     
     // 喜欢音乐相关信号
-    void signal_addFavoriteResult(bool success);  // 添加喜欢音乐结果信号
-    void signal_removeFavoriteResult(bool success);  // 移除喜欢音乐结果信号
-    void signal_favoritesList(const QVariantList& favorites);  // 喜欢音乐列表信号
+    void signalAddFavoriteResult(bool success);  // 添加喜欢音乐结果信号
+    void signalRemoveFavoriteResult(bool success);  // 移除喜欢音乐结果信号
+    void signalFavoritesList(const QVariantList& favorites);  // 喜欢音乐列表信号
     
     // 播放历史相关信号
-    void signal_addHistoryResult(bool success);  // 添加播放历史结果信号
-    void signal_historyList(const QVariantList& history);  // 播放历史列表信号
-    void signal_removeHistoryResult(bool success);  // 删除播放历史结果信号
+    void signalAddHistoryResult(bool success);  // 添加播放历史结果信号
+    void signalHistoryList(const QVariantList& history);  // 播放历史列表信号
+    void signalRemoveHistoryResult(bool success);  // 删除播放历史结果信号
     
 private:
     HttpRequest(const HttpRequest&) = delete;

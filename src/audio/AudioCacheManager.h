@@ -8,6 +8,7 @@
 #include <QSet>
 #include <QUrl>
 #include <QMutex>
+#include <QPointer>
 
 class QTcpServer;
 class QTcpSocket;
@@ -39,6 +40,11 @@ public:
 
 private slots:
     void onDownloadFinished(QNetworkReply* reply);
+    void onProxySocketReadyRead();
+    void onProxySocketDisconnected();
+    void onProxySocketDestroyed(QObject* obj);
+    void onProxyUpstreamReadyRead();
+    void onProxyUpstreamFinished();
 
 private:
     struct DownloadTask {
@@ -55,6 +61,17 @@ private:
         qint64 contentLength = -1;
         qint64 durationMs = -1;
         qint64 lastAccessMs = 0;
+    };
+
+    struct ProxyStreamState {
+        QPointer<QTcpSocket> socket;
+        bool headerSent = false;
+        qint64 bytesForwarded = 0;
+        QByteArray collectedForCache;
+        bool hasRange = false;
+        qint64 rangeStart = -1;
+        qint64 rangeEnd = -1;
+        QString cacheKey;
     };
 
     AudioCacheManager(QObject* parent = nullptr);
@@ -90,6 +107,9 @@ private:
     void onProxyNewConnection();
     void onProxySocketReadyRead(QTcpSocket* socket);
     void handleProxyRequest(QTcpSocket* socket, const QByteArray& requestHeaders);
+    bool ensureProxyHeadersSent(QNetworkReply* reply, ProxyStreamState* state);
+    void persistAlignedProxyChunk(const ProxyStreamState& state);
+    void updateTrackMetaFromProxyReply(const QString& cacheKey, QNetworkReply* reply);
     bool parseHttpRange(const QByteArray& rangeHeader, qint64* start, qint64* end) const;
     void sendProxyError(QTcpSocket* socket, int statusCode, const QByteArray& reason) const;
     QByteArray buildHttpHeaders(int statusCode,
@@ -113,6 +133,7 @@ private:
     mutable QTcpServer* m_proxyServer = nullptr;
     mutable quint16 m_proxyPort = 0;
     mutable QHash<QTcpSocket*, QByteArray> m_proxyReadBuffers;
+    QHash<QNetworkReply*, ProxyStreamState> m_proxyStreamStates;
     mutable QMutex m_metaMutex;
 };
 

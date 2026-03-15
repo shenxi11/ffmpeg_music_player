@@ -1,4 +1,4 @@
-#include "qml_bridge.h"
+﻿#include "qml_bridge.h"
 #include <QFileDialog>
 #include <QStandardPaths>
 #include <QDebug>
@@ -73,13 +73,13 @@ void UIBridge::setupConnections()
     
     // TakePcm -> Worker 连接
     connect(m_takePcm.get(), &TakePcm::begin_to_play, 
-            m_worker.get(), &Worker::play_pcm);
+            m_worker.get(), &Worker::playPcm);
     connect(m_takePcm.get(), &TakePcm::data, 
-            m_worker.get(), &Worker::receive_data);
+            m_worker.get(), &Worker::receiveData);
     connect(m_takePcm.get(), &TakePcm::Position_Change, 
-            m_worker.get(), &Worker::reset_play);
+            m_worker.get(), &Worker::resetPlay);
     connect(m_takePcm.get(), &TakePcm::send_totalDuration, 
-            m_worker.get(), &Worker::receive_totalDuration);
+            m_worker.get(), &Worker::receiveTotalDuration);
     
     // Worker -> TakePcm 连接
     connect(m_worker.get(), &Worker::begin_to_decode, 
@@ -105,32 +105,32 @@ void UIBridge::setupConnections()
     connect(m_takePcm.get(), &TakePcm::begin_take_lrc, 
             m_lrcAnalyze.get(), &LrcAnalyze::begin_take_lrc);
     connect(m_lrcAnalyze.get(), &LrcAnalyze::send_lrc, 
-            m_worker.get(), &Worker::receive_lrc);
+            m_worker.get(), &Worker::receiveLrc);
     connect(m_lrcAnalyze.get(), &LrcAnalyze::send_lrc, 
             this, &UIBridge::onLrcReceived);
     connect(m_worker.get(), &Worker::send_lrc, 
             this, &UIBridge::onLrcLineChanged);
     
     // 专辑封面
-    connect(m_takePcm.get(), &TakePcm::signal_send_pic_path, 
+    connect(m_takePcm.get(), &TakePcm::signalSendPicPath, 
             this, &UIBridge::onAlbumArtChanged);
     
     // Seek 连接
-    connect(this, &UIBridge::signal_process_Change, 
+    connect(this, &UIBridge::signalProcessChange, 
             m_takePcm.get(), &TakePcm::seekToPosition);
-    connect(this, &UIBridge::signal_set_SliderMove, 
-            m_worker.get(), &Worker::set_SliderMove);
+    connect(this, &UIBridge::signalSetSliderMove, 
+            m_worker.get(), &Worker::setSliderMove);
     
     // Worker 控制
-    connect(this, &UIBridge::signal_worker_play, 
-            m_worker.get(), &Worker::Pause);
-    connect(this, &UIBridge::signal_remove_click, 
-            m_worker.get(), &Worker::reset_status);
+    connect(this, &UIBridge::signalWorkerPlay, 
+            m_worker.get(), &Worker::pausePlayback);
+    connect(this, &UIBridge::signalRemoveClick, 
+            m_worker.get(), &Worker::resetStatus);
     
     // HTTP 相关
-    connect(m_httpRequest, &HttpRequestV2::signal_getusername, 
+    connect(m_httpRequest, &HttpRequestV2::signalGetusername, 
             this, &UIBridge::onLoginSuccess);
-    connect(m_httpRequest, &HttpRequestV2::signal_addSong_list, 
+    connect(m_httpRequest, &HttpRequestV2::signalAddSongList, 
             this, &UIBridge::onMusicListReceived);
     
     qDebug() << "UIBridge::setupConnections - All connections established";
@@ -156,7 +156,7 @@ void UIBridge::onWorkStop()
     m_playState = 2; // Pause
     emit playStateChanged(m_playState);
     emit isPlayingChanged(false);
-    emit signal_stop_rotate(true);
+    emit signalStopRotate(true);
 }
 
 void UIBridge::onWorkPlay()
@@ -164,7 +164,7 @@ void UIBridge::onWorkPlay()
     m_playState = 1; // Play
     emit playStateChanged(m_playState);
     emit isPlayingChanged(true);
-    emit signal_stop_rotate(false);
+    emit signalStopRotate(false);
 }
 
 void UIBridge::onLrcReceived(const std::map<int, std::string>& lyrics)
@@ -231,7 +231,7 @@ void UIBridge::setVolume(int vol)
         emit volumeChanged(vol);
         
         // 调用Worker设置音量
-        QMetaObject::invokeMethod(m_worker.get(), "Set_Volume",
+        QMetaObject::invokeMethod(m_worker.get(), "setVolume",
                                   Qt::QueuedConnection,
                                   Q_ARG(int, vol));
     }
@@ -282,11 +282,11 @@ void UIBridge::playSong(const QString& path, const QString& name)
     emit currentSongPathChanged(path);
     
     // 触发播放
-    emit signal_filepath(path);
-    emit signal_begin_take_lrc(path);
+    emit signalFilepath(path);
+    emit signalBeginTakeLrc(path);
     
-    // 通过信号调用make_pcm
-    QMetaObject::invokeMethod(m_takePcm.get(), "make_pcm",
+    // 通过信号调用makePcm
+    QMetaObject::invokeMethod(m_takePcm.get(), "makePcm",
                               Qt::QueuedConnection,
                               Q_ARG(QString, path));
 }
@@ -295,7 +295,7 @@ void UIBridge::playPause()
 {
     qDebug() << "UIBridge::playPause - Current state:" << m_playState;
     
-    emit signal_worker_play();
+    emit signalWorkerPlay();
     
     // 状态会通过onWorkStop/onWorkPlay回调更新
 }
@@ -329,14 +329,14 @@ void UIBridge::seekTo(int position)
 {
     qDebug() << "UIBridge::seekTo" << position;
     
-    emit signal_set_SliderMove(true);
+    emit signalSetSliderMove(true);
     
     qint64 newPosition = static_cast<qint64>(position) * m_duration / (1000 * m_totalDuration);
     bool back_flag = (position < m_currentPosition);
     
-    emit signal_process_Change(newPosition, back_flag);
+    emit signalProcessChange(newPosition, back_flag);
     
-    emit signal_set_SliderMove(false);
+    emit signalSetSliderMove(false);
 }
 
 void UIBridge::toggleLoop()
@@ -373,7 +373,7 @@ void UIBridge::addLocalMusic(const QString& filePath)
     m_localMusicList.append(item);
     emit localMusicListChanged(m_localMusicList);
     
-    emit signal_add_song(fileName, filePath);
+    emit signalAddSong(fileName, filePath);
 }
 
 void UIBridge::removeMusic(const QString& songName)
@@ -390,7 +390,7 @@ void UIBridge::removeMusic(const QString& songName)
         }
     }
     
-    emit signal_remove_click();
+    emit signalRemoveClick();
 }
 
 QStringList UIBridge::openFileDialog()

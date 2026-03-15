@@ -24,18 +24,18 @@ public:
         return instance;
     }
 
-    void set_username(QString username);
-    void set_account(QString account);
-    void set_password(QString password);
-    void set_music_path(QStringList musics);
+    void setUsername(QString username);
+    void setAccount(QString account);
+    void setPassword(QString password);
+    void setMusicPath(QStringList musics);
 
-    QString get_username();
-    QString get_account();
-    QString get_password();
-    QStringList get_music_path();
+    QString getUsername();
+    QString getAccount();
+    QString getPassword();
+    QStringList getMusicPath();
 
 signals:
-    void signal_add_songs();
+    void signalAddSongs();
 
 private:
     User(QString account = "", QString password = "", QString username = "");

@@ -22,6 +22,8 @@
 #include "desklrc_qml.h"
 #include "playlist_history_qml.h"
 
+class QQuickWidget;
+
 class PlayWidget : public QWidget
 {
     Q_OBJECT
@@ -37,60 +39,108 @@ public:
     PlaybackViewModel* playbackViewModel() const;
 
     bool isUp = false;
-    bool get_net_flag();
-    void set_isUp(bool flag);
+    bool getNetFlag();
+    void setIsUp(bool flag);
     bool checkAndWarnIfPathNotExists(const QString &path);
     int collapsedPlaybackHeight() const;
 public slots:
 
-    void _begin_take_lrc(QString str);
-    void _play_click(QString songName);
-    void _remove_click(QString songName);
+    void beginTakeLrc(QString str);
+    void playClick(QString songName);
+    void removeClick(QString songName);
     void openfile();
     void setPianWidgetEnable(bool flag);
 
-    void set_play_net(bool flag);
+    void setPlayNet(bool flag);
     void setNetworkMetadata(const QString& artist, const QString& cover);
     void setNetworkMetadata(const QString& title, const QString& artist, const QString& cover);
-    void slot_play_click();
-    void slot_Lrc_send_lrc(const std::map<int, std::string> lyrics);
-    void slot_work_stop();
-    void slot_work_play();
-    void slot_desk_toggled(bool checked);
-    void slot_updateBackground(QString picPath);  // 根据封面更新播放页背景
-    void slot_lyric_seek(int timeMs);  // 歌词点击跳转到指定时间
-    void slot_lyric_preview(int timeMs);  // 歌词拖动时预览目标时间
-    void slot_lyric_drag_start();  // 歌词开始拖动，进入预览态
-    void slot_lyric_drag_end();
+    void onPlayClick();
+    void onLrcSendLrc(const std::map<int, std::string> lyrics);
+    void onWorkStop();
+    void onWorkPlay();
+    void onDeskToggled(bool checked);
+    void onUpdateBackground(QString picPath);  // 根据封面更新播放页背景
+    void onLyricSeek(int timeMs);  // 歌词点击跳转到指定时间
+    void onLyricPreview(int timeMs);  // 歌词拖动时预览目标时间
+    void onLyricDragStart();  // 歌词开始拖动，进入预览态
+    void onLyricDragEnd();
     void setSimilarRecommendations(const QVariantList& items);
     void clearSimilarRecommendations();
 signals:
-    void signal_worker_play();
-    void signal_filepath(QString filePath);
-    void signal_begin_to_play(QString path);
-    void signal_begin_take_lrc(QString str);
-    void signal_play_changed(bool flag);
-    void signal_set_SliderMove(bool flag);
-    void signal_process_Change(qint64 newPosition, bool back_flag);
-    void signal_big_clicked(bool checked);
-    void signal_list_show(bool flag);
-    void signal_add_song(const QString fileName,const QString path);
-    void signal_play_button_click(bool flag, QString fileName);
-    void signal_Next(QString songName, bool net_flag);
-    void signal_Last(QString songName, bool net_flag);
-    void signal_remove_click();
-    void signal_stop_rotate(bool flag);
-    void signal_begin_net_decode();
-    void signal_playState(ProcessSliderQml::State state);
-    void signal_isUpChanged(bool flag);
-    void signal_desk_lrc(const QString lrc_);
-    void signal_netFlagChanged(bool net_flag);
-    void signal_metadata_updated(QString filePath, QString coverUrl, QString duration);
-    void signal_similarSongSelected(const QVariantMap& item);
+    void signalWorkerPlay();
+    void signalFilepath(QString filePath);
+    void signalBeginToPlay(QString path);
+    void signalBeginTakeLrc(QString str);
+    void signalPlayChanged(bool flag);
+    void signalSetSliderMove(bool flag);
+    void signalProcessChange(qint64 newPosition, bool back_flag);
+    void signalBigClicked(bool checked);
+    void signalListShow(bool flag);
+    void signalAddSong(const QString fileName,const QString path);
+    void signalPlayButtonClick(bool flag, QString fileName);
+    void signalNext(QString songName, bool net_flag);
+    void signalLast(QString songName, bool net_flag);
+    void signalRemoveClick();
+    void signalStopRotate(bool flag);
+    void signalBeginNetDecode();
+    void signalPlayState(ProcessSliderQml::State state);
+    void signalIsUpChanged(bool flag);
+    void signalDeskLrc(const QString lrc_);
+    void signalNetFlagChanged(bool net_flag);
+    void signalMetadataUpdated(QString filePath, QString coverUrl, QString duration);
+    void signalSimilarSongSelected(const QVariantMap& item);
 private:
+    void setupCoreConnections();
+    // 播放页 ViewModel 连接在独立实现文件中维护，降低构造函数复杂度。
+    void setupPlaybackViewModelConnections();
+    // 播放控制、桌面歌词与播放队列连接在独立实现文件中维护。
+    void setupControlAndPlaylistConnections();
+    void handleDeskForwardClicked();
+    void handleDeskBackwardClicked();
+    void handleDeskCloseClicked();
+    void handleDeskPlayStateChanged(ProcessSliderQml::State state);
+    void handleDeskSettingsClicked();
+    void handleVolumeChanged(int volume);
+    void handleViewModelVolumeChanged();
+    void handleNextSongRequested();
+    void handleLastSongRequested();
+    void handleStopRequested();
+    void handleReplayRequested();
+    void handleLoopChanged(bool isLoop);
+    void handlePlaylistToggled(bool show);
+    void handlePlaylistPlayRequested(const QString& filePath);
+    void handlePlaylistRemoveRequested(const QString& filePath);
+    void handlePlaylistClearAllRequested();
+    void handlePlaylistPauseToggled();
+    void handlePlayModeChanged(int mode);
+    void handleSliderPressed();
+    void handleSliderReleased();
+    void handleVmIsPlayingChanged();
+    void handleVmPositionChanged();
+    void handleVmDurationChanged();
+    void handleVmCurrentTitleChanged();
+    void handleVmCurrentArtistChanged();
+    void handleVmCurrentAlbumArtChanged();
+    void handleVmPlaybackStarted();
+    void handleVmPlaybackStopped();
+    void handleVmShouldStartRotation();
+    void handleVmShouldStopRotation();
+    void handleVmShouldLoadLyrics(const QString& songPath);
+    void handleMusicButtonClicked();
+    void handleBufferingStateChanged(bool active);
+    void handleProcessChangeRequested(qint64 milliseconds, bool back_flag);
+    void handleSliderMoveRequested(int seconds);
+    void handleDeferredSeekAfterPlay();
+    void handleCoverExpandRequested();
+    void handleLyricPositionChanged();
+    void handleSimilarPlayRequested(const QVariantMap& item);
+    void queuePlayButtonStateUpdate(bool playing, const QString& path);
+    void handleDeferredPlayButtonStateUpdate();
+    void shutdownQuickWidget(QQuickWidget* widget);
+
     void updateAdaptiveLayout();
 
-    void init_LyricDisplay();
+    void initLyricDisplay();
     void rePlay(QString path);
 
     // 播放页内部遵循“会话驱动 + UI被动同步”模式：
@@ -135,6 +185,10 @@ private:
     QThread *b;  // 歌词解析线程
     QMetaObject::Connection positionUpdateConnection;  // 播放位置更新连接
     qint64 lastSeekPosition;  // 最近一次 seek 的目标位置（微秒）
+    qint64 pendingSeekPositionMs = -1;  // 延迟 seek 的目标毫秒值（等待恢复播放后执行）
+    bool m_pendingPlayButtonStateValid = false;
+    bool m_pendingPlayButtonPlaying = false;
+    QString m_pendingPlayButtonPath;
 
     ProcessSliderQml* process_slider;
     ProcessSliderQml* controlBar;  // controlBar 当前复用 process_slider 组件

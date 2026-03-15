@@ -78,12 +78,12 @@ signals:
     void outputFormatChanged();
     
     // 内部信号
-    void signal_begin_take_pcm(const QString &audioPath);
-    void signal_outFile(const QStringList &segments);
+    void signalBeginTakePcm(const QString &audioPath);
+    void signalOutFile(const QStringList &segments);
 
 private slots:
-    void on_signal_send_data(uint8_t *buffer, int bufferSize, qint64 timeMap);
-    void on_signal_decodeEnd();
+    void onSendData(uint8_t *buffer, int bufferSize, qint64 timeMap);
+    void onDecodeEnd();
     void updateStatus(const QString &text);
     void updateProgress(int value);
     void setTranscribedText(const QString &text);

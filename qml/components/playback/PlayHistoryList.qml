@@ -1,4 +1,4 @@
-import QtQuick 2.15
+﻿import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import "../../theme/Theme.js" as Theme
@@ -33,7 +33,7 @@ Rectangle {
     signal loginRequested()
     signal refreshRequested()
 
-    function _looksUnreadable(value) {
+    function looksUnreadable(value) {
         if (value === undefined || value === null) return true
         var text = String(value).trim()
         if (text.length === 0) return true
@@ -41,7 +41,7 @@ Rectangle {
         return text.indexOf("\uFFFD") >= 0
     }
 
-    function _baseNameFromPath(path) {
+    function baseNameFromPath(path) {
         if (!path) return ""
         var value = String(path)
         var qPos = value.indexOf("?")
@@ -58,14 +58,14 @@ Rectangle {
     }
 
     function normalizeText(value, fallbackText) {
-        if (_looksUnreadable(value)) return fallbackText
+        if (looksUnreadable(value)) return fallbackText
         return String(value)
     }
 
     function displayTitle(item) {
         var title = normalizeText(item.title, "")
         if (title.length > 0) return title
-        var fromPath = normalizeText(_baseNameFromPath(item.path), "")
+        var fromPath = normalizeText(baseNameFromPath(item.path), "")
         return fromPath.length > 0 ? fromPath : "未知歌曲"
     }
 
@@ -73,7 +73,7 @@ Rectangle {
         return normalizeText(item.artist, "未知艺术家")
     }
 
-    function _normalizePath(path) {
+    function normalizePath(path) {
         if (!path) return ""
         var value = String(path).trim()
         if (value.indexOf("file:///") === 0) {
@@ -90,8 +90,8 @@ Rectangle {
         return value
     }
 
-    function _isSameTrack(pathA, pathB) {
-        return _normalizePath(pathA) === _normalizePath(pathB)
+    function isSameTrack(pathA, pathB) {
+        return normalizePath(pathA) === normalizePath(pathB)
     }
 
     function setPlayingState(filePath, playing) {
@@ -304,7 +304,7 @@ Rectangle {
                 height: 62
                 radius: 10
                 property bool containsMouse: false
-                property bool isCurrentTrack: root._isSameTrack(root.currentPlayingPath, model.path)
+                property bool isCurrentTrack: root.isSameTrack(root.currentPlayingPath, model.path)
                 property bool showPauseIcon: isCurrentTrack && root.isPlaying
 
                 color: isCurrentTrack

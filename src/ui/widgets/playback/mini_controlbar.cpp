@@ -60,16 +60,16 @@ MiniControlBar::MiniControlBar(QWidget* parent)
     close_->setStyleSheet(buttonStyle + "QPushButton { border-image: url(:/new/prefix1/icon/close.png); }");
     lock_->setStyleSheet(buttonStyle + "QPushButton { border-image: url(:/new/prefix1/icon/lock_o.png); }");
 
-    connect(close_, &Button::clicked, this, &MiniControlBar::signal_close_clicked);
-    connect(play_, &Button::clicked, this, &MiniControlBar::signal_play_clicked);
-    connect(next_, &Button::clicked, this, &MiniControlBar::signal_next_clicked);
-    connect(last_, &Button::clicked, this, &MiniControlBar::signal_last_clicked);
-    connect(forward_, &Button::clicked, this, &MiniControlBar::signal_forward_clicked);
-    connect(backWard_, &Button::clicked, this, &MiniControlBar::signal_backward_clicked);
-    connect(set_, &Button::clicked, this, &MiniControlBar::signal_set_clicked);
+    connect(close_, &Button::clicked, this, &MiniControlBar::signalCloseClicked);
+    connect(play_, &Button::clicked, this, &MiniControlBar::signalPlayClicked);
+    connect(next_, &Button::clicked, this, &MiniControlBar::signalNextClicked);
+    connect(last_, &Button::clicked, this, &MiniControlBar::signalLastClicked);
+    connect(forward_, &Button::clicked, this, &MiniControlBar::signalForwardClicked);
+    connect(backWard_, &Button::clicked, this, &MiniControlBar::signalBackwardClicked);
+    connect(set_, &Button::clicked, this, &MiniControlBar::signalSetClicked);
 
 }
-void MiniControlBar::slot_playChanged(ProcessSliderQml::State state){
+void MiniControlBar::onPlayChanged(ProcessSliderQml::State state){
     if (!play_) {
         qDebug() << "ERROR: play_ button is NULL!";
         return;

@@ -4,23 +4,7 @@ DownloadTaskModel::DownloadTaskModel(QObject *parent)
     : QAbstractListModel(parent)
     , m_showCompleted(false)
 {
-    // 连接下载管理器的信号
-    connect(&DownloadManager::instance(), &DownloadManager::downloadAdded,
-            this, &DownloadTaskModel::onDownloadAdded);
-    connect(&DownloadManager::instance(), &DownloadManager::downloadStarted,
-            this, &DownloadTaskModel::onDownloadStarted);
-    connect(&DownloadManager::instance(), &DownloadManager::downloadProgress,
-            this, &DownloadTaskModel::onDownloadProgress);
-    connect(&DownloadManager::instance(), &DownloadManager::downloadFinished,
-            this, &DownloadTaskModel::onDownloadFinished);
-    connect(&DownloadManager::instance(), &DownloadManager::downloadFailed,
-            this, &DownloadTaskModel::onDownloadFailed);
-    connect(&DownloadManager::instance(), &DownloadManager::downloadPaused,
-            this, &DownloadTaskModel::onDownloadPaused);
-    connect(&DownloadManager::instance(), &DownloadManager::downloadCancelled,
-            this, &DownloadTaskModel::onDownloadCancelled);
-    connect(&DownloadManager::instance(), &DownloadManager::taskRemoved,
-            this, &DownloadTaskModel::onTaskRemoved);
+    setupConnections();
 }
 
 int DownloadTaskModel::rowCount(const QModelIndex &parent) const

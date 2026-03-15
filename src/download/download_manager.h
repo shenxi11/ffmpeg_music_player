@@ -81,12 +81,17 @@ signals:
     void finished(const QString& taskId, bool success, const QString& errorMsg);
 
 private:
+    void handleReplyDownloadProgress(qint64 bytesReceived, qint64 bytesTotal);
+    void handleReplyReadyRead();
+
     QString m_taskId;
     QString m_url;
     QString m_savePath;
     QByteArray m_postData;
     qint64 m_startByte;
     QAtomicInt m_aborted;
+    QNetworkReply* m_currentReply = nullptr;
+    QFile* m_currentFile = nullptr;
 };
 
 /**
@@ -241,6 +246,11 @@ private:
     ~DownloadManager();
     DownloadManager(const DownloadManager&) = delete;
     DownloadManager& operator=(const DownloadManager&) = delete;
+
+private slots:
+    void onThreadStarted(const QString& taskId);
+    void onThreadProgressUpdated(const QString& taskId, qint64 bytesReceived, qint64 bytesTotal);
+    void onThreadFinished(const QString& taskId, bool success, const QString& errorMsg);
 
     /**
      * @brief 处理下载队列，启动下一个任务

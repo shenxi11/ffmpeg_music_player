@@ -133,7 +133,7 @@ int main(int argc, char *argv[])
         MainWidget w;
 
         w.show();
-        w.Update_paint();
+        w.updatePaint();
 
         // qDebug() << "started";
         result = a.exec();

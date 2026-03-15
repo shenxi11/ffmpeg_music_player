@@ -155,50 +155,48 @@ public:
      * @param fileName 文件名
      */
     void getMusicData(const QString& fileName);
-    void get_music_data(const QString& fileName) { getMusicData(fileName); } // 别名，兼容旧代码
     
     /**
      * @brief 添加音乐到用户列表
      * @param musicPath 音乐路径
      */
     void addMusic(const QString& musicPath);
-    void AddMusic(const QString& musicPath) { addMusic(musicPath); } // 别名，兼容旧代码
     
     /**
      * @brief 下载（兼容旧 API）
      */
-    void Download(const QString& filename, const QString& downloadFolder, 
-                 bool downloadLyrics = true, const QString& coverUrl = QString()) {
+    void download(const QString& filename, const QString& downloadFolder,
+                  bool downloadLyrics = true, const QString& coverUrl = QString()) {
         downloadFile(filename, downloadFolder, downloadLyrics, coverUrl);
     }
     
 signals:
     // 与原 HttpRequest 保持兼容的信号
-    void signal_Loginflag(bool flag);
-    void signal_Registerflag(bool flag);
-    void signal_RegisterResult(bool success, const QString& message);
-    void signal_ResetPasswordResult(bool success, const QString& message);
-    void signal_getusername(QString username);
-    void signal_addSong_list(const QList<Music>& musicList);
-    void signal_lrc(QStringList content);
-    void signal_videoList(const QVariantList& videoList);
-    void signal_videoStreamUrl(const QString& videoUrl);
-    void signal_artistExists(bool exists, const QString& artist);
-    void signal_artistMusicList(const QList<Music>& musicList, const QString& artist);
-    void signal_addFavoriteResult(bool success);
-    void signal_favoritesList(const QVariantList& favorites);
-    void signal_removeFavoriteResult(bool success);
-    void signal_addHistoryResult(bool success);
-    void signal_historyList(const QVariantList& history);
-    void signal_removeHistoryResult(bool success);
-    void signal_recommendationList(const QVariantMap& meta, const QVariantList& items);
-    void signal_similarRecommendationList(const QVariantMap& meta,
+    void signalLoginFlag(bool flag);
+    void signalRegisterFlag(bool flag);
+    void signalRegisterResult(bool success, const QString& message);
+    void signalResetPasswordResult(bool success, const QString& message);
+    void signalGetusername(QString username);
+    void signalAddSongList(const QList<Music>& musicList);
+    void signalLrc(QStringList content);
+    void signalVideoList(const QVariantList& videoList);
+    void signalVideoStreamUrl(const QString& videoUrl);
+    void signalArtistExists(bool exists, const QString& artist);
+    void signalArtistMusicList(const QList<Music>& musicList, const QString& artist);
+    void signalAddFavoriteResult(bool success);
+    void signalFavoritesList(const QVariantList& favorites);
+    void signalRemoveFavoriteResult(bool success);
+    void signalAddHistoryResult(bool success);
+    void signalHistoryList(const QVariantList& history);
+    void signalRemoveHistoryResult(bool success);
+    void signalRecommendationList(const QVariantMap& meta, const QVariantList& items);
+    void signalSimilarRecommendationList(const QVariantMap& meta,
                                           const QVariantList& items,
                                           const QString& anchorSongId);
-    void signal_recommendationFeedbackResult(bool success,
+    void signalRecommendationFeedbackResult(bool success,
                                              const QString& eventType,
                                              const QString& songId);
-    void signal_streamurl(bool flag, QString url);  // 音乐流 URL 信号
+    void signalStreamurl(bool flag, QString url);  // 音乐流 URL 信号
     
 private:
     Network::NetworkService& m_networkService;

@@ -20,7 +20,7 @@ void LyricTextEdit::highlightLine(int lineNumber)
         QTextCursor cursor(block);
         cursor.select(QTextCursor::LineUnderCursor);
         highlightLineFormat(cursor);
-        emit signal_current_lrc(cursor.selectedText());
+        emit signalCurrentLrc(cursor.selectedText());
         
         // 更新记录
         lastHighlightedLine = lineNumber;

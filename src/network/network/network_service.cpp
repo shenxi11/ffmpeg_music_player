@@ -26,12 +26,10 @@ NetworkService::NetworkService(QObject* parent)
             this, &NetworkService::requestFailed);
     
     // 连接缓存信号
-    connect(&m_cache, &ResponseCache::cacheHit, this, [this](const QString& key) {
-        emit cacheHit(key);
-    });
-    connect(&m_cache, &ResponseCache::cacheMiss, this, [this](const QString& key) {
-        emit cacheMiss(key);
-    });
+    connect(&m_cache, &ResponseCache::cacheHit,
+            this, &NetworkService::cacheHit);
+    connect(&m_cache, &ResponseCache::cacheMiss,
+            this, &NetworkService::cacheMiss);
     
     qDebug() << "[NetworkService] Initialized";
 }
@@ -113,11 +111,9 @@ QString NetworkService::sendRequestInternal(
             response.elapsedMs = 0;
             response.requestId = "cached-" + cacheKey;
             
-            // 异步调用回调（保持一致性）
+            // 命中缓存时直接回调，避免额外的调度延迟。
             if (callback) {
-                QTimer::singleShot(0, [callback, response]() {
-                    callback(response);
-                });
+                callback(response);
             }
             
             emit cacheHit(fullUrl);

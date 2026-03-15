@@ -1,98 +1,65 @@
-﻿#include "music_list_widget_local.h"
-#include "play_widget.h"
-#include <QVBoxLayout>
-#include "httprequest_v2.h"
-#include "user.h"
-#include <QFileInfo>
-#include <QDebug>
+#include "music_list_widget_local.h"
 
-MusicListWidgetLocal::MusicListWidgetLocal(QWidget *parent) : QWidget(parent)
+#include <QDebug>
+#include <QFileInfo>
+#include <QVBoxLayout>
+
+#include "play_widget.h"
+
+MusicListWidgetLocal::MusicListWidgetLocal(QWidget* parent)
+    : QWidget(parent)
 {
-    // 直接使用 QML 版本的音乐列表（带内置的标题栏和添加按钮）
-    listWidget = new MusicListWidgetQml(false, this);  // false 表示本地音乐
-    
+    listWidget = new MusicListWidgetQml(false, this);
+    m_viewModel = new LocalMusicListViewModel(this);
+
     QVBoxLayout* v_layout = new QVBoxLayout(this);
     v_layout->setContentsMargins(0, 0, 0, 0);
     v_layout->addWidget(listWidget);
     setLayout(v_layout);
 
-    request = new HttpRequestV2(this);
-
-    // 连接 QML 的信号到外部
-    connect(listWidget, &MusicListWidgetQml::signal_add_song,
-            this, &MusicListWidgetLocal::on_signal_add_button_clicked);
-    connect(listWidget, &MusicListWidgetQml::signal_play_button_click,
-            this, &MusicListWidgetLocal::on_signal_play_click);
-    connect(listWidget, &MusicListWidgetQml::signal_remove_click,
-            this, &MusicListWidgetLocal::on_signal_remove_click);
-    connect(this, &MusicListWidgetLocal::signal_next, listWidget, &MusicListWidgetQml::signal_next);
-    connect(this, &MusicListWidgetLocal::signal_last, listWidget, &MusicListWidgetQml::signal_last);
-
-    // 监听添加歌曲信号
-    connect(this, &MusicListWidgetLocal::signal_add_song, [=](QString filename, QString path){
-        request->AddMusic(path);
-        listWidget->addSong(filename, path, "", "0:00", "", "-");
-    });
-
-    // 监听播放状态变化
-    connect(this, &MusicListWidgetLocal::signal_play_button_click, [=](bool flag, const QString filename){
-        // 通知 listWidget 更新播放状态
-        listWidget->setPlayingState(filename, flag);
-    });
-
-    // 用户登录后加载音乐列表
-    auto user = User::getInstance();
-    connect(user, &User::signal_add_songs, this, [this, user](){
-        qDebug() << __FUNCTION__ << "login";
-        listWidget->clearAll();
-        QStringList musicPaths = user->get_music_path();
-        for(const QString& path : musicPaths)
-        {
-            QFileInfo info(path);
-            listWidget->addSong(info.fileName(), info.filePath(), "", "0:00", "", "-");
-        }
-    });
+    setupConnections();
+    m_viewModel->refreshLocalMusicPaths();
 }
-void MusicListWidgetLocal::on_signal_add_button_clicked()
+
+void MusicListWidgetLocal::onAddButtonClicked()
 {
-    emit signal_add_button_clicked();
+    emit signalAddButtonClicked();
 }
-void MusicListWidgetLocal::on_signal_add_song(const QString filename, const QString path)
+
+void MusicListWidgetLocal::onAddSong(const QString filename, const QString path)
 {
-    emit signal_add_song(filename, path);
+    emit signalAddSong(filename, path);
 }
-void MusicListWidgetLocal::on_signal_play_button_click(bool flag, const QString filename)
+
+void MusicListWidgetLocal::onPlayButtonClick(bool flag, const QString filename)
 {
-    qDebug() << "[PLAY_STATE] MusicListWidgetLocal::on_signal_play_button_click 收到信号, flag=" << flag << ", filename=" << filename;
-    if(auto sender_ = dynamic_cast<PlayWidget*>(sender()))
-    {
-        qDebug() << "[PLAY_STATE] sender 是PlayWidget, net_flag=" << sender_->get_net_flag();
-        if(!sender_->get_net_flag())
-        {
-            qDebug() << "[PLAY_STATE] 调用 listWidget->setPlayingState(" << filename << "," << flag << ")";
-            // 更新 QML 列表中的播放状态
+    qDebug() << "[PLAY_STATE] MusicListWidgetLocal::onPlayButtonClick 收到信号, flag="
+             << flag << ", filename=" << filename;
+    if (auto* sender_ = qobject_cast<PlayWidget*>(sender())) {
+        qDebug() << "[PLAY_STATE] sender 是PlayWidget, net_flag=" << sender_->getNetFlag();
+        if (!sender_->getNetFlag()) {
             listWidget->setPlayingState(filename, flag);
-            emit signal_play_button_click(flag, filename);
+            emit signalPlayButtonClick(flag, filename);
         }
-    } else {
-        qDebug() << "[PLAY_STATE] sender 不是PlayWidget";
     }
 }
-void MusicListWidgetLocal::on_signal_play_click(const QString songName)
+
+void MusicListWidgetLocal::onPlayClick(const QString songName)
 {
-    emit signal_play_click(songName, false);
-}
-void MusicListWidgetLocal::on_signal_remove_click(const QString songeName)
-{
-    emit signal_remove_click(songeName);
+    emit signalPlayClick(songName, false);
 }
 
-void MusicListWidgetLocal::on_signal_translate_button_clicked()
+void MusicListWidgetLocal::onRemoveClick(const QString songeName)
 {
-    emit signal_translate_button_clicked();
+    emit signalRemoveClick(songeName);
 }
 
-void MusicListWidgetLocal::on_signal_update_metadata(QString filePath, QString coverUrl, QString duration)
+void MusicListWidgetLocal::onTranslateButtonClicked()
+{
+    emit signalTranslateButtonClicked();
+}
+
+void MusicListWidgetLocal::onUpdateMetadata(QString filePath, QString coverUrl, QString duration)
 {
     qDebug() << "[METADATA] MusicListWidgetLocal 收到元数据更新:" << filePath << coverUrl << duration;
     listWidget->updateSongMetadata(filePath, coverUrl, duration);

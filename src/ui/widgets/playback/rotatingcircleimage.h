@@ -31,7 +31,7 @@ public:
     explicit RotatingCircleImage(QWidget *parent = nullptr);
     void setImage(const QString &imagePath);  // 设置新的图片
 public slots:
-    void on_signal_stop_rotate(bool flag);
+    void onStopRotate(bool flag);
 
 protected:
     void paintEvent(QPaintEvent *event);

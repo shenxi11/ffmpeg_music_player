@@ -23,6 +23,7 @@ public:
     explicit MainMenu(QWidget *parent = nullptr);
     void showMenu(const QPoint& position);
     void refreshPlugins();
+    void setPluginInfos(const QVector<PluginInfo>& plugins);
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -43,11 +44,15 @@ private slots:
 
 private:
     void setupUI();
+    void setupBaseConnections();
+    void connectPluginButton(QPushButton* button);
+    void connectActionButtons();
     void hideMenu();
     void createPluginButtons();
     QString createButtonStyle();
 
     QVBoxLayout* menuLayout;
+    QVector<PluginInfo> m_pluginInfos;
     QVector<QPushButton*> pluginButtons;
     QPushButton* diagnosticsBtn;
     QPushButton* settingsBtn;

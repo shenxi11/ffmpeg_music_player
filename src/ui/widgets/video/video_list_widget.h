@@ -5,10 +5,10 @@
 #include <QVBoxLayout>
 #include <QDebug>
 #include "video_list_widget_qml.h"
-#include "httprequest_v2.h"
 #include "VideoPlayerWindow.h"
 #include "play_widget.h"  // 添加PlayWidget头文件
 #include "AudioService.h"  // 添加AudioService头文件
+#include "viewmodels/VideoListViewModel.h"
 
 /**
  * @brief 在线视频列表窗口
@@ -23,7 +23,7 @@ public:
     VideoPlayerWindow* playerWindow() const { return videoPlayerWindow; }
 
 signals:
-    void signal_open_video_player(const QString& videoUrl, const QString& videoName);
+    void signalOpenVideoPlayer(const QString& videoUrl, const QString& videoName);
     void videoPlayerWindowReady(VideoPlayerWindow* window);
     void videoPlaybackStateChanged(bool isPlaying);
 
@@ -50,13 +50,19 @@ private slots:
      * @brief 接收到视频流URL
      */
     void onVideoStreamUrlReceived(const QString& videoUrl);
+    void onVideoStreamResolved(const QString& videoUrl, const QString& videoName);
+    void onVideoPlayerPlayStateChanged(bool isPlaying);
 
 protected:
     void showEvent(QShowEvent* event) override;
 
 private:
+    // 连接拆分：将视频列表与 ViewModel 的绑定集中维护。
+    void setupConnections();
+    void setupVideoPlayerConnections();
+
     VideoListWidgetQml* listWidget;
-    HttpRequestV2* request;
+    VideoListViewModel* m_viewModel = nullptr;
     VideoPlayerWindow* videoPlayerWindow = nullptr;
     QString m_selectedVideoName;
     PlayWidget* m_playWidget;  // 音乐播放器引用
