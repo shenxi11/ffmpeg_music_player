@@ -1,0 +1,141 @@
+name: Feishu PR Review Notify
+
+on:
+  pull_request_review:
+    types:
+      - submitted
+      - edited
+      - dismissed
+  pull_request_review_comment:
+    types:
+      - created
+      - edited
+
+jobs:
+  notify-feishu:
+    runs-on: ubuntu-latest
+    if: ${{ secrets.FEISHU_BOT_WEBHOOK != '' }}
+    steps:
+      - name: Build review payload
+        id: build_payload
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REPOSITORY: ${{ github.repository }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          ACTOR: ${{ github.actor }}
+          ACTION: ${{ github.event.action }}
+          REVIEW_STATE: ${{ github.event.review.state }}
+          REVIEW_BODY: ${{ github.event.review.body }}
+          REVIEW_URL: ${{ github.event.review.html_url }}
+          REVIEW_USER_LOGIN: ${{ github.event.review.user.login }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          COMMENT_URL: ${{ github.event.comment.html_url }}
+          COMMENT_PATH: ${{ github.event.comment.path }}
+          COMMENT_LINE: ${{ github.event.comment.line }}
+          COMMENT_USER_LOGIN: ${{ github.event.comment.user.login }}
+          COPILOT_ONLY: ${{ vars.FEISHU_NOTIFY_COPILOT_ONLY }}
+          REVIEW_COMMENTS_ENABLED: ${{ vars.FEISHU_NOTIFY_REVIEW_COMMENTS }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import pathlib
+
+          event_name = os.environ.get("EVENT_NAME", "")
+          repository = os.environ.get("REPOSITORY", "")
+          pr_title = os.environ.get("PR_TITLE", "")
+          pr_url = os.environ.get("PR_URL", "")
+          actor = os.environ.get("ACTOR", "")
+          action = os.environ.get("ACTION", "")
+          review_state = os.environ.get("REVIEW_STATE", "")
+          review_body = (os.environ.get("REVIEW_BODY", "") or "").strip()
+          review_url = os.environ.get("REVIEW_URL", "")
+          review_user_login = os.environ.get("REVIEW_USER_LOGIN", "") or ""
+          comment_body = (os.environ.get("COMMENT_BODY", "") or "").strip()
+          comment_url = os.environ.get("COMMENT_URL", "")
+          comment_path = os.environ.get("COMMENT_PATH", "")
+          comment_line = os.environ.get("COMMENT_LINE", "")
+          comment_user_login = os.environ.get("COMMENT_USER_LOGIN", "") or ""
+          copilot_only = (os.environ.get("COPILOT_ONLY", "true") or "true").strip().lower()
+          review_comments_enabled = (os.environ.get("REVIEW_COMMENTS_ENABLED", "false") or "false").strip().lower()
+
+          def is_truthy(value: str) -> bool:
+              return value in {"1", "true", "yes", "on"}
+
+          def looks_like_copilot(login: str) -> bool:
+              return "copilot" in (login or "").strip().lower()
+
+          reviewer_login = review_user_login if event_name == "pull_request_review" else comment_user_login
+          if not reviewer_login:
+              reviewer_login = actor
+
+          should_send = True
+          skip_reason = ""
+          if is_truthy(copilot_only) and not looks_like_copilot(reviewer_login):
+              should_send = False
+              skip_reason = f"filtered_non_copilot:{reviewer_login or actor}"
+
+          if should_send and event_name == "pull_request_review_comment" and not is_truthy(review_comments_enabled):
+              should_send = False
+              skip_reason = "review_comments_disabled"
+
+          if should_send and event_name == "pull_request_review":
+              lines = [
+                  "GitHub Copilot Review 通知" if looks_like_copilot(reviewer_login) else "GitHub Review 通知",
+                  f"仓库: {repository}",
+                  f"PR: {pr_title}",
+                  f"动作: {action}",
+                  f"状态: {review_state or 'unknown'}",
+                  f"评审人: {reviewer_login or actor}",
+                  f"链接: {review_url or pr_url}",
+              ]
+              if review_body:
+                  lines.append(f"内容: {review_body}")
+          elif should_send:
+              lines = [
+                  "GitHub Copilot Review Comment 通知" if looks_like_copilot(reviewer_login) else "GitHub Review Comment 通知",
+                  f"仓库: {repository}",
+                  f"PR: {pr_title}",
+                  f"动作: {action}",
+                  f"评论人: {reviewer_login or actor}",
+                  f"文件: {comment_path or 'unknown'}",
+                  f"行号: {comment_line or 'unknown'}",
+                  f"链接: {comment_url or pr_url}",
+              ]
+              if comment_body:
+                  lines.append(f"内容: {comment_body}")
+          else:
+              lines = []
+
+          output_path = pathlib.Path(os.environ["GITHUB_OUTPUT"])
+          with output_path.open("a", encoding="utf-8") as handle:
+              handle.write(f"should_send={'true' if should_send else 'false'}\n")
+              if skip_reason:
+                  handle.write(f"skip_reason={skip_reason}\n")
+              if not should_send:
+                  raise SystemExit(0)
+
+              payload = {
+                  "msg_type": "text",
+                  "content": {
+                      "text": "\n".join(lines)
+                  }
+              }
+              handle.write("payload<<EOF\n")
+              json.dump(payload, handle, ensure_ascii=False)
+              handle.write("\nEOF\n")
+          PY
+
+      - name: Send notification to Feishu
+        if: ${{ steps.build_payload.outputs.should_send == 'true' }}
+        env:
+          FEISHU_BOT_WEBHOOK: ${{ secrets.FEISHU_BOT_WEBHOOK }}
+          FEISHU_PAYLOAD: ${{ steps.build_payload.outputs.payload }}
+        shell: bash
+        run: |
+          curl --fail --silent --show-error \
+            -X POST "${FEISHU_BOT_WEBHOOK}" \
+            -H "Content-Type: application/json" \
+            -d "${FEISHU_PAYLOAD}"
