@@ -94,6 +94,7 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     aiAssistantTopButton->setFixedHeight(36);
     aiAssistantTopButton->setMinimumWidth(84);
     aiAssistantTopButton->setObjectName("SideNavButton");
+    aiAssistantTopButton->hide();
 
     menuButton = new QPushButton(QStringLiteral(u"\u83dc\u5355"), this);
     menuButton->setFixedSize(50, 50);
