@@ -1,4 +1,5 @@
 ﻿#include "play_widget.h"
+#include <QDir>
 #include <QTime>
 #include <QGraphicsBlurEffect>
 #include <QGraphicsDropShadowEffect>
@@ -31,6 +32,22 @@ QString decodedFileNameFromPath(const QString& songPath)
 
     const QFileInfo fallbackInfo(songPath);
     return QUrl::fromPercentEncoding(fallbackInfo.fileName().toUtf8()).trimmed();
+}
+
+QString normalizeMediaPathForPlayback(const QString& rawPath)
+{
+    const QString trimmed = rawPath.trimmed();
+    if (trimmed.isEmpty()) {
+        return trimmed;
+    }
+
+    if (trimmed.startsWith("http", Qt::CaseInsensitive)) {
+        const QUrl url(trimmed);
+        const QString decoded = url.toString(QUrl::FullyDecoded);
+        return decoded.isEmpty() ? trimmed : decoded;
+    }
+
+    return QDir::fromNativeSeparators(trimmed);
 }
 
 QString displayTitleFromFileName(const QString& fileName)
@@ -1162,23 +1179,31 @@ void PlayWidget::openfile()
 
 void PlayWidget::playClick(QString songPath)
 {
-    if(songPath != this->filePath)
-    {
-        this->filePath = songPath;
+    const QString normalizedSongPath = normalizeMediaPathForPlayback(songPath);
+    const QString normalizedCurrentPath = normalizeMediaPathForPlayback(this->filePath);
 
-        fileName = decodedFileNameFromPath(songPath);
-        if(!checkAndWarnIfPathNotExists(songPath))
+    qDebug() << "[MVVM-UI] playClick compare - input:" << songPath
+             << "normalizedInput:" << normalizedSongPath
+             << "current:" << this->filePath
+             << "normalizedCurrent:" << normalizedCurrentPath;
+
+    if(normalizedSongPath != normalizedCurrentPath)
+    {
+        this->filePath = normalizedSongPath;
+
+        fileName = decodedFileNameFromPath(normalizedSongPath);
+        if(!checkAndWarnIfPathNotExists(normalizedSongPath))
             return;
         
         // ========== MVVM架构：通过ViewModel播放 ==========
-        qDebug() << "[MVVM-UI] playClick: Playing via ViewModel:" << songPath;
+        qDebug() << "[MVVM-UI] playClick: Playing via ViewModel:" << normalizedSongPath;
         
         // 使用ViewModel播放
         QUrl url;
-        if (songPath.startsWith("http", Qt::CaseInsensitive)) {
-            url = QUrl(songPath);  // 网络URL
+        if (normalizedSongPath.startsWith("http", Qt::CaseInsensitive)) {
+            url = QUrl(normalizedSongPath);  // 网络URL
         } else {
-            url = QUrl::fromLocalFile(songPath);  // 本地文件
+            url = QUrl::fromLocalFile(normalizedSongPath);  // 本地文件
         }
         
         m_playbackViewModel->play(url);
@@ -1190,7 +1215,7 @@ void PlayWidget::playClick(QString songPath)
         // 4. 发出shouldStartRotation信号触发旋转动画
         
         // 这里只需要处理UI层特有的逻辑
-        emit signalBeginToPlay(songPath);
+        emit signalBeginToPlay(normalizedSongPath);
     }
     else
     {

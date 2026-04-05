@@ -54,6 +54,7 @@ void RecommendMusicWidget::setCurrentPlayingPath(const QString& filePath)
     if (!root) {
         return;
     }
+    qDebug() << "[RecommendMusicWidget] Setting currentPlayingPath to:" << filePath;
     root->setProperty("currentPlayingPath", filePath);
 }
 
@@ -63,6 +64,8 @@ void RecommendMusicWidget::setPlayingState(const QString& filePath, bool playing
     if (!root) {
         return;
     }
+    qDebug() << "[RecommendMusicWidget] Setting playing state - path:" << filePath
+             << "playing:" << playing;
     QMetaObject::invokeMethod(root, "setPlayingState",
                               Q_ARG(QVariant, filePath),
                               Q_ARG(QVariant, playing));
