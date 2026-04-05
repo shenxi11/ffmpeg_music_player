@@ -14,10 +14,22 @@ on:
 jobs:
   notify-feishu:
     runs-on: ubuntu-latest
-    if: ${{ secrets.FEISHU_BOT_WEBHOOK != '' }}
     steps:
+      - name: Check Feishu webhook secret
+        id: check_secret
+        env:
+          FEISHU_BOT_WEBHOOK: ${{ secrets.FEISHU_BOT_WEBHOOK }}
+        shell: bash
+        run: |
+          if [ -n "${FEISHU_BOT_WEBHOOK}" ]; then
+            echo "has_webhook=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_webhook=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build review payload
         id: build_payload
+        if: ${{ steps.check_secret.outputs.has_webhook == 'true' }}
         env:
           EVENT_NAME: ${{ github.event_name }}
           REPOSITORY: ${{ github.repository }}
@@ -129,7 +141,7 @@ jobs:
           PY
 
       - name: Send notification to Feishu
-        if: ${{ steps.build_payload.outputs.should_send == 'true' }}
+        if: ${{ steps.check_secret.outputs.has_webhook == 'true' && steps.build_payload.outputs.should_send == 'true' }}
         env:
           FEISHU_BOT_WEBHOOK: ${{ secrets.FEISHU_BOT_WEBHOOK }}
           FEISHU_PAYLOAD: ${{ steps.build_payload.outputs.payload }}
