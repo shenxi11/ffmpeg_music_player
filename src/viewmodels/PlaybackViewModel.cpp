@@ -1,6 +1,7 @@
 #include "PlaybackViewModel.h"
 
 #include <QTime>
+#include <QDebug>
 
 PlaybackViewModel::PlaybackViewModel(QObject* parent)
     : BaseViewModel(parent)
@@ -179,6 +180,7 @@ void PlaybackViewModel::onAudioServicePlaybackPaused()
 {
     updatePlayingState(false);
     updatePausedState(true);
+    updateBufferingState(false);
     emit shouldStopRotation();
 }
 
@@ -186,6 +188,7 @@ void PlaybackViewModel::onAudioServicePlaybackResumed()
 {
     updatePlayingState(true);
     updatePausedState(false);
+    updateBufferingState(false);
     emit shouldStartRotation();
 }
 
@@ -212,11 +215,33 @@ void PlaybackViewModel::onAudioServiceDurationChanged(qint64 duration)
 void PlaybackViewModel::onAudioServiceBufferingStarted()
 {
     updateBufferingState(true);
+    syncPlaybackStateFromService("bufferingStarted");
 }
 
 void PlaybackViewModel::onAudioServiceBufferingFinished()
 {
     updateBufferingState(false);
+    syncPlaybackStateFromService("bufferingFinished");
+}
+
+void PlaybackViewModel::syncPlaybackStateFromService(const char* sourceTag)
+{
+    const bool servicePlaying = m_audioService->isPlaying();
+    const bool servicePaused = m_audioService->isPaused();
+
+    qDebug() << "[MVVM-UI] Sync playback state from service:"
+             << sourceTag
+             << "servicePlaying=" << servicePlaying
+             << "servicePaused=" << servicePaused;
+
+    updatePlayingState(servicePlaying);
+    updatePausedState(servicePaused);
+
+    if (servicePlaying && !servicePaused) {
+        emit shouldStartRotation();
+    } else {
+        emit shouldStopRotation();
+    }
 }
 
 void PlaybackViewModel::updatePlayingState(bool playing)

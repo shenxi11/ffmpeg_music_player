@@ -87,10 +87,6 @@ void LoginViewModel::onLoginFlag(bool success)
     m_loginInFlight = false;
     setIsBusy(false);
 
-    if (m_lastRequestIsAutoLogin) {
-        SettingsManager::instance().setAutoLoginEnabled(false);
-    }
-
     const QString message = m_lastRequestIsAutoLogin
             ? QStringLiteral("自动登录失败，请手动登录")
             : QStringLiteral("账号或密码错误");

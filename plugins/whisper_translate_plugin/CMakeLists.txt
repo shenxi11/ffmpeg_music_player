@@ -18,7 +18,6 @@ include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}/src/app
-    ${CMAKE_SOURCE_DIR}/src/audio
     ${FFMPEG_INCLUDE_DIR}
     ${WHISPER_INCLUDE_DIR}
 )
@@ -34,8 +33,8 @@ set(PLUGIN_SOURCES
     whisper_translate_plugin.h
     translate_widget.cpp
     translate_widget.h
-    ${CMAKE_SOURCE_DIR}/src/audio/take_pcm.cpp
-    ${CMAKE_SOURCE_DIR}/src/audio/take_pcm.h
+    take_pcm.cpp
+    take_pcm.h
 )
 
 set(PLUGIN_TARGET_NAME whisper_translate_plugin)

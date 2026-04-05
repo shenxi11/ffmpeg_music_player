@@ -8,9 +8,6 @@
 #include <QVariantMap>
 #include <QResizeEvent>
 #include "headers.h"
-// 旧版线程解码入口已下线，保留 include 位置用于历史兼容。
-//#include "worker.h"
-//#include "take_pcm.h"
 // 音频播放核心服务（会话、解码、渲染由该服务统一调度）。
 #include "AudioService.h"
 #include "viewmodels/PlaybackViewModel.h"  // 播放页面 ViewModel（UI 层入口）
@@ -23,6 +20,7 @@
 #include "playlist_history_qml.h"
 
 class QQuickWidget;
+class QGraphicsDropShadowEffect;
 
 class PlayWidget : public QWidget
 {
@@ -43,6 +41,9 @@ public:
     void setIsUp(bool flag);
     bool checkAndWarnIfPathNotExists(const QString &path);
     int collapsedPlaybackHeight() const;
+    QVariantMap desktopLyricSnapshot() const;
+    bool setDesktopLyricVisible(bool visible);
+    bool setDesktopLyricStyleFromMap(const QVariantMap& style);
 public slots:
 
     void beginTakeLrc(QString str);
@@ -133,10 +134,20 @@ private:
     void handleDeferredSeekAfterPlay();
     void handleCoverExpandRequested();
     void handleLyricPositionChanged();
+    int resolveTargetLyricLine(qint64 positionMs) const;
+    void refreshCurrentLyricHighlight(bool forceRecenter);
     void handleSimilarPlayRequested(const QVariantMap& item);
+    void handlePlayerPageStyleRequested(int styleId);
     void queuePlayButtonStateUpdate(bool playing, const QString& path);
     void handleDeferredPlayButtonStateUpdate();
+    void handlePlayerPageStyleChanged();
     void shutdownQuickWidget(QQuickWidget* widget);
+    void applyPlayerPageStyle();
+    void updateCoverPresentation(const QString& imagePath);
+    void refreshStageTexts();
+    QString displayArtistText() const;
+    void invalidateStageBackgroundCache();
+    void rebuildStageBackgroundCache();
 
     void updateAdaptiveLayout();
 
@@ -169,9 +180,18 @@ private:
     qint64 duration = 0;  // 当前曲目时长（微秒）
     std::mutex mtx;
     QLabel* nameLabel;
+    QLabel* artistInfoLabel = nullptr;
+    QLabel* sceneLabel = nullptr;
     QLabel* backgroundLabel;  // 背景图层（用于封面模糊或默认渐变）
     RotatingCircleImage* rotatingCircle;  // 唱片旋转控件
     QWidget* rotatingCircleHost = nullptr;
+    QWidget* squareCoverHost = nullptr;
+    QLabel* squareCoverLabel = nullptr;
+    QGraphicsDropShadowEffect* rotatingCircleShadow = nullptr;
+    QGraphicsDropShadowEffect* squareCoverShadow = nullptr;
+    QPixmap m_originalBackgroundPixmap;
+    QPixmap m_stageBackgroundCache;
+    bool m_stageBackgroundCacheDirty = true;
     
     // 歌词滚动信号连接，切歌时需断开旧连接防止重复触发。
     QMetaObject::Connection lyricUpdateConnection;
@@ -196,39 +216,20 @@ private:
     PlaylistHistoryQml* playlistHistory;  // 播放历史列表组件
 
     bool play_net = false;
+    int m_playerPageStyle = 0;
 protected:
     void resizeEvent(QResizeEvent *event) override;
 
     void paintEvent(QPaintEvent *event) override {
         QWidget::paintEvent(event);
 
-        QPainter painter(this);
-
-        if(isUp)
-        {
-            // 展开态优先使用封面背景，没有封面时退化为浅色渐变。
-            if (!backgroundLabel->pixmap() || backgroundLabel->pixmap()->isNull()) {
-                // 默认背景渐变，避免纯白闪烁。
-                QLinearGradient gradient(0, 0, width(), height());
-                gradient.setColorAt(0, QColor("#F5F5F7"));   // 设置浅色渐变背景
-                gradient.setColorAt(0.5, QColor("#FAFAFA")); // 设置浅色渐变背景
-                gradient.setColorAt(1, QColor("#F0F0F2"));   // 设置浅色渐变背景
-                painter.setBrush(gradient);
-                painter.drawRect(0, 0, width(), height());
-            } else {
-                // 使用当前背景图覆盖整个播放页。
-                painter.drawPixmap(rect(), *backgroundLabel->pixmap());
-            }
+        if (m_stageBackgroundCacheDirty || m_stageBackgroundCache.size() != size()) {
+            rebuildStageBackgroundCache();
         }
-        else
-        {
-            // 收起态统一使用浅色渐变背景。
-            QLinearGradient gradient(0, 0, width(), height());
-            gradient.setColorAt(0, QColor("#F5F5F7"));   // 设置浅色渐变背景
-            gradient.setColorAt(0.5, QColor("#FAFAFA")); // 设置浅色渐变背景
-            gradient.setColorAt(1, QColor("#F0F0F2"));   // 设置浅色渐变背景
-            painter.setBrush(gradient);
-            painter.drawRect(rect());
+
+        QPainter painter(this);
+        if (!m_stageBackgroundCache.isNull()) {
+            painter.drawPixmap(rect(), m_stageBackgroundCache);
         }
     }
 };

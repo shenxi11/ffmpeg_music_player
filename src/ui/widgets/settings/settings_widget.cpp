@@ -94,6 +94,13 @@ void SettingsWidget::onRefreshPresenceRequested()
     m_viewModel->refreshPresence();
 }
 
+void SettingsWidget::onPlayerPageStyleChanged()
+{
+    if (QQuickItem* root = rootObject()) {
+        m_viewModel->setPlayerPageStyle(root->property("playerPageStyle").toInt());
+    }
+}
+
 void SettingsWidget::syncViewModelToRoot()
 {
     QQuickItem* root = rootObject();
@@ -106,6 +113,7 @@ void SettingsWidget::syncViewModelToRoot()
     QMetaObject::invokeMethod(root, "setDownloadCover", Q_ARG(QVariant, m_viewModel->downloadCover()));
     QMetaObject::invokeMethod(root, "setAudioCachePath", Q_ARG(QVariant, m_viewModel->audioCachePath()));
     QMetaObject::invokeMethod(root, "setLogPath", Q_ARG(QVariant, m_viewModel->logPath()));
+    QMetaObject::invokeMethod(root, "setPlayerPageStyle", Q_ARG(QVariant, m_viewModel->playerPageStyle()));
 }
 
 void SettingsWidget::syncPresenceToRoot()

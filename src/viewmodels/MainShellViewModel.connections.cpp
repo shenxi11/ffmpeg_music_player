@@ -19,8 +19,12 @@ void MainShellViewModel::setupConnections()
             this, &MainShellViewModel::recommendationListReady);
     connect(&m_request, &HttpRequestV2::signalSimilarRecommendationList,
             this, &MainShellViewModel::similarRecommendationListReady);
+    connect(&m_request, &HttpRequestV2::signalRecommendationFeedbackResult,
+            this, &MainShellViewModel::recommendationFeedbackResultReady);
     connect(&m_request, &HttpRequestV2::signalHistoryList,
             this, &MainShellViewModel::historyListReady);
+    connect(&m_request, &HttpRequestV2::signalAddHistoryResult,
+            this, &MainShellViewModel::addHistoryResultReady);
     connect(&m_request, &HttpRequestV2::signalFavoritesList,
             this, &MainShellViewModel::favoritesListReady);
     connect(&m_request, &HttpRequestV2::signalAddFavoriteResult,
@@ -29,6 +33,22 @@ void MainShellViewModel::setupConnections()
             this, &MainShellViewModel::removeFavoriteResultReady);
     connect(&m_request, &HttpRequestV2::signalRemoveHistoryResult,
             this, &MainShellViewModel::removeHistoryResultReady);
+    connect(&m_request, &HttpRequestV2::signalPlaylistsList,
+            this, &MainShellViewModel::playlistsListReady);
+    connect(&m_request, &HttpRequestV2::signalPlaylistDetail,
+            this, &MainShellViewModel::playlistDetailReady);
+    connect(&m_request, &HttpRequestV2::signalCreatePlaylistResult,
+            this, &MainShellViewModel::createPlaylistResultReady);
+    connect(&m_request, &HttpRequestV2::signalDeletePlaylistResult,
+            this, &MainShellViewModel::deletePlaylistResultReady);
+    connect(&m_request, &HttpRequestV2::signalUpdatePlaylistResult,
+            this, &MainShellViewModel::updatePlaylistResultReady);
+    connect(&m_request, &HttpRequestV2::signalAddPlaylistItemsResult,
+            this, &MainShellViewModel::addPlaylistItemsResultReady);
+    connect(&m_request, &HttpRequestV2::signalRemovePlaylistItemsResult,
+            this, &MainShellViewModel::removePlaylistItemsResultReady);
+    connect(&m_request, &HttpRequestV2::signalReorderPlaylistItemsResult,
+            this, &MainShellViewModel::reorderPlaylistItemsResultReady);
 
     connect(&OnlinePresenceManager::instance(),
             &OnlinePresenceManager::sessionExpired,

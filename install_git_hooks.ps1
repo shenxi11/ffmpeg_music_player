@@ -10,5 +10,6 @@ git config core.hooksPath .githooks
 
 Write-Host "Git hooks installed."
 Write-Host "core.hooksPath -> .githooks"
+Write-Host "commit-msg hook -> .githooks/commit-msg"
 Write-Host "pre-commit hook -> .githooks/pre-commit"
 Write-Host "pre-push hook -> .githooks/pre-push"

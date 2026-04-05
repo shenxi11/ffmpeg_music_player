@@ -2,6 +2,7 @@ import QtQuick 2.14
 import QtQuick.Controls 2.14
 import QtQuick.Layouts 1.14
 import "../../theme/Theme.js" as Theme
+import "../../theme/PlayerStyle.js" as PlayerStyle
 
 Rectangle {
     id: root
@@ -27,6 +28,7 @@ Rectangle {
     property string logPath: ""
     property bool downloadLyrics: true
     property bool downloadCover: false
+    property int playerPageStyle: 0
     property string presenceAccount: ""
     property string presenceSessionToken: ""
     property bool presenceOnline: false
@@ -35,6 +37,13 @@ Rectangle {
     property int presenceTtlRemainingSec: 0
     property string presenceStatusMessage: ""
     property string presenceLastSeen: ""
+    property var playerStyleOptions: [
+        { "id": 0, "title": "\u7ecf\u5178\u9ed1\u80f6", "subtitle": "\u4eae\u8272\u5361\u7247 + \u9ed1\u80f6\u5531\u7247 + \u53f3\u4fa7\u6b4c\u8bcd" },
+        { "id": 1, "title": "\u7b80\u7ea6\u65b9\u5f62", "subtitle": "\u51b7\u8272\u6e10\u53d8 + \u65b9\u5f62\u5c01\u9762 + \u6d6e\u5c42\u6b4c\u8bcd" },
+        { "id": 2, "title": "\u900f\u660e\u5f69\u80f6", "subtitle": "\u51b0\u900f\u80cc\u677f + \u84dd\u8272\u5f69\u80f6 + \u8f7b\u76c8\u8d28\u611f" },
+        { "id": 3, "title": "\u7b80\u7ea6\u6b4c\u8bcd", "subtitle": "\u6df1\u8272\u821e\u53f0 + \u7eaf\u6b4c\u8bcd\u7126\u70b9 + \u6700\u5c11\u5e72\u6270" },
+        { "id": 4, "title": "\u6b4c\u624b\u5199\u771f", "subtitle": "\u5168\u5c4f\u6d78\u6ca1 + \u5c01\u9762\u80cc\u666f + \u60c5\u7eea\u6c1b\u56f4" }
+    ]
 
     Rectangle {
         id: titleBar
@@ -224,6 +233,187 @@ Rectangle {
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: root.chooseAudioCachePath()
+                            }
+                        }
+                    }
+                }
+            }
+
+            Rectangle {
+                width: parent.width
+                radius: 12
+                color: Theme.bgCard
+                border.width: 1
+                border.color: Theme.glassBorder
+                height: styleSectionContent.height + root.sectionPadding * 2
+
+                Column {
+                    id: styleSectionContent
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.margins: root.sectionPadding
+                    spacing: 10
+
+                    Text {
+                        text: "\u64ad\u653e\u9875\u6837\u5f0f"
+                        color: Theme.textPrimary
+                        font.pixelSize: 14
+                        font.weight: Font.DemiBold
+                    }
+
+                    Text {
+                        text: "\u53c2\u8003 QQ \u97f3\u4e50\u7684\u64ad\u653e\u9875\u601d\u8def\uff0c\u4e3a\u5f53\u524d\u9879\u76ee\u63d0\u4f9b 5 \u5957\u53ef\u5207\u6362\u7684\u64ad\u653e\u89c6\u89c9\u98ce\u683c\u3002"
+                        width: parent.width
+                        wrapMode: Text.WordWrap
+                        color: Theme.textSecondary
+                        font.pixelSize: 12
+                    }
+
+                    GridLayout {
+                        width: parent.width
+                        columns: width >= 1000 ? 3 : 2
+                        rowSpacing: 12
+                        columnSpacing: 12
+
+                        Repeater {
+                            model: root.playerStyleOptions
+
+                            delegate: Rectangle {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 176
+                                radius: 14
+                                clip: true
+                                property var styleSpec: PlayerStyle.styleFor(modelData.id)
+                                property bool selected: root.playerPageStyle === modelData.id
+                                color: selected ? "#FFF7F7" : "#FFFFFF"
+                                border.width: selected ? 2 : 1
+                                border.color: selected ? Theme.accent : "#E6EAF1"
+
+                                Rectangle {
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.top: parent.top
+                                    height: 102
+                                    radius: parent.radius
+                                    color: styleSpec.previewPrimary
+
+                                    gradient: Gradient {
+                                        GradientStop { position: 0.0; color: styleSpec.previewPrimary }
+                                        GradientStop { position: 1.0; color: styleSpec.previewSecondary }
+                                    }
+
+                                    Rectangle {
+                                        anchors.left: parent.left
+                                        anchors.leftMargin: 16
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: modelData.id === 3 ? 0 : 60
+                                        height: modelData.id === 3 ? 0 : 60
+                                        radius: modelData.id === 1 ? 10 : 30
+                                        visible: modelData.id !== 3
+                                        color: styleSpec.previewDiscColor
+                                        border.width: modelData.id === 2 ? 1 : 0
+                                        border.color: "#66FFFFFF"
+                                        opacity: modelData.id === 2 ? 0.85 : 1.0
+
+                                        Rectangle {
+                                            anchors.centerIn: parent
+                                            width: parent.width * 0.32
+                                            height: width
+                                            radius: width / 2
+                                            color: modelData.id === 1 ? "#FFFFFF" : "#121212"
+                                            opacity: 0.72
+                                        }
+                                    }
+
+                                    Column {
+                                        anchors.left: modelData.id === 3 ? parent.left : undefined
+                                        anchors.right: parent.right
+                                        anchors.leftMargin: modelData.id === 3 ? 18 : 96
+                                        anchors.rightMargin: 16
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        spacing: 6
+
+                                        Rectangle {
+                                            width: Math.min(parent.width, modelData.id === 3 ? 150 : 110)
+                                            height: 8
+                                            radius: 4
+                                            color: "#EFFFFFFF"
+                                        }
+
+                                        Rectangle {
+                                            width: Math.min(parent.width, modelData.id === 3 ? 200 : 132)
+                                            height: 8
+                                            radius: 4
+                                            color: "#C8FFFFFF"
+                                        }
+
+                                        Rectangle {
+                                            width: Math.min(parent.width, modelData.id === 3 ? 170 : 96)
+                                            height: 8
+                                            radius: 4
+                                            color: "#96FFFFFF"
+                                        }
+                                    }
+
+                                    Rectangle {
+                                        anchors.right: parent.right
+                                        anchors.bottom: parent.bottom
+                                        anchors.rightMargin: 12
+                                        anchors.bottomMargin: 10
+                                        width: 24
+                                        height: 24
+                                        radius: 12
+                                        color: selected ? Theme.accent : "#99FFFFFF"
+
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: selected ? "\u2713" : "\u270E"
+                                            color: "#FFFFFF"
+                                            font.pixelSize: 12
+                                            font.weight: Font.Bold
+                                        }
+                                    }
+                                }
+
+                                Column {
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.top: parent.top
+                                    anchors.topMargin: 112
+                                    anchors.leftMargin: 14
+                                    anchors.rightMargin: 14
+                                    spacing: 4
+
+                                    Text {
+                                        text: modelData.title
+                                        color: Theme.textPrimary
+                                        font.pixelSize: 13
+                                        font.weight: Font.DemiBold
+                                    }
+
+                                    Text {
+                                        text: modelData.subtitle
+                                        width: parent.width
+                                        wrapMode: Text.WordWrap
+                                        maximumLineCount: 2
+                                        elide: Text.ElideRight
+                                        color: Theme.textSecondary
+                                        font.pixelSize: 11
+                                    }
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        if (root.playerPageStyle === modelData.id) {
+                                            return
+                                        }
+                                        root.playerPageStyle = modelData.id
+                                    }
+                                }
                             }
                         }
                     }
@@ -600,6 +790,10 @@ Rectangle {
 
     function setLogPath(path) {
         root.logPath = path
+    }
+
+    function setPlayerPageStyle(styleId) {
+        root.playerPageStyle = styleId
     }
 
     function setPresenceSnapshot(account, token, online, heartbeatIntervalSec, onlineTtlSec, ttlRemainingSec, statusMessage, lastSeenText) {

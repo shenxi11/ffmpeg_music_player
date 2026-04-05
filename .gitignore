@@ -42,9 +42,23 @@ ui_*.h
 *~
 *.swp
 *.log
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite
+*.sqlite3
+*.egg-info/
+tmp/
 
 # 插件输出（开发时保留源码，忽略编译产物）
 plugin/*.dll
 plugin/*.so
 plugin/*.dylib
 !plugin/README.md
+
+# Agent / RAG 本地敏感与生成文件
+agent/.env
+agent/API密钥
+rag/data/

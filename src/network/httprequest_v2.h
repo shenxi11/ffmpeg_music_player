@@ -2,6 +2,8 @@
 #define HTTPREQUEST_V2_H
 
 #include <QObject>
+#include <QVariantList>
+#include <QVariantMap>
 #include "network/network_service.h"
 #include "music.h"
 
@@ -129,6 +131,53 @@ public:
      * @param paths 音乐路径列表
      */
     void removePlayHistory(const QString& userAccount, const QStringList& paths);
+
+    /**
+     * @brief 获取私有歌单列表
+     */
+    void getPlaylists(const QString& userAccount, int page = 1, int pageSize = 20, bool useCache = true);
+
+    /**
+     * @brief 创建私有歌单
+     */
+    void createPlaylist(const QString& userAccount,
+                        const QString& name,
+                        const QString& description = QString(),
+                        const QString& coverPath = QString());
+
+    /**
+     * @brief 获取歌单详情
+     */
+    void getPlaylistDetail(const QString& userAccount, qint64 playlistId, bool useCache = false);
+
+    /**
+     * @brief 删除歌单
+     */
+    void deletePlaylist(const QString& userAccount, qint64 playlistId);
+
+    /**
+     * @brief 更新歌单信息
+     */
+    void updatePlaylist(const QString& userAccount,
+                        qint64 playlistId,
+                        const QString& name,
+                        const QString& description = QString(),
+                        const QString& coverPath = QString());
+
+    /**
+     * @brief 批量添加歌曲到歌单
+     */
+    void addPlaylistItems(const QString& userAccount, qint64 playlistId, const QVariantList& items);
+
+    /**
+     * @brief 批量移除歌单歌曲
+     */
+    void removePlaylistItems(const QString& userAccount, qint64 playlistId, const QStringList& musicPaths);
+
+    /**
+     * @brief 歌单排序
+     */
+    void reorderPlaylistItems(const QString& userAccount, qint64 playlistId, const QVariantList& orderedItems);
     
     /**
      * @brief 获取视频列表
@@ -189,6 +238,14 @@ signals:
     void signalAddHistoryResult(bool success);
     void signalHistoryList(const QVariantList& history);
     void signalRemoveHistoryResult(bool success);
+    void signalPlaylistsList(const QVariantList& playlists, int page, int pageSize, int total);
+    void signalPlaylistDetail(const QVariantMap& detail);
+    void signalCreatePlaylistResult(bool success, qint64 playlistId, const QString& message);
+    void signalDeletePlaylistResult(bool success, qint64 playlistId, const QString& message);
+    void signalUpdatePlaylistResult(bool success, qint64 playlistId, const QString& message);
+    void signalAddPlaylistItemsResult(bool success, qint64 playlistId, int addedCount, int skippedCount, const QString& message);
+    void signalRemovePlaylistItemsResult(bool success, qint64 playlistId, int deletedCount, const QString& message);
+    void signalReorderPlaylistItemsResult(bool success, qint64 playlistId, const QString& message);
     void signalRecommendationList(const QVariantMap& meta, const QVariantList& items);
     void signalSimilarRecommendationList(const QVariantMap& meta,
                                           const QVariantList& items,

@@ -66,12 +66,8 @@ void PlayWidget::handleVmCurrentTitleChanged()
     const QString title = m_playbackViewModel->currentTitle();
     if (!title.isEmpty()) {
         qDebug() << "[MVVM-UI] Title changed:" << title;
-        process_slider->setSongName(title);
-        nameLabel->setText(title);
-        if (desk) {
-            desk->setSongName(title);
-        }
         currentSongTitle = title;
+        refreshStageTexts();
     }
 }
 
@@ -81,6 +77,7 @@ void PlayWidget::handleVmCurrentArtistChanged()
     if (!artist.isEmpty()) {
         qDebug() << "[MVVM-UI] Artist changed:" << artist;
         currentSongArtist = artist;
+        refreshStageTexts();
     }
 }
 
@@ -94,9 +91,8 @@ void PlayWidget::handleVmCurrentAlbumArtChanged()
         return;
     }
 
-    process_slider->setPicPath(imagePath);
     onUpdateBackground(imagePath);
-    rotatingCircle->setImage(imagePath);
+    updateCoverPresentation(imagePath);
 
     QString currentPath = m_playbackViewModel->currentFilePath();
     if (currentPath.isEmpty() && !filePath.isEmpty()) {

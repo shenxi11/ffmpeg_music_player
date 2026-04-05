@@ -311,7 +311,10 @@ void VideoPlayerWindow::loadVideo(const QString& filePath)
     m_mediaSession = new MediaSession(this);
     connectMediaSessionSignals();
     
-    QUrl url = QUrl::fromLocalFile(filePath);
+    QUrl url(filePath);
+    if (!url.isValid() || url.scheme().isEmpty()) {
+        url = QUrl::fromLocalFile(filePath);
+    }
     if (!m_mediaSession->loadSource(url)) {
         qWarning() << "[VideoPlayerWindow] Failed to load video";
         return;
@@ -387,6 +390,134 @@ void VideoPlayerWindow::pausePlayback()
     m_mediaSession->pause();
     
     emit playStateChanged(m_isPlaying);
+}
+
+bool VideoPlayerWindow::resumePlayback()
+{
+    if (!m_mediaSession) {
+        return false;
+    }
+    if (m_isPlaying) {
+        return true;
+    }
+    onPlayPauseClicked();
+    return m_isPlaying;
+}
+
+bool VideoPlayerWindow::seekToPosition(qint64 positionMs)
+{
+    if (!m_mediaSession || m_duration <= 0) {
+        return false;
+    }
+
+    const qint64 target = qBound<qint64>(0, positionMs, m_duration);
+    m_currentPosition = target;
+
+    if (m_progressSlider) {
+        const int sliderValue = static_cast<int>((target * 1000) / m_duration);
+        m_progressSlider->setValue(sliderValue);
+    }
+    updateTimeLabel(target, m_duration);
+
+    const bool wasStopped = (m_mediaSession->state() == MediaSession::Stopped);
+    const bool wasPaused = (m_mediaSession->state() == MediaSession::Paused);
+    emit playStateChanged(true);
+
+    if (wasStopped) {
+        m_mediaSession->play();
+        m_pendingStoppedSeekPosition = target;
+        QTimer::singleShot(0, this, &VideoPlayerWindow::onDeferredSeekAfterStopped);
+    } else {
+        m_mediaSession->seekTo(target);
+        if (wasPaused || m_mediaSession->state() != MediaSession::Playing) {
+            m_mediaSession->play();
+        }
+    }
+
+    m_isPlaying = true;
+    if (m_playPauseBtn) {
+        m_playPauseBtn->setText(QStringLiteral(u"\u6682\u505c"));
+    }
+    emit progressChanged(target);
+    return true;
+}
+
+bool VideoPlayerWindow::setFullScreenEnabled(bool enabled)
+{
+    if (enabled == isFullScreen()) {
+        return true;
+    }
+    onFullScreenClicked();
+    return enabled == isFullScreen();
+}
+
+bool VideoPlayerWindow::setPlaybackRateValue(double rate)
+{
+    if (!m_playbackRateBox) {
+        return false;
+    }
+
+    for (int index = 0; index < m_playbackRateBox->count(); ++index) {
+        bool ok = false;
+        const double candidate = m_playbackRateBox->itemData(index).toDouble(&ok);
+        if (ok && qAbs(candidate - rate) < 0.0001) {
+            m_playbackRateBox->setCurrentIndex(index);
+            onPlaybackRateChanged(index);
+            return true;
+        }
+    }
+    return false;
+}
+
+bool VideoPlayerWindow::setQualityPresetValue(const QString& preset)
+{
+    if (!m_qualityPresetBox) {
+        return false;
+    }
+
+    const QString normalized = preset.trimmed().toLower();
+    for (int index = 0; index < m_qualityPresetBox->count(); ++index) {
+        const QString text = m_qualityPresetBox->itemText(index).trimmed().toLower();
+        bool ok = false;
+        const int value = m_qualityPresetBox->itemData(index).toInt(&ok);
+        if (text == normalized ||
+            (ok && QString::number(value) == normalized) ||
+            (normalized == QStringLiteral("1080p") && ok && value == static_cast<int>(VideoRendererGL::Standard1080P)) ||
+            (normalized == QStringLiteral("2k") && ok && value == static_cast<int>(VideoRendererGL::Enhanced2K))) {
+            m_qualityPresetBox->setCurrentIndex(index);
+            onQualityPresetChanged(index);
+            return true;
+        }
+    }
+    return false;
+}
+
+QVariantMap VideoPlayerWindow::snapshot() const
+{
+    QString qualityText;
+    int qualityValue = -1;
+    if (m_qualityPresetBox && m_qualityPresetBox->currentIndex() >= 0) {
+        qualityText = m_qualityPresetBox->currentText();
+        qualityValue = m_qualityPresetBox->currentData().toInt();
+    }
+
+    double rate = 1.0;
+    if (m_playbackRateBox && m_playbackRateBox->currentIndex() >= 0) {
+        rate = m_playbackRateBox->currentData().toDouble();
+    }
+
+    return {
+        {QStringLiteral("visible"), isVisible()},
+        {QStringLiteral("fullScreen"), isFullScreen()},
+        {QStringLiteral("playing"), m_isPlaying},
+        {QStringLiteral("filePath"), m_currentFilePath},
+        {QStringLiteral("durationMs"), m_duration},
+        {QStringLiteral("positionMs"), m_currentPosition},
+        {QStringLiteral("playbackRate"), rate},
+        {QStringLiteral("qualityPreset"), qualityText},
+        {QStringLiteral("qualityValue"), qualityValue},
+        {QStringLiteral("displayMode"), m_fillDisplayMode ? QStringLiteral("fill") : QStringLiteral("fit")}
+    };
 }
 
 void VideoPlayerWindow::onOpenFileClicked()

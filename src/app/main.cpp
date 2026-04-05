@@ -39,6 +39,8 @@ QString resolvePrintLogPath()
 
 int main(int argc, char *argv[])
 {
+    QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
+
     // Windows 下先设置 DLL 搜索目录，避免运行期找不到依赖库
 #ifdef Q_OS_WIN
     // 获取当前可执行文件所在目录

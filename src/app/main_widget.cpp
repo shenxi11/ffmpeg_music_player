@@ -4,11 +4,14 @@
 #include "VideoPlayerWindow.h"
 #include "playback_state_manager.h"
 #include "plugin_host_window.h"
+#include "AgentChatViewModel.h"
+#include "AgentChatWindow.h"
 #include <QApplication>
 #include <QCoreApplication>
 #include <QFileInfo>
 #include <QHBoxLayout>
 #include <QIcon>
+#include <QMessageBox>
 #include <QTimer>
 
 MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
@@ -18,6 +21,7 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
   ,videoListWidget(nullptr)
   ,settingsWidget(nullptr)
   ,recommendMusicWidget(nullptr)
+  ,playlistWidget(nullptr)
 {
     resize(1180, 760);
     setMinimumSize(1000, 640);
@@ -81,6 +85,11 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     userWidgetQml = new UserWidgetQml(this);
     userWidgetQml->setFixedSize(150, 40);
     
+    aiAssistantTopButton = new QPushButton(QStringLiteral(u"AI助手"), this);
+    aiAssistantTopButton->setFixedHeight(36);
+    aiAssistantTopButton->setMinimumWidth(84);
+    aiAssistantTopButton->setObjectName("SideNavButton");
+
     menuButton = new QPushButton(QStringLiteral(u"\u83dc\u5355"), this);
     menuButton->setFixedSize(50, 50);
     menuButton->setObjectName("MainMenuButton");
@@ -90,6 +99,7 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     QHBoxLayout* widget_op_layout = new QHBoxLayout(topWidget);
 
     widget_op_layout->addWidget(searchBox);
+    widget_op_layout->addWidget(aiAssistantTopButton);
     widget_op_layout->addStretch();
     widget_op_layout->addWidget(userWidgetQml);
     widget_op_layout->addWidget(menuButton);
@@ -140,6 +150,10 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     recommendMusicWidget->hide();
     recommendMusicWidget->setObjectName("recommendMusic");
 
+    playlistWidget = new PlaylistWidget(this);
+    playlistWidget->hide();
+    playlistWidget->setObjectName("playlist");
+
     videoListWidget = nullptr;
 
 
@@ -171,18 +185,24 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     favoriteButton->setObjectName("FavoriteMusicBtn");
     favoriteButton->setVisible(false);
     favoriteButton->setProperty("sideNav", true);
+
+    playlistButton = new QPushButton(QStringLiteral(u"\u6211\u7684\u6b4c\u5355"), leftWidget);
+    playlistButton->setCheckable(true);
+    playlistButton->setObjectName("SideNavButton");
+    playlistButton->setProperty("sideNav", true);
     
     videoButton = new QPushButton(QStringLiteral(u"\u89c6\u9891\u64ad\u653e"), leftWidget);
     videoButton->setCheckable(true);
     videoButton->setObjectName("VideoPlayerBtn");
     videoButton->setProperty("sideNav", true);
-    
+
     QButtonGroup* leftButtons = new QButtonGroup(this);
     leftButtons->addButton(recommendButton);
     leftButtons->addButton(localButton);
     leftButtons->addButton(netButton);
     leftButtons->addButton(historyButton);
     leftButtons->addButton(favoriteButton);
+    leftButtons->addButton(playlistButton);
     leftButtons->addButton(videoButton);
     leftButtons->setExclusive(true);
 
@@ -213,7 +233,9 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     connect(netButton, &QPushButton::toggled, this, &MainWidget::handleNetTabToggled);
     connect(historyButton, &QPushButton::toggled, this, &MainWidget::handleHistoryTabToggled);
     connect(favoriteButton, &QPushButton::toggled, this, &MainWidget::handleFavoriteTabToggled);
+    connect(playlistButton, &QPushButton::toggled, this, &MainWidget::handlePlaylistTabToggled);
     connect(videoButton, &QPushButton::toggled, this, &MainWidget::handleVideoTabToggled);
+    connect(aiAssistantTopButton, &QPushButton::clicked, this, &MainWidget::handleAiAssistantClicked);
 
     localButton->setChecked(true);
 
@@ -281,6 +303,93 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     updateAdaptiveLayout();
 }
 
+QVariantMap MainWidget::agentVideoWindowState() const
+{
+    if (!videoPlayerWindow) {
+        return {{QStringLiteral("available"), false}};
+    }
+
+    QVariantMap snapshot = videoPlayerWindow->snapshot();
+    snapshot.insert(QStringLiteral("available"), true);
+    return snapshot;
+}
+
+bool MainWidget::agentPlayVideo(const QString& source)
+{
+    if (!videoPlayerWindow) {
+        return false;
+    }
+
+    const QString trimmed = source.trimmed();
+    if (trimmed.isEmpty()) {
+        return false;
+    }
+
+    videoPlayerWindow->loadVideo(trimmed);
+    videoPlayerWindow->show();
+    videoPlayerWindow->raise();
+    videoPlayerWindow->activateWindow();
+    return true;
+}
+
+bool MainWidget::agentPauseVideo()
+{
+    if (!videoPlayerWindow) {
+        return false;
+    }
+    videoPlayerWindow->pausePlayback();
+    return true;
+}
+
+bool MainWidget::agentResumeVideo()
+{
+    return videoPlayerWindow ? videoPlayerWindow->resumePlayback() : false;
+}
+
+bool MainWidget::agentSeekVideo(qint64 positionMs)
+{
+    return videoPlayerWindow ? videoPlayerWindow->seekToPosition(positionMs) : false;
+}
+
+bool MainWidget::agentSetVideoFullScreen(bool enabled)
+{
+    return videoPlayerWindow ? videoPlayerWindow->setFullScreenEnabled(enabled) : false;
+}
+
+bool MainWidget::agentSetVideoPlaybackRate(double rate)
+{
+    return videoPlayerWindow ? videoPlayerWindow->setPlaybackRateValue(rate) : false;
+}
+
+bool MainWidget::agentSetVideoQualityPreset(const QString& preset)
+{
+    return videoPlayerWindow ? videoPlayerWindow->setQualityPresetValue(preset) : false;
+}
+
+bool MainWidget::agentCloseVideoWindow()
+{
+    if (!videoPlayerWindow) {
+        return false;
+    }
+    videoPlayerWindow->close();
+    return true;
+}
+
+QVariantMap MainWidget::agentDesktopLyricsState() const
+{
+    return w ? w->desktopLyricSnapshot() : QVariantMap{{QStringLiteral("available"), false}};
+}
+
+bool MainWidget::agentSetDesktopLyricsVisible(bool visible)
+{
+    return w ? w->setDesktopLyricVisible(visible) : false;
+}
+
+bool MainWidget::agentSetDesktopLyricsStyle(const QVariantMap& style)
+{
+    return w ? w->setDesktopLyricStyleFromMap(style) : false;
+}
+
 void MainWidget::handlePlaybackPauseAudioRequested()
 {
     if (m_viewModel) {
@@ -337,6 +446,9 @@ void MainWidget::showContentPanel(QWidget* activeWidget)
     }
     if (favoriteMusicWidget) {
         favoriteMusicWidget->setVisible(activeWidget == favoriteMusicWidget);
+    }
+    if (playlistWidget) {
+        playlistWidget->setVisible(activeWidget == playlistWidget);
     }
     if (videoListWidget) {
         const bool showVideo = (activeWidget == videoListWidget);
@@ -409,6 +521,22 @@ void MainWidget::handleFavoriteTabToggled(bool checked)
     }
 }
 
+void MainWidget::handlePlaylistTabToggled(bool checked)
+{
+    if (!checked) {
+        return;
+    }
+
+    showContentPanel(playlistWidget);
+
+    if (!isUserLoggedIn() || !m_viewModel) {
+        return;
+    }
+
+    const QString userAccount = m_viewModel->currentUserAccount();
+    m_viewModel->requestPlaylists(userAccount, 1, 20, true);
+}
+
 void MainWidget::handleVideoTabToggled(bool checked)
 {
     if (!checked) {
@@ -416,6 +544,32 @@ void MainWidget::handleVideoTabToggled(bool checked)
     }
     qDebug() << "[MainWidget] Showing online video list";
     showContentPanel(videoListWidget);
+}
+
+void MainWidget::handleAiAssistantClicked()
+{
+    qDebug() << "[MainWidget] AI assistant button clicked";
+    ensureAgentChatWindow();
+    if (!m_agentChatWindow || !m_agentChatViewModel) {
+        QMessageBox::warning(this,
+                             QStringLiteral("AI 助手"),
+                             QStringLiteral("聊天窗口创建失败，请检查日志。"));
+        return;
+    }
+
+    m_agentChatViewModel->initialize();
+    m_agentChatWindow->showNormal();
+    const QRect hostRect = geometry();
+    const QSize chatSize = m_agentChatWindow->size();
+    const QPoint centerPos = mapToGlobal(QPoint(hostRect.width() / 2 - chatSize.width() / 2,
+                                                 hostRect.height() / 2 - chatSize.height() / 2));
+    m_agentChatWindow->move(centerPos);
+    m_agentChatWindow->show();
+    m_agentChatWindow->raise();
+    m_agentChatWindow->activateWindow();
+    qDebug() << "[MainWidget] AI assistant window visible =" << m_agentChatWindow->isVisible()
+             << "pos =" << m_agentChatWindow->pos()
+             << "size =" << m_agentChatWindow->size();
 }
 
 void MainWidget::handlePlayStateChanged(ProcessSliderQml::State state)
@@ -822,8 +976,21 @@ void MainWidget::updateSideNavLayout()
     if (favoriteButton && favoriteButton->isVisible()) {
         row = placeSideNavButton(row, favoriteButton, navStartY, itemHeight, panelWidth);
     }
+    row = placeSideNavButton(row, playlistButton, navStartY, itemHeight, panelWidth);
     row = placeSideNavButton(row, videoButton, navStartY, itemHeight, panelWidth);
     Q_UNUSED(row);
+}
+
+void MainWidget::ensureAgentChatWindow()
+{
+    if (!m_agentChatViewModel) {
+        m_agentChatViewModel = new AgentChatViewModel(this);
+        m_agentChatViewModel->setMainShellViewModel(m_viewModel);
+    }
+
+    if (!m_agentChatWindow) {
+        m_agentChatWindow = new AgentChatWindow(m_agentChatViewModel, nullptr);
+    }
 }
 
 void MainWidget::updateAdaptiveLayout()
@@ -878,6 +1045,9 @@ void MainWidget::updateAdaptiveLayout()
     }
     if (favoriteMusicWidget) {
         favoriteMusicWidget->setGeometry(contentRect);
+    }
+    if (playlistWidget) {
+        playlistWidget->setGeometry(contentRect);
     }
     if (recommendMusicWidget) {
         recommendMusicWidget->setGeometry(contentRect);
@@ -936,7 +1106,7 @@ void MainWidget::closeEvent(QCloseEvent *event)
 {
     qDebug() << "[MainWidget] closeEvent: start shutdown";
     if (m_viewModel) {
-        m_viewModel->logoutCurrentUser(true, 1200);
+        m_viewModel->shutdownUserSessionOnAppExit(true, 1200);
     }
 
     if (mainMenu) {
@@ -944,6 +1114,12 @@ void MainWidget::closeEvent(QCloseEvent *event)
     }
     if (settingsWidget) {
         settingsWidget->close();
+    }
+    if (m_agentChatWindow) {
+        m_agentChatWindow->close();
+    }
+    if (m_agentChatViewModel) {
+        m_agentChatViewModel->shutdownForAppExit();
     }
     if (loginWidget) {
         loginWidget->close();
@@ -973,6 +1149,10 @@ void MainWidget::closeEvent(QCloseEvent *event)
 MainWidget::~MainWidget()
 {
     qDebug() << "MainWidget::~MainWidget() - Starting cleanup...";
+
+    if (m_agentChatViewModel) {
+        m_agentChatViewModel->shutdownForAppExit();
+    }
 
     if (videoListWidget) {
         videoListWidget->pauseVideoPlayback();

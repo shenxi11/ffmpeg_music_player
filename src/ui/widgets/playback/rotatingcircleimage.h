@@ -5,31 +5,24 @@
 #include <QPainter>
 #include <QPixmap>
 #include <QTimer>
-#include <QThreadPool>
-#include <QRunnable>
-#include <QMutex>
-#include <QMutexLocker>
 #include <cmath>
 #include <QDebug>
 #include <QPainterPath>
-class LambdaRunnable : public QRunnable {
-public:
-    explicit LambdaRunnable(std::function<void()> lambda) : lambdaFunc(std::move(lambda)) {}
-
-    void run() override {
-        lambdaFunc();
-    }
-
-private:
-    std::function<void()> lambdaFunc;
-};
 
 class RotatingCircleImage : public QWidget {
     Q_OBJECT
 
 public:
+    enum class DiscVisualStyle {
+        DarkVinyl,
+        SilverVinyl,
+        GoldVinyl
+    };
+
     explicit RotatingCircleImage(QWidget *parent = nullptr);
     void setImage(const QString &imagePath);  // 设置新的图片
+    void setDiscVisualStyle(DiscVisualStyle style);
+    void setCoverScale(qreal scale);
 public slots:
     void onStopRotate(bool flag);
 
@@ -40,15 +33,17 @@ private slots:
     void scheduleRotateTask();
 
 private:
-    QPixmap rotateImageAsync(const QPixmap &source, int rotationAngle);
+    QPixmap preparedCoverForDiameter(int diameter);
+    void invalidateCoverCache();
 
 private:
     QPixmap image;         // 原始图像
-    QPixmap rotatedImage;  // 绘制后的图像
     qreal angle;           // 当前角度
     QTimer *timer;         // 定时器
-    QMutex mutex;          // 用于保护 rotatedImage 的互斥锁
-    bool isRendering = false; // 渲染任务是否在进行中
+    DiscVisualStyle m_discVisualStyle = DiscVisualStyle::DarkVinyl;
+    qreal m_coverScale = 0.70;
+    QPixmap m_preparedCover;
+    int m_preparedCoverDiameter = -1;
 };
 
 #endif // ROTATINGCIRCLEIMAGE_H

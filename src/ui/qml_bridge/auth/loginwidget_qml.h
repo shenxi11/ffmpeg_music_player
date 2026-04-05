@@ -95,12 +95,12 @@ public:
         }
     }
 
-    void requestLogin(const QString& account, const QString& password, bool autoLogin = false)
+    Q_INVOKABLE void requestLogin(const QString& account, const QString& password, bool autoLogin = false)
     {
         performLogin(account, password, autoLogin);
     }
 
-    void setSavedAccount(const QString& account, const QString& password, const QString& username)
+    Q_INVOKABLE void setSavedAccount(const QString& account, const QString& password, const QString& username)
     {
         if (!m_window) {
             return;

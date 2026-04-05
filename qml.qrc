@@ -9,6 +9,7 @@
         <file>qml/components/library/MusicListWidget.qml</file>
         <file>qml/components/library/MusicListWidgetNet.qml</file>
         <file>qml/components/library/RecommendMusicWidget.qml</file>
+        <file>qml/components/library/PlaylistWidget.qml</file>
         <file>qml/components/playback/ControlBar.qml</file>
         <file>qml/components/playback/CustomControlBar.qml</file>
         <file>qml/components/playback/PianWidget.qml</file>
@@ -21,8 +22,11 @@
         <file>qml/components/video/VideoPlayerWidget.qml</file>
         <file>qml/components/playback/PlaylistHistory.qml</file>
         <file>qml/components/playback/PlayModePopup.qml</file>
+        <file>qml/components/playback/PlayerStylePopup.qml</file>
         <file>qml/components/playback/RotatingCircle.qml</file>
         <file>qml/components/video/VideoListWidget.qml</file>
+        <file>qml/components/agent/AgentChatWindow.qml</file>
+        <file>qml/components/agent/MarkdownCodeBlock.qml</file>
         <file>qml/components/settings/Settings.qml</file>
         <file>qml/components/library/LocalAndDownloadWidget.qml</file>
         <file>qml/components/library/LocalMusicList.qml</file>
@@ -30,7 +34,17 @@
         <file>qml/components/library/DownloadingList.qml</file>
         <file>qml/components/playback/PlayHistoryList.qml</file>
         <file>qml/components/playback/FavoriteMusicList.qml</file>
+        <file>qml/assets/ai/icons/search.svg</file>
+        <file>qml/assets/ai/icons/plus.svg</file>
+        <file>qml/assets/ai/icons/sync.svg</file>
+        <file>qml/assets/ai/icons/close.svg</file>
+        <file>qml/assets/ai/icons/download.svg</file>
+        <file>qml/assets/ai/icons/more.svg</file>
+        <file>qml/assets/ai/icons/run.svg</file>
+        <file>qml/assets/ai/icons/chevron_down.svg</file>
         <file>qml/theme/Theme.js</file>
+        <file>qml/theme/AiChatTheme.js</file>
+        <file>qml/theme/PlayerStyle.js</file>
         <file>styles/netease.qss</file>
     </qresource>
 </RCC>

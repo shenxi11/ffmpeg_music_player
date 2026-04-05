@@ -29,6 +29,7 @@ private slots:
     void onDownloadCoverChanged();
     void onAudioCachePathChanged();
     void onLogPathChanged();
+    void onPlayerPageStyleChanged();
     void onRefreshPresenceRequested();
     void syncViewModelToRoot();
     void syncPresenceToRoot();

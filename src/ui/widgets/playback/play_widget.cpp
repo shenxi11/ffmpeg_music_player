@@ -1,9 +1,12 @@
 ﻿#include "play_widget.h"
 #include <QTime>
 #include <QGraphicsBlurEffect>
+#include <QGraphicsDropShadowEffect>
 #include <QPainter>
 #include <QQuickWidget>
 #include <QUrl>
+
+#include "settings_manager.h"
 
 namespace {
 
@@ -45,6 +48,11 @@ QString displayTitleFromFileName(const QString& fileName)
         title = decoded;
     }
     return title;
+}
+
+QString stageSubtitleText()
+{
+    return QString();
 }
 
 }
@@ -113,11 +121,35 @@ PlayWidget::PlayWidget(QWidget *parent, QWidget *mainWidget)
     rotatingCircleHost->setAttribute(Qt::WA_TranslucentBackground, true);
     rotatingCircleHost->setAutoFillBackground(false);
     rotatingCircleHost->setStyleSheet("background: transparent;");
+    rotatingCircleShadow = new QGraphicsDropShadowEffect(rotatingCircleHost);
+    rotatingCircleShadow->setBlurRadius(42);
+    rotatingCircleShadow->setOffset(0, 18);
+    rotatingCircleShadow->setColor(QColor(16, 24, 38, 72));
+    rotatingCircleHost->setGraphicsEffect(rotatingCircleShadow);
     rotatingCircle = new RotatingCircleImage(rotatingCircleHost);
     rotatingCircle->setAttribute(Qt::WA_TranslucentBackground, true);
     rotatingCircle->setAutoFillBackground(false);
     rotatingCircle->setStyleSheet("background: transparent;");
     rotatingCircle->resize(300, 300);
+
+    squareCoverHost = new QWidget(this);
+    squareCoverHost->setAttribute(Qt::WA_TranslucentBackground, true);
+    squareCoverHost->setAutoFillBackground(false);
+    squareCoverHost->setStyleSheet(
+        "background: rgba(255,255,255,0.18);"
+        "border: 1px solid rgba(255,255,255,0.28);"
+        "border-radius: 22px;");
+    squareCoverShadow = new QGraphicsDropShadowEffect(squareCoverHost);
+    squareCoverShadow->setBlurRadius(54);
+    squareCoverShadow->setOffset(0, 20);
+    squareCoverShadow->setColor(QColor(12, 18, 28, 92));
+    squareCoverHost->setGraphicsEffect(squareCoverShadow);
+    squareCoverHost->hide();
+
+    squareCoverLabel = new QLabel(squareCoverHost);
+    squareCoverLabel->setAlignment(Qt::AlignCenter);
+    squareCoverLabel->setScaledContents(true);
+    squareCoverLabel->setStyleSheet("background: transparent; border: 0;");
     
     // ========== MVVM架构：连接ViewModel信号到UI ==========
     setupPlaybackViewModelConnections();
@@ -129,16 +161,29 @@ PlayWidget::PlayWidget(QWidget *parent, QWidget *mainWidget)
     nameLabel->setMinimumHeight(30);
     nameLabel->setAlignment(Qt::AlignCenter);
 
-    // ========== 旧架构状态连接（已注释） ==========
-    /*
-    connect(work.get(),&Worker::Stop,this, &PlayWidget::onWorkStop);
-    connect(work.get(),&Worker::Begin,this, &PlayWidget::onWorkPlay);
-    */
-    
+    artistInfoLabel = new QLabel(this);
+    artistInfoLabel->setAttribute(Qt::WA_TranslucentBackground, true);
+    artistInfoLabel->setStyleSheet("QLabel { color: rgba(255,255,255,0.82); font-size: 14px; background: transparent; }");
+    artistInfoLabel->setAlignment(Qt::AlignCenter);
+
+    sceneLabel = new QLabel(this);
+    sceneLabel->setAttribute(Qt::WA_TranslucentBackground, true);
+    sceneLabel->setStyleSheet("QLabel { color: rgba(255,255,255,0.70); font-size: 15px; font-weight: 600; background: transparent; }");
+    sceneLabel->setAlignment(Qt::AlignCenter);
+    sceneLabel->setText(stageSubtitleText());
+
     // ========== 新架构状态更新已在前面通过 audioService 信号处理 ==========
     setupCoreConnections();
 
     setupControlAndPlaylistConnections();
+
+    m_playerPageStyle = SettingsManager::instance().playerPageStyle();
+    connect(&SettingsManager::instance(),
+            &SettingsManager::playerPageStyleChanged,
+            this,
+            &PlayWidget::handlePlayerPageStyleChanged);
+    applyPlayerPageStyle();
+    refreshStageTexts();
 
     updateAdaptiveLayout();
 }
@@ -163,12 +208,7 @@ void PlayWidget::handleBufferingStateChanged(bool active)
     }
 
     qDebug() << "[MVVM-UI] Buffering finished";
-    const QString title = !currentSongTitle.trimmed().isEmpty()
-            ? currentSongTitle.trimmed()
-            : displayTitleFromFileName(fileName);
-    if (!title.isEmpty()) {
-        nameLabel->setText(title);
-    }
+    refreshStageTexts();
 }
 
 void PlayWidget::handleProcessChangeRequested(qint64 milliseconds, bool back_flag)
@@ -243,27 +283,58 @@ void PlayWidget::handleCoverExpandRequested()
 
 void PlayWidget::handleLyricPositionChanged()
 {
-    const qint64 positionMs = m_playbackViewModel ? m_playbackViewModel->position() : 0;
-    // 根据时间找到对应的歌词行。
-    int targetLine = -1;
-    // 歌词提前1000ms显示（让歌词切换与播放进度更同步）。
-    const int timeInMs = static_cast<int>(positionMs) + 1000;
+    refreshCurrentLyricHighlight(false);
+}
 
-    for (auto it = lyrics.begin(); it != lyrics.end(); ++it) {
-        if (it->first <= timeInMs) {
-            const auto next = std::next(it);
-            if (next == lyrics.end() || next->first > timeInMs) {
-                // +5 对应初始偏移。
-                targetLine = std::distance(lyrics.begin(), it) + 5;
-                break;
-            }
-        }
+int PlayWidget::resolveTargetLyricLine(qint64 positionMs) const
+{
+    if (lyrics.empty()) {
+        return -1;
     }
 
-    if (targetLine >= 0 && lyricDisplay && targetLine != lyricDisplay->currentLine) {
+    // 歌词提前 1000ms 显示，让听感与视觉更同步。
+    const qint64 safePositionMs = qMax<qint64>(0, positionMs);
+    const int timeInMs = static_cast<int>(safePositionMs) + 1000;
+    const auto firstLyric = lyrics.begin();
+
+    // 在第一句歌词到来前，固定高亮第一句歌词。
+    if (timeInMs <= firstLyric->first) {
+        return 5;
+    }
+
+    const auto upper = lyrics.upper_bound(timeInMs);
+    if (upper == lyrics.begin()) {
+        return 5;
+    }
+
+    const auto current = (upper == lyrics.end()) ? std::prev(lyrics.end()) : std::prev(upper);
+    return static_cast<int>(std::distance(lyrics.begin(), current)) + 5;
+}
+
+void PlayWidget::refreshCurrentLyricHighlight(bool forceRecenter)
+{
+    if (!lyricDisplay) {
+        return;
+    }
+
+    const qint64 positionMs = m_playbackViewModel ? m_playbackViewModel->position() : 0;
+    const int targetLine = resolveTargetLyricLine(positionMs);
+    if (targetLine < 0) {
+        return;
+    }
+
+    const bool changed = (targetLine != lyricDisplay->currentLine);
+    if (changed) {
         lyricDisplay->highlightLine(targetLine);
-        lyricDisplay->scrollToLine(targetLine);
         lyricDisplay->currentLine = targetLine;
+    }
+
+    if (changed || forceRecenter) {
+        lyricDisplay->scrollToLine(targetLine);
+        if (forceRecenter) {
+            qDebug() << "Lyric highlight refreshed on panel open. line:" << targetLine
+                     << "position:" << positionMs << "ms";
+        }
         update();
     }
 }
@@ -271,6 +342,45 @@ void PlayWidget::handleLyricPositionChanged()
 void PlayWidget::handleSimilarPlayRequested(const QVariantMap& item)
 {
     emit signalSimilarSongSelected(item);
+}
+
+void PlayWidget::handlePlayerPageStyleRequested(int styleId)
+{
+    SettingsManager::instance().setPlayerPageStyle(styleId);
+}
+
+QString PlayWidget::displayArtistText() const
+{
+    if (!currentSongArtist.trimmed().isEmpty()) {
+        return currentSongArtist.trimmed();
+    }
+    if (!networkSongArtist.trimmed().isEmpty()) {
+        return networkSongArtist.trimmed();
+    }
+    return QStringLiteral(u"未知艺术家");
+}
+
+void PlayWidget::refreshStageTexts()
+{
+    if (!nameLabel || !artistInfoLabel || !sceneLabel) {
+        return;
+    }
+
+    const QString title = !currentSongTitle.trimmed().isEmpty()
+            ? currentSongTitle.trimmed()
+            : displayTitleFromFileName(fileName);
+
+    if (!title.isEmpty()) {
+        nameLabel->setText(title);
+        process_slider->setSongName(title);
+        if (desk) {
+            desk->setSongName(title);
+        }
+    }
+
+    artistInfoLabel->setText(displayArtistText());
+    sceneLabel->setText(stageSubtitleText());
+    sceneLabel->setVisible(isUp && !sceneLabel->text().trimmed().isEmpty());
 }
 
 void PlayWidget::queuePlayButtonStateUpdate(bool playing, const QString& path)
@@ -299,8 +409,12 @@ void PlayWidget::shutdownQuickWidget(QQuickWidget* widget)
     if (!widget) {
         return;
     }
+    widget->setUpdatesEnabled(false);
+    if (QQuickWindow* quickWindow = widget->quickWindow()) {
+        quickWindow->setPersistentOpenGLContext(false);
+        quickWindow->setPersistentSceneGraph(false);
+    }
     widget->hide();
-    widget->setSource(QUrl());
 }
 
 void PlayWidget::onDeskToggled(bool checked){
@@ -329,41 +443,29 @@ void PlayWidget::setIsUp(bool flag){
         backgroundLabel->setPixmap(fallback);
     }
     
-    // 控制歌词显示状
+    // 展开播放页时始终显示歌词区域，不再把前四种风格隐藏掉。
     if (lyricDisplay) {
         if (flag) {
             qDebug() << "Showing lyric display";
-            lyricDisplay->show();  // 展开时显示歌
+            lyricDisplay->show();
             lyricDisplay->setIsUp(true);
-            
-            // 立即更新歌词高亮行到当前播放位置
-            const qint64 currentPosition = m_playbackViewModel ? m_playbackViewModel->position() : 0;
-            if (currentPosition >= 0) {
-                int timeInMs = static_cast<int>(currentPosition) + 1000;  // 歌词提前1000ms
-                
-                int targetLine = -1;
-                for (auto it = lyrics.begin(); it != lyrics.end(); ++it) {
-                    if (it->first <= timeInMs) {
-                        auto next = std::next(it);
-                        if (next == lyrics.end() || next->first > timeInMs) {
-                            targetLine = std::distance(lyrics.begin(), it) + 5;
-                            break;
-                        }
-                    }
-                }
-                
-                if (targetLine >= 0) {
-                    lyricDisplay->highlightLine(targetLine);
-                    lyricDisplay->scrollToLine(targetLine);
-                    lyricDisplay->currentLine = targetLine;
-                    qDebug() << "Initial lyric highlight set to line:" << targetLine << "at position:" << currentPosition << "ms";
-                }
-            }
+            // 每次展开歌词面板都重新定位一次高亮行与滚动位置。
+            refreshCurrentLyricHighlight(true);
         } else {
             qDebug() << "Hiding lyric display";
             lyricDisplay->hide();  // 收起时隐藏歌
             lyricDisplay->setIsUp(false);
         }
+    }
+
+    if (nameLabel) {
+        nameLabel->setVisible(flag);
+    }
+    if (artistInfoLabel) {
+        artistInfoLabel->setVisible(flag);
+    }
+    if (sceneLabel) {
+        sceneLabel->setVisible(flag && !sceneLabel->text().trimmed().isEmpty());
     }
     
     // 触发重绘以更新背
@@ -374,9 +476,300 @@ void PlayWidget::setIsUp(bool flag){
     emit signalIsUpChanged(isUp);
 }
 
+void PlayWidget::handlePlayerPageStyleChanged()
+{
+    m_playerPageStyle = SettingsManager::instance().playerPageStyle();
+    applyPlayerPageStyle();
+}
+
+void PlayWidget::invalidateStageBackgroundCache()
+{
+    m_stageBackgroundCacheDirty = true;
+}
+
+void PlayWidget::rebuildStageBackgroundCache()
+{
+    const QSize targetSize = size();
+    if (targetSize.isEmpty()) {
+        m_stageBackgroundCache = QPixmap();
+        m_stageBackgroundCacheDirty = false;
+        return;
+    }
+
+    QPixmap cache(targetSize);
+    cache.fill(Qt::transparent);
+
+    QPainter painter(&cache);
+    painter.setRenderHint(QPainter::Antialiasing, true);
+
+    if (isUp) {
+        if (m_playerPageStyle == 4 && !m_originalBackgroundPixmap.isNull()) {
+            painter.drawPixmap(QRect(QPoint(0, 0), targetSize), m_originalBackgroundPixmap);
+            painter.fillRect(QRect(QPoint(0, 0), targetSize), QColor(8, 10, 14, 86));
+        } else {
+            QLinearGradient gradient(0, 0, targetSize.width(), targetSize.height());
+            switch (m_playerPageStyle) {
+            case 0:
+                gradient.setColorAt(0.0, QColor("#D7F6FA"));
+                gradient.setColorAt(0.52, QColor("#D9F7FA"));
+                gradient.setColorAt(1.0, QColor("#D2F1F6"));
+                break;
+            case 1:
+                gradient.setColorAt(0.0, QColor("#1A353C"));
+                gradient.setColorAt(0.55, QColor("#19343B"));
+                gradient.setColorAt(1.0, QColor("#173038"));
+                break;
+            case 2:
+                gradient.setColorAt(0.0, QColor("#ECECF0"));
+                gradient.setColorAt(0.50, QColor("#ECECF0"));
+                gradient.setColorAt(1.0, QColor("#EFEFF2"));
+                break;
+            case 3:
+                gradient.setColorAt(0.0, QColor("#19343B"));
+                gradient.setColorAt(0.5, QColor("#173038"));
+                gradient.setColorAt(1.0, QColor("#152D34"));
+                break;
+            default:
+                gradient.setColorAt(0.0, QColor("#F5F5F7"));
+                gradient.setColorAt(0.5, QColor("#FAFAFA"));
+                gradient.setColorAt(1.0, QColor("#F0F0F2"));
+                break;
+            }
+            painter.fillRect(QRect(QPoint(0, 0), targetSize), gradient);
+            if ((m_playerPageStyle == 0 || m_playerPageStyle == 2)
+                && backgroundLabel->pixmap() && !backgroundLabel->pixmap()->isNull()) {
+                painter.setOpacity(m_playerPageStyle == 2 ? 0.16 : 0.10);
+                painter.drawPixmap(QRect(QPoint(0, 0), targetSize), *backgroundLabel->pixmap());
+                painter.setOpacity(1.0);
+            }
+        }
+
+        if (m_playerPageStyle == 0 && rotatingCircleHost && rotatingCircleHost->isVisible()) {
+            const QRect turntableRect = rotatingCircleHost->geometry().adjusted(-28, -28, 28, 28);
+            painter.setPen(Qt::NoPen);
+            painter.setBrush(QColor(128, 154, 164, 24));
+            painter.drawRoundedRect(turntableRect.translated(0, 22), 34, 34);
+
+            painter.setBrush(QColor(248, 251, 252, 248));
+            painter.drawRoundedRect(turntableRect, 34, 34);
+
+            painter.setPen(QPen(QColor(255, 255, 255, 120), 2));
+            painter.drawRoundedRect(turntableRect.adjusted(8, 8, -8, -8), 28, 28);
+
+            const QPoint armPivot(turntableRect.right() - 40, turntableRect.top() + 54);
+            const QPoint armMid(turntableRect.right() - 42, turntableRect.bottom() - 120);
+            const QPoint armHead(turntableRect.right() - 82, turntableRect.bottom() - 54);
+
+            painter.setPen(QPen(QColor(92, 98, 102, 210), 5, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+            painter.drawLine(armPivot, armMid);
+            painter.setPen(QPen(QColor(188, 190, 192, 224), 7, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+            painter.drawLine(armMid, armHead);
+
+            painter.setBrush(QColor(240, 241, 243, 245));
+            painter.setPen(QPen(QColor(180, 186, 190, 160), 1));
+            painter.drawEllipse(armPivot, 18, 18);
+            painter.drawEllipse(armHead, 10, 10);
+
+            const QRect badgeRect(turntableRect.right() - 48, turntableRect.bottom() - 48, 28, 28);
+            painter.setPen(Qt::NoPen);
+            painter.setBrush(QColor(255, 255, 255, 238));
+            painter.drawEllipse(badgeRect);
+            painter.setPen(QPen(QColor("#24D05A"), 3));
+            painter.drawArc(badgeRect.adjusted(6, 6, -6, -6), 40 * 16, 250 * 16);
+        } else if (m_playerPageStyle == 2 && rotatingCircleHost && rotatingCircleHost->isVisible()) {
+            const QRect glowRect = rotatingCircleHost->geometry().adjusted(-90, -90, 120, 120);
+            QRadialGradient glow(glowRect.center(), glowRect.width() / 2.0);
+            glow.setColorAt(0.0, QColor(255, 222, 123, 0));
+            glow.setColorAt(0.56, QColor(255, 215, 87, 36));
+            glow.setColorAt(0.82, QColor(247, 202, 61, 96));
+            glow.setColorAt(1.0, QColor(247, 202, 61, 0));
+            painter.setPen(Qt::NoPen);
+            painter.setBrush(glow);
+            painter.drawEllipse(glowRect);
+        }
+    } else {
+        QLinearGradient gradient(0, 0, targetSize.width(), targetSize.height());
+        gradient.setColorAt(0, QColor("#F5F5F7"));
+        gradient.setColorAt(0.5, QColor("#FAFAFA"));
+        gradient.setColorAt(1, QColor("#F0F0F2"));
+        painter.fillRect(QRect(QPoint(0, 0), targetSize), gradient);
+    }
+
+    painter.end();
+    m_stageBackgroundCache = cache;
+    m_stageBackgroundCacheDirty = false;
+}
+
+void PlayWidget::applyPlayerPageStyle()
+{
+    if (process_slider) {
+        process_slider->setPlayerPageStyle(m_playerPageStyle);
+    }
+    if (lyricDisplay) {
+        lyricDisplay->setPlayerPageStyle(m_playerPageStyle);
+    }
+
+    const bool lightThemeStage = (m_playerPageStyle == 0 || m_playerPageStyle == 2);
+    const QString titleColor = lightThemeStage ? QStringLiteral("#11181F") : QStringLiteral("#F5F8FD");
+    const QString artistColor = lightThemeStage ? QStringLiteral("rgba(66,78,92,0.76)") : QStringLiteral("rgba(240,246,252,0.72)");
+    const QString sceneColor = lightThemeStage ? QStringLiteral("rgba(75,86,102,0.78)") : QStringLiteral("rgba(230,238,244,0.58)");
+    nameLabel->setStyleSheet(QStringLiteral(
+        "QLabel { color: %1; font-size: 28px; font-weight: 600; background: transparent; }")
+                                 .arg(titleColor));
+    artistInfoLabel->setStyleSheet(QStringLiteral(
+        "QLabel { color: %1; font-size: 14px; font-weight: 500; background: transparent; }")
+                                       .arg(artistColor));
+    sceneLabel->setStyleSheet(QStringLiteral(
+        "QLabel { color: %1; font-size: 15px; font-weight: 600; background: transparent; }")
+                                  .arg(sceneColor));
+
+    const bool hideCover = (m_playerPageStyle == 3 || m_playerPageStyle == 4);
+    const bool useSquareCover = !hideCover && (m_playerPageStyle == 1);
+    if (rotatingCircleHost) {
+        rotatingCircleHost->setVisible(!hideCover && !useSquareCover);
+    }
+    if (rotatingCircle) {
+        RotatingCircleImage::DiscVisualStyle discStyle = RotatingCircleImage::DiscVisualStyle::DarkVinyl;
+        qreal coverScale = 0.70;
+        if (m_playerPageStyle == 0) {
+            discStyle = RotatingCircleImage::DiscVisualStyle::SilverVinyl;
+            coverScale = 0.56;
+        } else if (m_playerPageStyle == 2) {
+            discStyle = RotatingCircleImage::DiscVisualStyle::GoldVinyl;
+            coverScale = 0.52;
+        }
+        rotatingCircle->setDiscVisualStyle(discStyle);
+        rotatingCircle->setCoverScale(coverScale);
+    }
+    if (squareCoverHost) {
+        squareCoverHost->setVisible(useSquareCover);
+        if (m_playerPageStyle == 1) {
+            squareCoverHost->setStyleSheet(
+                "background: transparent;"
+                "border: 0;"
+                "border-radius: 18px;");
+            if (squareCoverShadow) {
+                squareCoverShadow->setEnabled(false);
+            }
+        } else if (m_playerPageStyle == 4) {
+            squareCoverHost->setStyleSheet(
+                "background: rgba(12,16,22,0.28);"
+                "border: 1px solid rgba(255,255,255,0.22);"
+                "border-radius: 28px;");
+            if (squareCoverShadow) {
+                squareCoverShadow->setEnabled(false);
+            }
+        } else {
+            squareCoverHost->setStyleSheet(
+                "background: rgba(255,255,255,0.28);"
+                "border: 1px solid rgba(255,255,255,0.38);"
+                "border-radius: 24px;");
+            if (squareCoverShadow) {
+                squareCoverShadow->setEnabled(false);
+            }
+        }
+    }
+
+    if (rotatingCircleShadow) {
+        rotatingCircleShadow->setEnabled(false);
+    }
+
+    if (lyricDisplay) {
+        lyricDisplay->setVisible(isUp);
+    }
+    nameLabel->setVisible(isUp);
+    artistInfoLabel->setVisible(isUp);
+    sceneLabel->setVisible(isUp && m_playerPageStyle != 4 && !sceneLabel->text().trimmed().isEmpty());
+
+    refreshStageTexts();
+    updateAdaptiveLayout();
+    invalidateStageBackgroundCache();
+    update();
+}
+
+void PlayWidget::updateCoverPresentation(const QString& imagePath)
+{
+    if (process_slider) {
+        process_slider->setPicPath(imagePath);
+    }
+    if (rotatingCircle) {
+        rotatingCircle->setImage(imagePath);
+    }
+
+    if (!squareCoverLabel || imagePath.trimmed().isEmpty()) {
+        return;
+    }
+
+    QString localPath = imagePath;
+    if (imagePath.startsWith("file:///")) {
+        localPath = QUrl(imagePath).toLocalFile();
+    } else if (imagePath.startsWith("qrc:")) {
+        localPath = imagePath.mid(3);
+    }
+
+    QPixmap cover(localPath);
+    if (cover.isNull()) {
+        cover.load(":/new/prefix1/icon/Music.png");
+    }
+    if (!cover.isNull()) {
+        squareCoverLabel->setPixmap(cover);
+    }
+}
+
 int PlayWidget::collapsedPlaybackHeight() const
 {
     return process_slider ? process_slider->height() : 90;
+}
+
+QVariantMap PlayWidget::desktopLyricSnapshot() const
+{
+    if (!desk) {
+        return {{QStringLiteral("available"), false}};
+    }
+
+    return {
+        {QStringLiteral("available"), true},
+        {QStringLiteral("visible"), desk->isVisible()},
+        {QStringLiteral("songName"), desk->songName()},
+        {QStringLiteral("lyricText"), desk->lyricText()},
+        {QStringLiteral("color"), desk->lyricStyleColor().name(QColor::HexRgb)},
+        {QStringLiteral("fontSize"), desk->lyricStyleFontSize()},
+        {QStringLiteral("fontFamily"), desk->lyricStyleFontFamily()}
+    };
+}
+
+bool PlayWidget::setDesktopLyricVisible(bool visible)
+{
+    if (!desk) {
+        return false;
+    }
+
+    if (visible) {
+        desk->show();
+        desk->raise();
+        desk->activateWindow();
+    } else {
+        desk->hide();
+    }
+    return desk->isVisible() == visible;
+}
+
+bool PlayWidget::setDesktopLyricStyleFromMap(const QVariantMap& style)
+{
+    if (!desk) {
+        return false;
+    }
+
+    QColor color(style.value(QStringLiteral("color")).toString().trimmed());
+    if (!color.isValid()) {
+        color = QColor(QStringLiteral("#FFFFFF"));
+    }
+
+    const int fontSize = qBound(12, style.value(QStringLiteral("fontSize"), 18).toInt(), 48);
+    const QString family = style.value(QStringLiteral("fontFamily")).toString().trimmed();
+    QFont font(family.isEmpty() ? QStringLiteral("Microsoft YaHei") : family);
+    desk->setLyricStyle(color, fontSize, font);
+    return true;
 }
 
 void PlayWidget::updateAdaptiveLayout()
@@ -398,10 +791,19 @@ void PlayWidget::updateAdaptiveLayout()
     const int contentBottom = wHeight - controlHeight - 12;
     const int contentHeight = qMax(120, contentBottom - contentTop);
 
-    const int circleDiameter = qBound(180, qMin(wWidth, contentHeight) / 2, 380);
+    const int circleDiameter = (m_playerPageStyle == 2)
+            ? qBound(360, qMin(wWidth, contentHeight), 700)
+            : qBound(220, qMin(wWidth, contentHeight) / 2 + 60, 460);
     if (rotatingCircleHost) {
-        const int circleX = qMax(24, wWidth / 10);
-        const int circleY = contentTop + qMax(0, (contentHeight - circleDiameter) / 2);
+        int circleX = qMax(24, wWidth / 10);
+        int circleY = contentTop + qMax(0, (contentHeight - circleDiameter) / 2);
+        if (m_playerPageStyle == 0) {
+            circleX = qMax(140, wWidth / 5);
+            circleY = contentTop + qMax(20, contentHeight / 2 - circleDiameter / 2);
+        } else if (m_playerPageStyle == 2) {
+            circleX = wWidth - static_cast<int>(circleDiameter * 0.36);
+            circleY = qMax(28, contentTop - 24);
+        }
         rotatingCircleHost->setGeometry(circleX, circleY, circleDiameter, circleDiameter);
     }
     if (rotatingCircle) {
@@ -409,20 +811,154 @@ void PlayWidget::updateAdaptiveLayout()
                                     rotatingCircleHost ? rotatingCircleHost->height() : circleDiameter);
     }
 
-    if (nameLabel) {
-        // 歌词页标题始终以窗口为基准水平居中，避免缩放后偏向右侧区域。
-        const int nameSideMargin = qBound(18, wWidth / 20, 64);
-        const int nameWidth = qMax(260, wWidth - nameSideMargin * 2);
-        const int nameX = (wWidth - nameWidth) / 2;
-        nameLabel->setGeometry(nameX, 44, nameWidth, 36);
+    if (squareCoverHost) {
+        const int squareSize = (m_playerPageStyle == 4)
+                ? qBound(220, qMin(wWidth, contentHeight) / 2 + 30, 420)
+                : qBound(260, qMin(wWidth, contentHeight) / 2 + 40, 480);
+        const int squareX = (m_playerPageStyle == 4) ? qMax(36, wWidth / 11) : qMax(160, wWidth / 5);
+        const int squareY = (m_playerPageStyle == 4)
+                ? contentTop + qMax(0, (contentHeight - squareSize) / 2)
+                : contentTop + qMax(10, contentHeight / 2 - squareSize / 2);
+        squareCoverHost->setGeometry(squareX, squareY, squareSize, squareSize);
+    }
+    if (squareCoverLabel && squareCoverHost) {
+        const int inset = qMax(14, squareCoverHost->width() / 12);
+        squareCoverLabel->setGeometry(inset,
+                                      inset,
+                                      qMax(1, squareCoverHost->width() - inset * 2),
+                                      qMax(1, squareCoverHost->height() - inset * 2));
+    }
+
+    int infoX = qMax(48, wWidth / 2);
+    int infoWidth = qMax(280, wWidth / 4);
+    int nameTop = contentTop + 34;
+    if (nameLabel && artistInfoLabel && sceneLabel) {
+
+        switch (m_playerPageStyle) {
+        case 0:
+            infoX = qMin(qMax(520, static_cast<int>(wWidth * 0.60)), qMax(80, wWidth - 420));
+            infoWidth = qMax(300, qMin(420, wWidth - infoX - 48));
+            nameTop = contentTop + 56;
+            nameLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+            artistInfoLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+            sceneLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+            break;
+        case 1:
+            infoX = qMin(qMax(500, static_cast<int>(wWidth * 0.56)), qMax(80, wWidth - 430));
+            infoWidth = qMax(310, qMin(430, wWidth - infoX - 52));
+            nameTop = contentTop + 58;
+            nameLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+            artistInfoLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+            sceneLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+            break;
+        case 2:
+            infoX = qMax(72, static_cast<int>(wWidth * 0.08));
+            infoWidth = qMax(320, qMin(420, static_cast<int>(wWidth * 0.34)));
+            nameTop = contentTop + 50;
+            nameLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+            artistInfoLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+            sceneLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+            break;
+        case 3:
+            infoWidth = qBound(360, static_cast<int>(wWidth * 0.34), 520);
+            infoX = qMax(36, (wWidth - infoWidth) / 2);
+            nameTop = contentTop + 18;
+            nameLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+            artistInfoLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+            sceneLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+            break;
+        case 4:
+        default:
+            infoWidth = qBound(320, static_cast<int>(wWidth * 0.30), 440);
+            infoX = qMax(36, (wWidth - infoWidth) / 2);
+            nameTop = contentTop + 26;
+            nameLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+            artistInfoLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+            sceneLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+            break;
+        }
+
+        nameLabel->setGeometry(infoX, nameTop, infoWidth, 40);
+        artistInfoLabel->setGeometry(infoX, nameTop + 42, infoWidth, 24);
+        sceneLabel->setGeometry(infoX, (m_playerPageStyle == 3) ? (nameTop + 150) : (nameTop + 160), infoWidth, 28);
     }
 
     if (lyricDisplay) {
-        const int lyricX = qBound(220, wWidth / 3, wWidth - 260);
-        const int lyricY = contentTop;
-        const int lyricWidth = qMax(260, wWidth - lyricX - 18);
-        const int lyricHeight = qMax(160, contentBottom - lyricY);
+        int lyricX = qBound(220, wWidth / 3, wWidth - 260);
+        int lyricY = contentTop;
+        int lyricWidth = qMax(260, wWidth - lyricX - 18);
+        int lyricHeight = qMax(160, contentBottom - lyricY);
+
+        switch (m_playerPageStyle) {
+        case 0:
+            lyricX = infoX;
+            lyricY = (sceneLabel && sceneLabel->isVisible())
+                    ? (sceneLabel->geometry().bottom() + 12)
+                    : (artistInfoLabel->geometry().bottom() + 14);
+            lyricWidth = qMax(320, qMin(430, wWidth - lyricX - 52));
+            lyricHeight = qMax(280, contentBottom - lyricY - 10);
+            break;
+        case 1:
+            lyricX = qMax(infoX - 8, 40);
+            lyricY = (sceneLabel && sceneLabel->isVisible())
+                    ? (sceneLabel->geometry().bottom() + 12)
+                    : (artistInfoLabel->geometry().bottom() + 14);
+            lyricWidth = qMax(330, qMin(450, wWidth - lyricX - 44));
+            lyricHeight = qMax(280, contentBottom - lyricY - 10);
+            break;
+        case 2:
+            lyricX = qMax(72, static_cast<int>(wWidth * 0.09));
+            lyricY = (sceneLabel && sceneLabel->isVisible())
+                    ? (sceneLabel->geometry().bottom() + 14)
+                    : (artistInfoLabel->geometry().bottom() + 16);
+            lyricWidth = qMax(360, qMin(500, static_cast<int>(wWidth * 0.37)));
+            lyricHeight = qMax(300, contentBottom - lyricY - 10);
+            break;
+        case 3:
+            lyricWidth = qBound(500, static_cast<int>(wWidth * 0.46), 780);
+            lyricX = qMax(42, (wWidth - lyricWidth) / 2);
+            lyricY = (sceneLabel && sceneLabel->isVisible())
+                    ? (sceneLabel->geometry().bottom() + 14)
+                    : (artistInfoLabel->geometry().bottom() + 18);
+            lyricHeight = qMax(340, contentBottom - lyricY - 8);
+            break;
+        case 4:
+        default:
+            lyricWidth = qBound(680, static_cast<int>(wWidth * 0.68), 1040);
+            lyricX = qMax(36, (wWidth - lyricWidth) / 2);
+            lyricY = contentTop + 68;
+            if (nameLabel && nameLabel->isVisible()) {
+                const int titleSafeBottom = artistInfoLabel && artistInfoLabel->isVisible()
+                        ? (artistInfoLabel->geometry().bottom() + 16)
+                        : (nameLabel->geometry().bottom() + 14);
+                lyricY = qMax(lyricY, titleSafeBottom);
+            }
+            lyricHeight = qMax(360, contentBottom - lyricY - 6);
+            break;
+        }
+
         lyricDisplay->setGeometry(lyricX, lyricY, lyricWidth, lyricHeight);
+
+        if (nameLabel && artistInfoLabel) {
+            const int titleBlockWidth = qMin(lyricWidth, qMax(320, lyricWidth - 24));
+            const int titleX = lyricX + qMax(0, (lyricWidth - titleBlockWidth) / 2);
+            const int titleGap = (m_playerPageStyle == 4) ? 18 : 16;
+            const int titleBlockHeight = artistInfoLabel->isVisible() ? 70 : 42;
+            const int titleTop = qMax(contentTop + 6, lyricY - titleBlockHeight - titleGap);
+
+            nameLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+            nameLabel->setGeometry(titleX, titleTop, titleBlockWidth, 38);
+
+            if (artistInfoLabel->isVisible()) {
+                artistInfoLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+                artistInfoLabel->setGeometry(titleX, titleTop + 38, titleBlockWidth, 24);
+            }
+
+            if (sceneLabel && sceneLabel->isVisible()) {
+                sceneLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+                sceneLabel->setGeometry(titleX, titleTop + titleBlockHeight + 8, titleBlockWidth, 24);
+            }
+        }
 
         // 高亮歌词的目标中心按“窗口可用播放区（去掉底部控制栏）”计算，
         // 而不是按 LyricDisplay 自身区域中点，避免全屏后视觉中心偏下。
@@ -437,12 +973,15 @@ void PlayWidget::updateAdaptiveLayout()
     } else {
         setMask(QRegion(0, wHeight - controlHeight, wWidth, controlHeight));
     }
+
+    invalidateStageBackgroundCache();
 }
 
 void PlayWidget::resizeEvent(QResizeEvent *event)
 {
     QWidget::resizeEvent(event);
     updateAdaptiveLayout();
+    invalidateStageBackgroundCache();
 }
 
 void PlayWidget::onWorkStop(){
@@ -460,7 +999,7 @@ void PlayWidget::onWorkStop(){
                 ? currentSongTitle.trimmed()
                 : displayTitleFromFileName(fileName);
         process_slider->setSongName(title);
-        nameLabel->setText(title);
+        refreshStageTexts();
     }
 }
 void PlayWidget::onWorkPlay(){
@@ -475,7 +1014,7 @@ void PlayWidget::onWorkPlay(){
             ? currentSongTitle.trimmed()
             : displayTitleFromFileName(fileName);
     process_slider->setSongName(title);
-    nameLabel->setText(title);
+    refreshStageTexts();
 }
 void PlayWidget::onLrcSendLrc(const std::map<int, std::string> lyrics){
     this->lyricDisplay->currentLine = 5;  // 初始行设，对应第一行歌
@@ -491,11 +1030,17 @@ void PlayWidget::onLrcSendLrc(const std::map<int, std::string> lyrics){
         const QString songName = !currentSongTitle.trimmed().isEmpty()
                 ? currentSongTitle.trimmed()
                 : displayTitleFromFileName(fileName);
-        lyricDisplay->setSongInfo(songName, ""); // 暂时没有艺术家信
+        lyricDisplay->setSongInfo(songName, displayArtistText());
     }
     
     // 使用带时间的 std::map 格式设置歌词
     lyricDisplay->setLyrics(lyrics);
+
+    // 歌词数据刚加载后，主动按当前播放时间刷新一次高亮行。
+    // 这样即使 positionChanged 还没到来，展开歌词页也能拿到正确定位。
+    QTimer::singleShot(0, this, [this]() {
+        refreshCurrentLyricHighlight(true);
+    });
     
     // 获取第一句歌词并传给桌面歌词
     if (!lyrics.empty()) {
@@ -573,8 +1118,12 @@ void PlayWidget::initLyricDisplay()
     qDebug() << "Initializing LyricDisplay...";
     lyricDisplay = new LyricDisplayQml(this);
     lyricDisplay->setClearColor(QColor(Qt::transparent));
-    lyricDisplay->setAttribute(Qt::WA_AlwaysStackOnTop,true);
+    lyricDisplay->setAttribute(Qt::WA_AlwaysStackOnTop, true);
+    lyricDisplay->setStyleSheet("background: transparent; border: 0;");
+    lyricDisplay->setAutoFillBackground(false);
+    lyricDisplay->setContentsMargins(0, 0, 0, 0);
     lyricDisplay->setMinimumSize(360, 220);
+    lyricDisplay->raise();
     if (lyricDisplay->rootObject()) {
         lyricDisplay->rootObject()->setProperty("showSongInfo", false);
     }
@@ -823,6 +1372,8 @@ void PlayWidget::onUpdateBackground(QString picPath) {
     
     qDebug() << "Cropped pixmap size:" << croppedPixmap.size();
     
+    m_originalBackgroundPixmap = croppedPixmap;
+
     // 3. 创建强模糊效果的图片 - 多次缩放模拟高斯模糊
     QImage image = croppedPixmap.toImage();
     
@@ -835,10 +1386,20 @@ void PlayWidget::onUpdateBackground(QString picPath) {
     QImage smallImage2 = smallImage1.scaled(blurW2, blurH2, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
     QImage blurredImage = smallImage2.scaled(targetWidth, targetHeight, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
     
-    // 4. 添加更深的半透明深色遮罩，增强对比度和歌词可读
+    // 4. 根据当前样式添加遮罩，控制沉浸感与歌词可读性。
     QPainter maskPainter(&blurredImage);
     maskPainter.setCompositionMode(QPainter::CompositionMode_SourceOver);
-    maskPainter.fillRect(blurredImage.rect(), QColor(0, 0, 0, 140));  // 增加遮罩透明度从 120 140
+    int overlayAlpha = 140;
+    if (m_playerPageStyle == 0) {
+        overlayAlpha = 38;
+    } else if (m_playerPageStyle == 2) {
+        overlayAlpha = 18;
+    } else if (m_playerPageStyle == 3) {
+        overlayAlpha = 118;
+    } else if (m_playerPageStyle == 4) {
+        overlayAlpha = 152;
+    }
+    maskPainter.fillRect(blurredImage.rect(), QColor(0, 0, 0, overlayAlpha));
     maskPainter.end();
     
     // 5. 转换QPixmap 并设
@@ -846,6 +1407,7 @@ void PlayWidget::onUpdateBackground(QString picPath) {
     backgroundLabel->setPixmap(blurredPixmap);
     
     // 触发重绘，让 paintEvent 使用新的背景
+    invalidateStageBackgroundCache();
     update();
     
     qDebug() << "Background updated successfully, pixmap size:" << blurredPixmap.size();
@@ -958,6 +1520,7 @@ void PlayWidget::setNetworkMetadata(const QString& artist, const QString& cover)
 {
     networkSongArtist = artist;
     networkSongCover = cover;
+    refreshStageTexts();
 }
 
 void PlayWidget::setNetworkMetadata(const QString& title, const QString& artist, const QString& cover)
@@ -966,4 +1529,5 @@ void PlayWidget::setNetworkMetadata(const QString& title, const QString& artist,
     currentSongArtist = artist;
     networkSongArtist = artist;
     networkSongCover = cover;
+    refreshStageTexts();
 }

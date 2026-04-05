@@ -1,0 +1,24 @@
+#!/bin/sh
+
+hook_dir="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
+script_path="$hook_dir/../scripts/git_commit_message_check.py"
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+cd "$repo_root" || exit 1
+
+if [ -z "$1" ]; then
+  echo "commit-msg hook requires the commit message file path."
+  exit 1
+fi
+
+if command -v python >/dev/null 2>&1; then
+  python "$script_path" "$1"
+  exit $?
+fi
+
+if command -v py >/dev/null 2>&1; then
+  py -3 "$script_path" "$1"
+  exit $?
+fi
+
+echo "commit-msg review requires Python 3. Install Python or commit with --no-verify."
+exit 1

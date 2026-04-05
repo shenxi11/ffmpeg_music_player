@@ -2,6 +2,7 @@ import QtQuick 2.14
 import QtQuick.Controls 2.14
 import QtQuick.Layouts 1.14
 import "../../theme/Theme.js" as Theme
+import "../../theme/PlayerStyle.js" as PlayerStyle
 
 Item {
     id: root
@@ -14,6 +15,9 @@ Item {
         }
         if (playModePopupLoader.active) {
             playModePopupLoader.active = false
+        }
+        if (stylePopupLoader.active) {
+            stylePopupLoader.active = false
         }
     }
 
@@ -37,6 +41,8 @@ Item {
     property bool deskChecked: false
     property int playMode: 2    // 0: Sequential, 1: RepeatOne, 2: RepeatAll, 3: Shuffle
     property string playerIconPrefix: "qrc:/design/design_exports/netease_ui_pack_20260309/icon/ui/player/"
+    property int playerPageStyle: 0
+    property var styleSpec: PlayerStyle.styleFor(playerPageStyle)
 
     // 样式与自适应
     property bool compact: width < 980
@@ -47,10 +53,23 @@ Item {
     property int iconButtonSize: compact ? 32 : 34
     property int playButtonSize: compact ? 40 : 46
 
-    property color barBackgroundColor: root.isUp ? "#CC151923" : Theme.bgBase
-    property color barBorderColor: root.isUp ? "#33FFFFFF" : "#DDE3ED"
-    property color secondaryTextColor: root.isUp ? "#D8DCE6" : Theme.textSecondary
-    property color sliderTrackColor: root.isUp ? "#5E667A" : "#D8DEE8"
+    property color barBackgroundColor: root.isUp ? styleSpec.controlBarColor : Theme.bgBase
+    property color barBorderColor: root.isUp ? styleSpec.controlBarBorderColor : "#DDE3ED"
+    property color secondaryTextColor: root.isUp ? styleSpec.controlSecondaryTextColor : Theme.textSecondary
+    property color sliderTrackColor: root.isUp ? styleSpec.sliderTrackColor : "#D8DEE8"
+    property color idleButtonFillColor: root.isUp
+                                        ? (styleSpec.lightText ? "#18FFFFFF" : "#18FFFFFF")
+                                        : "transparent"
+    property color idleButtonBorderColor: root.isUp ? styleSpec.controlBarBorderColor : "#D6DCE8"
+    property color primaryPlayFillColor: {
+        if (!root.isUp)
+            return "transparent"
+        if (root.playerPageStyle === 2)
+            return "#99FFFFFF"
+        if (styleSpec.lightText)
+            return "#22FFFFFF"
+        return "#22FFFFFF"
+    }
 
     property bool finishNotified: false
 
@@ -68,6 +87,16 @@ Item {
     signal rePlay()
     signal deskToggled(bool checked)
     signal loopToggled(bool isLooping)
+    signal playerPageStyleRequested(int styleId)
+
+    onIsUpChanged: {
+        if (!root.isUp && stylePopupLoader.active) {
+            if (stylePopupLoader.item) {
+                stylePopupLoader.item.ignoreNextFocusLoss = true
+            }
+            stylePopupLoader.active = false
+        }
+    }
 
     function formatTime(seconds) {
         var safe = Math.max(0, Math.floor(seconds))
@@ -214,7 +243,7 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        radius: root.isUp ? 12 : 0
+        radius: root.isUp ? root.styleSpec.controlRadius : 0
         color: root.barBackgroundColor
         border.width: root.isUp ? 1 : 1
         border.color: root.barBorderColor
@@ -336,7 +365,7 @@ Item {
                                 height: 42
                                 radius: 6
                                 border.width: 1
-                                border.color: root.isUp ? "#44FFFFFF" : "#D7DCE8"
+                                border.color: root.isUp ? root.styleSpec.controlBarBorderColor : "#D7DCE8"
                                 color: "transparent"
                                 clip: true
 
@@ -363,7 +392,7 @@ Item {
                                 verticalAlignment: Text.AlignVCenter
                                 font.pixelSize: root.compact ? 13 : 14
                                 font.weight: Font.Medium
-                                color: root.isUp ? "#F8FAFF" : "#2F3440"
+                                color: root.isUp ? root.styleSpec.controlTitleColor : "#2F3440"
                                 elide: Text.ElideRight
                             }
                         }
@@ -380,11 +409,11 @@ Item {
                             width: root.iconButtonSize
                             height: root.iconButtonSize
                             radius: width / 2
-                            color: modeArea.containsMouse ? Theme.accentSoft : (root.isUp ? "#1FFFFFFF" : "transparent")
+                            color: modeArea.containsMouse ? Theme.accentSoft : root.idleButtonFillColor
                             border.width: 1
                             border.color: (root.playMode === 1 || root.playMode === 2 || root.playMode === 3)
                                           ? Theme.accent
-                                          : (root.isUp ? "#44FFFFFF" : "#D6DCE8")
+                                          : root.idleButtonBorderColor
 
                             Image {
                                 anchors.centerIn: parent
@@ -442,9 +471,9 @@ Item {
                             width: root.iconButtonSize
                             height: root.iconButtonSize
                             radius: width / 2
-                            color: prevArea.containsMouse ? Theme.accentSoft : (root.isUp ? "#1FFFFFFF" : "transparent")
+                            color: prevArea.containsMouse ? Theme.accentSoft : root.idleButtonFillColor
                             border.width: 1
-                            border.color: root.isUp ? "#44FFFFFF" : "#D6DCE8"
+                            border.color: root.idleButtonBorderColor
                             Image {
                                 anchors.centerIn: parent
                                 width: 18
@@ -467,7 +496,7 @@ Item {
                             width: root.playButtonSize
                             height: root.playButtonSize
                             radius: width / 2
-                            color: playArea.containsMouse ? Theme.accentSoft : (root.isUp ? "#2AFFFFFF" : "transparent")
+                            color: playArea.containsMouse ? Theme.accentSoft : root.primaryPlayFillColor
                             border.width: 1
                             border.color: Theme.accent
 
@@ -501,9 +530,9 @@ Item {
                             width: root.iconButtonSize
                             height: root.iconButtonSize
                             radius: width / 2
-                            color: nextArea.containsMouse ? Theme.accentSoft : (root.isUp ? "#1FFFFFFF" : "transparent")
+                            color: nextArea.containsMouse ? Theme.accentSoft : root.idleButtonFillColor
                             border.width: 1
-                            border.color: root.isUp ? "#44FFFFFF" : "#D6DCE8"
+                            border.color: root.idleButtonBorderColor
                             Image {
                                 anchors.centerIn: parent
                                 width: 18
@@ -527,9 +556,9 @@ Item {
                             width: root.iconButtonSize
                             height: root.iconButtonSize
                             radius: width / 2
-                            color: volumeArea.containsMouse || volumeWindowLoader.active ? Theme.accentSoft : (root.isUp ? "#1FFFFFFF" : "transparent")
+                            color: volumeArea.containsMouse || volumeWindowLoader.active ? Theme.accentSoft : root.idleButtonFillColor
                             border.width: 1
-                            border.color: root.isUp ? "#44FFFFFF" : "#D6DCE8"
+                            border.color: root.idleButtonBorderColor
                             Image {
                                 anchors.centerIn: parent
                                 width: 18
@@ -594,6 +623,77 @@ Item {
                                 }
                             }
                         }
+
+                        Rectangle {
+                            id: styleButton
+                            width: root.isUp ? (root.compact ? 74 : 86) : 0
+                            height: root.iconButtonSize
+                            radius: height / 2
+                            visible: root.isUp
+                            color: styleButtonArea.containsMouse || stylePopupLoader.active ? Theme.accentSoft : root.idleButtonFillColor
+                            border.width: 1
+                            border.color: stylePopupLoader.active ? Theme.accent : root.idleButtonBorderColor
+
+                            Row {
+                                anchors.centerIn: parent
+                                spacing: 6
+
+                                Text {
+                                    text: "\u98ce\u683c"
+                                    color: root.isUp ? root.styleSpec.controlTitleColor : "#2F3440"
+                                    font.pixelSize: 12
+                                    font.weight: Font.DemiBold
+                                }
+
+                                Text {
+                                    text: stylePopupLoader.active ? "\u25B2" : "\u25BC"
+                                    color: root.secondaryTextColor
+                                    font.pixelSize: 10
+                                }
+                            }
+
+                            MouseArea {
+                                id: styleButtonArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    if (stylePopupLoader.active) {
+                                        if (stylePopupLoader.item) {
+                                            stylePopupLoader.item.ignoreNextFocusLoss = true
+                                        }
+                                        stylePopupLoader.active = false
+                                    } else {
+                                        stylePopupLoader.active = true
+                                    }
+                                }
+                            }
+
+                            Loader {
+                                id: stylePopupLoader
+                                active: false
+                                sourceComponent: Component {
+                                    PlayerStylePopup {
+                                        currentStyle: root.playerPageStyle
+                                        Component.onCompleted: {
+                                            var buttonPos = styleButton.mapToGlobal(0, 0)
+                                            x = buttonPos.x - (width - styleButton.width) / 2
+                                            y = buttonPos.y - height - 10
+                                            show()
+                                            requestActivate()
+                                        }
+                                        onStyleSelected: {
+                                            if (root.playerPageStyle !== styleId) {
+                                                root.playerPageStyleRequested(styleId)
+                                            }
+                                        }
+                                        onClosing: {
+                                            stylePopupLoader.active = false
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     Item { Layout.fillWidth: true }
@@ -606,9 +706,9 @@ Item {
                             width: root.iconButtonSize
                             height: root.iconButtonSize
                             radius: width / 2
-                            color: deskArea.containsMouse ? Theme.accentSoft : (root.isUp ? "#1FFFFFFF" : "transparent")
+                            color: deskArea.containsMouse ? Theme.accentSoft : root.idleButtonFillColor
                             border.width: 1
-                            border.color: root.isUp ? "#44FFFFFF" : "#D6DCE8"
+                            border.color: root.idleButtonBorderColor
                             Image {
                                 anchors.centerIn: parent
                                 width: 18
@@ -640,9 +740,9 @@ Item {
                             width: root.iconButtonSize
                             height: root.iconButtonSize
                             radius: width / 2
-                            color: listArea.containsMouse ? Theme.accentSoft : (root.isUp ? "#1FFFFFFF" : "transparent")
+                            color: listArea.containsMouse ? Theme.accentSoft : root.idleButtonFillColor
                             border.width: 1
-                            border.color: root.isUp ? "#44FFFFFF" : "#D6DCE8"
+                            border.color: root.idleButtonBorderColor
                             Image {
                                 anchors.centerIn: parent
                                 width: 18
@@ -674,4 +774,5 @@ Item {
             }
         }
     }
+
 }

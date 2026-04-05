@@ -5,6 +5,7 @@
 #include <QObject>
 #include <QQuickItem>
 #include <QQuickWidget>
+#include <QSurfaceFormat>
 #include <QVariantList>
 #include <QVariantMap>
 #include <map>
@@ -21,6 +22,16 @@ public:
     explicit LyricDisplayQml(QWidget *parent = nullptr)
         : QQuickWidget(parent)
     {
+        QSurfaceFormat quickFormat = format();
+        quickFormat.setAlphaBufferSize(8);
+        setFormat(quickFormat);
+        setAttribute(Qt::WA_TranslucentBackground, true);
+        setAttribute(Qt::WA_NoSystemBackground, true);
+        setAttribute(Qt::WA_OpaquePaintEvent, false);
+        setAttribute(Qt::WA_AlwaysStackOnTop, true);
+        setStyleSheet("background: transparent; border: 0;");
+        setAutoFillBackground(false);
+        setClearColor(Qt::transparent);
         setSource(QUrl("qrc:/qml/components/lyrics/LyricDisplay.qml"));
         setResizeMode(QQuickWidget::SizeRootObjectToView);
 
@@ -82,6 +93,13 @@ public:
     {
         if (rootObject()) {
             rootObject()->setProperty("centerYOffset", offset);
+        }
+    }
+
+    void setPlayerPageStyle(int styleId)
+    {
+        if (rootObject()) {
+            rootObject()->setProperty("playerPageStyle", styleId);
         }
     }
 

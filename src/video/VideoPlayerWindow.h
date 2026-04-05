@@ -41,6 +41,12 @@ public:
 
     void loadVideo(const QString& filePath);
     void pausePlayback();
+    bool resumePlayback();
+    bool seekToPosition(qint64 positionMs);
+    bool setFullScreenEnabled(bool enabled);
+    bool setPlaybackRateValue(double rate);
+    bool setQualityPresetValue(const QString& preset);
+    QVariantMap snapshot() const;
 
 signals:
     void playStateChanged(bool isPlaying);

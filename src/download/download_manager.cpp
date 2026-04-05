@@ -113,10 +113,29 @@ void DownloadThread::run()
         return;
     }
     
-    // 检查网络错误
+    // 检查网络错误。续传命中 HTTP 416 时，说明服务端判定本地文件已完整。
     if (reply->error() != QNetworkReply::NoError) {
+        const int httpStatus =
+            reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        const qint64 localFileSize = file.size();
+
+        if (m_startByte > 0 && httpStatus == 416 && localFileSize > 0) {
+            qDebug() << "[DownloadThread]" << m_taskId
+                     << "Resume hit HTTP 416, treat existing file as completed. size:"
+                     << localFileSize;
+            file.flush();
+            file.close();
+            reply->deleteLater();
+            m_currentReply = nullptr;
+            m_currentFile = nullptr;
+            emit progressUpdated(m_taskId, localFileSize, localFileSize);
+            emit finished(m_taskId, true, QString());
+            return;
+        }
+
         QString errorMsg = reply->errorString();
-        qDebug() << "[DownloadThread]" << m_taskId << "Network error:" << errorMsg;
+        qDebug() << "[DownloadThread]" << m_taskId << "Network error:" << errorMsg
+                 << "HTTP status:" << httpStatus;
         file.close();
         reply->deleteLater();
         m_currentReply = nullptr;

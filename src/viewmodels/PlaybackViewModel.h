@@ -98,6 +98,7 @@ private slots:
 
 private:
     static QString formatTime(qint64 milliseconds);
+    void syncPlaybackStateFromService(const char* sourceTag);
     void updatePlayingState(bool playing);
     void updatePausedState(bool paused);
     void updateBufferingState(bool buffering);

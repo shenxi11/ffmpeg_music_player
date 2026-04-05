@@ -164,18 +164,25 @@ void MainWidget::triggerAutoLoginIfNeeded()
 {
     const QString cachedAccount = m_viewModel ? m_viewModel->cachedAccount() : QString();
     const QString cachedPassword = m_viewModel ? m_viewModel->cachedPassword() : QString();
-    if (!m_viewModel
-        || !m_viewModel->autoLoginEnabled()
-        || cachedAccount.isEmpty()
-        || cachedPassword.isEmpty()) {
+    if (!m_viewModel || !loginWidget) {
+        qDebug() << "[MainWidget] Auto login skipped: viewModel or loginWidget is null";
+        return;
+    }
+
+    const bool autoAllowed = m_viewModel->shouldAutoLogin();
+    if (!autoAllowed || cachedAccount.isEmpty() || cachedPassword.isEmpty()) {
+        qDebug() << "[MainWidget] Auto login skipped:"
+                 << "shouldAutoLogin=" << autoAllowed
+                 << "cachedAccountEmpty=" << cachedAccount.isEmpty()
+                 << "cachedPasswordEmpty=" << cachedPassword.isEmpty();
         return;
     }
 
     qDebug() << "[MainWidget] Auto login with cached account:" << cachedAccount;
-    QMetaObject::invokeMethod(loginWidget,
-                              "requestLogin",
-                              Qt::QueuedConnection,
-                              Q_ARG(QString, cachedAccount),
-                              Q_ARG(QString, cachedPassword),
-                              Q_ARG(bool, true));
+    QTimer::singleShot(0, this, [this, cachedAccount, cachedPassword]() {
+        if (!loginWidget) {
+            return;
+        }
+        loginWidget->requestLogin(cachedAccount, cachedPassword, true);
+    });
 }
