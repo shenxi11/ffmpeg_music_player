@@ -18,10 +18,13 @@
 #include <QMouseEvent>
 #include <QGuiApplication>
 #include <QScreen>
+#include <QShowEvent>
+#include <QTimer>
 
-ServerWelcomeDialog::ServerWelcomeDialog(QWidget* parent)
+ServerWelcomeDialog::ServerWelcomeDialog(bool autoVerifyOnShow, QWidget* parent)
     : QDialog(parent)
     , m_viewModel(new ServerWelcomeViewModel(this))
+    , m_autoVerifyOnShow(autoVerifyOnShow)
 {
     setObjectName(QStringLiteral("ServerWelcomeDialog"));
     setWindowTitle(QStringLiteral(u"\u6b22\u8fce\u4f7f\u7528 \u4e91\u97f3\u4e50"));
@@ -348,6 +351,27 @@ ServerWelcomeDialog::ServerWelcomeDialog(QWidget* parent)
     }
 
     setupInteractionConnections();
+}
+
+void ServerWelcomeDialog::showEvent(QShowEvent* event)
+{
+    QDialog::showEvent(event);
+
+    if (!m_autoVerifyOnShow || m_autoVerifyTriggered || !m_viewModel) {
+        return;
+    }
+
+    const QString cachedHost = m_viewModel->serverHost().trimmed();
+    if (cachedHost.isEmpty()) {
+        return;
+    }
+
+    m_autoVerifyTriggered = true;
+    QTimer::singleShot(0, this, [this]() {
+        if (isVisible()) {
+            onVerifyClicked();
+        }
+    });
 }
 
 void ServerWelcomeDialog::mousePressEvent(QMouseEvent* event)

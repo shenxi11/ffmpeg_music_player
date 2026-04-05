@@ -50,7 +50,7 @@ jobs:
           REVIEW_COMMENTS_ENABLED: ${{ vars.FEISHU_NOTIFY_REVIEW_COMMENTS }}
         shell: bash
         run: |
-          python - <<'PY'
+          python3 - <<'PY'
           import json
           import os
           import pathlib

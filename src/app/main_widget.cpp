@@ -1,4 +1,4 @@
-﻿#include "main_widget.h"
+#include "main_widget.h"
 #include "plugin_manager.h"
 #include "searchbox_qml.h"
 #include "VideoPlayerWindow.h"
@@ -11,8 +11,11 @@
 #include <QFileInfo>
 #include <QHBoxLayout>
 #include <QIcon>
+#include <QLabel>
 #include <QMessageBox>
+#include <QScrollArea>
 #include <QTimer>
+#include <QVBoxLayout>
 
 MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
   ,w(nullptr)
@@ -83,12 +86,15 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     // userWidget = new UserWidget(this);
     
     userWidgetQml = new UserWidgetQml(this);
-    userWidgetQml->setFixedSize(150, 40);
+    userWidgetQml->setFixedHeight(40);
+    userWidgetQml->setMinimumWidth(120);
+    userWidgetQml->setMaximumWidth(150);
     
     aiAssistantTopButton = new QPushButton(QStringLiteral(u"AI助手"), this);
     aiAssistantTopButton->setFixedHeight(36);
     aiAssistantTopButton->setMinimumWidth(84);
     aiAssistantTopButton->setObjectName("SideNavButton");
+    aiAssistantTopButton->hide();
 
     menuButton = new QPushButton(QStringLiteral(u"\u83dc\u5355"), this);
     menuButton->setFixedSize(50, 50);
@@ -101,7 +107,6 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     widget_op_layout->addWidget(searchBox);
     widget_op_layout->addWidget(aiAssistantTopButton);
     widget_op_layout->addStretch();
-    widget_op_layout->addWidget(userWidgetQml);
     widget_op_layout->addWidget(menuButton);
     widget_op_layout->addWidget(maximizeButton);
     widget_op_layout->addWidget(minimizeButton);
@@ -113,6 +118,9 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     topWidget->setLayout(widget_op_layout);
     topWidget->setGeometry(0, 0, this->width(), 60);
     topWidget->raise();
+    if (userWidgetQml) {
+        userWidgetQml->raise();
+    }
 
     loginWidget = new LoginWidgetQml(this);
     loginWidget->setWindowTitle(QStringLiteral(u"\u767b\u5f55"));
@@ -190,6 +198,7 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     playlistButton->setCheckable(true);
     playlistButton->setObjectName("SideNavButton");
     playlistButton->setProperty("sideNav", true);
+    playlistButton->hide();
     
     videoButton = new QPushButton(QStringLiteral(u"\u89c6\u9891\u64ad\u653e"), leftWidget);
     videoButton->setCheckable(true);
@@ -228,6 +237,59 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
 
     brandWidget->setLayout(layout_text);
 
+    sidebarPlaylistSection = new QWidget(leftWidget);
+    sidebarPlaylistSection->setObjectName("SidebarPlaylistSection");
+    sidebarPlaylistSection->hide();
+
+    auto* playlistSectionLayout = new QVBoxLayout(sidebarPlaylistSection);
+    playlistSectionLayout->setContentsMargins(0, 0, 0, 0);
+    playlistSectionLayout->setSpacing(8);
+
+    auto* playlistTabsWidget = new QWidget(sidebarPlaylistSection);
+    auto* playlistTabsLayout = new QHBoxLayout(playlistTabsWidget);
+    playlistTabsLayout->setContentsMargins(0, 0, 0, 0);
+    playlistTabsLayout->setSpacing(8);
+
+    sidebarOwnedTabButton = new QPushButton(QStringLiteral(u"\u81ea\u5efa\u6b4c\u5355"), playlistTabsWidget);
+    sidebarOwnedTabButton->setObjectName("SidebarPlaylistTabButton");
+    sidebarOwnedTabButton->setCheckable(true);
+
+    sidebarSubscribedTabButton = new QPushButton(QStringLiteral(u"\u6536\u85cf\u6b4c\u5355"), playlistTabsWidget);
+    sidebarSubscribedTabButton->setObjectName("SidebarPlaylistTabButton");
+    sidebarSubscribedTabButton->setCheckable(true);
+
+    sidebarPlaylistAddButton = new QPushButton(QStringLiteral("+"), playlistTabsWidget);
+    sidebarPlaylistAddButton->setObjectName("SidebarPlaylistAddButton");
+    sidebarPlaylistAddButton->setFixedSize(22, 22);
+
+    playlistTabsLayout->addWidget(sidebarOwnedTabButton);
+    playlistTabsLayout->addWidget(sidebarSubscribedTabButton);
+    playlistTabsLayout->addStretch();
+    playlistTabsLayout->addWidget(sidebarPlaylistAddButton);
+
+    sidebarPlaylistScrollArea = new QScrollArea(sidebarPlaylistSection);
+    sidebarPlaylistScrollArea->setWidgetResizable(true);
+    sidebarPlaylistScrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    sidebarPlaylistScrollArea->setFrameShape(QFrame::NoFrame);
+    sidebarPlaylistScrollArea->setObjectName("SidebarPlaylistScrollArea");
+
+    sidebarPlaylistListContainer = new QWidget(sidebarPlaylistScrollArea);
+    sidebarPlaylistListContainer->setObjectName("SidebarPlaylistListContainer");
+    sidebarPlaylistListLayout = new QVBoxLayout(sidebarPlaylistListContainer);
+    sidebarPlaylistListLayout->setContentsMargins(0, 0, 0, 0);
+    sidebarPlaylistListLayout->setSpacing(6);
+
+    sidebarPlaylistEmptyLabel = new QLabel(QStringLiteral(u"\u6682\u65e0\u6b4c\u5355"), sidebarPlaylistListContainer);
+    sidebarPlaylistEmptyLabel->setObjectName("SidebarPlaylistEmptyLabel");
+    sidebarPlaylistEmptyLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    sidebarPlaylistListLayout->addWidget(sidebarPlaylistEmptyLabel);
+    sidebarPlaylistListLayout->addStretch();
+
+    sidebarPlaylistScrollArea->setWidget(sidebarPlaylistListContainer);
+
+    playlistSectionLayout->addWidget(playlistTabsWidget);
+    playlistSectionLayout->addWidget(sidebarPlaylistScrollArea, 1);
+
     connect(recommendButton, &QPushButton::toggled, this, &MainWidget::handleRecommendTabToggled);
     connect(localButton, &QPushButton::toggled, this, &MainWidget::handleLocalTabToggled);
     connect(netButton, &QPushButton::toggled, this, &MainWidget::handleNetTabToggled);
@@ -236,8 +298,12 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     connect(playlistButton, &QPushButton::toggled, this, &MainWidget::handlePlaylistTabToggled);
     connect(videoButton, &QPushButton::toggled, this, &MainWidget::handleVideoTabToggled);
     connect(aiAssistantTopButton, &QPushButton::clicked, this, &MainWidget::handleAiAssistantClicked);
+    connect(sidebarOwnedTabButton, &QPushButton::clicked, this, &MainWidget::handleSidebarOwnedTabClicked);
+    connect(sidebarSubscribedTabButton, &QPushButton::clicked, this, &MainWidget::handleSidebarSubscribedTabClicked);
+    connect(sidebarPlaylistAddButton, &QPushButton::clicked, this, &MainWidget::handleSidebarCreatePlaylistClicked);
 
     localButton->setChecked(true);
+    updateSidebarPlaylistTabs();
 
     qDebug() << "[MainWidget] Creating PlayWidget...";
 
@@ -976,9 +1042,106 @@ void MainWidget::updateSideNavLayout()
     if (favoriteButton && favoriteButton->isVisible()) {
         row = placeSideNavButton(row, favoriteButton, navStartY, itemHeight, panelWidth);
     }
-    row = placeSideNavButton(row, playlistButton, navStartY, itemHeight, panelWidth);
     row = placeSideNavButton(row, videoButton, navStartY, itemHeight, panelWidth);
-    Q_UNUSED(row);
+
+    if (playlistButton) {
+        playlistButton->setGeometry(0, 0, 0, 0);
+    }
+
+    if (sidebarPlaylistSection) {
+        const int desiredSectionTop = navStartY + row * itemHeight + 18;
+        const int maxSectionTop = qMax(0, leftWidget->height() - 18);
+        const int sectionTop = qMin(desiredSectionTop, maxSectionTop);
+        const int sectionHeight = qMax(0, leftWidget->height() - sectionTop - 18);
+        sidebarPlaylistSection->setGeometry(14, sectionTop, panelWidth - 28, sectionHeight);
+    }
+}
+
+void MainWidget::updateSidebarPlaylistTabs()
+{
+    if (!sidebarOwnedTabButton || !sidebarSubscribedTabButton) {
+        return;
+    }
+
+    sidebarOwnedTabButton->setChecked(!m_sidebarShowingSubscribedPlaylists);
+    sidebarSubscribedTabButton->setChecked(m_sidebarShowingSubscribedPlaylists);
+    sidebarOwnedTabButton->style()->unpolish(sidebarOwnedTabButton);
+    sidebarOwnedTabButton->style()->polish(sidebarOwnedTabButton);
+    sidebarSubscribedTabButton->style()->unpolish(sidebarSubscribedTabButton);
+    sidebarSubscribedTabButton->style()->polish(sidebarSubscribedTabButton);
+}
+
+void MainWidget::clearSidebarPlaylistButtons()
+{
+    for (QPushButton* button : m_sidebarPlaylistButtons) {
+        if (sidebarPlaylistListLayout) {
+            sidebarPlaylistListLayout->removeWidget(button);
+        }
+        if (button) {
+            button->deleteLater();
+        }
+    }
+    m_sidebarPlaylistButtons.clear();
+}
+
+void MainWidget::rebuildSidebarPlaylistButtons()
+{
+    if (!sidebarPlaylistListLayout || !sidebarPlaylistEmptyLabel) {
+        return;
+    }
+
+    clearSidebarPlaylistButtons();
+
+    const QVariantList& source = m_sidebarShowingSubscribedPlaylists
+                                 ? m_subscribedSidebarPlaylists
+                                 : m_ownedSidebarPlaylists;
+
+    if (source.isEmpty()) {
+        sidebarPlaylistEmptyLabel->show();
+        sidebarPlaylistEmptyLabel->setText(m_sidebarShowingSubscribedPlaylists
+                                           ? QStringLiteral("暂无收藏歌单")
+                                           : QStringLiteral("暂无自建歌单"));
+        return;
+    }
+
+    sidebarPlaylistEmptyLabel->hide();
+    int insertIndex = 0;
+    for (const QVariant& item : source) {
+        const QVariantMap playlist = item.toMap();
+        const qint64 playlistId = playlist.value(QStringLiteral("id")).toLongLong();
+        const QString playlistName = playlist.value(QStringLiteral("name")).toString().trimmed();
+
+        auto* button = new QPushButton(playlistName.isEmpty() ? QStringLiteral("未命名歌单") : playlistName,
+                                       sidebarPlaylistListContainer);
+        button->setObjectName("SidebarPlaylistItemButton");
+        button->setProperty("sidePlaylistItem", true);
+        button->setProperty("selectedPlaylist", playlistId == m_sidebarSelectedPlaylistId);
+        button->setProperty("playlistId", playlistId);
+        button->setProperty("trackCount", playlist.value(QStringLiteral("track_count")).toInt());
+        button->setIcon(QIcon(":/new/prefix1/icon/Music.png"));
+        button->setIconSize(QSize(18, 18));
+        button->setToolTip(QStringLiteral("%1\n%2 首")
+                               .arg(button->text())
+                               .arg(playlist.value(QStringLiteral("track_count")).toInt()));
+        connect(button, &QPushButton::clicked, this, &MainWidget::handleSidebarPlaylistItemClicked);
+        sidebarPlaylistListLayout->insertWidget(insertIndex++, button);
+        m_sidebarPlaylistButtons.append(button);
+    }
+}
+
+void MainWidget::syncSidebarPlaylistSelection(qint64 playlistId)
+{
+    m_sidebarSelectedPlaylistId = playlistId;
+    for (QPushButton* button : m_sidebarPlaylistButtons) {
+        if (!button) {
+            continue;
+        }
+        const bool selected = button->property("playlistId").toLongLong() == playlistId;
+        button->setProperty("selectedPlaylist", selected);
+        button->style()->unpolish(button);
+        button->style()->polish(button);
+        button->update();
+    }
 }
 
 void MainWidget::ensureAgentChatWindow()
@@ -1004,6 +1167,12 @@ void MainWidget::updateAdaptiveLayout()
         if (auto* layout = qobject_cast<QHBoxLayout*>(topWidget->layout())) {
             layout->setContentsMargins(leftWidth + 10, 5, 10, 5);
         }
+    }
+
+    if (userWidgetQml) {
+        const int avatarWidth = qMin(150, qMax(120, leftWidth - 20));
+        userWidgetQml->setGeometry(10, 10, avatarWidth, 40);
+        userWidgetQml->raise();
     }
 
     if (searchBox) {
@@ -1105,7 +1274,7 @@ void MainWidget::resizeEvent(QResizeEvent *event)
 void MainWidget::closeEvent(QCloseEvent *event)
 {
     qDebug() << "[MainWidget] closeEvent: start shutdown";
-    if (m_viewModel) {
+    if (!m_returningToWelcome && m_viewModel) {
         m_viewModel->shutdownUserSessionOnAppExit(true, 1200);
     }
 
@@ -1114,6 +1283,8 @@ void MainWidget::closeEvent(QCloseEvent *event)
     }
     if (settingsWidget) {
         settingsWidget->close();
+        settingsWidget->deleteLater();
+        settingsWidget = nullptr;
     }
     if (m_agentChatWindow) {
         m_agentChatWindow->close();
@@ -1140,10 +1311,6 @@ void MainWidget::closeEvent(QCloseEvent *event)
     }
 
     QWidget::closeEvent(event);
-
-    if (event->isAccepted()) {
-        QTimer::singleShot(0, qApp, &QCoreApplication::quit);
-    }
 }
 
 MainWidget::~MainWidget()

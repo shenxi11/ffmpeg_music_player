@@ -96,6 +96,11 @@ void MainWidget::handleMainMenuSettingsRequested()
     qDebug() << "Settings requested";
     if (!settingsWidget) {
         settingsWidget = new SettingsWidget(nullptr);
+        connect(settingsWidget, &QObject::destroyed, this, [this]() {
+            settingsWidget = nullptr;
+        });
+        connect(settingsWidget, &SettingsWidget::returnToWelcomeRequested,
+                this, &MainWidget::handleSettingsReturnToWelcomeRequested);
     }
     settingsWidget->show();
     settingsWidget->raise();
@@ -130,6 +135,23 @@ void MainWidget::handleUserLogoutRequested()
         m_viewModel->logoutCurrentUser(false);
     }
     userWidgetQml->setLoginState(false);
+}
+
+void MainWidget::handleSettingsReturnToWelcomeRequested()
+{
+    qDebug() << "[MainWidget] return to welcome requested";
+    m_returningToWelcome = true;
+
+    if (m_viewModel) {
+        m_viewModel->returnToWelcomeAndKeepAccountCache(true, 1200);
+    }
+
+    if (settingsWidget) {
+        settingsWidget->close();
+    }
+
+    emit requestReturnToWelcome();
+    close();
 }
 
 void MainWidget::handleSessionExpired()

@@ -28,6 +28,7 @@ public:
     void setCurrentPlayingPath(const QString& filePath);
     void setPlayingState(const QString& filePath, bool playing);
     void clearData();
+    void openCreatePlaylistDialog();
 
 signals:
     void loginRequested();

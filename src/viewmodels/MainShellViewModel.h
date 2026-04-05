@@ -83,6 +83,7 @@ public:
                             const QString& password,
                             const QString& username);
     void logoutCurrentUser(bool graceful, int gracefulTimeoutMs = 0);
+    void returnToWelcomeAndKeepAccountCache(bool graceful, int gracefulTimeoutMs = 0);
     void shutdownUserSessionOnAppExit(bool graceful, int gracefulTimeoutMs = 0);
 
     void pauseAudioIfPlaying();

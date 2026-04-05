@@ -18,6 +18,7 @@ void SettingsWidget::setupRootConnections(QQuickItem* root)
     connect(root, SIGNAL(chooseLogPath()), this, SLOT(onChooseLogPath()));
     connect(root, SIGNAL(clearLocalCacheRequested()), this, SLOT(onClearLocalCacheRequested()));
     connect(root, SIGNAL(settingsClosed()), this, SLOT(close()));
+    connect(root, SIGNAL(returnToWelcomeRequested()), this, SLOT(onReturnToWelcomeRequested()));
 
     connect(root, SIGNAL(downloadPathChanged()), this, SLOT(onDownloadPathChanged()));
     connect(root, SIGNAL(downloadLyricsChanged()), this, SLOT(onDownloadLyricsChanged()));
