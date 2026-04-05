@@ -24,6 +24,70 @@ const QSet<QString> kLegacyHosts = {
     QStringLiteral("localhost")
 };
 
+QString normalizePlaylistOwnership(const QJsonObject& obj)
+{
+    auto normalizeValue = [](QString value) {
+        value = value.trimmed().toLower();
+        if (value == QStringLiteral("owned") ||
+            value == QStringLiteral("owner") ||
+            value == QStringLiteral("created") ||
+            value == QStringLiteral("creator") ||
+            value == QStringLiteral("mine") ||
+            value == QStringLiteral("self")) {
+            return QStringLiteral("owned");
+        }
+        if (value == QStringLiteral("subscribed") ||
+            value == QStringLiteral("subscription") ||
+            value == QStringLiteral("collected") ||
+            value == QStringLiteral("favorite") ||
+            value == QStringLiteral("favorited") ||
+            value == QStringLiteral("collected_playlist")) {
+            return QStringLiteral("subscribed");
+        }
+        return QString();
+    };
+
+    static const QStringList stringKeys = {
+        QStringLiteral("ownership"),
+        QStringLiteral("playlist_type"),
+        QStringLiteral("source_type"),
+        QStringLiteral("ownership_type")
+    };
+    for (const QString& key : stringKeys) {
+        const QString normalized = normalizeValue(obj.value(key).toString());
+        if (!normalized.isEmpty()) {
+            return normalized;
+        }
+    }
+
+    static const QStringList ownedKeys = {
+        QStringLiteral("is_owned"),
+        QStringLiteral("owned"),
+        QStringLiteral("is_owner")
+    };
+    for (const QString& key : ownedKeys) {
+        if (obj.contains(key)) {
+            return obj.value(key).toBool() ? QStringLiteral("owned")
+                                           : QStringLiteral("subscribed");
+        }
+    }
+
+    static const QStringList subscribedKeys = {
+        QStringLiteral("is_subscribed"),
+        QStringLiteral("subscribed"),
+        QStringLiteral("is_favorited")
+    };
+    for (const QString& key : subscribedKeys) {
+        if (obj.contains(key)) {
+            return obj.value(key).toBool() ? QStringLiteral("subscribed")
+                                           : QStringLiteral("owned");
+        }
+    }
+
+    // 当前服务端若未显式返回归属字段，客户端先全部归入自建歌单。
+    return QStringLiteral("owned");
+}
+
 bool shouldRewriteAbsoluteServiceUrl(const QUrl& url, const QUrl& base)
 {
     const QString host = url.host().toLower();
@@ -2001,6 +2065,7 @@ void HttpRequestV2::getPlaylists(const QString& userAccount, int page, int pageS
                 playlist.insert(QStringLiteral("total_duration"), formatDurationFromSeconds(totalDurationSec));
                 playlist.insert(QStringLiteral("created_at"), obj.value(QStringLiteral("created_at")).toString());
                 playlist.insert(QStringLiteral("updated_at"), obj.value(QStringLiteral("updated_at")).toString());
+                playlist.insert(QStringLiteral("ownership"), normalizePlaylistOwnership(obj));
                 playlists.append(playlist);
             }
 

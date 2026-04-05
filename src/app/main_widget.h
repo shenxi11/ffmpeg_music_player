@@ -28,6 +28,7 @@
 #include <QPainter>
 #include <QLinearGradient>
 #include <QMouseEvent>
+#include <QList>
 
 class PlaybackStateManager;
 class QCloseEvent;
@@ -35,6 +36,9 @@ class QTimer;
 class QUrl;
 class AgentChatViewModel;
 class AgentChatWindow;
+class QScrollArea;
+class QVBoxLayout;
+class QLabel;
 
 class MainWidget : public QWidget
 {
@@ -98,6 +102,14 @@ private:
     QPushButton* favoriteButton = nullptr;
     QPushButton* playlistButton = nullptr;
     QPushButton* videoButton = nullptr;
+    QWidget* sidebarPlaylistSection = nullptr;
+    QPushButton* sidebarOwnedTabButton = nullptr;
+    QPushButton* sidebarSubscribedTabButton = nullptr;
+    QPushButton* sidebarPlaylistAddButton = nullptr;
+    QScrollArea* sidebarPlaylistScrollArea = nullptr;
+    QWidget* sidebarPlaylistListContainer = nullptr;
+    QVBoxLayout* sidebarPlaylistListLayout = nullptr;
+    QLabel* sidebarPlaylistEmptyLabel = nullptr;
     QPushButton* aiAssistantTopButton = nullptr;
     VideoPlayerWindow* videoPlayerWindow;
     VideoListWidget* videoListWidget;  // 在线视频列表窗口
@@ -119,6 +131,11 @@ private:
     QString m_pendingHistoryFilePath;
     QString m_pendingHistoryUserAccount;
     int m_pendingHistoryRetryCount = -1;
+    QVariantList m_ownedSidebarPlaylists;
+    QVariantList m_subscribedSidebarPlaylists;
+    QList<QPushButton*> m_sidebarPlaylistButtons;
+    qint64 m_sidebarSelectedPlaylistId = -1;
+    bool m_sidebarShowingSubscribedPlaylists = false;
 
     QPoint pos_ = QPoint(0, 0);
     bool dragging = false;
@@ -162,6 +179,10 @@ private:
     QRect computeContentRect() const;
     void updateAdaptiveLayout();
     void updateSideNavLayout();
+    void updateSidebarPlaylistTabs();
+    void rebuildSidebarPlaylistButtons();
+    void clearSidebarPlaylistButtons();
+    void syncSidebarPlaylistSelection(qint64 playlistId);
     void enqueuePluginLoadError(const QString& pluginFilePath, const QString& reason);
     void showPluginDiagnosticsDialog();
 
@@ -225,6 +246,10 @@ private:
     void handlePlaylistLoginRequested();
     void handlePlaylistRefreshRequested();
     void handlePlaylistOpenRequested(qint64 playlistId);
+    void handleSidebarOwnedTabClicked();
+    void handleSidebarSubscribedTabClicked();
+    void handleSidebarCreatePlaylistClicked();
+    void handleSidebarPlaylistItemClicked();
     void handlePlaylistCreateRequested(const QString& name, const QString& description);
     void handlePlaylistUpdateRequested(qint64 playlistId, const QString& name, const QString& description);
     void handlePlaylistDeleteRequested(qint64 playlistId);

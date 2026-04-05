@@ -110,6 +110,15 @@ void PlaylistWidget::clearData()
     QMetaObject::invokeMethod(root, "clearData");
 }
 
+void PlaylistWidget::openCreatePlaylistDialog()
+{
+    QQuickItem* root = rootObject();
+    if (!root) {
+        return;
+    }
+    QMetaObject::invokeMethod(root, "openCreatePlaylistDialog");
+}
+
 void PlaylistWidget::handleOpenPlaylistRequested(const QVariant& playlistIdValue)
 {
     emit openPlaylistRequested(playlistIdValue.toLongLong());

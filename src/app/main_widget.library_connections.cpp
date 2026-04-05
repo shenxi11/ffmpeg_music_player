@@ -274,6 +274,9 @@ void MainWidget::handleUserLoginStateChanged(bool loggedIn)
         favoriteButton->setVisible(loggedIn);
         qDebug() << "[MainWidget] Favorite music button visibility:" << loggedIn;
     }
+    if (sidebarPlaylistSection) {
+        sidebarPlaylistSection->setVisible(loggedIn);
+    }
     updateSideNavLayout();
 
     if (!loggedIn) {
@@ -281,14 +284,18 @@ void MainWidget::handleUserLoginStateChanged(bool loggedIn)
         playHistoryWidget->clearHistory();
         recommendMusicWidget->clearRecommendations();
         playlistWidget->clearData();
+        m_ownedSidebarPlaylists.clear();
+        m_subscribedSidebarPlaylists.clear();
+        m_sidebarSelectedPlaylistId = -1;
+        rebuildSidebarPlaylistButtons();
     } else if (recommendButton && recommendButton->isChecked()) {
         if (m_viewModel) {
             m_viewModel->requestRecommendations(userAccount, QStringLiteral("home"), 24, true);
         }
-    } else if (playlistButton && playlistButton->isChecked()) {
-        if (m_viewModel) {
-            m_viewModel->requestPlaylists(userAccount, 1, 20, true);
-        }
+    }
+
+    if (loggedIn && m_viewModel) {
+        m_viewModel->requestPlaylists(userAccount, 1, 20, true);
     }
 }
 
@@ -309,6 +316,57 @@ void MainWidget::handlePlaylistOpenRequested(qint64 playlistId)
 {
     if (!isUserLoggedIn() || !m_viewModel || playlistId <= 0) {
         return;
+    }
+    syncSidebarPlaylistSelection(playlistId);
+    m_viewModel->requestPlaylistDetail(m_viewModel->currentUserAccount(), playlistId, false);
+}
+
+void MainWidget::handleSidebarOwnedTabClicked()
+{
+    m_sidebarShowingSubscribedPlaylists = false;
+    updateSidebarPlaylistTabs();
+    rebuildSidebarPlaylistButtons();
+}
+
+void MainWidget::handleSidebarSubscribedTabClicked()
+{
+    m_sidebarShowingSubscribedPlaylists = true;
+    updateSidebarPlaylistTabs();
+    rebuildSidebarPlaylistButtons();
+}
+
+void MainWidget::handleSidebarCreatePlaylistClicked()
+{
+    if (!isUserLoggedIn()) {
+        showLoginWindow();
+        return;
+    }
+    if (playlistButton && !playlistButton->isChecked()) {
+        playlistButton->setChecked(true);
+    } else if (playlistWidget) {
+        showContentPanel(playlistWidget);
+    }
+    if (playlistWidget) {
+        playlistWidget->openCreatePlaylistDialog();
+    }
+}
+
+void MainWidget::handleSidebarPlaylistItemClicked()
+{
+    auto* button = qobject_cast<QPushButton*>(sender());
+    if (!button) {
+        return;
+    }
+    const qint64 playlistId = button->property("playlistId").toLongLong();
+    if (playlistId <= 0 || !isUserLoggedIn() || !m_viewModel) {
+        return;
+    }
+
+    syncSidebarPlaylistSelection(playlistId);
+    if (playlistButton && !playlistButton->isChecked()) {
+        playlistButton->setChecked(true);
+    } else if (playlistWidget) {
+        showContentPanel(playlistWidget);
     }
     m_viewModel->requestPlaylistDetail(m_viewModel->currentUserAccount(), playlistId, false);
 }
@@ -442,6 +500,19 @@ void MainWidget::handlePlaylistsListReady(const QVariantList& playlists, int pag
     if (playlistWidget) {
         playlistWidget->loadPlaylists(playlists, page, pageSize, total);
     }
+
+    m_ownedSidebarPlaylists.clear();
+    m_subscribedSidebarPlaylists.clear();
+    for (const QVariant& item : playlists) {
+        const QVariantMap playlist = item.toMap();
+        const QString ownership = playlist.value(QStringLiteral("ownership")).toString().trimmed().toLower();
+        if (ownership == QStringLiteral("subscribed")) {
+            m_subscribedSidebarPlaylists.append(playlist);
+        } else {
+            m_ownedSidebarPlaylists.append(playlist);
+        }
+    }
+    rebuildSidebarPlaylistButtons();
 }
 
 void MainWidget::handlePlaylistDetailReady(const QVariantMap& detail)
@@ -449,6 +520,7 @@ void MainWidget::handlePlaylistDetailReady(const QVariantMap& detail)
     if (playlistWidget) {
         playlistWidget->loadPlaylistDetail(detail);
     }
+    syncSidebarPlaylistSelection(detail.value(QStringLiteral("id")).toLongLong());
 }
 
 void MainWidget::handleCreatePlaylistResultReady(bool success, qint64 playlistId, const QString& message)
