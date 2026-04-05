@@ -22,6 +22,7 @@ Rectangle {
     signal clearLocalCacheRequested()
     signal refreshPresenceRequested()
     signal settingsClosed()
+    signal returnToWelcomeRequested()
 
     property string downloadPath: ""
     property string audioCachePath: ""
@@ -29,6 +30,8 @@ Rectangle {
     property bool downloadLyrics: true
     property bool downloadCover: false
     property int playerPageStyle: 0
+    property string serverHost: ""
+    property int serverPort: 0
     property string presenceAccount: ""
     property string presenceSessionToken: ""
     property bool presenceOnline: false
@@ -691,6 +694,13 @@ Rectangle {
 
                     Text {
                         width: parent.width
+                        text: "\u670d\u52a1\u5668\uff1a" + (root.serverHost ? root.serverHost : "-") + (root.serverPort > 0 ? (":" + root.serverPort) : "")
+                        color: Theme.textSecondary
+                        font.pixelSize: 12
+                        elide: Text.ElideMiddle
+                    }
+                    Text {
+                        width: parent.width
                         text: "\u8d26\u53f7\uff1a" + (root.presenceAccount ? root.presenceAccount : "-")
                         color: Theme.textSecondary
                         font.pixelSize: 12
@@ -744,6 +754,36 @@ Rectangle {
         border.color: Theme.glassBorder
 
         Rectangle {
+            id: returnWelcomeButtonWrap
+            width: root.bottomButtonWidth + 26
+            height: 34
+            radius: 8
+            anchors.right: closeButtonWrap.left
+            anchors.rightMargin: 10
+            anchors.verticalCenter: parent.verticalCenter
+            color: returnWelcomeArea.containsMouse ? Theme.accent : "transparent"
+            border.width: 1
+            border.color: Theme.accent
+
+            Text {
+                anchors.centerIn: parent
+                text: "\u8fd4\u56de\u6b22\u8fce\u9875"
+                color: returnWelcomeArea.containsMouse ? "#FFFFFF" : Theme.accent
+                font.pixelSize: 12
+                font.weight: Font.Medium
+            }
+
+            MouseArea {
+                id: returnWelcomeArea
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.returnToWelcomeRequested()
+            }
+        }
+
+        Rectangle {
+            id: closeButtonWrap
             width: root.bottomButtonWidth
             height: 34
             radius: 8
@@ -805,5 +845,10 @@ Rectangle {
         root.presenceTtlRemainingSec = ttlRemainingSec || 0
         root.presenceStatusMessage = statusMessage || ""
         root.presenceLastSeen = lastSeenText || ""
+    }
+
+    function setServerEndpoint(host, port) {
+        root.serverHost = host || ""
+        root.serverPort = port || 0
     }
 }

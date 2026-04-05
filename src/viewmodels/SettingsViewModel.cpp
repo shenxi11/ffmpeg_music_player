@@ -80,6 +80,16 @@ int SettingsViewModel::playerPageStyle() const
     return SettingsManager::instance().playerPageStyle();
 }
 
+QString SettingsViewModel::serverHost() const
+{
+    return SettingsManager::instance().serverHost();
+}
+
+int SettingsViewModel::serverPort() const
+{
+    return SettingsManager::instance().serverPort();
+}
+
 void SettingsViewModel::chooseDownloadPath(QWidget* parent)
 {
     const QString dir = QFileDialog::getExistingDirectory(

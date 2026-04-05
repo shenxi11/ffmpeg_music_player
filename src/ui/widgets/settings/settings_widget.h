@@ -19,6 +19,9 @@ class SettingsWidget : public QQuickWidget
 public:
     explicit SettingsWidget(QWidget* parent = nullptr);
 
+signals:
+    void returnToWelcomeRequested();
+
 private slots:
     void onChooseDownloadPath();
     void onChooseAudioCachePath();
@@ -31,6 +34,7 @@ private slots:
     void onLogPathChanged();
     void onPlayerPageStyleChanged();
     void onRefreshPresenceRequested();
+    void onReturnToWelcomeRequested();
     void syncViewModelToRoot();
     void syncPresenceToRoot();
 

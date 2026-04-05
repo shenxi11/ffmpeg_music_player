@@ -9,6 +9,7 @@ class QSpinBox;
 class QLabel;
 class QPushButton;
 class QFrame;
+class QShowEvent;
 class ServerWelcomeViewModel;
 
 class ServerWelcomeDialog : public QDialog
@@ -16,9 +17,10 @@ class ServerWelcomeDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit ServerWelcomeDialog(QWidget* parent = nullptr);
+    explicit ServerWelcomeDialog(bool autoVerifyOnShow = true, QWidget* parent = nullptr);
 
 protected:
+    void showEvent(QShowEvent* event) override;
     void mousePressEvent(QMouseEvent* event) override;
     void mouseMoveEvent(QMouseEvent* event) override;
     void mouseReleaseEvent(QMouseEvent* event) override;
@@ -44,6 +46,8 @@ private:
     QPushButton* m_verifyButton = nullptr;
     QPushButton* m_cancelButton = nullptr;
     ServerWelcomeViewModel* m_viewModel = nullptr;
+    bool m_autoVerifyOnShow = true;
+    bool m_autoVerifyTriggered = false;
     bool m_dragging = false;
     QPoint m_dragOffset;
 };

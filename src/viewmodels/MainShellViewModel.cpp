@@ -259,6 +259,14 @@ void MainShellViewModel::logoutCurrentUser(bool graceful, int gracefulTimeoutMs)
     emit accountCacheChanged();
 }
 
+void MainShellViewModel::returnToWelcomeAndKeepAccountCache(bool graceful, int gracefulTimeoutMs)
+{
+    // 返回欢迎页时保留账号缓存与自动登录策略，仅收敛当前在线会话。
+    OnlinePresenceManager::instance().logoutAndClear(graceful, gracefulTimeoutMs);
+    clearCurrentUserProfile();
+    emit accountCacheChanged();
+}
+
 void MainShellViewModel::shutdownUserSessionOnAppExit(bool graceful, int gracefulTimeoutMs)
 {
     // 应用正常关闭时仅释放在线会话，不改自动登录缓存状态。

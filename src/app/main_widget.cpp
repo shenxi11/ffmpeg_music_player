@@ -1274,7 +1274,7 @@ void MainWidget::resizeEvent(QResizeEvent *event)
 void MainWidget::closeEvent(QCloseEvent *event)
 {
     qDebug() << "[MainWidget] closeEvent: start shutdown";
-    if (m_viewModel) {
+    if (!m_returningToWelcome && m_viewModel) {
         m_viewModel->shutdownUserSessionOnAppExit(true, 1200);
     }
 
@@ -1283,6 +1283,8 @@ void MainWidget::closeEvent(QCloseEvent *event)
     }
     if (settingsWidget) {
         settingsWidget->close();
+        settingsWidget->deleteLater();
+        settingsWidget = nullptr;
     }
     if (m_agentChatWindow) {
         m_agentChatWindow->close();
@@ -1309,10 +1311,6 @@ void MainWidget::closeEvent(QCloseEvent *event)
     }
 
     QWidget::closeEvent(event);
-
-    if (event->isAccepted()) {
-        QTimer::singleShot(0, qApp, &QCoreApplication::quit);
-    }
 }
 
 MainWidget::~MainWidget()

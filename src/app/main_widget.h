@@ -75,6 +75,7 @@ public:
     
 signals:
     void loginRequired();  // 需要登录时发出的信号
+    void requestReturnToWelcome();
     
 private:
     PlayWidget* w;
@@ -136,6 +137,7 @@ private:
     QList<QPushButton*> m_sidebarPlaylistButtons;
     qint64 m_sidebarSelectedPlaylistId = -1;
     bool m_sidebarShowingSubscribedPlaylists = false;
+    bool m_returningToWelcome = false;
 
     QPoint pos_ = QPoint(0, 0);
     bool dragging = false;
@@ -217,6 +219,7 @@ private:
     void handleMainMenuAboutRequested();
     void handleUserLoginRequested();
     void handleUserLogoutRequested();
+    void handleSettingsReturnToWelcomeRequested();
     void handleSessionExpired();
     void handleLoginWidgetSuccess(const QString& username);
     void triggerAutoLoginIfNeeded();
