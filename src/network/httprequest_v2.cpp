@@ -24,29 +24,62 @@ const QSet<QString> kLegacyHosts = {
     QStringLiteral("localhost")
 };
 
+QString normalizePlaylistOwnershipToken(QString value)
+{
+    value = value.trimmed().toLower();
+    if (value == QStringLiteral("owned") ||
+        value == QStringLiteral("owner") ||
+        value == QStringLiteral("created") ||
+        value == QStringLiteral("creator") ||
+        value == QStringLiteral("mine") ||
+        value == QStringLiteral("self")) {
+        return QStringLiteral("owned");
+    }
+    if (value == QStringLiteral("subscribed") ||
+        value == QStringLiteral("subscription") ||
+        value == QStringLiteral("collected") ||
+        value == QStringLiteral("favorite") ||
+        value == QStringLiteral("favorited") ||
+        value == QStringLiteral("collected_playlist")) {
+        return QStringLiteral("subscribed");
+    }
+    return QString();
+}
+
+QString normalizePlaylistOwnershipFlag(const QJsonValue& value,
+                                      const QString& trueLabel,
+                                      const QString& falseLabel)
+{
+    if (value.isBool()) {
+        return value.toBool() ? trueLabel : falseLabel;
+    }
+
+    if (value.isDouble()) {
+        return qFuzzyIsNull(value.toDouble()) ? falseLabel : trueLabel;
+    }
+
+    const QString normalized = normalizePlaylistOwnershipToken(value.toString());
+    if (!normalized.isEmpty()) {
+        return normalized;
+    }
+
+    const QString text = value.toString().trimmed().toLower();
+    if (text == QStringLiteral("1") ||
+        text == QStringLiteral("true") ||
+        text == QStringLiteral("yes")) {
+        return trueLabel;
+    }
+    if (text == QStringLiteral("0") ||
+        text == QStringLiteral("false") ||
+        text == QStringLiteral("no")) {
+        return falseLabel;
+    }
+
+    return QString();
+}
+
 QString normalizePlaylistOwnership(const QJsonObject& obj)
 {
-    auto normalizeValue = [](QString value) {
-        value = value.trimmed().toLower();
-        if (value == QStringLiteral("owned") ||
-            value == QStringLiteral("owner") ||
-            value == QStringLiteral("created") ||
-            value == QStringLiteral("creator") ||
-            value == QStringLiteral("mine") ||
-            value == QStringLiteral("self")) {
-            return QStringLiteral("owned");
-        }
-        if (value == QStringLiteral("subscribed") ||
-            value == QStringLiteral("subscription") ||
-            value == QStringLiteral("collected") ||
-            value == QStringLiteral("favorite") ||
-            value == QStringLiteral("favorited") ||
-            value == QStringLiteral("collected_playlist")) {
-            return QStringLiteral("subscribed");
-        }
-        return QString();
-    };
-
     static const QStringList stringKeys = {
         QStringLiteral("ownership"),
         QStringLiteral("playlist_type"),
@@ -54,7 +87,7 @@ QString normalizePlaylistOwnership(const QJsonObject& obj)
         QStringLiteral("ownership_type")
     };
     for (const QString& key : stringKeys) {
-        const QString normalized = normalizeValue(obj.value(key).toString());
+        const QString normalized = normalizePlaylistOwnershipToken(obj.value(key).toString());
         if (!normalized.isEmpty()) {
             return normalized;
         }
@@ -67,8 +100,12 @@ QString normalizePlaylistOwnership(const QJsonObject& obj)
     };
     for (const QString& key : ownedKeys) {
         if (obj.contains(key)) {
-            return obj.value(key).toBool() ? QStringLiteral("owned")
-                                           : QStringLiteral("subscribed");
+            const QString normalized = normalizePlaylistOwnershipFlag(obj.value(key),
+                                                                      QStringLiteral("owned"),
+                                                                      QStringLiteral("subscribed"));
+            if (!normalized.isEmpty()) {
+                return normalized;
+            }
         }
     }
 
@@ -79,8 +116,12 @@ QString normalizePlaylistOwnership(const QJsonObject& obj)
     };
     for (const QString& key : subscribedKeys) {
         if (obj.contains(key)) {
-            return obj.value(key).toBool() ? QStringLiteral("subscribed")
-                                           : QStringLiteral("owned");
+            const QString normalized = normalizePlaylistOwnershipFlag(obj.value(key),
+                                                                      QStringLiteral("subscribed"),
+                                                                      QStringLiteral("owned"));
+            if (!normalized.isEmpty()) {
+                return normalized;
+            }
         }
     }
 

@@ -111,12 +111,8 @@ Rectangle {
     }
 
     function normalizeOwnership(value) {
-        var text = normalizeText(value, "owned").toLowerCase()
-        if (text === "owned" || text === "owner" || text === "created" || text === "creator" || text === "mine" || text === "self")
-            return "owned"
-        if (text === "subscribed" || text === "subscription" || text === "collected" || text === "favorite" || text === "favorited")
-            return "subscribed"
-        return "owned"
+        var text = normalizeText(value, "").toLowerCase()
+        return text === "subscribed" ? "subscribed" : "owned"
     }
 
     function buildPlaylistEntry(item) {

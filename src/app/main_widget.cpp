@@ -86,7 +86,9 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     // userWidget = new UserWidget(this);
     
     userWidgetQml = new UserWidgetQml(this);
-    userWidgetQml->setFixedSize(150, 40);
+    userWidgetQml->setFixedHeight(40);
+    userWidgetQml->setMinimumWidth(120);
+    userWidgetQml->setMaximumWidth(150);
     
     aiAssistantTopButton = new QPushButton(QStringLiteral(u"AI助手"), this);
     aiAssistantTopButton->setFixedHeight(36);
@@ -104,7 +106,6 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     widget_op_layout->addWidget(searchBox);
     widget_op_layout->addWidget(aiAssistantTopButton);
     widget_op_layout->addStretch();
-    widget_op_layout->addWidget(userWidgetQml);
     widget_op_layout->addWidget(menuButton);
     widget_op_layout->addWidget(maximizeButton);
     widget_op_layout->addWidget(minimizeButton);
@@ -116,6 +117,9 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     topWidget->setLayout(widget_op_layout);
     topWidget->setGeometry(0, 0, this->width(), 60);
     topWidget->raise();
+    if (userWidgetQml) {
+        userWidgetQml->raise();
+    }
 
     loginWidget = new LoginWidgetQml(this);
     loginWidget->setWindowTitle(QStringLiteral(u"\u767b\u5f55"));
@@ -1044,8 +1048,10 @@ void MainWidget::updateSideNavLayout()
     }
 
     if (sidebarPlaylistSection) {
-        const int sectionTop = navStartY + row * itemHeight + 18;
-        const int sectionHeight = qMax(120, leftWidget->height() - sectionTop - 18);
+        const int desiredSectionTop = navStartY + row * itemHeight + 18;
+        const int maxSectionTop = qMax(0, leftWidget->height() - 18);
+        const int sectionTop = qMin(desiredSectionTop, maxSectionTop);
+        const int sectionHeight = qMax(0, leftWidget->height() - sectionTop - 18);
         sidebarPlaylistSection->setGeometry(14, sectionTop, panelWidth - 28, sectionHeight);
     }
 }
@@ -1085,21 +1091,6 @@ void MainWidget::rebuildSidebarPlaylistButtons()
 
     clearSidebarPlaylistButtons();
 
-    while (sidebarPlaylistListLayout->count() > 0) {
-        QLayoutItem* item = sidebarPlaylistListLayout->takeAt(0);
-        if (!item) {
-            continue;
-        }
-        if (item->spacerItem()) {
-            delete item;
-            continue;
-        }
-        if (QWidget* widget = item->widget()) {
-            widget->setParent(nullptr);
-        }
-        delete item;
-    }
-
     const QVariantList& source = m_sidebarShowingSubscribedPlaylists
                                  ? m_subscribedSidebarPlaylists
                                  : m_ownedSidebarPlaylists;
@@ -1109,12 +1100,11 @@ void MainWidget::rebuildSidebarPlaylistButtons()
         sidebarPlaylistEmptyLabel->setText(m_sidebarShowingSubscribedPlaylists
                                            ? QStringLiteral("暂无收藏歌单")
                                            : QStringLiteral("暂无自建歌单"));
-        sidebarPlaylistListLayout->addWidget(sidebarPlaylistEmptyLabel);
-        sidebarPlaylistListLayout->addStretch();
         return;
     }
 
     sidebarPlaylistEmptyLabel->hide();
+    int insertIndex = 0;
     for (const QVariant& item : source) {
         const QVariantMap playlist = item.toMap();
         const qint64 playlistId = playlist.value(QStringLiteral("id")).toLongLong();
@@ -1133,10 +1123,9 @@ void MainWidget::rebuildSidebarPlaylistButtons()
                                .arg(button->text())
                                .arg(playlist.value(QStringLiteral("track_count")).toInt()));
         connect(button, &QPushButton::clicked, this, &MainWidget::handleSidebarPlaylistItemClicked);
-        sidebarPlaylistListLayout->addWidget(button);
+        sidebarPlaylistListLayout->insertWidget(insertIndex++, button);
         m_sidebarPlaylistButtons.append(button);
     }
-    sidebarPlaylistListLayout->addStretch();
 }
 
 void MainWidget::syncSidebarPlaylistSelection(qint64 playlistId)
@@ -1177,6 +1166,12 @@ void MainWidget::updateAdaptiveLayout()
         if (auto* layout = qobject_cast<QHBoxLayout*>(topWidget->layout())) {
             layout->setContentsMargins(leftWidth + 10, 5, 10, 5);
         }
+    }
+
+    if (userWidgetQml) {
+        const int avatarWidth = qMin(150, qMax(120, leftWidth - 20));
+        userWidgetQml->setGeometry(10, 10, avatarWidth, 40);
+        userWidgetQml->raise();
     }
 
     if (searchBox) {
