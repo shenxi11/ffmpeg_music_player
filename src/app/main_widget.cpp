@@ -1,4 +1,4 @@
-﻿#include "main_widget.h"
+#include "main_widget.h"
 #include "plugin_manager.h"
 #include "searchbox_qml.h"
 #include "VideoPlayerWindow.h"

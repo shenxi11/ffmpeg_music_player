@@ -1,4 +1,4 @@
-﻿#include "httprequest_v2.h"
+#include "httprequest_v2.h"
 #include "headers.h"
 #include "download_manager.h"
 #include "local_music_cache.h"
