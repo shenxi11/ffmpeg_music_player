@@ -27,6 +27,7 @@ public:
     QString cachedPassword() const;
     QString cachedUsername() const;
     bool autoLoginEnabled() const;
+    bool shouldAutoLogin() const;
     QString currentUserAccount() const;
     QString currentUserPassword() const;
     bool hasLoggedInUser() const;
@@ -63,10 +64,26 @@ public:
                      const QString& duration,
                      bool isLocal);
     void removeFavorite(const QString& userAccount, const QStringList& paths);
+    void requestPlaylists(const QString& userAccount, int page = 1, int pageSize = 20, bool useCache = true);
+    void createPlaylist(const QString& userAccount,
+                        const QString& name,
+                        const QString& description = QString(),
+                        const QString& coverPath = QString());
+    void requestPlaylistDetail(const QString& userAccount, qint64 playlistId, bool useCache = false);
+    void deletePlaylist(const QString& userAccount, qint64 playlistId);
+    void updatePlaylist(const QString& userAccount,
+                        qint64 playlistId,
+                        const QString& name,
+                        const QString& description = QString(),
+                        const QString& coverPath = QString());
+    void addPlaylistItems(const QString& userAccount, qint64 playlistId, const QVariantList& items);
+    void removePlaylistItems(const QString& userAccount, qint64 playlistId, const QStringList& musicPaths);
+    void reorderPlaylistItems(const QString& userAccount, qint64 playlistId, const QVariantList& orderedItems);
     void handleLoginSuccess(const QString& account,
                             const QString& password,
                             const QString& username);
     void logoutCurrentUser(bool graceful, int gracefulTimeoutMs = 0);
+    void shutdownUserSessionOnAppExit(bool graceful, int gracefulTimeoutMs = 0);
 
     void pauseAudioIfPlaying();
     void stopAudio();
@@ -102,11 +119,23 @@ signals:
     void similarRecommendationListReady(const QVariantMap& meta,
                                         const QVariantList& items,
                                         const QString& anchorSongId);
+    void recommendationFeedbackResultReady(bool success,
+                                           const QString& eventType,
+                                           const QString& songId);
     void historyListReady(const QVariantList& history);
+    void addHistoryResultReady(bool success);
     void favoritesListReady(const QVariantList& favorites);
     void addFavoriteResultReady(bool success);
     void removeFavoriteResultReady(bool success);
     void removeHistoryResultReady(bool success);
+    void playlistsListReady(const QVariantList& playlists, int page, int pageSize, int total);
+    void playlistDetailReady(const QVariantMap& detail);
+    void createPlaylistResultReady(bool success, qint64 playlistId, const QString& message);
+    void deletePlaylistResultReady(bool success, qint64 playlistId, const QString& message);
+    void updatePlaylistResultReady(bool success, qint64 playlistId, const QString& message);
+    void addPlaylistItemsResultReady(bool success, qint64 playlistId, int addedCount, int skippedCount, const QString& message);
+    void removePlaylistItemsResultReady(bool success, qint64 playlistId, int deletedCount, const QString& message);
+    void reorderPlaylistItemsResultReady(bool success, qint64 playlistId, const QString& message);
     void sessionExpired();
     void accountCacheChanged();
 

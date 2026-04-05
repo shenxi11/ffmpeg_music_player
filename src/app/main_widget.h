@@ -5,6 +5,7 @@
 #include "music_list_widget_local.h"
 #include "music_list_widget_net.h"
 #include "local_and_download_widget.h"
+#include "playlist_widget.h"
 #include "loginwidget_qml.h"
 #include "searchbox_qml.h"
 #include "user_widget.h"
@@ -32,6 +33,8 @@ class PlaybackStateManager;
 class QCloseEvent;
 class QTimer;
 class QUrl;
+class AgentChatViewModel;
+class AgentChatWindow;
 
 class MainWidget : public QWidget
 {
@@ -45,6 +48,18 @@ public:
     Q_INVOKABLE bool isUserLoggedIn() const { 
         return userWidgetQml ? userWidgetQml->getLoginState() : false; 
     }
+    Q_INVOKABLE QVariantMap agentVideoWindowState() const;
+    Q_INVOKABLE bool agentPlayVideo(const QString& source);
+    Q_INVOKABLE bool agentPauseVideo();
+    Q_INVOKABLE bool agentResumeVideo();
+    Q_INVOKABLE bool agentSeekVideo(qint64 positionMs);
+    Q_INVOKABLE bool agentSetVideoFullScreen(bool enabled);
+    Q_INVOKABLE bool agentSetVideoPlaybackRate(double rate);
+    Q_INVOKABLE bool agentSetVideoQualityPreset(const QString& preset);
+    Q_INVOKABLE bool agentCloseVideoWindow();
+    Q_INVOKABLE QVariantMap agentDesktopLyricsState() const;
+    Q_INVOKABLE bool agentSetDesktopLyricsVisible(bool visible);
+    Q_INVOKABLE bool agentSetDesktopLyricsStyle(const QVariantMap& style);
     
     // 显示登录窗口
     void showLoginWindow() {
@@ -66,6 +81,7 @@ private:
     PlayHistoryWidget* playHistoryWidget;  // 最近播放页面组件
     FavoriteMusicWidget* favoriteMusicWidget;  // 喜欢音乐页面组件
     RecommendMusicWidget* recommendMusicWidget;  // 推荐音乐页面组件
+    PlaylistWidget* playlistWidget;  // 我的歌单页面组件
     LoginWidgetQml* loginWidget;
     UserWidget* userWidget;
     UserWidgetQml* userWidgetQml;
@@ -80,13 +96,17 @@ private:
     QPushButton* netButton = nullptr;
     QPushButton* historyButton = nullptr;
     QPushButton* favoriteButton = nullptr;
+    QPushButton* playlistButton = nullptr;
     QPushButton* videoButton = nullptr;
+    QPushButton* aiAssistantTopButton = nullptr;
     VideoPlayerWindow* videoPlayerWindow;
     VideoListWidget* videoListWidget;  // 在线视频列表窗口
     SettingsWidget* settingsWidget;    // 设置窗口
 
     QPushButton* Login;
     MainShellViewModel* m_viewModel = nullptr;
+    AgentChatViewModel* m_agentChatViewModel = nullptr;
+    AgentChatWindow* m_agentChatWindow = nullptr;
     
     // 在线音乐元数据缓存（用于追加最近播放记录）
     QString m_networkMusicArtist;
@@ -202,6 +222,27 @@ private:
                                 const QString& duration);
     void handleAddFavoriteResult(bool success);
     void handleUserLoginStateChanged(bool loggedIn);
+    void handlePlaylistLoginRequested();
+    void handlePlaylistRefreshRequested();
+    void handlePlaylistOpenRequested(qint64 playlistId);
+    void handlePlaylistCreateRequested(const QString& name, const QString& description);
+    void handlePlaylistUpdateRequested(qint64 playlistId, const QString& name, const QString& description);
+    void handlePlaylistDeleteRequested(qint64 playlistId);
+    void handlePlaylistPlayMusicWithMetadata(const QString& filePath,
+                                             const QString& title,
+                                             const QString& artist,
+                                             const QString& cover);
+    void handlePlaylistRemoveSongsRequested(qint64 playlistId, const QStringList& musicPaths);
+    void handlePlaylistReorderSongsRequested(qint64 playlistId, const QVariantList& orderedItems);
+    void handlePlaylistAddCurrentSongRequested(qint64 playlistId);
+    void handlePlaylistsListReady(const QVariantList& playlists, int page, int pageSize, int total);
+    void handlePlaylistDetailReady(const QVariantMap& detail);
+    void handleCreatePlaylistResultReady(bool success, qint64 playlistId, const QString& message);
+    void handleUpdatePlaylistResultReady(bool success, qint64 playlistId, const QString& message);
+    void handleDeletePlaylistResultReady(bool success, qint64 playlistId, const QString& message);
+    void handleAddPlaylistItemsResultReady(bool success, qint64 playlistId, int addedCount, int skippedCount, const QString& message);
+    void handleRemovePlaylistItemsResultReady(bool success, qint64 playlistId, int deletedCount, const QString& message);
+    void handleReorderPlaylistItemsResultReady(bool success, qint64 playlistId, const QString& message);
 
     // 主窗口首页联动处理（替代构造函数内大段 lambda）。
     void handlePlaybackPauseAudioRequested();
@@ -214,7 +255,9 @@ private:
     void handleNetTabToggled(bool checked);
     void handleHistoryTabToggled(bool checked);
     void handleFavoriteTabToggled(bool checked);
+    void handlePlaylistTabToggled(bool checked);
     void handleVideoTabToggled(bool checked);
+    void handleAiAssistantClicked();
     void handlePlayStateChanged(ProcessSliderQml::State state);
     void handleVideoPlayerWindowReady(VideoPlayerWindow* window);
     void handleVideoPlaybackStateChanged(bool isPlaying);
@@ -258,6 +301,7 @@ private:
                            int navStartY,
                            int itemHeight,
                            int panelWidth);
+    void ensureAgentChatWindow();
 };
 
 #endif // TEST_WIDGET_H

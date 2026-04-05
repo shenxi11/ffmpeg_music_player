@@ -1,6 +1,7 @@
-import QtQuick 2.14
+﻿import QtQuick 2.14
 import QtQuick.Controls 2.14
 import "../../theme/Theme.js" as Theme
+import "../../theme/PlayerStyle.js" as PlayerStyle
 
 Item {
     id: root
@@ -10,6 +11,9 @@ Item {
     property bool showSongInfo: true
     property string songTitle: ""
     property string artist: ""
+    property int playerPageStyle: 0
+    property var styleSpec: PlayerStyle.styleFor(playerPageStyle)
+    property bool similarPanelCollapsed: false
 
     property bool draggingLyric: false
     property int dragPreviewTimeMs: -1
@@ -22,6 +26,28 @@ Item {
         var h = lyricView ? lyricView.height : height
         var extra = Math.max(0, h - 520)
         return Math.min(1.55, 1.0 + extra / 620.0)
+    }
+    property real lyricBaseWidth: {
+        if (!root.isUp)
+            return 760
+        if (root.styleSpec.lyricBaseWidth)
+            return root.styleSpec.lyricBaseWidth
+        if (root.playerPageStyle === 3)
+            return 980
+        if (root.playerPageStyle === 4)
+            return 860
+        return 900
+    }
+    property int panelPadding: {
+        if (!root.isUp)
+            return 0
+        if (root.styleSpec.panelPadding)
+            return root.styleSpec.panelPadding
+        if (root.playerPageStyle === 3)
+            return 24
+        if (root.playerPageStyle === 4)
+            return 18
+        return 20
     }
 
     signal currentLrcChanged(string lyricText)
@@ -43,21 +69,133 @@ Item {
         id: similarModel
     }
 
+    Rectangle {
+        id: rootBackdrop
+        anchors.fill: parent
+        color: "transparent"
+
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: root.isUp ? (root.styleSpec.backdropStartColor || "transparent") : "transparent" }
+            GradientStop { position: 1.0; color: root.isUp ? (root.styleSpec.backdropEndColor || "transparent") : "transparent" }
+        }
+    }
+
+    Rectangle {
+        id: decorOrbPrimary
+        anchors.left: parent.left
+        anchors.top: parent.top
+        anchors.leftMargin: root.isUp ? 28 : 0
+        anchors.topMargin: root.isUp ? 36 : 0
+        width: root.isUp ? Math.round(280 * root.styleSpec.decorScale) : 0
+        height: root.isUp ? Math.round(280 * root.styleSpec.decorScale) : 0
+        radius: width / 2
+        visible: root.isUp && root.playerPageStyle !== 3 && root.styleSpec.enableDecor !== false
+        color: root.styleSpec.previewPrimary
+        opacity: root.playerPageStyle === 4 ? root.styleSpec.decorOpacity * 0.75 : root.styleSpec.decorOpacity
+        rotation: root.styleSpec.decorRotation
+
+        SequentialAnimation on anchors.leftMargin {
+            loops: Animation.Infinite
+            running: root.isUp && root.playerPageStyle !== 3 && root.styleSpec.enableDecor !== false
+            NumberAnimation { to: 28 + root.styleSpec.decorDriftDistance; duration: 5400; easing.type: Easing.InOutSine }
+            NumberAnimation { to: 28; duration: 5400; easing.type: Easing.InOutSine }
+        }
+
+        SequentialAnimation on anchors.topMargin {
+            loops: Animation.Infinite
+            running: root.isUp && root.playerPageStyle !== 3 && root.styleSpec.enableDecor !== false
+            NumberAnimation { to: 36 + root.styleSpec.decorDriftDistance * 0.4; duration: 4200; easing.type: Easing.InOutSine }
+            NumberAnimation { to: 36; duration: 4200; easing.type: Easing.InOutSine }
+        }
+    }
+
+    Rectangle {
+        id: decorOrbSecondary
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.rightMargin: root.isUp ? 220 : 0
+        anchors.bottomMargin: root.isUp ? 90 : 0
+        width: root.isUp ? 220 : 0
+        height: root.isUp ? 220 : 0
+        radius: width / 2
+        visible: root.isUp && root.styleSpec.enableDecor !== false
+        color: root.styleSpec.previewSecondary
+        opacity: root.playerPageStyle === 2 ? root.styleSpec.decorOpacity * 0.55 : root.styleSpec.decorOpacity * 0.38
+
+        SequentialAnimation on anchors.rightMargin {
+            loops: Animation.Infinite
+            running: root.isUp && root.styleSpec.enableDecor !== false
+            NumberAnimation { to: 220 + root.styleSpec.decorDriftDistance * 0.6; duration: 6200; easing.type: Easing.InOutSine }
+            NumberAnimation { to: 220; duration: 6200; easing.type: Easing.InOutSine }
+        }
+    }
+
+    Rectangle {
+        id: ambientGlow
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        anchors.topMargin: root.isUp ? 72 : 0
+        width: root.isUp ? Math.min(parent.width * 0.52, 520) : 0
+        height: root.isUp ? 160 : 0
+        radius: height / 2
+        visible: root.isUp && root.styleSpec.enableDecor !== false
+        color: root.styleSpec.previewPrimary
+        opacity: root.styleSpec.glowOpacity
+
+        SequentialAnimation on opacity {
+            loops: Animation.Infinite
+            running: root.isUp && root.styleSpec.enableDecor !== false
+            NumberAnimation { to: root.styleSpec.glowOpacity + 0.05; duration: 3600; easing.type: Easing.InOutSine }
+            NumberAnimation { to: root.styleSpec.glowOpacity; duration: 3600; easing.type: Easing.InOutSine }
+        }
+    }
+
     Item {
         id: lyricsPanel
         anchors.top: parent.top
+        anchors.topMargin: root.playerPageStyle === 4 ? 8 : 0
         anchors.bottom: parent.bottom
+        anchors.bottomMargin: root.playerPageStyle === 4 ? 6 : 0
         anchors.left: parent.left
-        anchors.right: similarPanel.left
-        anchors.rightMargin: similarPanel.visible ? 14 : 0
+        anchors.right: similarPanel.visible ? similarPanel.left : parent.right
+        anchors.rightMargin: similarPanel.visible ? (root.playerPageStyle === 4 ? 20 : 18) : 0
         clip: true
 
         Rectangle {
             anchors.fill: parent
-            radius: 12
-            color: root.isUp ? "#18000000" : "transparent"
-            border.width: 0
-            border.color: "transparent"
+            radius: root.styleSpec.panelRadius
+            color: "transparent"
+            border.width: root.isUp ? 1 : 0
+            border.color: root.isUp ? root.styleSpec.lyricsBorderColor : "transparent"
+
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: root.isUp ? root.styleSpec.lyricsPanelColor : "transparent" }
+                GradientStop { position: 1.0; color: root.isUp ? root.styleSpec.lyricsPanelSecondaryColor : "transparent" }
+            }
+        }
+
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: root.styleSpec.panelInsetMargin || 2
+            radius: Math.max(0, root.styleSpec.panelRadius - (root.styleSpec.panelInsetMargin || 2))
+            visible: root.isUp
+            color: root.styleSpec.lyricsPanelInsetColor || "transparent"
+        }
+
+        Rectangle {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: 1
+            height: root.isUp ? (root.styleSpec.panelHighlightHeight || 36) : 0
+            radius: Math.max(0, root.styleSpec.panelRadius - 2)
+            visible: root.isUp
+            color: "transparent"
+
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: root.styleSpec.lyricsPanelHighlightColor || "transparent" }
+                GradientStop { position: 1.0; color: "transparent" }
+            }
         }
 
         Column {
@@ -65,15 +203,17 @@ Item {
             anchors.top: parent.top
             anchors.left: parent.left
             anchors.right: parent.right
-            anchors.topMargin: 8
+            anchors.topMargin: root.styleSpec.songInfoTopMargin || (root.panelPadding - 2)
+            anchors.leftMargin: root.panelPadding
+            anchors.rightMargin: root.panelPadding
             spacing: artistText.visible ? 4 : 0
             visible: root.isUp && root.showSongInfo
 
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: root.songTitle || ""
-                color: "#F3F5F8"
-                font.pixelSize: 22
+                color: root.styleSpec.lyricsTitleColor
+                font.pixelSize: root.styleSpec.titleFontSize || 22
                 font.weight: Font.DemiBold
                 elide: Text.ElideRight
                 width: Math.min(parent.width - 30, 760)
@@ -95,8 +235,8 @@ Item {
                     return artistName
                 }
                 visible: text.length > 0
-                color: "#A8B0BD"
-                font.pixelSize: 13
+                color: root.styleSpec.lyricsArtistColor
+                font.pixelSize: root.styleSpec.artistFontSize || 13
                 elide: Text.ElideRight
                 width: Math.min(parent.width - 30, 760)
                 horizontalAlignment: Text.AlignHCenter
@@ -109,7 +249,7 @@ Item {
             anchors.left: parent.left
             anchors.right: parent.right
             height: 1
-            color: "#55FFFFFF"
+            color: root.styleSpec.dragLineColor
             visible: root.draggingLyric
         }
 
@@ -120,7 +260,7 @@ Item {
             width: 96
             height: 30
             radius: 15
-            color: "#AA000000"
+            color: root.styleSpec.dragBubbleColor
             visible: root.draggingLyric && root.dragPreviewTimeMs >= 0
 
             Text {
@@ -137,8 +277,11 @@ Item {
             anchors.top: songInfoBar.visible ? songInfoBar.bottom : parent.top
             anchors.topMargin: songInfoBar.visible ? 14 : 0
             anchors.left: parent.left
+            anchors.leftMargin: root.panelPadding
             anchors.right: parent.right
+            anchors.rightMargin: root.panelPadding
             anchors.bottom: parent.bottom
+            anchors.bottomMargin: root.panelPadding
             model: lyricModel
             clip: true
             interactive: root.isUp && lyricModel.count > 0
@@ -206,14 +349,14 @@ Item {
 
                 Row {
                     anchors.centerIn: parent
-                    width: Math.min(parent.width - 24, root.isUp ? 900 : 760)
-                    spacing: 16
+                    width: Math.min(parent.width - 8, root.isUp ? root.lyricBaseWidth : 760)
+                    spacing: root.styleSpec.lyricRowSpacing || 16
 
                     Text {
                         id: timeText
-                        width: 82
+                        width: root.styleSpec.timeColumnWidth || 82
                         text: model.time || ""
-                        color: root.isUp ? "#C8CFDA" : "#7F8AA2"
+                        color: root.isUp ? root.styleSpec.lyricsTimeColor : "#7F8AA2"
                         font.pixelSize: Math.round((lyricItem.isCurrent ? 14 : 12) * root.lyricFontScale)
                         horizontalAlignment: Text.AlignRight
                         verticalAlignment: Text.AlignVCenter
@@ -228,8 +371,11 @@ Item {
                         id: lyricText
                         width: parent.width - (timeText.visible ? timeText.width + parent.spacing : 0)
                         text: model.text
-                        color: root.isUp ? "#F6F8FB" : "#2A3242"
-                        font.pixelSize: Math.round((lyricItem.isCurrent ? 21 : 16) * root.lyricFontScale)
+                        color: root.isUp ? root.styleSpec.lyricsLineColor : "#2A3242"
+                        font.pixelSize: Math.round(((lyricItem.isCurrent
+                                                        ? (root.styleSpec.currentLyricFontSize || 21)
+                                                        : (root.styleSpec.normalLyricFontSize || 16)))
+                                                    * root.lyricFontScale)
                         font.bold: lyricItem.isCurrent
                         horizontalAlignment: timeText.visible ? Text.AlignLeft : Text.AlignHCenter
                         wrapMode: Text.WordWrap
@@ -245,9 +391,9 @@ Item {
                         opacity: {
                             if (lyricItem.isCurrent) return 1.0
                             var distance = Math.abs(index - root.currentLine)
-                            if (distance <= 1) return 0.66
-                            if (distance <= 2) return 0.48
-                            return 0.34
+                            if (distance <= 1) return root.styleSpec.nearOpacity || 0.66
+                            if (distance <= 2) return root.styleSpec.midOpacity || 0.48
+                            return root.styleSpec.farOpacity || 0.34
                         }
                     }
                 }
@@ -257,23 +403,38 @@ Item {
         Text {
             anchors.centerIn: parent
             text: "暂无歌词"
-            color: root.isUp ? "#8E97A5" : "#A6B0C0"
+            color: root.isUp ? root.styleSpec.lyricsEmptyColor : "#A6B0C0"
             font.pixelSize: Math.round(16 * root.lyricFontScale)
             visible: lyricModel.count === 0
         }
     }
 
     Rectangle {
-        id: similarPanel
+        id: panelGapBridge
+        visible: root.isUp && similarPanel.visible && root.styleSpec.bridgePanels !== false
         anchors.top: parent.top
         anchors.bottom: parent.bottom
+        anchors.left: lyricsPanel.right
+        anchors.right: similarPanel.left
+        color: root.styleSpec.panelGapColor || "transparent"
+        radius: Math.max(0, root.styleSpec.panelRadius - 6)
+    }
+
+    Rectangle {
+        id: similarPanel
+        anchors.top: parent.top
+        anchors.topMargin: root.playerPageStyle === 4 ? 8 : 0
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: root.playerPageStyle === 4 ? 6 : 0
         anchors.right: parent.right
-        width: Math.min(320, Math.max(220, parent.width * 0.30))
-        visible: root.isUp
-        color: "#1F202734"
-        radius: 12
-        border.color: "transparent"
-        border.width: 0
+        width: root.playerPageStyle === 4
+               ? Math.min(264, Math.max(208, parent.width * 0.22))
+               : Math.min(320, Math.max(220, parent.width * 0.30))
+        visible: root.isUp && root.styleSpec.showSimilarPanel && !root.similarPanelCollapsed
+        color: root.styleSpec.similarPanelColor
+        radius: root.styleSpec.panelRadius
+        border.color: root.styleSpec.lyricsBorderColor
+        border.width: 1
 
         Item {
             anchors.fill: parent
@@ -282,29 +443,56 @@ Item {
             Text {
                 id: similarTitle
                 text: "相似推荐"
-                color: "#F3F5F8"
+                color: root.styleSpec.lyricsTitleColor
                 font.pixelSize: 16
                 font.bold: true
                 anchors.top: parent.top
                 anchors.left: parent.left
             }
 
+            Rectangle {
+                id: similarCloseButton
+                width: 24
+                height: 24
+                radius: 12
+                anchors.verticalCenter: similarTitle.verticalCenter
+                anchors.right: parent.right
+                color: closeMouse.containsMouse ? root.styleSpec.similarHoverColor : "transparent"
+                border.width: 1
+                border.color: closeMouse.containsMouse ? root.styleSpec.similarBorderColor : "transparent"
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "×"
+                    color: root.styleSpec.lyricsArtistColor
+                    font.pixelSize: 16
+                    font.bold: true
+                }
+
+                MouseArea {
+                    id: closeMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.similarPanelCollapsed = true
+                }
+            }
+
             Text {
                 id: similarSubtitle
                 text: "当前歌曲相关内容"
-                color: "#A8B0BD"
+                color: root.styleSpec.lyricsArtistColor
                 font.pixelSize: 12
                 anchors.top: similarTitle.bottom
                 anchors.topMargin: 6
                 anchors.left: parent.left
             }
-
             ListView {
                 id: similarList
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: similarSubtitle.bottom
-                anchors.topMargin: 10
+                anchors.topMargin: root.playerPageStyle === 4 ? 12 : 10
                 anchors.bottom: parent.bottom
                 clip: true
                 spacing: 6
@@ -314,8 +502,8 @@ Item {
                     width: similarList.width
                     height: 58
                     radius: 8
-                    color: rowMouse.containsMouse ? "#2AFFFFFF" : "#14000000"
-                    border.color: rowMouse.containsMouse ? "#66FFFFFF" : "transparent"
+                    color: rowMouse.containsMouse ? root.styleSpec.similarHoverColor : root.styleSpec.similarItemColor
+                    border.color: rowMouse.containsMouse ? root.styleSpec.similarBorderColor : "transparent"
 
                     Row {
                         anchors.fill: parent
@@ -347,7 +535,7 @@ Item {
                             Text {
                                 width: parent.width
                                 text: model.title || "未知歌曲"
-                                color: "#F3F5F8"
+                                color: root.styleSpec.lyricsTitleColor
                                 font.pixelSize: 13
                                 elide: Text.ElideRight
                             }
@@ -355,7 +543,7 @@ Item {
                             Text {
                                 width: parent.width
                                 text: model.artist || "未知艺术家"
-                                color: "#B5BDC8"
+                                color: root.styleSpec.lyricsArtistColor
                                 font.pixelSize: 11
                                 elide: Text.ElideRight
                             }
@@ -364,7 +552,7 @@ Item {
                         Text {
                             text: model.duration || ""
                             anchors.verticalCenter: parent.verticalCenter
-                            color: "#8F99A8"
+                            color: root.styleSpec.lyricsTimeColor
                             font.pixelSize: 11
                         }
                     }
@@ -402,10 +590,39 @@ Item {
                     anchors.centerIn: parent
                     visible: similarModel.count === 0
                     text: "暂无相似推荐"
-                    color: "#8E97A5"
+                    color: root.styleSpec.lyricsEmptyColor
                     font.pixelSize: 13
                 }
             }
+        }
+    }
+
+    Rectangle {
+        id: similarRestoreButton
+        visible: root.isUp && root.styleSpec.showSimilarPanel && root.similarPanelCollapsed
+        width: 38
+        height: 92
+        radius: 19
+        anchors.right: parent.right
+        anchors.verticalCenter: parent.verticalCenter
+        color: root.styleSpec.similarPanelColor
+        border.width: 1
+        border.color: root.styleSpec.lyricsBorderColor
+
+        Text {
+            anchors.centerIn: parent
+            text: "推荐"
+            color: root.styleSpec.lyricsTitleColor
+            font.pixelSize: 13
+            font.bold: true
+            rotation: -90
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: root.similarPanelCollapsed = false
         }
     }
 
@@ -612,10 +829,12 @@ Item {
 
     function clearSimilarSongs() {
         similarModel.clear()
+        similarPanelCollapsed = false
     }
 
     function setSimilarSongs(items) {
         similarModel.clear()
+        similarPanelCollapsed = false
         if (!items || items.length === 0) {
             return
         }

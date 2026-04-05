@@ -23,6 +23,7 @@ class SettingsViewModel : public BaseViewModel
     Q_PROPERTY(QString logPath READ logPath NOTIFY logPathChanged)
     Q_PROPERTY(bool downloadLyrics READ downloadLyrics NOTIFY downloadLyricsChanged)
     Q_PROPERTY(bool downloadCover READ downloadCover NOTIFY downloadCoverChanged)
+    Q_PROPERTY(int playerPageStyle READ playerPageStyle NOTIFY playerPageStyleChanged)
     Q_PROPERTY(QString presenceAccount READ presenceAccount NOTIFY presenceChanged)
     Q_PROPERTY(QString presenceSessionToken READ presenceSessionToken NOTIFY presenceChanged)
     Q_PROPERTY(bool presenceOnline READ presenceOnline NOTIFY presenceChanged)
@@ -40,6 +41,7 @@ public:
     QString logPath() const;
     bool downloadLyrics() const;
     bool downloadCover() const;
+    int playerPageStyle() const;
 
     QString presenceAccount() const { return m_presenceAccount; }
     QString presenceSessionToken() const { return m_presenceSessionToken; }
@@ -59,6 +61,7 @@ public:
     void setLogPath(const QString& path);
     void setDownloadLyrics(bool enabled);
     void setDownloadCover(bool enabled);
+    void setPlayerPageStyle(int styleId);
     void refreshPresence();
     void syncFromSettings();
 
@@ -68,6 +71,7 @@ signals:
     void logPathChanged();
     void downloadLyricsChanged();
     void downloadCoverChanged();
+    void playerPageStyleChanged();
     void presenceChanged();
     void messageRequested(const QString& title, const QString& message);
     void warningRequested(const QString& title, const QString& message);

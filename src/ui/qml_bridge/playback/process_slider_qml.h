@@ -3,6 +3,7 @@
 
 #include <QQuickWidget>
 #include <QQuickItem>
+#include <QSurfaceFormat>
 #include <QWidget>
 #include <QDebug>
 #include <QElapsedTimer>
@@ -23,13 +24,17 @@ public:
     {
         QElapsedTimer timer;
         timer.start();
-        
+
         // 启用透明渲染属性，避免与父窗口背景冲突。
+        QSurfaceFormat quickFormat = format();
+        quickFormat.setAlphaBufferSize(8);
+        setFormat(quickFormat);
         setClearColor(Qt::transparent);
         setAttribute(Qt::WA_TranslucentBackground, true);
         setAttribute(Qt::WA_NoSystemBackground, true);  // 禁用系统背景填充
         setAttribute(Qt::WA_OpaquePaintEvent, false);   // 设置透明渲染相关属性
-        setStyleSheet("background: transparent;");      // 设置透明渲染相关属性
+        setAttribute(Qt::WA_AlwaysStackOnTop, true);
+        setStyleSheet("background: transparent; border: 0;");      // 设置透明渲染相关属性
         setAutoFillBackground(false);                   // 禁用自动背景填充
         
         qDebug() << "ProcessSliderQml: Loading QML from qrc:/qml/components/playback/ProcessSlider.qml";
@@ -69,6 +74,7 @@ public:
             connect(root, SIGNAL(rePlay()), this, SIGNAL(signalRePlay()));
             connect(root, SIGNAL(deskToggled(bool)), this, SIGNAL(signalDeskToggled(bool)));
             connect(root, SIGNAL(loopToggled(bool)), this, SLOT(on_loop_state_changed(bool)));
+            connect(root, SIGNAL(playerPageStyleRequested(int)), this, SIGNAL(signalPlayerPageStyleRequested(int)));
             
             // 播放模式状态同步说明
             connect(root, SIGNAL(playModeChanged()), this, SLOT(on_playMode_changed()));
@@ -81,6 +87,7 @@ public:
         qDebug() << "ProcessSliderQml: Constructor completed in" << timer.elapsed() << "ms (total)";
         
         // 确保控件可见
+        raise();
         show();
     }
     
@@ -133,6 +140,13 @@ public:
         QQuickItem* root = rootObject();
         if (root) {
             QMetaObject::invokeMethod(root, "setVolumeValue", Q_ARG(QVariant, value));
+        }
+    }
+
+    void setPlayerPageStyle(int styleId) {
+        QQuickItem* root = rootObject();
+        if (root) {
+            root->setProperty("playerPageStyle", styleId);
         }
     }
     
@@ -238,6 +252,7 @@ signals:
     void signalDeskToggled(bool checked);
     void signalLoopChange(bool loop);
     void signalPlayModeChanged(int mode);  // 播放模式变更信号
+    void signalPlayerPageStyleRequested(int styleId);
 };
 
 #endif // PROCESS_SLIDER_QML_H

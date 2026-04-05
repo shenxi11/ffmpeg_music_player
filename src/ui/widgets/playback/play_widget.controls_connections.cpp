@@ -38,6 +38,8 @@ void PlayWidget::setupControlAndPlaylistConnections()
     connect(process_slider, &ProcessSliderQml::signalRePlay, this, &PlayWidget::handleReplayRequested);
     connect(process_slider, &ProcessSliderQml::signalDeskToggled, this, &PlayWidget::onDeskToggled);
     connect(process_slider, &ProcessSliderQml::signalLoopChange, this, &PlayWidget::handleLoopChanged);
+    connect(process_slider, &ProcessSliderQml::signalPlayerPageStyleRequested,
+            this, &PlayWidget::handlePlayerPageStyleRequested);
 
     // 播放列表面板显示与定位。
     connect(process_slider, &ProcessSliderQml::signalMlistToggled, this, &PlayWidget::handlePlaylistToggled);

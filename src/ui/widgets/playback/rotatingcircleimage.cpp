@@ -1,98 +1,170 @@
-﻿#include "rotatingcircleimage.h"
+#include "rotatingcircleimage.h"
+
 #include <QUrl>
 
 RotatingCircleImage::RotatingCircleImage(QWidget *parent)
-        : QWidget(parent), angle(0), rotatedImage(QPixmap()) {
+    : QWidget(parent), angle(0.0)
+{
+    image = QPixmap(":/new/prefix1/icon/maxresdefault.jpg");
+    setAttribute(Qt::WA_TranslucentBackground, true);
+    setAutoFillBackground(false);
+    setStyleSheet("background: transparent;");
 
-        image = QPixmap(":/new/prefix1/icon/maxresdefault.jpg");
-        setAttribute(Qt::WA_TranslucentBackground, true);
-        setAutoFillBackground(false);
-        setStyleSheet("background: transparent;");
+    timer = new QTimer(this);
+    connect(timer, &QTimer::timeout, this, &RotatingCircleImage::scheduleRotateTask);
+    timer->setInterval(30); // 保持现有转盘转速，避免播放页动效节奏突变
+}
 
-        timer = new QTimer(this);
-        connect(timer, &QTimer::timeout, this, &RotatingCircleImage::scheduleRotateTask);
-        timer->setInterval(30); // 每30ms旋转一次
+QPixmap RotatingCircleImage::preparedCoverForDiameter(int diameter)
+{
+    if (image.isNull() || diameter <= 0) {
+        return QPixmap();
     }
 
-QPixmap RotatingCircleImage::rotateImageAsync(const QPixmap &source, int rotationAngle) {
-    int diameter = qMin(width(), height());  // 圆的直径为窗口的最小边长
-    QPixmap target(diameter, diameter);     // 圆形区域的大小
-    target.fill(Qt::transparent);
+    if (!m_preparedCover.isNull() && m_preparedCoverDiameter == diameter) {
+        return m_preparedCover;
+    }
 
-    QPainter painter(&target);
-    painter.setRenderHint(QPainter::Antialiasing);
-    painter.setRenderHint(QPainter::SmoothPixmapTransform);
-
-    // 创建一个圆形裁剪区域
-    QPainterPath clipPath;
-    clipPath.addEllipse(0, 0, diameter, diameter);
-    painter.setClipPath(clipPath);
-
-    // 先将图片缩放到圆形大小，保持纵横比并填充整个圆形
-    QPixmap scaledSource = source.scaled(diameter, diameter, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
-    
-    // 如果缩放后的图片大于圆形，裁剪到中心区域
-    int offsetX = (scaledSource.width() - diameter) / 2;
-    int offsetY = (scaledSource.height() - diameter) / 2;
+    QPixmap scaledSource =
+        image.scaled(diameter, diameter, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+    const int offsetX = qMax(0, (scaledSource.width() - diameter) / 2);
+    const int offsetY = qMax(0, (scaledSource.height() - diameter) / 2);
     if (offsetX > 0 || offsetY > 0) {
         scaledSource = scaledSource.copy(offsetX, offsetY, diameter, diameter);
     }
 
-    // 设置变换：将图像中心移动到窗口中心，旋转
-    QTransform transform;
-    transform.translate(diameter / 2.0, diameter / 2.0);  // 移动到圆心
-    transform.rotate(rotationAngle);                      // 旋转
-    transform.translate(-diameter / 2.0, -diameter / 2.0);  // 移回原点
-
-    // 绘制旋转后的图像
-    painter.setTransform(transform);
-    painter.drawPixmap(0, 0, scaledSource);
-
-    return target;
+    m_preparedCover = scaledSource;
+    m_preparedCoverDiameter = diameter;
+    return m_preparedCover;
 }
-void RotatingCircleImage::scheduleRotateTask() {
-    // 防止任务重复提交
-    if (isRendering) return;
 
-    isRendering = true;
-    QPixmap imageCopy = image; // 创建图像副本
-    int currentAngle = angle;
-
-    QThreadPool::globalInstance()->start(new LambdaRunnable([this, imageCopy, currentAngle]() {
-        QPixmap result = rotateImageAsync(imageCopy, currentAngle);
-        {
-            QMutexLocker locker(&mutex);
-            rotatedImage = result;
-        }
-        angle = std::fmod(angle + 1, 360.0);
-        isRendering = false;
-
-        QTimer::singleShot(0, this, SLOT(update()));
-    }));
-
+void RotatingCircleImage::invalidateCoverCache()
+{
+    m_preparedCover = QPixmap();
+    m_preparedCoverDiameter = -1;
 }
-void RotatingCircleImage::paintEvent(QPaintEvent *event) {
+
+void RotatingCircleImage::setDiscVisualStyle(DiscVisualStyle style)
+{
+    if (m_discVisualStyle == style) {
+        return;
+    }
+    m_discVisualStyle = style;
+    update();
+}
+
+void RotatingCircleImage::setCoverScale(qreal scale)
+{
+    const qreal normalized = qBound<qreal>(0.42, scale, 0.88);
+    if (qFuzzyCompare(m_coverScale, normalized)) {
+        return;
+    }
+    m_coverScale = normalized;
+    update();
+}
+
+void RotatingCircleImage::scheduleRotateTask()
+{
+    if (!isVisible()) {
+        return;
+    }
+
+    angle = std::fmod(angle + 1.0, 360.0);
+    update();
+}
+
+void RotatingCircleImage::paintEvent(QPaintEvent *event)
+{
     Q_UNUSED(event);
+
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
     painter.setRenderHint(QPainter::SmoothPixmapTransform);
 
-    QPoint center(width() / 2, height() / 2);
-    int outerRadius = qMin(width(), height()) / 2;
+    const QPoint center(width() / 2, height() / 2);
+    const int outerRadius = qMin(width(), height()) / 2;
+    const QRect discRect(center.x() - outerRadius, center.y() - outerRadius, outerRadius * 2, outerRadius * 2);
 
-    // 绘制外层黑色圆环
-    painter.setBrush(Qt::black);
-    painter.setPen(Qt::NoPen);
-    painter.drawEllipse(center, outerRadius, outerRadius);
+    QRadialGradient discGradient(center, outerRadius);
+    QColor grooveColor("#141414");
+    QColor edgeColor("#050505");
+    QColor centerFill("#232323");
 
-    if (!rotatedImage.isNull()) {
-        int innerRadius = outerRadius * 0.7;
-        QRect innerRect(center.x() - innerRadius, center.y() - innerRadius, innerRadius * 2, innerRadius * 2);
-        painter.drawPixmap(innerRect, rotatedImage);
+    switch (m_discVisualStyle) {
+    case DiscVisualStyle::SilverVinyl:
+        discGradient.setColorAt(0.0, QColor(250, 252, 255, 245));
+        discGradient.setColorAt(0.40, QColor(214, 226, 232, 228));
+        discGradient.setColorAt(0.78, QColor(173, 191, 200, 212));
+        discGradient.setColorAt(1.0, QColor(142, 158, 168, 224));
+        grooveColor = QColor(255, 255, 255, 22);
+        edgeColor = QColor(244, 249, 252, 180);
+        centerFill = QColor(54, 73, 81, 255);
+        break;
+    case DiscVisualStyle::GoldVinyl:
+        discGradient.setColorAt(0.0, QColor(255, 244, 188, 245));
+        discGradient.setColorAt(0.40, QColor(244, 213, 97, 222));
+        discGradient.setColorAt(0.78, QColor(220, 182, 55, 200));
+        discGradient.setColorAt(1.0, QColor(176, 139, 28, 215));
+        grooveColor = QColor(152, 112, 0, 24);
+        edgeColor = QColor(255, 245, 189, 170);
+        centerFill = QColor(103, 78, 15, 255);
+        break;
+    case DiscVisualStyle::DarkVinyl:
+    default:
+        discGradient.setColorAt(0.0, QColor(60, 60, 60, 255));
+        discGradient.setColorAt(0.42, QColor(23, 23, 23, 255));
+        discGradient.setColorAt(0.82, QColor(12, 12, 12, 255));
+        discGradient.setColorAt(1.0, QColor(5, 5, 5, 255));
+        grooveColor = QColor(255, 255, 255, 16);
+        edgeColor = QColor(18, 18, 18, 255);
+        centerFill = QColor(29, 33, 40, 255);
+        break;
     }
 
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(discGradient);
+    painter.drawEllipse(discRect);
+
+    painter.setBrush(Qt::NoBrush);
+    painter.setPen(QPen(edgeColor, qMax(2, outerRadius / 34)));
+    painter.drawEllipse(discRect.adjusted(2, 2, -2, -2));
+
+    painter.setPen(QPen(grooveColor, 1));
+    for (int grooveIndex = 0; grooveIndex < 14; ++grooveIndex) {
+        const int grooveRadius = outerRadius - 10 - grooveIndex * qMax(3, outerRadius / 28);
+        if (grooveRadius <= outerRadius * 0.42) {
+            break;
+        }
+        painter.drawEllipse(center, grooveRadius, grooveRadius);
+    }
+
+    if (!image.isNull()) {
+        const int innerRadius = static_cast<int>(outerRadius * m_coverScale);
+        const QRect innerRect(center.x() - innerRadius, center.y() - innerRadius, innerRadius * 2, innerRadius * 2);
+        const QPixmap coverPixmap = preparedCoverForDiameter(innerRect.width());
+        if (!coverPixmap.isNull()) {
+            painter.save();
+            QPainterPath coverClipPath;
+            coverClipPath.addEllipse(innerRect);
+            painter.setClipPath(coverClipPath);
+            painter.translate(innerRect.center());
+            painter.rotate(angle);
+            painter.translate(-innerRect.width() / 2.0, -innerRect.height() / 2.0);
+            painter.drawPixmap(0, 0, coverPixmap);
+            painter.restore();
+        }
+    }
+
+    painter.setBrush(centerFill);
+    painter.setPen(Qt::NoPen);
+    painter.drawEllipse(center, qMax(8, outerRadius / 10), qMax(8, outerRadius / 10));
+
+    painter.setBrush(QColor(255, 255, 255, 178));
+    painter.drawEllipse(center, qMax(2, outerRadius / 28), qMax(2, outerRadius / 28));
 }
-void RotatingCircleImage::onStopRotate(bool flag) {
+
+void RotatingCircleImage::onStopRotate(bool flag)
+{
     if (flag) {
         timer->start();
     } else {
@@ -100,23 +172,21 @@ void RotatingCircleImage::onStopRotate(bool flag) {
     }
 }
 
-void RotatingCircleImage::setImage(const QString &imagePath) {
-    // 如果是 file:/// URL 格式，转换为本地路径
+void RotatingCircleImage::setImage(const QString &imagePath)
+{
     QString localPath = imagePath;
     if (imagePath.startsWith("file:///")) {
         localPath = QUrl(imagePath).toLocalFile();
         qDebug() << "RotatingCircleImage: Converted URL to local path:" << localPath;
     } else if (imagePath.startsWith("qrc:/")) {
-        // QRC 资源路径，去掉 qrc: 前缀
-        localPath = imagePath.mid(3);  // 移除 "qrc"
+        localPath = imagePath.mid(3);
         qDebug() << "RotatingCircleImage: Using QRC path:" << localPath;
     }
-    
+
     QPixmap newImage(localPath);
     if (!newImage.isNull()) {
-        QMutexLocker locker(&mutex);
         image = newImage;
-        // 立即更新显示
+        invalidateCoverCache();
         update();
         qDebug() << "RotatingCircleImage: Image loaded successfully, size:" << newImage.size();
     } else {

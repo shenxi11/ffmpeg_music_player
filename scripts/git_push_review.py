@@ -130,6 +130,32 @@ def print_section(title: str) -> None:
     print(f"\n[{title}]")
 
 
+def detect_clang_format_binary(repo_root: Path) -> str | None:
+    env_value = os.environ.get("GIT_PUSH_REVIEW_CLANG_FORMAT", "").strip()
+    if env_value:
+        candidate = Path(env_value)
+        if not candidate.is_absolute():
+            candidate = repo_root / candidate
+        if candidate.exists():
+            return str(candidate)
+
+    tool = shutil.which("clang-format")
+    if tool:
+        return tool
+
+    local_candidates = (
+        Path.home() / ".cursor" / "extensions",
+        Path.home() / ".vscode" / "extensions",
+    )
+    for base_dir in local_candidates:
+        if not base_dir.exists():
+            continue
+        matches = sorted(base_dir.glob("**/LLVM/bin/clang-format.exe"), reverse=True)
+        if matches:
+            return str(matches[0])
+    return None
+
+
 def detect_clang_format_config(repo_root: Path) -> Path | None:
     for name in (".clang-format", "_clang-format"):
         candidate = repo_root / name
@@ -180,7 +206,7 @@ def run_clang_format_check(repo_root: Path, changed_files: set[str]) -> bool:
         print("clang-format: skipped (no .clang-format or _clang-format in repo root)")
         return True
 
-    clang_format = shutil.which("clang-format")
+    clang_format = detect_clang_format_binary(repo_root)
     cpp_files = sorted(path for path in changed_files if Path(path).suffix.lower() in FORMAT_EXTENSIONS)
     if not cpp_files:
         print("clang-format: skipped (no changed C++ files)")

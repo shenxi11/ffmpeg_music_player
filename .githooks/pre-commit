@@ -1,15 +1,17 @@
 #!/bin/sh
 
+hook_dir="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
+script_path="$hook_dir/../scripts/git_commit_review.py"
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
 cd "$repo_root" || exit 1
 
 if command -v python >/dev/null 2>&1; then
-  python "scripts/git_commit_review.py"
+  python "$script_path"
   exit $?
 fi
 
 if command -v py >/dev/null 2>&1; then
-  py -3 "scripts/git_commit_review.py"
+  py -3 "$script_path"
   exit $?
 fi
 

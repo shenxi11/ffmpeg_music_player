@@ -163,6 +163,12 @@ public:
         processSlider = slider;
     }
 
+    QString lyricText() const { return lastLyricText; }
+    QString songName() const { return lastSongName; }
+    QColor lyricStyleColor() const { return lyricColor; }
+    int lyricStyleFontSize() const { return lyricFontSize; }
+    QString lyricStyleFontFamily() const { return lyricFontFamily; }
+
 private slots:
     void onQmlStatusChanged(QQuickWidget::Status status)
     {

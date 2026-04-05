@@ -23,6 +23,7 @@ class SettingsManager : public QObject
     Q_PROPERTY(QString logPath READ logPath WRITE setLogPath NOTIFY logPathChanged)
     Q_PROPERTY(QString serverHost READ serverHost WRITE setServerHost NOTIFY serverEndpointChanged)
     Q_PROPERTY(int serverPort READ serverPort WRITE setServerPort NOTIFY serverEndpointChanged)
+    Q_PROPERTY(int playerPageStyle READ playerPageStyle WRITE setPlayerPageStyle NOTIFY playerPageStyleChanged)
 
 public:
     static SettingsManager& instance()
@@ -51,6 +52,8 @@ public:
 
     int serverPort() const { return m_serverPort; }
     void setServerPort(int port);
+    int playerPageStyle() const { return m_playerPageStyle; }
+    void setPlayerPageStyle(int styleId);
 
     QString serverBaseUrl() const;
     void setServerEndpoint(const QString& host, int port);
@@ -59,12 +62,15 @@ public:
     QString cachedPassword() const { return m_cachedPassword; }
     QString cachedUsername() const { return m_cachedUsername; }
     bool autoLoginEnabled() const { return m_autoLoginEnabled; }
+    bool manualLogoutMarked() const { return m_manualLogoutMarked; }
+    bool shouldAutoLogin() const;
 
     void saveAccountCache(const QString& account,
                           const QString& password,
                           const QString& username,
                           bool enableAutoLogin);
     void setAutoLoginEnabled(bool enabled);
+    void setManualLogoutMarked(bool marked);
     void clearAccountCache();
 
     bool hasServerWelcomeWindowPos() const { return m_hasServerWelcomeWindowPos; }
@@ -82,6 +88,7 @@ signals:
     void audioCachePathChanged();
     void logPathChanged();
     void serverEndpointChanged();
+    void playerPageStyleChanged();
     void accountCacheChanged();
     void autoLoginChanged();
 
@@ -100,10 +107,12 @@ private:
     QString m_logPath;
     QString m_serverHost;
     int m_serverPort = 8080;
+    int m_playerPageStyle = 0;
     QString m_cachedAccount;
     QString m_cachedPassword;
     QString m_cachedUsername;
     bool m_autoLoginEnabled = false;
+    bool m_manualLogoutMarked = false;
     bool m_hasServerWelcomeWindowPos = false;
     QPoint m_serverWelcomeWindowPos;
 };

@@ -75,6 +75,11 @@ bool SettingsViewModel::downloadCover() const
     return SettingsManager::instance().downloadCover();
 }
 
+int SettingsViewModel::playerPageStyle() const
+{
+    return SettingsManager::instance().playerPageStyle();
+}
+
 void SettingsViewModel::chooseDownloadPath(QWidget* parent)
 {
     const QString dir = QFileDialog::getExistingDirectory(
@@ -224,6 +229,15 @@ void SettingsViewModel::setDownloadCover(bool enabled)
     emit downloadCoverChanged();
 }
 
+void SettingsViewModel::setPlayerPageStyle(int styleId)
+{
+    if (playerPageStyle() == styleId) {
+        return;
+    }
+    SettingsManager::instance().setPlayerPageStyle(styleId);
+    emit playerPageStyleChanged();
+}
+
 void SettingsViewModel::refreshPresence()
 {
     OnlinePresenceManager::instance().requestStatusRefresh();
@@ -236,6 +250,7 @@ void SettingsViewModel::syncFromSettings()
     emit logPathChanged();
     emit downloadLyricsChanged();
     emit downloadCoverChanged();
+    emit playerPageStyleChanged();
 }
 
 void SettingsViewModel::onPresenceSnapshotChanged(const QString& account,

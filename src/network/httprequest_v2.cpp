@@ -7,6 +7,7 @@
 #include "user.h"
 #include <QDebug>
 #include <QHash>
+#include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
@@ -65,6 +66,29 @@ QString normalizeMusicPathForLookup(QString path)
         path = path.toLower();
     }
     return path;
+}
+
+QString fileNameFromPath(const QString& path)
+{
+    QString value = path.trimmed();
+    if (value.isEmpty()) {
+        return QString();
+    }
+
+    const int queryIndex = value.indexOf('?');
+    if (queryIndex > 0) {
+        value = value.left(queryIndex);
+    }
+
+    if (value.startsWith("http://", Qt::CaseInsensitive) ||
+        value.startsWith("https://", Qt::CaseInsensitive)) {
+        const QUrl url(value);
+        value = url.path();
+    }
+
+    const QFileInfo info(value);
+    const QString baseName = info.completeBaseName().trimmed();
+    return baseName;
 }
 
 QString formatDurationFromSeconds(int totalSeconds)
@@ -242,10 +266,98 @@ QString extractErrorMessage(const Network::NetworkResponse& response, const QStr
     return plain;
 }
 
+QJsonObject unwrapDataObject(const QJsonObject& rootObj)
+{
+    if (rootObj.contains(QStringLiteral("data")) && rootObj.value(QStringLiteral("data")).isObject()) {
+        return rootObj.value(QStringLiteral("data")).toObject();
+    }
+    return rootObj;
+}
+
+bool parseSuccessFlag(const QJsonObject& obj, bool defaultValue)
+{
+    if (obj.contains(QStringLiteral("success")) && obj.value(QStringLiteral("success")).isBool()) {
+        return obj.value(QStringLiteral("success")).toBool();
+    }
+    if (obj.contains(QStringLiteral("success_bool")) && obj.value(QStringLiteral("success_bool")).isBool()) {
+        return obj.value(QStringLiteral("success_bool")).toBool();
+    }
+    if (obj.contains(QStringLiteral("ok")) && obj.value(QStringLiteral("ok")).isBool()) {
+        return obj.value(QStringLiteral("ok")).toBool();
+    }
+    return defaultValue;
+}
+
+QString parseMessageText(const QJsonObject& obj, const QString& fallback = QString())
+{
+    const QString message = obj.value(QStringLiteral("message")).toString().trimmed();
+    if (!message.isEmpty()) {
+        return message;
+    }
+    return fallback;
+}
+
+int durationSecondsFromText(const QString& duration)
+{
+    const QString text = duration.trimmed();
+    if (text.isEmpty()) {
+        return 0;
+    }
+
+    if (text.contains(':')) {
+        const QStringList parts = text.split(':', Qt::SkipEmptyParts);
+        if (parts.size() == 2) {
+            bool okMin = false;
+            bool okSec = false;
+            const int minutes = parts[0].toInt(&okMin);
+            const int seconds = parts[1].toInt(&okSec);
+            if (okMin && okSec) {
+                return qMax(0, minutes * 60 + seconds);
+            }
+        } else if (parts.size() == 3) {
+            bool okHour = false;
+            bool okMin = false;
+            bool okSec = false;
+            const int hours = parts[0].toInt(&okHour);
+            const int minutes = parts[1].toInt(&okMin);
+            const int seconds = parts[2].toInt(&okSec);
+            if (okHour && okMin && okSec) {
+                return qMax(0, hours * 3600 + minutes * 60 + seconds);
+            }
+        }
+    }
+
+    bool ok = false;
+    const double asDouble = text.toDouble(&ok);
+    if (ok) {
+        return qMax(0, static_cast<int>(asDouble));
+    }
+
+    const QStringList split = text.split(' ', Qt::SkipEmptyParts);
+    if (!split.isEmpty()) {
+        const double head = split.first().toDouble(&ok);
+        if (ok) {
+            return qMax(0, static_cast<int>(head));
+        }
+    }
+
+    return 0;
+}
+
 QString rewriteServiceUrlToBase(const QString& rawUrl, const QString& baseUrl)
 {
     const QString trimmed = rawUrl.trimmed();
+    QString normalizedPath = trimmed;
+    normalizedPath.replace('\\', '/');
+    const QString lowerTrimmed = trimmed.toLower();
+    const QString lowerNormalized = normalizedPath.toLower();
     if (trimmed.isEmpty()) {
+        return QString();
+    }
+    if (lowerTrimmed == QStringLiteral("null") ||
+        lowerTrimmed == QStringLiteral("undefined") ||
+        lowerTrimmed == QStringLiteral("none") ||
+        lowerTrimmed == QStringLiteral("(null)")) {
         return QString();
     }
 
@@ -257,11 +369,25 @@ QString rewriteServiceUrlToBase(const QString& rawUrl, const QString& baseUrl)
         base.setPath("/");
     }
 
+    // Windows 本地路径兜底：转 file:// URL 供 QML Image 加载。
+    if (normalizedPath.size() >= 3 &&
+        normalizedPath[1] == QLatin1Char(':') &&
+        normalizedPath[2] == QLatin1Char('/')) {
+        return QUrl::fromLocalFile(normalizedPath).toString();
+    }
+
     if (trimmed.startsWith("http://", Qt::CaseInsensitive) ||
         trimmed.startsWith("https://", Qt::CaseInsensitive)) {
         QUrl url(trimmed);
         if (!url.isValid()) {
             return trimmed;
+        }
+
+        QString fixedPath = url.path();
+        const QString lowerPath = fixedPath.toLower();
+        if (lowerPath.startsWith(QStringLiteral("/uploads/uploads/"))) {
+            fixedPath = QStringLiteral("/uploads/") + fixedPath.mid(QStringLiteral("/uploads/uploads/").size());
+            url.setPath(fixedPath);
         }
 
         if (shouldRewriteAbsoluteServiceUrl(url, base)) {
@@ -277,29 +403,44 @@ QString rewriteServiceUrlToBase(const QString& rawUrl, const QString& baseUrl)
         return trimmed;
     }
 
-    if (trimmed.startsWith('/')) {
-        return base.resolved(QUrl(trimmed.mid(1))).toString();
+    QString fixedRelative = normalizedPath;
+    const QString fixedLower = fixedRelative.toLower();
+    if (fixedLower.startsWith(QStringLiteral("uploads/uploads/"))) {
+        fixedRelative = QStringLiteral("uploads/") + fixedRelative.mid(QStringLiteral("uploads/uploads/").size());
+    } else if (fixedLower.startsWith(QStringLiteral("/uploads/uploads/"))) {
+        fixedRelative = QStringLiteral("/uploads/") + fixedRelative.mid(QStringLiteral("/uploads/uploads/").size());
+    }
+
+    if (fixedRelative.startsWith('/')) {
+        return base.resolved(QUrl(fixedRelative.mid(1))).toString();
     }
 
     // Service may return relative paths without leading slash, e.g. "uploads/x.jpg".
     // Resolve common service paths to current base URL for private deployment stability.
-    const QString lower = trimmed.toLower();
-    if (lower.startsWith("uploads/") ||
-        lower.startsWith("video/") ||
-        lower.startsWith("hls/") ||
-        lower.startsWith("files/") ||
-        lower.startsWith("download") ||
-        lower.startsWith("lrc")) {
-        return base.resolved(QUrl(trimmed)).toString();
+    const QString fixedRelativeLower = fixedRelative.toLower();
+    if (fixedRelativeLower.startsWith("uploads/") ||
+        fixedRelativeLower.startsWith("video/") ||
+        fixedRelativeLower.startsWith("hls/") ||
+        fixedRelativeLower.startsWith("files/") ||
+        fixedRelativeLower.startsWith("download") ||
+        fixedRelativeLower.startsWith("lrc")) {
+        return base.resolved(QUrl(fixedRelative)).toString();
     }
 
-    return trimmed;
+    return fixedRelative;
 }
 
 QString normalizeOnlineMediaPath(const QString& rawPath, const QString& baseUrl)
 {
     const QString trimmed = rawPath.trimmed();
+    const QString lowerTrimmed = trimmed.toLower();
     if (trimmed.isEmpty()) {
+        return QString();
+    }
+    if (lowerTrimmed == QStringLiteral("null") ||
+        lowerTrimmed == QStringLiteral("undefined") ||
+        lowerTrimmed == QStringLiteral("none") ||
+        lowerTrimmed == QStringLiteral("(null)")) {
         return QString();
     }
 
@@ -320,6 +461,197 @@ QString normalizeOnlineMediaPath(const QString& rawPath, const QString& baseUrl)
         return QUrl(baseUrl + relative).toString();
     }
     return QUrl(baseUrl + "uploads/" + relative).toString();
+}
+
+QHash<QString, QString>& coverLookupTable()
+{
+    static QHash<QString, QString> s_coverByMusicPath;
+    return s_coverByMusicPath;
+}
+
+QHash<QString, QString>& coverLookupByMetaTable()
+{
+    static QHash<QString, QString> s_coverByMeta;
+    return s_coverByMeta;
+}
+
+QString normalizeNullableText(const QString& value)
+{
+    const QString trimmed = value.trimmed();
+    if (trimmed.isEmpty()) {
+        return QString();
+    }
+    const QString lower = trimmed.toLower();
+    if (lower == QStringLiteral("null") ||
+        lower == QStringLiteral("undefined") ||
+        lower == QStringLiteral("none") ||
+        lower == QStringLiteral("(null)")) {
+        return QString();
+    }
+    return trimmed;
+}
+
+QStringList buildMusicLookupKeys(const QString& rawPath)
+{
+    QStringList keys;
+    const QString cleaned = normalizeNullableText(rawPath);
+    if (cleaned.isEmpty()) {
+        return keys;
+    }
+
+    auto appendKey = [&keys](const QString& candidate) {
+        const QString key = normalizeMusicPathForLookup(candidate);
+        if (!key.isEmpty() && !keys.contains(key)) {
+            keys.append(key);
+        }
+    };
+
+    auto appendNameKeys = [&appendKey](const QString& candidatePath) {
+        QString value = candidatePath;
+        value.replace('\\', '/');
+        const QFileInfo info(value);
+        const QString fileName = info.fileName().trimmed();
+        if (!fileName.isEmpty()) {
+            appendKey(fileName);
+        }
+        const QString baseName = info.completeBaseName().trimmed();
+        if (!baseName.isEmpty()) {
+            appendKey(baseName);
+        }
+    };
+
+    appendKey(cleaned);
+    appendNameKeys(cleaned);
+
+    QUrl url(cleaned);
+    if (url.isValid() && (cleaned.startsWith(QStringLiteral("http://"), Qt::CaseInsensitive) ||
+                          cleaned.startsWith(QStringLiteral("https://"), Qt::CaseInsensitive))) {
+        const QString decodedPath = QUrl::fromPercentEncoding(url.path().toUtf8());
+        appendKey(decodedPath);
+        appendNameKeys(decodedPath);
+        if (decodedPath.startsWith('/')) {
+            appendKey(decodedPath.mid(1));
+            appendNameKeys(decodedPath.mid(1));
+        }
+
+        const QString pathLower = decodedPath.toLower();
+        const int uploadsPos = pathLower.indexOf(QStringLiteral("/uploads/"));
+        if (uploadsPos >= 0) {
+            appendKey(decodedPath.mid(uploadsPos + 1));
+            appendNameKeys(decodedPath.mid(uploadsPos + 1));
+        }
+    } else if (cleaned.startsWith('/')) {
+        appendKey(cleaned.mid(1));
+        appendNameKeys(cleaned.mid(1));
+    }
+
+    return keys;
+}
+
+void rememberCoverForMusicPath(const QString& rawPath, const QString& rawCover)
+{
+    const QString cover = normalizeNullableText(rawCover);
+    if (cover.isEmpty()) {
+        return;
+    }
+    const QStringList keys = buildMusicLookupKeys(rawPath);
+    if (keys.isEmpty()) {
+        return;
+    }
+    QHash<QString, QString>& lookup = coverLookupTable();
+    for (const QString& key : keys) {
+        lookup.insert(key, cover);
+    }
+}
+
+QString queryCoverForMusicPath(const QString& rawPath)
+{
+    const QStringList keys = buildMusicLookupKeys(rawPath);
+    if (keys.isEmpty()) {
+        return QString();
+    }
+    const QHash<QString, QString>& lookup = coverLookupTable();
+    for (const QString& key : keys) {
+        auto it = lookup.constFind(key);
+        if (it != lookup.constEnd()) {
+            return it.value();
+        }
+    }
+    return QString();
+}
+
+QString buildSongMetaKey(const QString& title, const QString& artist)
+{
+    const QString t = normalizeNullableText(title).toLower();
+    const QString a = normalizeNullableText(artist).toLower();
+    if (t.isEmpty()) {
+        return QString();
+    }
+    return t + QStringLiteral("|") + a;
+}
+
+void rememberCoverForSongMeta(const QString& title, const QString& artist, const QString& rawCover)
+{
+    const QString cover = normalizeNullableText(rawCover);
+    if (cover.isEmpty()) {
+        return;
+    }
+    const QString key = buildSongMetaKey(title, artist);
+    if (key.isEmpty()) {
+        return;
+    }
+    coverLookupByMetaTable().insert(key, cover);
+}
+
+QString queryCoverForSongMeta(const QString& title, const QString& artist)
+{
+    const QString key = buildSongMetaKey(title, artist);
+    if (key.isEmpty()) {
+        return QString();
+    }
+    return coverLookupByMetaTable().value(key);
+}
+
+QString buildCoverPathForPlaylistPayload(const QString& rawCover)
+{
+    QString cover = normalizeNullableText(rawCover);
+    if (cover.isEmpty()) {
+        return QString();
+    }
+    if (cover.startsWith(QStringLiteral("qrc:/"), Qt::CaseInsensitive)) {
+        return QString();
+    }
+
+    if (cover.startsWith(QStringLiteral("file://"), Qt::CaseInsensitive)) {
+        const QUrl localUrl(cover);
+        if (localUrl.isLocalFile()) {
+            return localUrl.toLocalFile();
+        }
+    }
+
+    if (cover.startsWith(QStringLiteral("http://"), Qt::CaseInsensitive) ||
+        cover.startsWith(QStringLiteral("https://"), Qt::CaseInsensitive)) {
+        const QUrl url(cover);
+        if (!url.isValid()) {
+            return QString();
+        }
+        QString path = QUrl::fromPercentEncoding(url.path().toUtf8()).trimmed();
+        while (path.startsWith('/')) {
+            path.remove(0, 1);
+        }
+        if (path.toLower().startsWith(QStringLiteral("uploads/"))) {
+            path = path.mid(QStringLiteral("uploads/").size());
+        }
+        return path;
+    }
+
+    if (cover.startsWith('/')) {
+        cover = cover.mid(1);
+    }
+    if (cover.toLower().startsWith(QStringLiteral("uploads/"))) {
+        cover = cover.mid(QStringLiteral("uploads/").size());
+    }
+    return cover;
 }
 } // namespace
 
@@ -495,8 +827,10 @@ void HttpRequestV2::getAllFiles(bool useCache)
                     if (value.isObject()) {
                         QJsonObject fileObj = value.toObject();
                         QString filePath = fileObj["path"].toString();
+                        filePath = normalizeOnlineMediaPath(filePath, m_baseUrl);
                         QString durationStr = fileObj["duration"].toString();
                         QString coverUrl = rewriteServiceUrlToBase(fileObj["cover_art_url"].toString(), m_baseUrl);
+                        rememberCoverForMusicPath(filePath, coverUrl);
                         QString artist = readArtistFromObject(fileObj);
                         if (artist.trimmed().isEmpty()) {
                             artist = QStringLiteral("Unknown Artist");
@@ -516,6 +850,7 @@ void HttpRequestV2::getAllFiles(bool useCache)
                         music.setSinger(artist);
                         music.setDuration(static_cast<long>(durationValue));
                         music.setPicPath(coverUrl);
+                        rememberCoverForSongMeta(fileNameFromPath(filePath), artist, coverUrl);
                         
                         musicList.append(music);
                     }
@@ -634,18 +969,7 @@ void HttpRequestV2::addFavorite(const QString& userAccount, const QString& path,
         return;
     }
 
-    int durationSec = 0;
-    const QString trimmedDuration = duration.trimmed();
-    if (trimmedDuration.contains(":")) {
-        const QStringList parts = trimmedDuration.split(":");
-        if (parts.size() >= 2) {
-            durationSec = parts[0].toInt() * 60 + parts[1].toInt();
-        }
-    } else if (trimmedDuration.contains(" ")) {
-        durationSec = static_cast<int>(trimmedDuration.split(" ").first().toDouble());
-    } else {
-        durationSec = trimmedDuration.toInt();
-    }
+    const int durationSec = durationSecondsFromText(duration);
 
     // 服务端契约：
     // 接口契约：POST /user/favorites/add?user_account=xxx
@@ -762,6 +1086,11 @@ void HttpRequestV2::getFavorites(const QString& userAccount, bool useCache)
                             }
                         }
                     }
+                    if (coverArtUrl.trimmed().isEmpty()) {
+                        coverArtUrl = queryCoverForMusicPath(path);
+                    }
+                    rememberCoverForMusicPath(path, coverArtUrl);
+                    rememberCoverForSongMeta(favObj["title"].toString(), readArtistFromObject(favObj), coverArtUrl);
                     
                     favorite["path"] = path;
                     favorite["title"] = favObj["title"].toString();
@@ -911,7 +1240,13 @@ void HttpRequestV2::getPlayHistory(const QString& userAccount, int limit, bool u
                     historyItem["duration"] = duration;
                     historyItem["is_local"] = isLocal;
                     historyItem["play_time"] = histObj["play_time"].toString();
-                    historyItem["cover_art_url"] = rewriteServiceUrlToBase(histObj["cover_art_url"].toString(), m_baseUrl);
+                    QString historyCover = rewriteServiceUrlToBase(histObj["cover_art_url"].toString(), m_baseUrl);
+                    if (historyCover.trimmed().isEmpty()) {
+                        historyCover = queryCoverForMusicPath(path);
+                    }
+                    historyItem["cover_art_url"] = historyCover;
+                    rememberCoverForMusicPath(path, historyCover);
+                    rememberCoverForSongMeta(histObj["title"].toString(), readArtistFromObject(histObj), historyCover);
                     
                     history.append(historyItem);
                 }
@@ -1018,8 +1353,12 @@ void HttpRequestV2::getAudioRecommendations(const QString& userId,
                 item.insert(QStringLiteral("album"), itemObj.value(QStringLiteral("album")).toString());
                 item.insert(QStringLiteral("duration_sec"), durationSec);
                 item.insert(QStringLiteral("duration"), durationText);
-                item.insert(QStringLiteral("cover_art_url"),
-                            rewriteServiceUrlToBase(itemObj.value(QStringLiteral("cover_art_url")).toString(), m_baseUrl));
+                QString coverArtUrl = rewriteServiceUrlToBase(
+                    itemObj.value(QStringLiteral("cover_art_url")).toString(), m_baseUrl);
+                if (coverArtUrl.trimmed().isEmpty()) {
+                    coverArtUrl = queryCoverForMusicPath(rawPath);
+                }
+                item.insert(QStringLiteral("cover_art_url"), coverArtUrl);
                 item.insert(QStringLiteral("stream_url"), streamUrl);
                 item.insert(QStringLiteral("lrc_url"),
                             rewriteServiceUrlToBase(itemObj.value(QStringLiteral("lrc_url")).toString(), m_baseUrl));
@@ -1030,6 +1369,11 @@ void HttpRequestV2::getAudioRecommendations(const QString& userId,
                 item.insert(QStringLiteral("model_version"), meta.value(QStringLiteral("model_version")));
                 item.insert(QStringLiteral("scene"), meta.value(QStringLiteral("scene")));
 
+                rememberCoverForMusicPath(rawPath, coverArtUrl);
+                rememberCoverForMusicPath(streamUrl, coverArtUrl);
+                rememberCoverForSongMeta(itemObj.value(QStringLiteral("title")).toString(),
+                                         readArtistFromObject(itemObj),
+                                         coverArtUrl);
                 items.append(item);
             }
 
@@ -1119,8 +1463,12 @@ void HttpRequestV2::getSimilarRecommendations(const QString& songId, int limit)
                 item.insert(QStringLiteral("album"), itemObj.value(QStringLiteral("album")).toString());
                 item.insert(QStringLiteral("duration_sec"), durationSec);
                 item.insert(QStringLiteral("duration"), durationText);
-                item.insert(QStringLiteral("cover_art_url"),
-                            rewriteServiceUrlToBase(itemObj.value(QStringLiteral("cover_art_url")).toString(), m_baseUrl));
+                QString coverArtUrl = rewriteServiceUrlToBase(
+                    itemObj.value(QStringLiteral("cover_art_url")).toString(), m_baseUrl);
+                if (coverArtUrl.trimmed().isEmpty()) {
+                    coverArtUrl = queryCoverForMusicPath(rawPath);
+                }
+                item.insert(QStringLiteral("cover_art_url"), coverArtUrl);
                 item.insert(QStringLiteral("stream_url"), streamUrl);
                 item.insert(QStringLiteral("lrc_url"),
                             rewriteServiceUrlToBase(itemObj.value(QStringLiteral("lrc_url")).toString(), m_baseUrl));
@@ -1131,6 +1479,11 @@ void HttpRequestV2::getSimilarRecommendations(const QString& songId, int limit)
                 item.insert(QStringLiteral("model_version"), meta.value(QStringLiteral("model_version")));
                 item.insert(QStringLiteral("scene"), meta.value(QStringLiteral("scene")));
 
+                rememberCoverForMusicPath(rawPath, coverArtUrl);
+                rememberCoverForMusicPath(streamUrl, coverArtUrl);
+                rememberCoverForSongMeta(itemObj.value(QStringLiteral("title")).toString(),
+                                         readArtistFromObject(itemObj),
+                                         coverArtUrl);
                 items.append(item);
             }
 
@@ -1309,7 +1662,8 @@ void HttpRequestV2::getMusicByArtist(const QString& artist)
                 for (const auto& item : musicArray) {
                     QJsonObject obj = item.toObject();
                     
-                    const QString songPath = obj["path"].toString();
+                    QString songPath = obj["path"].toString();
+                    songPath = normalizeOnlineMediaPath(songPath, m_baseUrl);
                     QString artistName = readArtistFromObject(obj);
                     if (artistName.trimmed().isEmpty()) {
                         artistName = QStringLiteral("Unknown Artist");
@@ -1338,7 +1692,10 @@ void HttpRequestV2::getMusicByArtist(const QString& artist)
                     music.setSongPath(songPath);
                     music.setSinger(artistName);
                     music.setDuration(durationSec);
-                    music.setPicPath(rewriteServiceUrlToBase(coverRaw, m_baseUrl));
+                    const QString coverUrl = rewriteServiceUrlToBase(coverRaw, m_baseUrl);
+                    music.setPicPath(coverUrl);
+                    rememberCoverForMusicPath(songPath, coverUrl);
+                    rememberCoverForSongMeta(fileNameFromPath(songPath), artistName, coverUrl);
                     
                     musicList.append(music);
                 }
@@ -1462,8 +1819,10 @@ void HttpRequestV2::getMusic(const QString& keyword)
                     if (value.isObject()) {
                         QJsonObject fileObj = value.toObject();
                         QString filePath = fileObj["path"].toString();
+                        filePath = normalizeOnlineMediaPath(filePath, m_baseUrl);
                         QString durationStr = fileObj["duration"].toString();
                         QString coverUrl = rewriteServiceUrlToBase(fileObj["cover_art_url"].toString(), m_baseUrl);
+                        rememberCoverForMusicPath(filePath, coverUrl);
                         QString artist = readArtistFromObject(fileObj);
                         if (artist.trimmed().isEmpty()) {
                             artist = QStringLiteral("Unknown Artist");
@@ -1569,6 +1928,602 @@ void HttpRequestV2::removePlayHistory(const QString& userAccount, const QStringL
             }
             
             emit signalRemoveHistoryResult(success);
+        });
+}
+
+void HttpRequestV2::getPlaylists(const QString& userAccount, int page, int pageSize, bool useCache)
+{
+    const QString trimmedUser = userAccount.trimmed();
+    const int safePage = qMax(1, page);
+    const int safePageSize = qBound(1, pageSize, 100);
+    if (trimmedUser.isEmpty()) {
+        qWarning() << "[HttpRequestV2] getPlaylists skipped: userAccount is empty";
+        emit signalPlaylistsList(QVariantList(), safePage, safePageSize, 0);
+        return;
+    }
+
+    const QString url = QString("user/playlists?user_account=%1&page=%2&page_size=%3")
+                            .arg(QString(QUrl::toPercentEncoding(trimmedUser)))
+                            .arg(safePage)
+                            .arg(safePageSize);
+
+    Network::RequestOptions options;
+    if (useCache) {
+        options = Network::RequestOptions::withCache(30);
+    } else {
+        options = Network::RequestOptions::withPriority(Network::RequestPriority::High);
+        options.useCache = false;
+    }
+
+    m_networkService.get(url, options,
+        [this, safePage, safePageSize](const Network::NetworkResponse& response) {
+            if (!response.isSuccess()) {
+                qWarning() << "[HttpRequestV2] Get playlists error:" << response.errorString;
+                emit signalPlaylistsList(QVariantList(), safePage, safePageSize, 0);
+                return;
+            }
+
+            QJsonObject root = Network::NetworkService::parseJsonObject(response);
+            QJsonObject data = unwrapDataObject(root);
+            QJsonArray itemsArray;
+            if (data.value(QStringLiteral("items")).isArray()) {
+                itemsArray = data.value(QStringLiteral("items")).toArray();
+            } else if (root.value(QStringLiteral("items")).isArray()) {
+                itemsArray = root.value(QStringLiteral("items")).toArray();
+            } else {
+                itemsArray = Network::NetworkService::parseJsonArray(response);
+            }
+
+            const int pageValue = data.value(QStringLiteral("page")).toInt(
+                root.value(QStringLiteral("page")).toInt(safePage));
+            const int pageSizeValue = data.value(QStringLiteral("page_size")).toInt(
+                root.value(QStringLiteral("page_size")).toInt(safePageSize));
+            const int totalValue = data.value(QStringLiteral("total")).toInt(
+                root.value(QStringLiteral("total")).toInt(itemsArray.size()));
+
+            QVariantList playlists;
+            playlists.reserve(itemsArray.size());
+            for (const QJsonValue& value : itemsArray) {
+                if (!value.isObject()) {
+                    continue;
+                }
+                const QJsonObject obj = value.toObject();
+                QVariantMap playlist;
+                const int totalDurationSec = obj.value(QStringLiteral("total_duration_sec")).toInt();
+
+                playlist.insert(QStringLiteral("id"), obj.value(QStringLiteral("id")).toVariant().toLongLong());
+                playlist.insert(QStringLiteral("name"), obj.value(QStringLiteral("name")).toString());
+                playlist.insert(QStringLiteral("description"), obj.value(QStringLiteral("description")).toString());
+                playlist.insert(QStringLiteral("cover_url"),
+                                rewriteServiceUrlToBase(obj.value(QStringLiteral("cover_url")).toString(), m_baseUrl));
+                playlist.insert(QStringLiteral("track_count"), obj.value(QStringLiteral("track_count")).toInt());
+                playlist.insert(QStringLiteral("total_duration_sec"), totalDurationSec);
+                playlist.insert(QStringLiteral("total_duration"), formatDurationFromSeconds(totalDurationSec));
+                playlist.insert(QStringLiteral("created_at"), obj.value(QStringLiteral("created_at")).toString());
+                playlist.insert(QStringLiteral("updated_at"), obj.value(QStringLiteral("updated_at")).toString());
+                playlists.append(playlist);
+            }
+
+            emit signalPlaylistsList(playlists, pageValue, pageSizeValue, totalValue);
+        });
+}
+
+void HttpRequestV2::createPlaylist(const QString& userAccount,
+                                   const QString& name,
+                                   const QString& description,
+                                   const QString& coverPath)
+{
+    const QString trimmedUser = userAccount.trimmed();
+    const QString trimmedName = name.trimmed();
+    if (trimmedUser.isEmpty() || trimmedName.isEmpty()) {
+        emit signalCreatePlaylistResult(false, 0, QStringLiteral("歌单名称不能为空"));
+        return;
+    }
+
+    const QString url = QString("user/playlists?user_account=%1")
+                            .arg(QString(QUrl::toPercentEncoding(trimmedUser)));
+
+    QJsonObject json;
+    json[QStringLiteral("name")] = trimmedName;
+    if (!description.trimmed().isEmpty()) {
+        json[QStringLiteral("description")] = description.trimmed();
+    }
+    if (!coverPath.trimmed().isEmpty()) {
+        json[QStringLiteral("cover_path")] = coverPath.trimmed();
+    }
+
+    Network::RequestOptions options = Network::RequestOptions::withPriority(Network::RequestPriority::High);
+    options.maxRetries = 0;
+    options.useCache = false;
+
+    m_networkService.postJson(url, json, options,
+        [this, trimmedUser](const Network::NetworkResponse& response) {
+            bool success = false;
+            qint64 playlistId = 0;
+            QString message = QStringLiteral("创建失败");
+
+            if (response.isSuccess()) {
+                const QJsonObject root = Network::NetworkService::parseJsonObject(response);
+                const QJsonObject data = unwrapDataObject(root);
+                success = parseSuccessFlag(data, parseSuccessFlag(root, true));
+                playlistId = data.value(QStringLiteral("playlist_id")).toVariant().toLongLong();
+                if (playlistId <= 0) {
+                    playlistId = root.value(QStringLiteral("playlist_id")).toVariant().toLongLong();
+                }
+                message = parseMessageText(data, parseMessageText(root, success ? QStringLiteral("创建成功")
+                                                                                 : QStringLiteral("创建失败")));
+                if (success) {
+                    m_networkService.invalidateCache(
+                        QString("user/playlists?user_account=%1&page=1&page_size=20").arg(trimmedUser));
+                    m_networkService.invalidateCache(
+                        QString("user/playlists?user_account=%1").arg(trimmedUser));
+                }
+            } else {
+                message = extractErrorMessage(response, QStringLiteral("创建歌单失败"));
+            }
+
+            emit signalCreatePlaylistResult(success, playlistId, message);
+        });
+}
+
+void HttpRequestV2::getPlaylistDetail(const QString& userAccount, qint64 playlistId, bool useCache)
+{
+    const QString trimmedUser = userAccount.trimmed();
+    if (trimmedUser.isEmpty() || playlistId <= 0) {
+        emit signalPlaylistDetail(QVariantMap());
+        return;
+    }
+
+    const QString url = QString("user/playlists/%1?user_account=%2")
+                            .arg(playlistId)
+                            .arg(QString(QUrl::toPercentEncoding(trimmedUser)));
+
+    Network::RequestOptions options;
+    if (useCache) {
+        options = Network::RequestOptions::withCache(15);
+    } else {
+        options = Network::RequestOptions::withPriority(Network::RequestPriority::High);
+        options.useCache = false;
+    }
+
+    m_networkService.get(url, options,
+        [this](const Network::NetworkResponse& response) {
+            if (!response.isSuccess()) {
+                qWarning() << "[HttpRequestV2] Get playlist detail error:" << response.errorString;
+                emit signalPlaylistDetail(QVariantMap());
+                return;
+            }
+
+            const QJsonObject root = Network::NetworkService::parseJsonObject(response);
+            const QJsonObject detailObj = unwrapDataObject(root);
+
+            QVariantMap detail;
+            detail.insert(QStringLiteral("id"), detailObj.value(QStringLiteral("id")).toVariant().toLongLong());
+            detail.insert(QStringLiteral("name"), detailObj.value(QStringLiteral("name")).toString());
+            detail.insert(QStringLiteral("description"), detailObj.value(QStringLiteral("description")).toString());
+            detail.insert(QStringLiteral("cover_url"),
+                          rewriteServiceUrlToBase(detailObj.value(QStringLiteral("cover_url")).toString(), m_baseUrl));
+            detail.insert(QStringLiteral("created_at"), detailObj.value(QStringLiteral("created_at")).toString());
+            detail.insert(QStringLiteral("updated_at"), detailObj.value(QStringLiteral("updated_at")).toString());
+
+            QHash<QString, QString> localCoverByPath;
+            const QList<LocalMusicInfo> localMusicList = LocalMusicCache::instance().getMusicList();
+            for (const LocalMusicInfo& info : localMusicList) {
+                if (info.coverUrl.trimmed().isEmpty()) {
+                    continue;
+                }
+                const QString key = normalizeMusicPathForLookup(info.filePath);
+                if (!key.isEmpty()) {
+                    localCoverByPath.insert(key, info.coverUrl);
+                }
+            }
+
+            QVariantList items;
+            int totalDurationSec = 0;
+            const QJsonArray itemsArray = detailObj.value(QStringLiteral("items")).toArray();
+            items.reserve(itemsArray.size());
+            for (const QJsonValue& value : itemsArray) {
+                if (!value.isObject()) {
+                    continue;
+                }
+
+                const QJsonObject obj = value.toObject();
+                QVariantMap item;
+
+                QString musicPath = obj.value(QStringLiteral("music_path")).toString();
+                if (musicPath.trimmed().isEmpty()) {
+                    musicPath = obj.value(QStringLiteral("path")).toString();
+                }
+                bool isLocal = obj.value(QStringLiteral("is_local")).toBool();
+                if (!isLocal) {
+                    musicPath = normalizeOnlineMediaPath(musicPath, m_baseUrl);
+                }
+
+                QString durationText = readDurationFromObject(obj);
+                if (durationText.isEmpty()) {
+                    durationText = formatDurationFromSeconds(obj.value(QStringLiteral("duration_sec")).toInt());
+                }
+                totalDurationSec += obj.value(QStringLiteral("duration_sec")).toInt();
+
+                QString coverArtUrl = rewriteServiceUrlToBase(
+                    obj.value(QStringLiteral("cover_art_url")).toString(), m_baseUrl);
+                if (coverArtUrl.trimmed().isEmpty()) {
+                    coverArtUrl = rewriteServiceUrlToBase(
+                        obj.value(QStringLiteral("cover_url")).toString(), m_baseUrl);
+                }
+                if (coverArtUrl.trimmed().isEmpty()) {
+                    coverArtUrl = rewriteServiceUrlToBase(
+                        obj.value(QStringLiteral("cover_art_path")).toString(), m_baseUrl);
+                }
+                if (isLocal && coverArtUrl.trimmed().isEmpty()) {
+                    const QString localKey = normalizeMusicPathForLookup(musicPath);
+                    if (!localKey.isEmpty()) {
+                        coverArtUrl = localCoverByPath.value(localKey);
+                    }
+                }
+                if (coverArtUrl.trimmed().isEmpty()) {
+                    coverArtUrl = queryCoverForMusicPath(musicPath);
+                }
+                if (coverArtUrl.trimmed().isEmpty()) {
+                    const QString titleText = obj.value(QStringLiteral("music_title")).toString();
+                    const QString artistText = readArtistFromObject(obj);
+                    coverArtUrl = queryCoverForSongMeta(titleText, artistText);
+                }
+                rememberCoverForMusicPath(musicPath, coverArtUrl);
+                rememberCoverForSongMeta(obj.value(QStringLiteral("music_title")).toString(),
+                                         readArtistFromObject(obj),
+                                         coverArtUrl);
+
+                item.insert(QStringLiteral("id"), obj.value(QStringLiteral("id")).toVariant().toLongLong());
+                item.insert(QStringLiteral("position"), obj.value(QStringLiteral("position")).toInt());
+                item.insert(QStringLiteral("path"), musicPath);
+                item.insert(QStringLiteral("music_path"), musicPath);
+                item.insert(QStringLiteral("title"),
+                            obj.value(QStringLiteral("music_title")).toString().trimmed().isEmpty()
+                                ? fileNameFromPath(musicPath)
+                                : obj.value(QStringLiteral("music_title")).toString());
+                item.insert(QStringLiteral("artist"), readArtistFromObject(obj));
+                item.insert(QStringLiteral("album"), obj.value(QStringLiteral("album")).toString());
+                item.insert(QStringLiteral("duration"), durationText);
+                item.insert(QStringLiteral("duration_sec"), obj.value(QStringLiteral("duration_sec")).toInt());
+                item.insert(QStringLiteral("is_local"), isLocal);
+                item.insert(QStringLiteral("added_at"), obj.value(QStringLiteral("added_at")).toString());
+                item.insert(QStringLiteral("cover_art_url"), coverArtUrl);
+
+                items.append(item);
+            }
+
+            const int trackCount = detailObj.value(QStringLiteral("track_count")).toInt(items.size());
+            const int serverDurationSec = detailObj.value(QStringLiteral("total_duration_sec")).toInt(totalDurationSec);
+            detail.insert(QStringLiteral("track_count"), trackCount);
+            detail.insert(QStringLiteral("total_duration_sec"), serverDurationSec);
+            detail.insert(QStringLiteral("total_duration"), formatDurationFromSeconds(serverDurationSec));
+            detail.insert(QStringLiteral("items"), items);
+
+            emit signalPlaylistDetail(detail);
+        });
+}
+
+void HttpRequestV2::deletePlaylist(const QString& userAccount, qint64 playlistId)
+{
+    const QString trimmedUser = userAccount.trimmed();
+    if (trimmedUser.isEmpty() || playlistId <= 0) {
+        emit signalDeletePlaylistResult(false, playlistId, QStringLiteral("参数错误"));
+        return;
+    }
+
+    const QString url = QString("user/playlists/%1/delete?user_account=%2")
+                            .arg(playlistId)
+                            .arg(QString(QUrl::toPercentEncoding(trimmedUser)));
+
+    Network::RequestOptions options = Network::RequestOptions::withPriority(Network::RequestPriority::High);
+    options.maxRetries = 0;
+    options.useCache = false;
+
+    m_networkService.postJson(url, QJsonObject(), options,
+        [this, playlistId, trimmedUser](const Network::NetworkResponse& response) {
+            bool success = false;
+            QString message = QStringLiteral("删除失败");
+            if (response.isSuccess()) {
+                const QJsonObject root = Network::NetworkService::parseJsonObject(response);
+                const QJsonObject data = unwrapDataObject(root);
+                success = parseSuccessFlag(data, parseSuccessFlag(root, true));
+                message = parseMessageText(data, parseMessageText(root, success ? QStringLiteral("删除成功")
+                                                                                 : QStringLiteral("删除失败")));
+                if (success) {
+                    m_networkService.invalidateCache(
+                        QString("user/playlists?user_account=%1&page=1&page_size=20").arg(trimmedUser));
+                    m_networkService.invalidateCache(
+                        QString("user/playlists/%1?user_account=%2").arg(playlistId).arg(trimmedUser));
+                }
+            } else {
+                message = extractErrorMessage(response, QStringLiteral("删除歌单失败"));
+            }
+            emit signalDeletePlaylistResult(success, playlistId, message);
+        });
+}
+
+void HttpRequestV2::updatePlaylist(const QString& userAccount,
+                                   qint64 playlistId,
+                                   const QString& name,
+                                   const QString& description,
+                                   const QString& coverPath)
+{
+    const QString trimmedUser = userAccount.trimmed();
+    const QString trimmedName = name.trimmed();
+    if (trimmedUser.isEmpty() || playlistId <= 0 || trimmedName.isEmpty()) {
+        emit signalUpdatePlaylistResult(false, playlistId, QStringLiteral("参数错误"));
+        return;
+    }
+
+    const QString url = QString("user/playlists/%1/update?user_account=%2")
+                            .arg(playlistId)
+                            .arg(QString(QUrl::toPercentEncoding(trimmedUser)));
+
+    QJsonObject payload;
+    payload[QStringLiteral("name")] = trimmedName;
+    payload[QStringLiteral("description")] = description.trimmed();
+    if (!coverPath.trimmed().isEmpty()) {
+        payload[QStringLiteral("cover_path")] = coverPath.trimmed();
+    }
+
+    Network::RequestOptions options = Network::RequestOptions::withPriority(Network::RequestPriority::High);
+    options.maxRetries = 0;
+    options.useCache = false;
+
+    m_networkService.postJson(url, payload, options,
+        [this, playlistId, trimmedUser](const Network::NetworkResponse& response) {
+            bool success = false;
+            QString message = QStringLiteral("更新失败");
+
+            if (response.isSuccess()) {
+                const QJsonObject root = Network::NetworkService::parseJsonObject(response);
+                const QJsonObject data = unwrapDataObject(root);
+                success = parseSuccessFlag(data, parseSuccessFlag(root, true));
+                message = parseMessageText(data, parseMessageText(root, success ? QStringLiteral("更新成功")
+                                                                                 : QStringLiteral("更新失败")));
+                if (success) {
+                    m_networkService.invalidateCache(
+                        QString("user/playlists?user_account=%1&page=1&page_size=20").arg(trimmedUser));
+                    m_networkService.invalidateCache(
+                        QString("user/playlists/%1?user_account=%2").arg(playlistId).arg(trimmedUser));
+                }
+            } else {
+                message = extractErrorMessage(response, QStringLiteral("更新歌单失败"));
+            }
+
+            emit signalUpdatePlaylistResult(success, playlistId, message);
+        });
+}
+
+void HttpRequestV2::addPlaylistItems(const QString& userAccount, qint64 playlistId, const QVariantList& items)
+{
+    const QString trimmedUser = userAccount.trimmed();
+    if (trimmedUser.isEmpty() || playlistId <= 0 || items.isEmpty()) {
+        emit signalAddPlaylistItemsResult(false, playlistId, 0, 0, QStringLiteral("参数错误"));
+        return;
+    }
+
+    QJsonArray itemArray;
+    for (const QVariant& value : items) {
+        const QVariantMap map = value.toMap();
+        const QString musicPath = map.value(QStringLiteral("music_path")).toString().trimmed().isEmpty()
+                                      ? map.value(QStringLiteral("path")).toString().trimmed()
+                                      : map.value(QStringLiteral("music_path")).toString().trimmed();
+        if (musicPath.isEmpty()) {
+            continue;
+        }
+
+        QJsonObject itemObj;
+        itemObj[QStringLiteral("music_path")] = musicPath;
+        itemObj[QStringLiteral("music_title")] =
+            map.value(QStringLiteral("music_title")).toString().trimmed().isEmpty()
+                ? map.value(QStringLiteral("title")).toString().trimmed()
+                : map.value(QStringLiteral("music_title")).toString().trimmed();
+        itemObj[QStringLiteral("artist")] = map.value(QStringLiteral("artist")).toString();
+        itemObj[QStringLiteral("album")] = map.value(QStringLiteral("album")).toString();
+
+        int durationSec = map.value(QStringLiteral("duration_sec")).toInt();
+        if (durationSec <= 0) {
+            durationSec = durationSecondsFromText(map.value(QStringLiteral("duration")).toString());
+        }
+        itemObj[QStringLiteral("duration_sec")] = durationSec;
+        const bool isLocal = map.contains(QStringLiteral("is_local"))
+                                 ? map.value(QStringLiteral("is_local")).toBool()
+                                 : !(musicPath.startsWith(QStringLiteral("http://"), Qt::CaseInsensitive) ||
+                                     musicPath.startsWith(QStringLiteral("https://"), Qt::CaseInsensitive));
+        itemObj[QStringLiteral("is_local")] = isLocal;
+
+        QString coverArtPath = buildCoverPathForPlaylistPayload(
+            map.value(QStringLiteral("cover_art_path")).toString());
+        if (coverArtPath.isEmpty()) {
+            coverArtPath = buildCoverPathForPlaylistPayload(
+                map.value(QStringLiteral("cover_art_url")).toString());
+        }
+        if (coverArtPath.isEmpty()) {
+            coverArtPath = buildCoverPathForPlaylistPayload(queryCoverForMusicPath(musicPath));
+        }
+        if (coverArtPath.isEmpty()) {
+            const QString titleForLookup =
+                map.value(QStringLiteral("music_title")).toString().trimmed().isEmpty()
+                    ? map.value(QStringLiteral("title")).toString()
+                    : map.value(QStringLiteral("music_title")).toString();
+            coverArtPath = buildCoverPathForPlaylistPayload(
+                queryCoverForSongMeta(titleForLookup, map.value(QStringLiteral("artist")).toString()));
+        }
+        if (!coverArtPath.isEmpty()) {
+            itemObj[QStringLiteral("cover_art_path")] = coverArtPath;
+        }
+
+        itemArray.append(itemObj);
+    }
+
+    if (itemArray.isEmpty()) {
+        emit signalAddPlaylistItemsResult(false, playlistId, 0, 0, QStringLiteral("加歌列表为空"));
+        return;
+    }
+
+    const QString url = QString("user/playlists/%1/items/add?user_account=%2")
+                            .arg(playlistId)
+                            .arg(QString(QUrl::toPercentEncoding(trimmedUser)));
+
+    QJsonObject payload;
+    payload[QStringLiteral("items")] = itemArray;
+
+    Network::RequestOptions options = Network::RequestOptions::withPriority(Network::RequestPriority::High);
+    options.maxRetries = 0;
+    options.useCache = false;
+
+    m_networkService.postJson(url, payload, options,
+        [this, playlistId, trimmedUser](const Network::NetworkResponse& response) {
+            bool success = false;
+            int addedCount = 0;
+            int skippedCount = 0;
+            QString message = QStringLiteral("添加失败");
+
+            if (response.isSuccess()) {
+                const QJsonObject root = Network::NetworkService::parseJsonObject(response);
+                const QJsonObject data = unwrapDataObject(root);
+                success = parseSuccessFlag(data, parseSuccessFlag(root, true));
+                addedCount = data.value(QStringLiteral("added_count")).toInt(
+                    root.value(QStringLiteral("added_count")).toInt());
+                skippedCount = data.value(QStringLiteral("skipped_count")).toInt(
+                    root.value(QStringLiteral("skipped_count")).toInt());
+                message = parseMessageText(data, parseMessageText(root, success ? QStringLiteral("添加成功")
+                                                                                 : QStringLiteral("添加失败")));
+                if (success) {
+                    m_networkService.invalidateCache(
+                        QString("user/playlists?user_account=%1&page=1&page_size=20").arg(trimmedUser));
+                    m_networkService.invalidateCache(
+                        QString("user/playlists/%1?user_account=%2").arg(playlistId).arg(trimmedUser));
+                }
+            } else {
+                message = extractErrorMessage(response, QStringLiteral("添加歌曲失败"));
+            }
+
+            emit signalAddPlaylistItemsResult(success, playlistId, addedCount, skippedCount, message);
+        });
+}
+
+void HttpRequestV2::removePlaylistItems(const QString& userAccount, qint64 playlistId, const QStringList& musicPaths)
+{
+    const QString trimmedUser = userAccount.trimmed();
+    if (trimmedUser.isEmpty() || playlistId <= 0 || musicPaths.isEmpty()) {
+        emit signalRemovePlaylistItemsResult(false, playlistId, 0, QStringLiteral("参数错误"));
+        return;
+    }
+
+    const QString url = QString("user/playlists/%1/items/remove?user_account=%2")
+                            .arg(playlistId)
+                            .arg(QString(QUrl::toPercentEncoding(trimmedUser)));
+
+    QJsonArray pathArray;
+    for (const QString& path : musicPaths) {
+        if (!path.trimmed().isEmpty()) {
+            pathArray.append(path.trimmed());
+        }
+    }
+
+    if (pathArray.isEmpty()) {
+        emit signalRemovePlaylistItemsResult(false, playlistId, 0, QStringLiteral("删歌列表为空"));
+        return;
+    }
+
+    QJsonObject payload;
+    payload[QStringLiteral("music_paths")] = pathArray;
+
+    Network::RequestOptions options = Network::RequestOptions::withPriority(Network::RequestPriority::High);
+    options.maxRetries = 0;
+    options.useCache = false;
+
+    m_networkService.postJson(url, payload, options,
+        [this, playlistId, trimmedUser](const Network::NetworkResponse& response) {
+            bool success = false;
+            int deletedCount = 0;
+            QString message = QStringLiteral("删除失败");
+
+            if (response.isSuccess()) {
+                const QJsonObject root = Network::NetworkService::parseJsonObject(response);
+                const QJsonObject data = unwrapDataObject(root);
+                success = parseSuccessFlag(data, parseSuccessFlag(root, true));
+                deletedCount = data.value(QStringLiteral("deleted_count")).toInt(
+                    root.value(QStringLiteral("deleted_count")).toInt());
+                message = parseMessageText(data, parseMessageText(root, success ? QStringLiteral("删除成功")
+                                                                                 : QStringLiteral("删除失败")));
+                if (success) {
+                    m_networkService.invalidateCache(
+                        QString("user/playlists?user_account=%1&page=1&page_size=20").arg(trimmedUser));
+                    m_networkService.invalidateCache(
+                        QString("user/playlists/%1?user_account=%2").arg(playlistId).arg(trimmedUser));
+                }
+            } else {
+                message = extractErrorMessage(response, QStringLiteral("移除歌曲失败"));
+            }
+
+            emit signalRemovePlaylistItemsResult(success, playlistId, deletedCount, message);
+        });
+}
+
+void HttpRequestV2::reorderPlaylistItems(const QString& userAccount, qint64 playlistId, const QVariantList& orderedItems)
+{
+    const QString trimmedUser = userAccount.trimmed();
+    if (trimmedUser.isEmpty() || playlistId <= 0 || orderedItems.isEmpty()) {
+        emit signalReorderPlaylistItemsResult(false, playlistId, QStringLiteral("参数错误"));
+        return;
+    }
+
+    QJsonArray itemArray;
+    for (const QVariant& value : orderedItems) {
+        const QVariantMap map = value.toMap();
+        const QString musicPath = map.value(QStringLiteral("music_path")).toString().trimmed().isEmpty()
+                                      ? map.value(QStringLiteral("path")).toString().trimmed()
+                                      : map.value(QStringLiteral("music_path")).toString().trimmed();
+        const int position = map.value(QStringLiteral("position")).toInt();
+        if (musicPath.isEmpty() || position <= 0) {
+            continue;
+        }
+
+        QJsonObject itemObj;
+        itemObj[QStringLiteral("music_path")] = musicPath;
+        itemObj[QStringLiteral("position")] = position;
+        itemArray.append(itemObj);
+    }
+
+    if (itemArray.isEmpty()) {
+        emit signalReorderPlaylistItemsResult(false, playlistId, QStringLiteral("排序数据为空"));
+        return;
+    }
+
+    const QString url = QString("user/playlists/%1/items/reorder?user_account=%2")
+                            .arg(playlistId)
+                            .arg(QString(QUrl::toPercentEncoding(trimmedUser)));
+
+    QJsonObject payload;
+    payload[QStringLiteral("items")] = itemArray;
+
+    Network::RequestOptions options = Network::RequestOptions::withPriority(Network::RequestPriority::High);
+    options.maxRetries = 0;
+    options.useCache = false;
+
+    m_networkService.postJson(url, payload, options,
+        [this, playlistId, trimmedUser](const Network::NetworkResponse& response) {
+            bool success = false;
+            QString message = QStringLiteral("排序失败");
+            if (response.isSuccess()) {
+                const QJsonObject root = Network::NetworkService::parseJsonObject(response);
+                const QJsonObject data = unwrapDataObject(root);
+                success = parseSuccessFlag(data, parseSuccessFlag(root, true));
+                message = parseMessageText(data, parseMessageText(root, success ? QStringLiteral("排序成功")
+                                                                                 : QStringLiteral("排序失败")));
+                if (success) {
+                    m_networkService.invalidateCache(
+                        QString("user/playlists/%1?user_account=%2").arg(playlistId).arg(trimmedUser));
+                }
+            } else {
+                message = extractErrorMessage(response, QStringLiteral("排序失败"));
+            }
+
+            emit signalReorderPlaylistItemsResult(success, playlistId, message);
         });
 }
 

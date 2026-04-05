@@ -62,6 +62,8 @@ QString normalizedPluginKey(const QString& pluginId)
 SettingsManager::SettingsManager()
     : m_settings("FFmpegMusicPlayer", "Settings")
 {
+    static constexpr int kDefaultPlayerPageStyle = 0;
+    static constexpr int kMaxPlayerPageStyle = 4;
     const QString preferredPath = inferPreferredLogPath();
     const QString defaultCachePath = defaultAudioCachePath();
 
@@ -94,8 +96,10 @@ SettingsManager::SettingsManager()
     m_cachedPassword = m_settings.value("account/cache/password").toString();
     m_cachedUsername = m_settings.value("account/cache/username").toString().trimmed();
     m_autoLoginEnabled = m_settings.value("account/cache/auto_login", false).toBool();
+    m_manualLogoutMarked = m_settings.value("account/cache/manual_logout", false).toBool();
     m_serverHost = m_settings.value("server/host", QStringLiteral("192.168.1.208")).toString().trimmed();
     m_serverPort = m_settings.value("server/port", 8080).toInt();
+    m_playerPageStyle = m_settings.value("player/page_style", kDefaultPlayerPageStyle).toInt();
     if (m_serverHost.isEmpty()) {
         m_serverHost = QStringLiteral("192.168.1.208");
         m_settings.setValue("server/host", m_serverHost);
@@ -104,10 +108,22 @@ SettingsManager::SettingsManager()
         m_serverPort = 8080;
         m_settings.setValue("server/port", m_serverPort);
     }
+    if (m_playerPageStyle < 0 || m_playerPageStyle > kMaxPlayerPageStyle) {
+        m_playerPageStyle = kDefaultPlayerPageStyle;
+        m_settings.setValue("player/page_style", m_playerPageStyle);
+    }
 
     if (m_cachedAccount.isEmpty() || m_cachedPassword.isEmpty()) {
         m_autoLoginEnabled = false;
+        m_manualLogoutMarked = false;
         m_settings.setValue("account/cache/auto_login", false);
+        m_settings.setValue("account/cache/manual_logout", false);
+    } else if (!m_autoLoginEnabled
+               && !m_manualLogoutMarked
+               && !m_settings.contains("account/cache/manual_logout")) {
+        // 兼容迁移：历史版本可能因会话过期误关自动登录。
+        m_autoLoginEnabled = true;
+        m_settings.setValue("account/cache/auto_login", true);
     }
 
     m_hasServerWelcomeWindowPos = m_settings.value("ui/server_welcome/pos_valid", false).toBool();
@@ -198,6 +214,20 @@ void SettingsManager::setServerPort(int port)
     emit serverEndpointChanged();
 }
 
+void SettingsManager::setPlayerPageStyle(int styleId)
+{
+    static constexpr int kMinPlayerPageStyle = 0;
+    static constexpr int kMaxPlayerPageStyle = 4;
+    const int normalized = qBound(kMinPlayerPageStyle, styleId, kMaxPlayerPageStyle);
+    if (m_playerPageStyle == normalized) {
+        return;
+    }
+
+    m_playerPageStyle = normalized;
+    m_settings.setValue("player/page_style", m_playerPageStyle);
+    emit playerPageStyleChanged();
+}
+
 QString SettingsManager::serverBaseUrl() const
 {
     return QStringLiteral("http://%1:%2/").arg(m_serverHost, QString::number(m_serverPort));
@@ -236,21 +266,27 @@ void SettingsManager::saveAccountCache(const QString& account,
             || m_cachedPassword != password
             || m_cachedUsername != username;
     const bool autoChanged = m_autoLoginEnabled != enableAutoLogin;
+    const bool manualLogoutChanged = m_manualLogoutMarked;
 
     m_cachedAccount = trimmedAccount;
     m_cachedPassword = password;
     m_cachedUsername = username.trimmed();
     m_autoLoginEnabled = enableAutoLogin;
+    m_manualLogoutMarked = false;
 
     m_settings.setValue("account/cache/account", m_cachedAccount);
     m_settings.setValue("account/cache/password", m_cachedPassword);
     m_settings.setValue("account/cache/username", m_cachedUsername);
     m_settings.setValue("account/cache/auto_login", m_autoLoginEnabled);
+    m_settings.setValue("account/cache/manual_logout", m_manualLogoutMarked);
 
     if (cacheChanged) {
         emit accountCacheChanged();
     }
     if (autoChanged) {
+        emit autoLoginChanged();
+    }
+    if (manualLogoutChanged && !autoChanged) {
         emit autoLoginChanged();
     }
 }
@@ -266,8 +302,22 @@ void SettingsManager::setAutoLoginEnabled(bool enabled)
     }
 
     m_autoLoginEnabled = enabled;
+    if (enabled) {
+        m_manualLogoutMarked = false;
+        m_settings.setValue("account/cache/manual_logout", false);
+    }
     m_settings.setValue("account/cache/auto_login", m_autoLoginEnabled);
     emit autoLoginChanged();
+}
+
+void SettingsManager::setManualLogoutMarked(bool marked)
+{
+    if (m_manualLogoutMarked == marked) {
+        return;
+    }
+
+    m_manualLogoutMarked = marked;
+    m_settings.setValue("account/cache/manual_logout", m_manualLogoutMarked);
 }
 
 void SettingsManager::clearAccountCache()
@@ -281,11 +331,13 @@ void SettingsManager::clearAccountCache()
     m_cachedPassword.clear();
     m_cachedUsername.clear();
     m_autoLoginEnabled = false;
+    m_manualLogoutMarked = false;
 
     m_settings.remove("account/cache/account");
     m_settings.remove("account/cache/password");
     m_settings.remove("account/cache/username");
     m_settings.setValue("account/cache/auto_login", false);
+    m_settings.setValue("account/cache/manual_logout", false);
 
     if (hadCache) {
         emit accountCacheChanged();
@@ -293,6 +345,15 @@ void SettingsManager::clearAccountCache()
     if (autoChanged) {
         emit autoLoginChanged();
     }
+}
+
+bool SettingsManager::shouldAutoLogin() const
+{
+    if (m_cachedAccount.isEmpty() || m_cachedPassword.isEmpty()) {
+        return false;
+    }
+
+    return m_autoLoginEnabled || !m_manualLogoutMarked;
 }
 
 void SettingsManager::setServerWelcomeWindowPos(const QPoint& pos)

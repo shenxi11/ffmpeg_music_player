@@ -39,6 +39,10 @@ Rectangle {
         var value = String(path).trim()
         var qPos = value.indexOf("?")
         if (qPos >= 0) value = value.substring(0, qPos)
+        try {
+            value = decodeURIComponent(value)
+        } catch (e) {
+        }
         return value
     }
 

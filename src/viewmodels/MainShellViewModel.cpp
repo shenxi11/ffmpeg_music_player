@@ -89,6 +89,11 @@ bool MainShellViewModel::autoLoginEnabled() const
     return SettingsManager::instance().autoLoginEnabled();
 }
 
+bool MainShellViewModel::shouldAutoLogin() const
+{
+    return SettingsManager::instance().shouldAutoLogin();
+}
+
 QString MainShellViewModel::currentUserAccount() const
 {
     return User::getInstance()->getAccount();
@@ -189,6 +194,53 @@ void MainShellViewModel::removeFavorite(const QString& userAccount, const QStrin
     m_request.removeFavorite(userAccount, paths);
 }
 
+void MainShellViewModel::requestPlaylists(const QString& userAccount, int page, int pageSize, bool useCache)
+{
+    m_request.getPlaylists(userAccount, page, pageSize, useCache);
+}
+
+void MainShellViewModel::createPlaylist(const QString& userAccount,
+                                        const QString& name,
+                                        const QString& description,
+                                        const QString& coverPath)
+{
+    m_request.createPlaylist(userAccount, name, description, coverPath);
+}
+
+void MainShellViewModel::requestPlaylistDetail(const QString& userAccount, qint64 playlistId, bool useCache)
+{
+    m_request.getPlaylistDetail(userAccount, playlistId, useCache);
+}
+
+void MainShellViewModel::deletePlaylist(const QString& userAccount, qint64 playlistId)
+{
+    m_request.deletePlaylist(userAccount, playlistId);
+}
+
+void MainShellViewModel::updatePlaylist(const QString& userAccount,
+                                        qint64 playlistId,
+                                        const QString& name,
+                                        const QString& description,
+                                        const QString& coverPath)
+{
+    m_request.updatePlaylist(userAccount, playlistId, name, description, coverPath);
+}
+
+void MainShellViewModel::addPlaylistItems(const QString& userAccount, qint64 playlistId, const QVariantList& items)
+{
+    m_request.addPlaylistItems(userAccount, playlistId, items);
+}
+
+void MainShellViewModel::removePlaylistItems(const QString& userAccount, qint64 playlistId, const QStringList& musicPaths)
+{
+    m_request.removePlaylistItems(userAccount, playlistId, musicPaths);
+}
+
+void MainShellViewModel::reorderPlaylistItems(const QString& userAccount, qint64 playlistId, const QVariantList& orderedItems)
+{
+    m_request.reorderPlaylistItems(userAccount, playlistId, orderedItems);
+}
+
 void MainShellViewModel::handleLoginSuccess(const QString& account,
                                             const QString& password,
                                             const QString& username)
@@ -200,10 +252,18 @@ void MainShellViewModel::handleLoginSuccess(const QString& account,
 
 void MainShellViewModel::logoutCurrentUser(bool graceful, int gracefulTimeoutMs)
 {
+    SettingsManager::instance().setManualLogoutMarked(true);
     SettingsManager::instance().setAutoLoginEnabled(false);
     OnlinePresenceManager::instance().logoutAndClear(graceful, gracefulTimeoutMs);
     clearCurrentUserProfile();
     emit accountCacheChanged();
+}
+
+void MainShellViewModel::shutdownUserSessionOnAppExit(bool graceful, int gracefulTimeoutMs)
+{
+    // 应用正常关闭时仅释放在线会话，不改自动登录缓存状态。
+    OnlinePresenceManager::instance().logoutAndClear(graceful, gracefulTimeoutMs);
+    clearCurrentUserProfile();
 }
 
 void MainShellViewModel::pauseAudioIfPlaying()
@@ -342,6 +402,5 @@ bool MainShellViewModel::resolveHistorySnapshot(const QString& sessionId,
 
 void MainShellViewModel::onSessionExpired()
 {
-    SettingsManager::instance().setAutoLoginEnabled(false);
     emit sessionExpired();
 }

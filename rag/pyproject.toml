@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "music-project-rag"
+version = "0.1.0"
+description = "Private RAG service for FFmpeg Music Player engineering collaboration"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.115.0,<1.0.0",
+    "pydantic>=2.8.0,<3.0.0",
+    "pydantic-settings>=2.4.0,<3.0.0",
+    "uvicorn[standard]>=0.30.0,<1.0.0",
+    "qdrant-client>=1.10.0,<2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "httpx>=0.27.0,<1.0.0",
+    "pytest>=8.3.0,<9.0.0",
+]
+ml = [
+    "sentence-transformers>=3.0.0,<4.0.0",
+    "torch>=2.2.0,<3.0.0",
+]
+
+[project.scripts]
+music-rag-server = "project_rag.server.app:main"
+music-rag-index = "project_rag.ingest.indexer:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

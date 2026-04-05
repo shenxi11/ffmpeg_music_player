@@ -24,6 +24,7 @@ void SettingsWidget::setupRootConnections(QQuickItem* root)
     connect(root, SIGNAL(downloadCoverChanged()), this, SLOT(onDownloadCoverChanged()));
     connect(root, SIGNAL(audioCachePathChanged()), this, SLOT(onAudioCachePathChanged()));
     connect(root, SIGNAL(logPathChanged()), this, SLOT(onLogPathChanged()));
+    connect(root, SIGNAL(playerPageStyleChanged()), this, SLOT(onPlayerPageStyleChanged()));
     connect(root, SIGNAL(refreshPresenceRequested()), this, SLOT(onRefreshPresenceRequested()));
 }
 
@@ -38,6 +39,8 @@ void SettingsWidget::setupViewModelConnections()
     connect(m_viewModel, &SettingsViewModel::downloadLyricsChanged,
             this, &SettingsWidget::syncViewModelToRoot);
     connect(m_viewModel, &SettingsViewModel::downloadCoverChanged,
+            this, &SettingsWidget::syncViewModelToRoot);
+    connect(m_viewModel, &SettingsViewModel::playerPageStyleChanged,
             this, &SettingsWidget::syncViewModelToRoot);
     connect(m_viewModel, &SettingsViewModel::presenceChanged,
             this, &SettingsWidget::syncPresenceToRoot);

@@ -31,6 +31,8 @@ void MainWidget::handleAudioPlaybackStarted(const QString& sessionId, const QUrl
     favoriteMusicWidget->setCurrentPlayingPath(filePath);
     recommendMusicWidget->setCurrentPlayingPath(filePath);
     recommendMusicWidget->setPlayingState(filePath, true);
+    playlistWidget->setCurrentPlayingPath(filePath);
+    playlistWidget->setPlayingState(filePath, true);
     qDebug() << "[MainWidget] setCurrentPlayingPath calls completed";
 
     const QString songId = extractSongIdFromMediaPath(filePath);
@@ -54,6 +56,15 @@ void MainWidget::handleAudioPlaybackPaused()
     if (m_playbackStateManager) {
         m_playbackStateManager->onAudioInactive();
     }
+
+    QUrl url = AudioService::instance().currentUrl();
+    QString filePath = url.toLocalFile();
+    if (filePath.isEmpty()) {
+        filePath = url.toString();
+    }
+    playHistoryWidget->setPlayingState(filePath, false);
+    recommendMusicWidget->setPlayingState(filePath, false);
+    playlistWidget->setPlayingState(filePath, false);
 }
 
 void MainWidget::handleAudioPlaybackResumed()
@@ -61,6 +72,15 @@ void MainWidget::handleAudioPlaybackResumed()
     if (m_playbackStateManager) {
         m_playbackStateManager->onAudioPlayIntent();
     }
+
+    QUrl url = AudioService::instance().currentUrl();
+    QString filePath = url.toLocalFile();
+    if (filePath.isEmpty()) {
+        filePath = url.toString();
+    }
+    playHistoryWidget->setPlayingState(filePath, true);
+    recommendMusicWidget->setPlayingState(filePath, true);
+    playlistWidget->setPlayingState(filePath, true);
 }
 
 void MainWidget::handleAudioPlaybackStopped()
@@ -74,6 +94,8 @@ void MainWidget::handleAudioPlaybackStopped()
     favoriteMusicWidget->setCurrentPlayingPath("");
     recommendMusicWidget->setCurrentPlayingPath("");
     recommendMusicWidget->setPlayingState("", false);
+    playlistWidget->setCurrentPlayingPath("");
+    playlistWidget->setPlayingState("", false);
     w->clearSimilarRecommendations();
 }
 
@@ -81,8 +103,15 @@ void MainWidget::handlePlayWidgetBigClicked(bool checked)
 {
     qDebug() << "[MainWidget] signalBigClicked checked =" << checked;
     if (checked) {
-        searchBox->hide();
-        userWidgetQml->hide();
+        if (topWidget) {
+            topWidget->hide();
+        }
+        if (searchBox) {
+            searchBox->hide();
+        }
+        if (userWidgetQml) {
+            userWidgetQml->hide();
+        }
 
         w->raise();
         w->clearMask();
@@ -91,8 +120,16 @@ void MainWidget::handlePlayWidgetBigClicked(bool checked)
         return;
     }
 
-    searchBox->show();
-    userWidgetQml->show();
+    if (topWidget) {
+        topWidget->show();
+        topWidget->raise();
+    }
+    if (searchBox) {
+        searchBox->show();
+    }
+    if (userWidgetQml) {
+        userWidgetQml->show();
+    }
 
     // 收起态也保持播放层在最上方，避免底部点击事件被其他面板抢占。
     w->raise();

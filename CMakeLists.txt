@@ -54,6 +54,7 @@ find_package(Qt5 REQUIRED COMPONENTS
     QuickWidgets
     Qml
     OpenGL
+    WebSockets
 )
 find_package(Qt5 REQUIRED COMPONENTS Core)
 
@@ -194,6 +195,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     Qt5::QuickWidgets
     Qt5::Qml
     Qt5::OpenGL
+    Qt5::WebSockets
 )
 
 # 链接 FFmpeg 库
