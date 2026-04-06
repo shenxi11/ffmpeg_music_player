@@ -275,7 +275,7 @@ Item {
         ListView {
             id: lyricView
             anchors.top: songInfoBar.visible ? songInfoBar.bottom : parent.top
-            anchors.topMargin: songInfoBar.visible ? 14 : 0
+            anchors.topMargin: songInfoBar.visible ? (root.styleSpec.songInfoBottomGap || 16) : 0
             anchors.left: parent.left
             anchors.leftMargin: root.panelPadding
             anchors.right: parent.right
@@ -520,7 +520,7 @@ Item {
 
                             Image {
                                 anchors.fill: parent
-                                source: model.cover_art_url || "qrc:/new/prefix1/icon/Music.png"
+                                source: model.cover_art_url || "qrc:/qml/assets/ai/icons/default-music-cover.svg"
                                 fillMode: Image.PreserveAspectCrop
                                 asynchronous: true
                                 cache: true

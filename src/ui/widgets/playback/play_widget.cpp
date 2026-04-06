@@ -72,6 +72,73 @@ QString stageSubtitleText()
     return QString();
 }
 
+struct StageLayoutSpec
+{
+    bool lyricsFocus = false;
+    int stageTopMargin = 20;
+    int stageHorizontalMargin = 52;
+    int columnGap = 56;
+    qreal coverColumnWidthRatio = 0.42;
+    int coverMinSize = 240;
+    int coverMaxSize = 500;
+    int lyricColumnMaxWidth = 520;
+    int lyricsPanelMinHeight = 330;
+    int stackedBreakpoint = 1100;
+    int stackedGap = 30;
+};
+
+StageLayoutSpec stageLayoutSpecForStyle(int styleId)
+{
+    StageLayoutSpec spec;
+    switch (styleId) {
+    case 1:
+        spec.stageTopMargin = 20;
+        spec.stageHorizontalMargin = 52;
+        spec.columnGap = 54;
+        spec.coverColumnWidthRatio = 0.42;
+        spec.coverMaxSize = 430;
+        spec.lyricColumnMaxWidth = 500;
+        spec.lyricsPanelMinHeight = 320;
+        break;
+    case 2:
+        spec.stageTopMargin = 18;
+        spec.stageHorizontalMargin = 56;
+        spec.columnGap = 64;
+        spec.coverColumnWidthRatio = 0.44;
+        spec.coverMinSize = 300;
+        spec.coverMaxSize = 560;
+        spec.lyricColumnMaxWidth = 540;
+        spec.lyricsPanelMinHeight = 340;
+        break;
+    case 3:
+        spec.lyricsFocus = true;
+        spec.stageTopMargin = 18;
+        spec.stageHorizontalMargin = 60;
+        spec.columnGap = 36;
+        spec.coverMinSize = 220;
+        spec.coverMaxSize = 280;
+        spec.lyricColumnMaxWidth = 920;
+        spec.lyricsPanelMinHeight = 360;
+        spec.stackedGap = 26;
+        break;
+    case 4:
+        spec.stageTopMargin = 16;
+        spec.stageHorizontalMargin = 52;
+        spec.columnGap = 56;
+        spec.coverColumnWidthRatio = 0.40;
+        spec.coverMinSize = 220;
+        spec.coverMaxSize = 400;
+        spec.lyricColumnMaxWidth = 640;
+        spec.lyricsPanelMinHeight = 340;
+        spec.stackedBreakpoint = 1180;
+        break;
+    case 0:
+    default:
+        break;
+    }
+    return spec;
+}
+
 }
 
 PlayWidget::PlayWidget(QWidget *parent, QWidget *mainWidget)
@@ -398,6 +465,10 @@ void PlayWidget::refreshStageTexts()
     artistInfoLabel->setText(displayArtistText());
     sceneLabel->setText(stageSubtitleText());
     sceneLabel->setVisible(isUp && !sceneLabel->text().trimmed().isEmpty());
+
+    if (lyricDisplay) {
+        lyricDisplay->setSongInfo(title, displayArtistText());
+    }
 }
 
 void PlayWidget::queuePlayButtonStateUpdate(bool playing, const QString& path)
@@ -476,13 +547,13 @@ void PlayWidget::setIsUp(bool flag){
     }
 
     if (nameLabel) {
-        nameLabel->setVisible(flag);
+        nameLabel->setVisible(false);
     }
     if (artistInfoLabel) {
-        artistInfoLabel->setVisible(flag);
+        artistInfoLabel->setVisible(false);
     }
     if (sceneLabel) {
-        sceneLabel->setVisible(flag && !sceneLabel->text().trimmed().isEmpty());
+        sceneLabel->setVisible(false);
     }
     
     // 触发重绘以更新背
@@ -640,8 +711,8 @@ void PlayWidget::applyPlayerPageStyle()
         "QLabel { color: %1; font-size: 15px; font-weight: 600; background: transparent; }")
                                   .arg(sceneColor));
 
-    const bool hideCover = (m_playerPageStyle == 3 || m_playerPageStyle == 4);
-    const bool useSquareCover = !hideCover && (m_playerPageStyle == 1);
+    const bool hideCover = (m_playerPageStyle == 3);
+    const bool useSquareCover = !hideCover && (m_playerPageStyle == 1 || m_playerPageStyle == 4);
     if (rotatingCircleHost) {
         rotatingCircleHost->setVisible(!hideCover && !useSquareCover);
     }
@@ -692,11 +763,14 @@ void PlayWidget::applyPlayerPageStyle()
     }
 
     if (lyricDisplay) {
+        if (lyricDisplay->rootObject()) {
+            lyricDisplay->rootObject()->setProperty("showSongInfo", true);
+        }
         lyricDisplay->setVisible(isUp);
     }
-    nameLabel->setVisible(isUp);
-    artistInfoLabel->setVisible(isUp);
-    sceneLabel->setVisible(isUp && m_playerPageStyle != 4 && !sceneLabel->text().trimmed().isEmpty());
+    nameLabel->setVisible(false);
+    artistInfoLabel->setVisible(false);
+    sceneLabel->setVisible(false);
 
     refreshStageTexts();
     updateAdaptiveLayout();
@@ -726,7 +800,7 @@ void PlayWidget::updateCoverPresentation(const QString& imagePath)
 
     QPixmap cover(localPath);
     if (cover.isNull()) {
-        cover.load(":/new/prefix1/icon/Music.png");
+        cover = QIcon(QStringLiteral(":/qml/assets/ai/icons/default-music-cover.svg")).pixmap(squareCoverLabel->size());
     }
     if (!cover.isNull()) {
         squareCoverLabel->setPixmap(cover);
@@ -793,6 +867,7 @@ void PlayWidget::updateAdaptiveLayout()
 {
     const int wWidth = qMax(1, width());
     const int wHeight = qMax(1, height());
+    const StageLayoutSpec layoutSpec = stageLayoutSpecForStyle(m_playerPageStyle);
 
     const int controlHeight = qBound(72, wHeight / 8, 108);
     if (process_slider) {
@@ -806,37 +881,89 @@ void PlayWidget::updateAdaptiveLayout()
     const int topMargin = 20;
     const int contentTop = topMargin + 50;
     const int contentBottom = wHeight - controlHeight - 12;
-    const int contentHeight = qMax(120, contentBottom - contentTop);
+    const int stageTop = qMin(contentBottom - 80, contentTop + layoutSpec.stageTopMargin);
+    const QRect stageRect(layoutSpec.stageHorizontalMargin,
+                          stageTop,
+                          qMax(120, wWidth - layoutSpec.stageHorizontalMargin * 2),
+                          qMax(120, contentBottom - stageTop));
 
-    const int circleDiameter = (m_playerPageStyle == 2)
-            ? qBound(360, qMin(wWidth, contentHeight), 700)
-            : qBound(220, qMin(wWidth, contentHeight) / 2 + 60, 460);
-    if (rotatingCircleHost) {
-        int circleX = qMax(24, wWidth / 10);
-        int circleY = contentTop + qMax(0, (contentHeight - circleDiameter) / 2);
-        if (m_playerPageStyle == 0) {
-            circleX = qMax(140, wWidth / 5);
-            circleY = contentTop + qMax(20, contentHeight / 2 - circleDiameter / 2);
-        } else if (m_playerPageStyle == 2) {
-            circleX = wWidth - static_cast<int>(circleDiameter * 0.36);
-            circleY = qMax(28, contentTop - 24);
+    const bool discVisible = rotatingCircleHost && rotatingCircleHost->isVisible();
+    const bool squareVisible = squareCoverHost && squareCoverHost->isVisible();
+    const bool hasCover = discVisible || squareVisible;
+    const bool stackedLayout = (wWidth < layoutSpec.stackedBreakpoint);
+
+    QRect coverRect;
+    QRect lyricRect = stageRect;
+
+    if (layoutSpec.lyricsFocus || !hasCover) {
+        const int lyricWidth = qMin(layoutSpec.lyricColumnMaxWidth, stageRect.width());
+        const int lyricHeight = qMin(stageRect.height(),
+                                     qMax(layoutSpec.lyricsPanelMinHeight, stageRect.height() - 8));
+        lyricRect = QRect(stageRect.x() + qMax(0, (stageRect.width() - lyricWidth) / 2),
+                          stageRect.y() + qMax(0, (stageRect.height() - lyricHeight) / 2),
+                          lyricWidth,
+                          lyricHeight);
+    } else if (!stackedLayout) {
+        int coverColumnWidth = static_cast<int>(stageRect.width() * layoutSpec.coverColumnWidthRatio);
+        coverColumnWidth = qBound(layoutSpec.coverMinSize + 36,
+                                  coverColumnWidth,
+                                  qMax(layoutSpec.coverMinSize + 36, stageRect.width() - layoutSpec.columnGap - 360));
+        int lyricWidth = qMax(360, stageRect.width() - coverColumnWidth - layoutSpec.columnGap);
+        lyricWidth = qMin(layoutSpec.lyricColumnMaxWidth, lyricWidth);
+
+        const QRect coverColumn(stageRect.x(),
+                                stageRect.y(),
+                                coverColumnWidth,
+                                stageRect.height());
+        const int lyricX = coverColumn.right() + 1 + layoutSpec.columnGap;
+        lyricRect = QRect(lyricX,
+                          stageRect.y(),
+                          qMax(320, stageRect.right() - lyricX + 1),
+                          qMax(layoutSpec.lyricsPanelMinHeight, stageRect.height()));
+        if (lyricRect.width() > lyricWidth) {
+            lyricRect.moveLeft(stageRect.right() - lyricWidth + 1);
+            lyricRect.setWidth(lyricWidth);
         }
-        rotatingCircleHost->setGeometry(circleX, circleY, circleDiameter, circleDiameter);
+
+        const int coverSize = qBound(layoutSpec.coverMinSize,
+                                     qMin(layoutSpec.coverMaxSize,
+                                          qMin(coverColumn.width(), stageRect.height() - 20)),
+                                     layoutSpec.coverMaxSize);
+        coverRect = QRect(coverColumn.x() + qMax(0, (coverColumn.width() - coverSize) / 2),
+                          coverColumn.y() + qMax(0, (coverColumn.height() - coverSize) / 2),
+                          coverSize,
+                          coverSize);
+    } else {
+        const int coverSize = qBound(layoutSpec.coverMinSize,
+                                     qMin(layoutSpec.coverMaxSize,
+                                          qMin(stageRect.width() - 40, static_cast<int>(stageRect.height() * 0.42))),
+                                     layoutSpec.coverMaxSize);
+        coverRect = QRect(stageRect.x() + qMax(0, (stageRect.width() - coverSize) / 2),
+                          stageRect.y(),
+                          coverSize,
+                          coverSize);
+
+        const int lyricWidth = qMin(layoutSpec.lyricColumnMaxWidth, stageRect.width());
+        const int lyricTop = coverRect.bottom() + 1 + layoutSpec.stackedGap;
+        const int lyricHeight = qMax(layoutSpec.lyricsPanelMinHeight, contentBottom - lyricTop);
+        lyricRect = QRect(stageRect.x() + qMax(0, (stageRect.width() - lyricWidth) / 2),
+                          lyricTop,
+                          lyricWidth,
+                          qMin(lyricHeight, contentBottom - lyricTop));
+    }
+
+    if (rotatingCircleHost) {
+        rotatingCircleHost->setGeometry(discVisible ? coverRect : QRect());
     }
     if (rotatingCircle) {
-        rotatingCircle->setGeometry(0, 0, rotatingCircleHost ? rotatingCircleHost->width() : circleDiameter,
-                                    rotatingCircleHost ? rotatingCircleHost->height() : circleDiameter);
+        rotatingCircle->setGeometry(0,
+                                    0,
+                                    rotatingCircleHost ? rotatingCircleHost->width() : 0,
+                                    rotatingCircleHost ? rotatingCircleHost->height() : 0);
     }
 
     if (squareCoverHost) {
-        const int squareSize = (m_playerPageStyle == 4)
-                ? qBound(220, qMin(wWidth, contentHeight) / 2 + 30, 420)
-                : qBound(260, qMin(wWidth, contentHeight) / 2 + 40, 480);
-        const int squareX = (m_playerPageStyle == 4) ? qMax(36, wWidth / 11) : qMax(160, wWidth / 5);
-        const int squareY = (m_playerPageStyle == 4)
-                ? contentTop + qMax(0, (contentHeight - squareSize) / 2)
-                : contentTop + qMax(10, contentHeight / 2 - squareSize / 2);
-        squareCoverHost->setGeometry(squareX, squareY, squareSize, squareSize);
+        squareCoverHost->setGeometry(squareVisible ? coverRect : QRect());
     }
     if (squareCoverLabel && squareCoverHost) {
         const int inset = qMax(14, squareCoverHost->width() / 12);
@@ -846,142 +973,25 @@ void PlayWidget::updateAdaptiveLayout()
                                       qMax(1, squareCoverHost->height() - inset * 2));
     }
 
-    int infoX = qMax(48, wWidth / 2);
-    int infoWidth = qMax(280, wWidth / 4);
-    int nameTop = contentTop + 34;
-    if (nameLabel && artistInfoLabel && sceneLabel) {
-
-        switch (m_playerPageStyle) {
-        case 0:
-            infoX = qMin(qMax(520, static_cast<int>(wWidth * 0.60)), qMax(80, wWidth - 420));
-            infoWidth = qMax(300, qMin(420, wWidth - infoX - 48));
-            nameTop = contentTop + 56;
-            nameLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-            artistInfoLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-            sceneLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-            break;
-        case 1:
-            infoX = qMin(qMax(500, static_cast<int>(wWidth * 0.56)), qMax(80, wWidth - 430));
-            infoWidth = qMax(310, qMin(430, wWidth - infoX - 52));
-            nameTop = contentTop + 58;
-            nameLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-            artistInfoLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-            sceneLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-            break;
-        case 2:
-            infoX = qMax(72, static_cast<int>(wWidth * 0.08));
-            infoWidth = qMax(320, qMin(420, static_cast<int>(wWidth * 0.34)));
-            nameTop = contentTop + 50;
-            nameLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-            artistInfoLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-            sceneLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-            break;
-        case 3:
-            infoWidth = qBound(360, static_cast<int>(wWidth * 0.34), 520);
-            infoX = qMax(36, (wWidth - infoWidth) / 2);
-            nameTop = contentTop + 18;
-            nameLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
-            artistInfoLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
-            sceneLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
-            break;
-        case 4:
-        default:
-            infoWidth = qBound(320, static_cast<int>(wWidth * 0.30), 440);
-            infoX = qMax(36, (wWidth - infoWidth) / 2);
-            nameTop = contentTop + 26;
-            nameLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
-            artistInfoLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
-            sceneLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
-            break;
-        }
-
-        nameLabel->setGeometry(infoX, nameTop, infoWidth, 40);
-        artistInfoLabel->setGeometry(infoX, nameTop + 42, infoWidth, 24);
-        sceneLabel->setGeometry(infoX, (m_playerPageStyle == 3) ? (nameTop + 150) : (nameTop + 160), infoWidth, 28);
+    if (nameLabel) {
+        nameLabel->hide();
+        nameLabel->setGeometry(0, 0, 0, 0);
+    }
+    if (artistInfoLabel) {
+        artistInfoLabel->hide();
+        artistInfoLabel->setGeometry(0, 0, 0, 0);
+    }
+    if (sceneLabel) {
+        sceneLabel->hide();
+        sceneLabel->setGeometry(0, 0, 0, 0);
     }
 
     if (lyricDisplay) {
-        int lyricX = qBound(220, wWidth / 3, wWidth - 260);
-        int lyricY = contentTop;
-        int lyricWidth = qMax(260, wWidth - lyricX - 18);
-        int lyricHeight = qMax(160, contentBottom - lyricY);
+        lyricDisplay->setGeometry(lyricRect);
 
-        switch (m_playerPageStyle) {
-        case 0:
-            lyricX = infoX;
-            lyricY = (sceneLabel && sceneLabel->isVisible())
-                    ? (sceneLabel->geometry().bottom() + 12)
-                    : (artistInfoLabel->geometry().bottom() + 14);
-            lyricWidth = qMax(320, qMin(430, wWidth - lyricX - 52));
-            lyricHeight = qMax(280, contentBottom - lyricY - 10);
-            break;
-        case 1:
-            lyricX = qMax(infoX - 8, 40);
-            lyricY = (sceneLabel && sceneLabel->isVisible())
-                    ? (sceneLabel->geometry().bottom() + 12)
-                    : (artistInfoLabel->geometry().bottom() + 14);
-            lyricWidth = qMax(330, qMin(450, wWidth - lyricX - 44));
-            lyricHeight = qMax(280, contentBottom - lyricY - 10);
-            break;
-        case 2:
-            lyricX = qMax(72, static_cast<int>(wWidth * 0.09));
-            lyricY = (sceneLabel && sceneLabel->isVisible())
-                    ? (sceneLabel->geometry().bottom() + 14)
-                    : (artistInfoLabel->geometry().bottom() + 16);
-            lyricWidth = qMax(360, qMin(500, static_cast<int>(wWidth * 0.37)));
-            lyricHeight = qMax(300, contentBottom - lyricY - 10);
-            break;
-        case 3:
-            lyricWidth = qBound(500, static_cast<int>(wWidth * 0.46), 780);
-            lyricX = qMax(42, (wWidth - lyricWidth) / 2);
-            lyricY = (sceneLabel && sceneLabel->isVisible())
-                    ? (sceneLabel->geometry().bottom() + 14)
-                    : (artistInfoLabel->geometry().bottom() + 18);
-            lyricHeight = qMax(340, contentBottom - lyricY - 8);
-            break;
-        case 4:
-        default:
-            lyricWidth = qBound(680, static_cast<int>(wWidth * 0.68), 1040);
-            lyricX = qMax(36, (wWidth - lyricWidth) / 2);
-            lyricY = contentTop + 68;
-            if (nameLabel && nameLabel->isVisible()) {
-                const int titleSafeBottom = artistInfoLabel && artistInfoLabel->isVisible()
-                        ? (artistInfoLabel->geometry().bottom() + 16)
-                        : (nameLabel->geometry().bottom() + 14);
-                lyricY = qMax(lyricY, titleSafeBottom);
-            }
-            lyricHeight = qMax(360, contentBottom - lyricY - 6);
-            break;
-        }
-
-        lyricDisplay->setGeometry(lyricX, lyricY, lyricWidth, lyricHeight);
-
-        if (nameLabel && artistInfoLabel) {
-            const int titleBlockWidth = qMin(lyricWidth, qMax(320, lyricWidth - 24));
-            const int titleX = lyricX + qMax(0, (lyricWidth - titleBlockWidth) / 2);
-            const int titleGap = (m_playerPageStyle == 4) ? 18 : 16;
-            const int titleBlockHeight = artistInfoLabel->isVisible() ? 70 : 42;
-            const int titleTop = qMax(contentTop + 6, lyricY - titleBlockHeight - titleGap);
-
-            nameLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
-            nameLabel->setGeometry(titleX, titleTop, titleBlockWidth, 38);
-
-            if (artistInfoLabel->isVisible()) {
-                artistInfoLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
-                artistInfoLabel->setGeometry(titleX, titleTop + 38, titleBlockWidth, 24);
-            }
-
-            if (sceneLabel && sceneLabel->isVisible()) {
-                sceneLabel->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
-                sceneLabel->setGeometry(titleX, titleTop + titleBlockHeight + 8, titleBlockWidth, 24);
-            }
-        }
-
-        // 高亮歌词的目标中心按“窗口可用播放区（去掉底部控制栏）”计算，
-        // 而不是按 LyricDisplay 自身区域中点，避免全屏后视觉中心偏下。
         const double playbackAreaCenterY = (wHeight - controlHeight) / 2.0;
-        const double localCenterY = playbackAreaCenterY - lyricY;
-        const double centerOffsetY = localCenterY - lyricHeight / 2.0;
+        const double localCenterY = playbackAreaCenterY - lyricRect.y();
+        const double centerOffsetY = localCenterY - lyricRect.height() / 2.0;
         lyricDisplay->setCenterYOffset(centerOffsetY);
     }
 
@@ -1142,7 +1152,7 @@ void PlayWidget::initLyricDisplay()
     lyricDisplay->setMinimumSize(360, 220);
     lyricDisplay->raise();
     if (lyricDisplay->rootObject()) {
-        lyricDisplay->rootObject()->setProperty("showSongInfo", false);
+        lyricDisplay->rootObject()->setProperty("showSongInfo", true);
     }
     lyricDisplay->hide();  // 初始时隐藏歌词，只有展开时才显示
     qDebug() << "LyricDisplay initialized, size:" << lyricDisplay->size() << "position:" << lyricDisplay->pos();
@@ -1373,7 +1383,7 @@ void PlayWidget::onUpdateBackground(QString picPath) {
         qDebug() << "Failed to load album cover for background:" << localPath;
         // 使用默认背景图片
         qDebug() << "Using default background image";
-        originalPixmap.load(":/new/prefix1/icon/Music.png");
+        originalPixmap = QIcon(QStringLiteral(":/qml/assets/ai/icons/default-music-cover.svg")).pixmap(QSize(256, 256));
         if (originalPixmap.isNull()) {
             qDebug() << "Failed to load default background image, skipping";
             return;
