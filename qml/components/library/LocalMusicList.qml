@@ -177,12 +177,13 @@ Rectangle {
             model: typeof localMusicModel !== 'undefined' ? localMusicModel : null
 
             delegate: Rectangle {
+                id: itemRoot
                 property bool currentTrack: root.isSameTrack(root.currentPlayingPath, model.filePath || "")
                 property bool playbackActive: currentTrack && root.isPlaying
-                property bool rowVisualHovered: rowHoverHandler.hovered
+                property bool rowVisualHovered: rowHoverArea.containsMouse
                                                  || coverAction.interactionActive
                                                  || actionStrip.interactionActive
-                property bool coverVisualHovered: rowHoverHandler.hovered
+                property bool coverVisualHovered: rowHoverArea.containsMouse
                                                    || coverAction.interactionActive
                 width: listView.width
                 height: 60
@@ -193,8 +194,11 @@ Rectangle {
                 border.width: currentTrack ? 1 : 0
                 border.color: currentTrack ? "#EC4141" : "transparent"
 
-                HoverHandler {
-                    id: rowHoverHandler
+                MouseArea {
+                    id: rowHoverArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    acceptedButtons: Qt.NoButton
                 }
 
                 Rectangle {
@@ -227,6 +231,7 @@ Rectangle {
                         Layout.preferredWidth: root.colCoverWidth
                         Layout.preferredHeight: root.colCoverWidth
                         z: 2
+                        Layout.alignment: Qt.AlignVCenter
                         rowHovered: coverVisualHovered
                         isCurrentTrack: currentTrack
                         isPlaying: playbackActive

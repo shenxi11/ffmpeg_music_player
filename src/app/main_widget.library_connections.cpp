@@ -189,6 +189,8 @@ void MainWidget::setupLibraryConnections()
 
     connect(playHistoryWidget, &PlayHistoryWidget::addToFavorite, this,
             &MainWidget::handleHistoryAddToFavorite);
+    connect(playHistoryWidget, &PlayHistoryWidget::songActionRequested,
+            this, &MainWidget::handleSongActionRequested);
 
     connect(playHistoryWidget, &PlayHistoryWidget::loginRequested, this, &MainWidget::handleHistoryLoginRequested);
     connect(playHistoryWidget, &PlayHistoryWidget::refreshRequested, this, &MainWidget::handleHistoryRefreshRequested);

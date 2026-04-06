@@ -91,15 +91,14 @@ void MusicListWidgetNet::setupConnections()
 
     connect(m_viewModel, &OnlineMusicListViewModel::streamReady, this,
             [this](const QString& file, const QString& artist, const QString& cover) {
-        if (!m_pendingResolvedAction.isEmpty()) {
+        if (hasPendingResolvedAction()) {
             QVariantMap payload = m_pendingResolvedSongData;
             payload.insert(QStringLiteral("playPath"), file);
             payload.insert(QStringLiteral("path"), file);
             payload.insert(QStringLiteral("artist"), artist);
             payload.insert(QStringLiteral("cover"), cover);
             const QString action = m_pendingResolvedAction;
-            m_pendingResolvedAction.clear();
-            m_pendingResolvedSongData.clear();
+            clearPendingResolvedAction();
             emit songActionRequested(action, payload);
             return;
         }
@@ -107,8 +106,7 @@ void MusicListWidgetNet::setupConnections()
     });
     connect(m_viewModel, &OnlineMusicListViewModel::streamResolveFailed, this,
             [this]() {
-        m_pendingResolvedAction.clear();
-        m_pendingResolvedSongData.clear();
+        clearPendingResolvedAction();
     });
 
     if (QQuickItem* root = listWidget->rootObject()) {

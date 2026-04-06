@@ -15,7 +15,7 @@ Item {
     property bool rowHovered: false
     property bool isCurrentTrack: false
     property bool isPlaying: false
-    property bool interactionActive: coverHover.hovered || overlayArea.containsMouse
+    property bool interactionActive: coverHoverArea.containsMouse || overlayArea.containsMouse
 
     readonly property string coverActionMode: {
         if (isCurrentTrack) {
@@ -56,8 +56,11 @@ Item {
         }
     }
 
-    HoverHandler {
-        id: coverHover
+    MouseArea {
+        id: coverHoverArea
+        anchors.fill: parent
+        hoverEnabled: true
+        acceptedButtons: Qt.NoButton
     }
 
     Rectangle {

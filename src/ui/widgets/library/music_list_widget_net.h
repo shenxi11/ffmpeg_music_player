@@ -57,6 +57,8 @@ private slots:
 private:
     // 连接拆分：将在线列表信号绑定集中到独立实现中维护。
     void setupConnections();
+    bool hasPendingResolvedAction() const;
+    void clearPendingResolvedAction();
 
     MusicListWidgetNetQml* listWidget = nullptr;
     QMap<QString, double> song_duration;

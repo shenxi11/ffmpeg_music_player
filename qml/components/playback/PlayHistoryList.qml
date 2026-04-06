@@ -33,6 +33,7 @@ Rectangle {
     signal deleteHistory(var selectedPaths)
     signal loginRequested()
     signal refreshRequested()
+    signal songActionRequested(string action, var song)
 
     function looksUnreadable(value) {
         if (value === undefined || value === null) return true
@@ -93,6 +94,19 @@ Rectangle {
 
     function isSameTrack(pathA, pathB) {
         return normalizePath(pathA) === normalizePath(pathB)
+    }
+
+    function buildSongPayload(item) {
+        return {
+            path: item.path || "",
+            playPath: item.path || "",
+            title: displayTitle(item),
+            artist: displayArtist(item),
+            cover: item.cover_art_url || "",
+            duration: item.duration || "",
+            sourceType: "history",
+            isLocal: true
+        }
     }
 
     function setPlayingState(filePath, playing) {
@@ -306,10 +320,10 @@ Rectangle {
                 radius: 10
                 property bool isCurrentTrack: root.isSameTrack(root.currentPlayingPath, model.path)
                 property bool playbackActive: isCurrentTrack && root.isPlaying
-                property bool rowVisualHovered: rowHoverHandler.hovered
+                property bool rowVisualHovered: rowHoverArea.containsMouse
                                                  || coverAction.interactionActive
                                                  || actionRowHover.hovered
-                property bool coverVisualHovered: rowHoverHandler.hovered
+                property bool coverVisualHovered: rowHoverArea.containsMouse
                                                    || coverAction.interactionActive
 
                 color: isCurrentTrack
@@ -318,8 +332,11 @@ Rectangle {
                 border.width: isCurrentTrack ? 1 : 0
                 border.color: isCurrentTrack ? Theme.accent : "transparent"
 
-                HoverHandler {
-                    id: rowHoverHandler
+                MouseArea {
+                    id: rowHoverArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    acceptedButtons: Qt.NoButton
                 }
 
                 Rectangle {
@@ -360,6 +377,10 @@ Rectangle {
                         fallbackSource: "qrc:/new/prefix1/icon/Music.png"
 
                         onPlayRequested: {
+                            if (itemRoot.isCurrentTrack) {
+                                root.songActionRequested("toggle_current_playback", root.buildSongPayload(model))
+                                return
+                            }
                             var filePath = model.path || ""
                             var title = root.displayTitle(model)
                             var artist = root.displayArtist(model)
@@ -368,11 +389,7 @@ Rectangle {
                         }
 
                         onPauseRequested: {
-                            var filePath = model.path || ""
-                            var title = root.displayTitle(model)
-                            var artist = root.displayArtist(model)
-                            var cover = model.cover_art_url || ""
-                            root.playMusicWithMetadata(filePath, title, artist, cover)
+                            root.songActionRequested("toggle_current_playback", root.buildSongPayload(model))
                         }
                     }
 

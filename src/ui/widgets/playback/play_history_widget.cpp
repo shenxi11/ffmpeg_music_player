@@ -25,6 +25,8 @@ PlayHistoryWidget::PlayHistoryWidget(QWidget *parent)
                 this, SIGNAL(loginRequested()));
         connect(root, SIGNAL(refreshRequested()),
                 this, SIGNAL(refreshRequested()));
+        connect(root, SIGNAL(songActionRequested(QString,QVariant)),
+                this, SLOT(handleSongActionRequested(QString,QVariant)));
         qDebug() << "PlayHistoryWidget: Signals connected";
     } else {
         qDebug() << "PlayHistoryWidget: ERROR - Root object is null!";
@@ -93,5 +95,10 @@ void PlayHistoryWidget::handleDeleteHistory(const QVariant& selectedPaths)
         paths.append(item.toString());
     }
     emit deleteHistory(paths);
+}
+
+void PlayHistoryWidget::handleSongActionRequested(const QString& action, const QVariant& payload)
+{
+    emit songActionRequested(action, payload.toMap());
 }
 
