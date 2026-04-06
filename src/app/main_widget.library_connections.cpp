@@ -2,8 +2,11 @@
 
 #include "AudioService.h"
 #include <QUrl>
+#include <QCursor>
 #include <QMessageBox>
 #include <QFileInfo>
+#include <QInputDialog>
+#include <QToolTip>
 
 namespace {
 QString buildPlaylistCoverPathFromSource(const QString& rawCover)
@@ -47,6 +50,127 @@ QString buildPlaylistCoverPathFromSource(const QString& rawCover)
     }
     return cover;
 }
+
+QString normalizeSongPath(const QString& rawPath)
+{
+    QString path = rawPath.trimmed();
+    if (path.startsWith(QStringLiteral("file:///"), Qt::CaseInsensitive)) {
+        path = QUrl(path).toLocalFile();
+    }
+    if (path.startsWith(QStringLiteral("http://"), Qt::CaseInsensitive) ||
+        path.startsWith(QStringLiteral("https://"), Qt::CaseInsensitive)) {
+        return QUrl(path).toString(QUrl::FullyDecoded).trimmed();
+    }
+    return QDir::fromNativeSeparators(path);
+}
+
+bool isResolvedRemotePlaybackPath(const QString& path)
+{
+    return path.startsWith(QStringLiteral("http://"), Qt::CaseInsensitive) ||
+           path.startsWith(QStringLiteral("https://"), Qt::CaseInsensitive);
+}
+
+QString normalizeDownloadRelativePath(const QString& rawPath)
+{
+    QString path = rawPath.trimmed();
+    if (path.isEmpty()) {
+        return QString();
+    }
+
+    if (path.startsWith(QStringLiteral("http://"), Qt::CaseInsensitive) ||
+        path.startsWith(QStringLiteral("https://"), Qt::CaseInsensitive)) {
+        const QUrl url(path);
+        path = QUrl::fromPercentEncoding(url.path().toUtf8()).trimmed();
+    }
+
+    while (path.startsWith('/')) {
+        path.remove(0, 1);
+    }
+    if (path.toLower().startsWith(QStringLiteral("uploads/"))) {
+        path = path.mid(QStringLiteral("uploads/").size());
+    }
+    return path;
+}
+
+int durationTextToSeconds(const QString& durationText)
+{
+    const QStringList parts = durationText.trimmed().split(':');
+    if (parts.size() == 2) {
+        return parts.at(0).toInt() * 60 + parts.at(1).toInt();
+    }
+    if (parts.size() == 3) {
+        return parts.at(0).toInt() * 3600 + parts.at(1).toInt() * 60 + parts.at(2).toInt();
+    }
+    return 0;
+}
+
+QUrl buildActionSongUrl(const QVariantMap& songData)
+{
+    QString path = songData.value(QStringLiteral("playPath")).toString().trimmed();
+    if (path.isEmpty()) {
+        path = songData.value(QStringLiteral("path")).toString().trimmed();
+    }
+    if (path.isEmpty()) {
+        return QUrl();
+    }
+
+    const bool isLocal = songData.value(QStringLiteral("isLocal")).toBool();
+    if (!isLocal && isResolvedRemotePlaybackPath(path)) {
+        return QUrl(path);
+    }
+
+    if (path.startsWith(QStringLiteral("http://"), Qt::CaseInsensitive) ||
+        path.startsWith(QStringLiteral("https://"), Qt::CaseInsensitive)) {
+        return QUrl(path);
+    }
+
+    return QUrl::fromLocalFile(normalizeSongPath(path));
+}
+
+QVariantMap buildPlaylistItemFromSong(const QVariantMap& songData)
+{
+    QVariantMap item;
+    QString musicPath = songData.value(QStringLiteral("playPath")).toString().trimmed();
+    if (musicPath.isEmpty()) {
+        musicPath = songData.value(QStringLiteral("path")).toString().trimmed();
+    }
+
+    const QString title = songData.value(QStringLiteral("title")).toString().trimmed();
+    const QString artist = songData.value(QStringLiteral("artist")).toString().trimmed();
+    const QString cover = songData.value(QStringLiteral("cover")).toString().trimmed();
+    const int durationSeconds = songData.value(QStringLiteral("duration_sec")).toInt() > 0
+            ? songData.value(QStringLiteral("duration_sec")).toInt()
+            : durationTextToSeconds(songData.value(QStringLiteral("duration")).toString());
+
+    item.insert(QStringLiteral("music_path"), musicPath);
+    item.insert(QStringLiteral("music_title"), title.isEmpty() ? QFileInfo(musicPath).completeBaseName() : title);
+    item.insert(QStringLiteral("artist"), artist);
+    item.insert(QStringLiteral("album"), songData.value(QStringLiteral("album")).toString());
+    item.insert(QStringLiteral("duration_sec"), durationSeconds);
+    item.insert(QStringLiteral("is_local"), songData.value(QStringLiteral("isLocal")).toBool());
+
+    const QString coverPath = buildPlaylistCoverPathFromSource(cover);
+    if (!coverPath.isEmpty()) {
+        item.insert(QStringLiteral("cover_art_path"), coverPath);
+    } else if (!cover.isEmpty()) {
+        item.insert(QStringLiteral("cover_art_url"), cover);
+    }
+    return item;
+}
+
+QString playlistNameById(const QVariantList& playlists, qint64 playlistId)
+{
+    for (const QVariant& item : playlists) {
+        const QVariantMap playlist = item.toMap();
+        if (playlist.value(QStringLiteral("id")).toLongLong() == playlistId) {
+            const QString name = playlist.value(QStringLiteral("name")).toString().trimmed();
+            if (!name.isEmpty()) {
+                return name;
+            }
+        }
+    }
+    return QString();
+}
 }
 
 /*
@@ -77,6 +201,8 @@ void MainWidget::setupLibraryConnections()
 
     connect(m_viewModel, &MainShellViewModel::favoritesListReady,
             favoriteMusicWidget, &FavoriteMusicWidget::loadFavorites);
+    connect(m_viewModel, &MainShellViewModel::favoritesListReady,
+            this, &MainWidget::handleFavoritesListUpdated);
 
     connect(m_viewModel, &MainShellViewModel::removeFavoriteResultReady, this, &MainWidget::handleRemoveFavoriteResult);
 
@@ -108,6 +234,17 @@ void MainWidget::setupLibraryConnections()
     connect(m_viewModel, &MainShellViewModel::addPlaylistItemsResultReady, this, &MainWidget::handleAddPlaylistItemsResultReady);
     connect(m_viewModel, &MainShellViewModel::removePlaylistItemsResultReady, this, &MainWidget::handleRemovePlaylistItemsResultReady);
     connect(m_viewModel, &MainShellViewModel::reorderPlaylistItemsResultReady, this, &MainWidget::handleReorderPlaylistItemsResultReady);
+
+    connect(favoriteMusicWidget, &FavoriteMusicWidget::songActionRequested,
+            this, &MainWidget::handleSongActionRequested);
+    connect(localAndDownloadWidget, &LocalAndDownloadWidget::songActionRequested,
+            this, &MainWidget::handleSongActionRequested);
+    connect(net_list, &MusicListWidgetNet::songActionRequested,
+            this, &MainWidget::handleSongActionRequested);
+    connect(playlistWidget, &PlaylistWidget::songActionRequested,
+            this, &MainWidget::handleSongActionRequested);
+    connect(recommendMusicWidget, &RecommendMusicWidget::songActionRequested,
+            this, &MainWidget::handleSongActionRequested);
 }
 
 void MainWidget::handleHistoryDeleteRequested(const QStringList& paths)
@@ -201,6 +338,24 @@ void MainWidget::handleFavoriteRefreshRequested()
     if (m_viewModel) {
         m_viewModel->requestFavorites(userAccount);
     }
+}
+
+void MainWidget::handleFavoritesListUpdated(const QVariantList& favorites)
+{
+    QStringList favoritePaths;
+    favoritePaths.reserve(favorites.size());
+    for (const QVariant& item : favorites) {
+        const QString path = item.toMap().value(QStringLiteral("path")).toString().trimmed();
+        if (!path.isEmpty()) {
+            favoritePaths.append(path);
+        }
+    }
+
+    favoriteMusicWidget->setFavoritePaths(favoritePaths);
+    localAndDownloadWidget->setFavoritePaths(favoritePaths);
+    net_list->setFavoritePaths(favoritePaths);
+    playlistWidget->setFavoritePaths(favoritePaths);
+    recommendMusicWidget->setFavoritePaths(favoritePaths);
 }
 
 void MainWidget::handleRemoveFavoriteResult(bool success)
@@ -512,6 +667,10 @@ void MainWidget::handlePlaylistsListReady(const QVariantList& playlists, int pag
             m_ownedSidebarPlaylists.append(playlist);
         }
     }
+    favoriteMusicWidget->setAvailablePlaylists(m_ownedSidebarPlaylists);
+    localAndDownloadWidget->setAvailablePlaylists(m_ownedSidebarPlaylists);
+    net_list->setAvailablePlaylists(m_ownedSidebarPlaylists);
+    recommendMusicWidget->setAvailablePlaylists(m_ownedSidebarPlaylists);
     rebuildSidebarPlaylistButtons();
 }
 
@@ -525,12 +684,19 @@ void MainWidget::handlePlaylistDetailReady(const QVariantMap& detail)
 
 void MainWidget::handleCreatePlaylistResultReady(bool success, qint64 playlistId, const QString& message)
 {
-    Q_UNUSED(playlistId);
     if (!success) {
+        m_pendingAddToNewPlaylistSong.clear();
         QMessageBox::warning(this,
                              QStringLiteral("创建歌单失败"),
                              message.trimmed().isEmpty() ? QStringLiteral("请稍后重试。") : message);
         return;
+    }
+
+    if (!m_pendingAddToNewPlaylistSong.isEmpty() && m_viewModel && isUserLoggedIn() && playlistId > 0) {
+        QVariantList items;
+        items.append(buildPlaylistItemFromSong(m_pendingAddToNewPlaylistSong));
+        m_viewModel->addPlaylistItems(m_viewModel->currentUserAccount(), playlistId, items);
+        m_pendingAddToNewPlaylistSong.clear();
     }
 
     if (m_viewModel && isUserLoggedIn()) {
@@ -577,8 +743,6 @@ void MainWidget::handleAddPlaylistItemsResultReady(bool success,
                                                    int skippedCount,
                                                    const QString& message)
 {
-    Q_UNUSED(addedCount);
-    Q_UNUSED(skippedCount);
     if (!success) {
         QMessageBox::warning(this,
                              QStringLiteral("添加歌曲失败"),
@@ -586,8 +750,22 @@ void MainWidget::handleAddPlaylistItemsResultReady(bool success,
         return;
     }
 
-    if (m_viewModel && isUserLoggedIn() && playlistId > 0) {
-        m_viewModel->requestPlaylistDetail(m_viewModel->currentUserAccount(), playlistId, false);
+    const QString playlistName = playlistNameById(m_ownedSidebarPlaylists, playlistId);
+    const QString tipMessage = addedCount > 0
+            ? (playlistName.isEmpty()
+               ? QStringLiteral("已添加到目标歌单")
+               : QStringLiteral("已添加到歌单：%1").arg(playlistName))
+            : (skippedCount > 0
+               ? QStringLiteral("歌曲已存在于目标歌单中")
+               : QStringLiteral("歌单已更新"));
+    QToolTip::showText(QCursor::pos(), tipMessage, this, rect(), 1800);
+
+    if (m_viewModel && isUserLoggedIn()) {
+        const QString account = m_viewModel->currentUserAccount();
+        m_viewModel->requestPlaylists(account, 1, 20, false);
+        if (playlistId > 0) {
+            m_viewModel->requestPlaylistDetail(account, playlistId, false);
+        }
     }
 }
 
@@ -620,4 +798,218 @@ void MainWidget::handleReorderPlaylistItemsResultReady(bool success, qint64 play
     if (m_viewModel && isUserLoggedIn() && playlistId > 0) {
         m_viewModel->requestPlaylistDetail(m_viewModel->currentUserAccount(), playlistId, false);
     }
+}
+
+void MainWidget::handleSongActionRequested(const QString& action, const QVariantMap& songData)
+{
+    if (songData.isEmpty()) {
+        return;
+    }
+
+    const bool isLocal = songData.value(QStringLiteral("isLocal")).toBool();
+    QString playPath = songData.value(QStringLiteral("playPath")).toString().trimmed();
+    if (playPath.isEmpty()) {
+        playPath = songData.value(QStringLiteral("path")).toString().trimmed();
+    }
+    const bool requiresResolve = !isLocal
+            && !playPath.isEmpty()
+            && !isResolvedRemotePlaybackPath(playPath)
+            && !QFileInfo(playPath).isAbsolute()
+            && (action == QStringLiteral("play")
+                || action == QStringLiteral("play_next")
+                || action == QStringLiteral("queue_append")
+                || action == QStringLiteral("add_to_playlist")
+                || action == QStringLiteral("create_playlist_and_add"));
+
+    if (requiresResolve) {
+        net_list->resolveSongAction(action, songData);
+        return;
+    }
+
+    if (action == QStringLiteral("play")) {
+        playSongByAction(songData);
+        return;
+    }
+    if (action == QStringLiteral("play_next")) {
+        queueSongAsNext(songData);
+        return;
+    }
+    if (action == QStringLiteral("queue_append")) {
+        appendSongToPlaybackQueue(songData);
+        return;
+    }
+    if (action == QStringLiteral("add_to_playlist")) {
+        addSongToPlaylistByAction(songData);
+        return;
+    }
+    if (action == QStringLiteral("create_playlist_and_add")) {
+        createPlaylistAndAddSong(songData);
+        return;
+    }
+    if (action == QStringLiteral("add_favorite") || action == QStringLiteral("remove_favorite")) {
+        toggleFavoriteByAction(action, songData);
+        return;
+    }
+    if (action == QStringLiteral("download")) {
+        const QString relativePath = normalizeDownloadRelativePath(songData.value(QStringLiteral("path")).toString());
+        if (!relativePath.isEmpty()) {
+            net_list->onDownloadMusic(relativePath);
+        }
+        return;
+    }
+    if (action == QStringLiteral("remove_or_delete")) {
+        removeOrDeleteSongByAction(songData);
+    }
+}
+
+void MainWidget::queueSongAsNext(const QVariantMap& songData)
+{
+    if (!w || !w->playbackViewModel()) {
+        return;
+    }
+
+    if (AudioService::instance().currentIndex() < 0 || AudioService::instance().playlistSize() <= 0) {
+        playSongByAction(songData);
+        return;
+    }
+
+    const QUrl url = buildActionSongUrl(songData);
+    if (!url.isValid() || url.isEmpty()) {
+        return;
+    }
+    w->playbackViewModel()->rememberTrackMetadata(url, songData);
+    w->playbackViewModel()->queueTrackAsNext(url);
+}
+
+void MainWidget::appendSongToPlaybackQueue(const QVariantMap& songData)
+{
+    if (!w || !w->playbackViewModel()) {
+        return;
+    }
+
+    const QUrl url = buildActionSongUrl(songData);
+    if (!url.isValid() || url.isEmpty()) {
+        return;
+    }
+    w->playbackViewModel()->rememberTrackMetadata(url, songData);
+    w->playbackViewModel()->appendTrackToQueue(url, true);
+}
+
+void MainWidget::addSongToPlaylistByAction(const QVariantMap& songData)
+{
+    if (!isUserLoggedIn() || !m_viewModel) {
+        showLoginWindow();
+        return;
+    }
+
+    const qint64 playlistId = songData.value(QStringLiteral("playlistId")).toLongLong();
+    if (playlistId <= 0) {
+        QToolTip::showText(QCursor::pos(), QStringLiteral("请选择目标歌单"), this, rect(), 1500);
+        return;
+    }
+
+    QVariantList items;
+    items.append(buildPlaylistItemFromSong(songData));
+    m_viewModel->addPlaylistItems(m_viewModel->currentUserAccount(), playlistId, items);
+}
+
+void MainWidget::createPlaylistAndAddSong(const QVariantMap& songData)
+{
+    if (!isUserLoggedIn() || !m_viewModel) {
+        showLoginWindow();
+        return;
+    }
+
+    bool ok = false;
+    const QString name = QInputDialog::getText(this,
+                                               QStringLiteral("新建歌单"),
+                                               QStringLiteral("请输入歌单名称："),
+                                               QLineEdit::Normal,
+                                               QString(),
+                                               &ok).trimmed();
+    if (!ok || name.isEmpty()) {
+        return;
+    }
+
+    m_pendingAddToNewPlaylistSong = songData;
+    m_viewModel->createPlaylist(m_viewModel->currentUserAccount(), name, QString());
+}
+
+void MainWidget::toggleFavoriteByAction(const QString& action, const QVariantMap& songData)
+{
+    if (!isUserLoggedIn() || !m_viewModel) {
+        showLoginWindow();
+        return;
+    }
+
+    const QString path = songData.value(QStringLiteral("path")).toString().trimmed();
+    if (path.isEmpty()) {
+        return;
+    }
+
+    if (action == QStringLiteral("remove_favorite")) {
+        m_viewModel->removeFavorite(m_viewModel->currentUserAccount(), QStringList{path});
+        return;
+    }
+
+    m_viewModel->addFavorite(m_viewModel->currentUserAccount(),
+                             path,
+                             songData.value(QStringLiteral("title")).toString(),
+                             songData.value(QStringLiteral("artist")).toString(),
+                             songData.value(QStringLiteral("duration")).toString(),
+                             songData.value(QStringLiteral("isLocal")).toBool());
+}
+
+void MainWidget::removeOrDeleteSongByAction(const QVariantMap& songData)
+{
+    const QString sourceType = songData.value(QStringLiteral("sourceType")).toString().trimmed().toLower();
+    const QString path = songData.value(QStringLiteral("path")).toString().trimmed();
+
+    if (sourceType == QStringLiteral("favorite")) {
+        handleFavoriteRemoveRequested(QStringList{path});
+        return;
+    }
+    if (sourceType == QStringLiteral("playlist")) {
+        handlePlaylistRemoveSongsRequested(songData.value(QStringLiteral("playlistId")).toLongLong(),
+                                           QStringList{path});
+        return;
+    }
+
+    handleLocalAndDownloadDeleteMusic(path);
+}
+
+void MainWidget::playSongByAction(const QVariantMap& songData)
+{
+    QString path = songData.value(QStringLiteral("playPath")).toString().trimmed();
+    if (path.isEmpty()) {
+        path = songData.value(QStringLiteral("path")).toString().trimmed();
+    }
+    if (path.isEmpty()) {
+        return;
+    }
+
+    if (w->getNetFlag()) {
+        net_list->signalPlayButtonClick(false, "");
+    }
+    main_list->signalPlayButtonClick(false, "");
+    localAndDownloadWidget->setCurrentPlayingPath("");
+
+    const bool isLocal = songData.value(QStringLiteral("isLocal")).toBool();
+    const QString title = songData.value(QStringLiteral("title")).toString().trimmed();
+    const QString artist = normalizeArtistForHistory(songData.value(QStringLiteral("artist")).toString());
+    const QString cover = songData.value(QStringLiteral("cover")).toString().trimmed();
+    const QUrl url = buildActionSongUrl(songData);
+
+    w->setPlayNet(!isLocal);
+    if (!title.isEmpty() || !artist.isEmpty() || !cover.isEmpty()) {
+        w->setNetworkMetadata(title, artist, cover);
+    }
+    if (!isLocal && !cover.isEmpty()) {
+        m_networkMusicArtist = artist;
+        m_networkMusicCover = cover;
+    }
+    if (url.isValid() && !url.isEmpty()) {
+        w->playbackViewModel()->rememberTrackMetadata(url, songData);
+    }
+    w->playClick(path);
 }

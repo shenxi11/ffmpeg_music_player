@@ -46,6 +46,8 @@ PlaylistWidget::PlaylistWidget(QWidget* parent)
             this, SLOT(handleAddCurrentSongRequested(QVariant)));
     connect(root, SIGNAL(playMusicWithMetadata(QString,QString,QString,QString)),
             this, SIGNAL(playMusicWithMetadata(QString,QString,QString,QString)));
+    connect(root, SIGNAL(songActionRequested(QString,QVariant)),
+            this, SLOT(handleSongActionRequested(QString,QVariant)));
 }
 
 void PlaylistWidget::setLoggedIn(bool loggedIn, const QString& userAccount)
@@ -79,6 +81,15 @@ void PlaylistWidget::loadPlaylistDetail(const QVariantMap& detail)
     }
     QMetaObject::invokeMethod(root, "loadPlaylistDetail",
                               Q_ARG(QVariant, QVariant::fromValue(detail)));
+}
+
+void PlaylistWidget::setFavoritePaths(const QStringList& favoritePaths)
+{
+    QQuickItem* root = rootObject();
+    if (!root) {
+        return;
+    }
+    root->setProperty("favoritePaths", QVariant::fromValue(favoritePaths));
 }
 
 void PlaylistWidget::setCurrentPlayingPath(const QString& filePath)
@@ -157,4 +168,9 @@ void PlaylistWidget::handleReorderPlaylistItemsRequested(const QVariant& playlis
 void PlaylistWidget::handleAddCurrentSongRequested(const QVariant& playlistIdValue)
 {
     emit addCurrentSongRequested(playlistIdValue.toLongLong());
+}
+
+void PlaylistWidget::handleSongActionRequested(const QString& action, const QVariant& payload)
+{
+    emit songActionRequested(action, payload.toMap());
 }

@@ -36,6 +36,8 @@ public:
     // 播放列表管理
     void setPlaylist(const QList<QUrl>& urls);
     void addToPlaylist(const QUrl& url);
+    void appendToQueue(const QUrl& url);
+    void insertNextToQueue(const QUrl& url);
     void removeFromPlaylist(int index);
     void clearPlaylist();
     QList<QUrl> playlist() const { return m_playlist; }

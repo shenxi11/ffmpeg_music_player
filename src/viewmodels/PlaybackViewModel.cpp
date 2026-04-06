@@ -1,5 +1,8 @@
 #include "PlaybackViewModel.h"
 
+#include <QDir>
+#include <QFileInfo>
+#include <QSet>
 #include <QTime>
 #include <QDebug>
 
@@ -25,11 +28,19 @@ PlaybackViewModel::PlaybackViewModel(QObject* parent)
             this, &PlaybackViewModel::onAudioServiceBufferingStarted);
     connect(m_audioService, &AudioService::bufferingFinished,
             this, &PlaybackViewModel::onAudioServiceBufferingFinished);
+    connect(m_audioService, &AudioService::playlistChanged,
+            this, [this]() {
+                prunePlaylistMetadataCache();
+                emit playlistSnapshotChanged();
+            });
+    connect(m_audioService, &AudioService::currentIndexChanged,
+            this, &PlaybackViewModel::playlistSnapshotChanged);
 
     connect(m_audioService, &AudioService::currentTrackChanged,
             this, [this](const QString& title, const QString& artist, qint64 duration) {
                 updateMetadata(title, artist, QString(), QString(), m_currentUrl);
                 updateDuration(duration);
+                emit playlistSnapshotChanged();
             });
     connect(m_audioService, &AudioService::albumArtChanged,
             this, [this](const QString& imagePath) {
@@ -37,6 +48,7 @@ PlaybackViewModel::PlaybackViewModel(QObject* parent)
                 if (!trimmed.isEmpty() && m_currentAlbumArt != trimmed) {
                     m_currentAlbumArt = trimmed;
                     emit currentAlbumArtChanged();
+                    emit playlistSnapshotChanged();
                 }
             });
 }
@@ -126,12 +138,61 @@ void PlaybackViewModel::playPrevious()
     m_audioService->playPrevious();
 }
 
+void PlaybackViewModel::appendTrackToQueue(const QUrl& url, bool playIfIdle)
+{
+    if (!url.isValid() || url.isEmpty()) {
+        return;
+    }
+
+    const bool hasActiveTrack = m_audioService->currentIndex() >= 0
+            && m_audioService->playlistSize() > 0;
+    if (!hasActiveTrack && playIfIdle) {
+        play(url);
+        return;
+    }
+
+    m_audioService->appendToQueue(url);
+}
+
+void PlaybackViewModel::queueTrackAsNext(const QUrl& url)
+{
+    if (!url.isValid() || url.isEmpty()) {
+        return;
+    }
+
+    const bool hasActiveTrack = m_audioService->currentIndex() >= 0
+            && m_audioService->playlistSize() > 0;
+    if (!hasActiveTrack) {
+        play(url);
+        return;
+    }
+
+    m_audioService->insertNextToQueue(url);
+}
+
+void PlaybackViewModel::rememberTrackMetadata(const QUrl& url, const QVariantMap& songData)
+{
+    const QString key = normalizePlaylistEntryPath(url);
+    if (key.isEmpty()) {
+        return;
+    }
+
+    QVariantMap normalized;
+    normalized.insert(QStringLiteral("title"), songData.value(QStringLiteral("title")).toString().trimmed());
+    normalized.insert(QStringLiteral("artist"), songData.value(QStringLiteral("artist")).toString().trimmed());
+    normalized.insert(QStringLiteral("cover"), songData.value(QStringLiteral("cover")).toString().trimmed());
+    m_playlistMetadataCache.insert(key, normalized);
+}
+
 void PlaybackViewModel::removeFromPlaylistUrl(const QString& filePath)
 {
-    const QUrl url = QUrl::fromUserInput(filePath);
-    const int index = m_audioService->playlist().indexOf(url);
-    if (index >= 0) {
-        m_audioService->removeFromPlaylist(index);
+    const QString normalizedTarget = normalizePlaylistEntryPath(QUrl::fromUserInput(filePath));
+    const QList<QUrl> playlist = m_audioService->playlist();
+    for (int index = 0; index < playlist.size(); ++index) {
+        if (normalizePlaylistEntryPath(playlist.at(index)) == normalizedTarget) {
+            m_audioService->removeFromPlaylist(index);
+            return;
+        }
     }
 }
 
@@ -143,6 +204,18 @@ void PlaybackViewModel::clearPlaylist()
 void PlaybackViewModel::setPlayModeValue(int mode)
 {
     m_audioService->setPlayMode(static_cast<AudioService::PlayMode>(mode));
+}
+
+QVariantList PlaybackViewModel::playlistSnapshot() const
+{
+    QVariantList snapshot;
+    const QList<QUrl> playlist = m_audioService->playlist();
+    snapshot.reserve(playlist.size());
+
+    for (int index = 0; index < playlist.size(); ++index) {
+        snapshot.append(buildPlaylistSnapshotItem(playlist.at(index), index));
+    }
+    return snapshot;
 }
 
 void PlaybackViewModel::setVolume(int volume)
@@ -172,6 +245,7 @@ void PlaybackViewModel::onAudioServicePlaybackStarted(const QString& sessionId, 
     updatePausedState(false);
     updateBufferingState(false);
     updateMetadata(QString(), QString(), QString(), QString(), url);
+    emit playlistSnapshotChanged();
     emit shouldStartRotation();
     emit playbackStarted();
 }
@@ -198,6 +272,7 @@ void PlaybackViewModel::onAudioServicePlaybackStopped()
     updatePausedState(false);
     updateBufferingState(false);
     updatePosition(0);
+    emit playlistSnapshotChanged();
     emit shouldStopRotation();
     emit playbackStopped();
 }
@@ -335,4 +410,82 @@ QString PlaybackViewModel::formatTime(qint64 milliseconds)
     return QStringLiteral("%1:%2")
         .arg(minutes, 2, 10, QChar('0'))
         .arg(seconds, 2, 10, QChar('0'));
+}
+
+QVariantMap PlaybackViewModel::buildPlaylistSnapshotItem(const QUrl& url, int index) const
+{
+    const bool isCurrent = index == m_audioService->currentIndex();
+    const QVariantMap cachedMetadata = m_playlistMetadataCache.value(normalizePlaylistEntryPath(url));
+    const QString fallbackTitle = titleFromUrl(url);
+    const QString title = isCurrent && !m_currentTitle.trimmed().isEmpty()
+            ? m_currentTitle.trimmed()
+            : (!cachedMetadata.value(QStringLiteral("title")).toString().trimmed().isEmpty()
+               ? cachedMetadata.value(QStringLiteral("title")).toString().trimmed()
+               : fallbackTitle);
+    const QString artist = isCurrent && !m_currentArtist.trimmed().isEmpty()
+            ? m_currentArtist.trimmed()
+            : (!cachedMetadata.value(QStringLiteral("artist")).toString().trimmed().isEmpty()
+               ? cachedMetadata.value(QStringLiteral("artist")).toString().trimmed()
+               : QStringLiteral("未知艺术家"));
+    const QString cover = isCurrent && !m_currentAlbumArt.trimmed().isEmpty()
+            ? m_currentAlbumArt.trimmed()
+            : (!cachedMetadata.value(QStringLiteral("cover")).toString().trimmed().isEmpty()
+               ? cachedMetadata.value(QStringLiteral("cover")).toString().trimmed()
+               : QStringLiteral("qrc:/new/prefix1/icon/Music.png"));
+
+    QVariantMap item;
+    item.insert(QStringLiteral("filePath"), normalizePlaylistEntryPath(url));
+    item.insert(QStringLiteral("title"), title);
+    item.insert(QStringLiteral("artist"), artist);
+    item.insert(QStringLiteral("cover"), cover);
+    item.insert(QStringLiteral("isCurrent"), isCurrent);
+    return item;
+}
+
+QString PlaybackViewModel::normalizePlaylistEntryPath(const QUrl& url)
+{
+    if (url.isLocalFile()) {
+        return QDir::fromNativeSeparators(url.toLocalFile());
+    }
+    return url.toString(QUrl::FullyDecoded).trimmed();
+}
+
+QString PlaybackViewModel::titleFromUrl(const QUrl& url)
+{
+    QString title;
+    if (url.isLocalFile()) {
+        title = QFileInfo(url.toLocalFile()).completeBaseName().trimmed();
+    } else {
+        QString path = QUrl::fromPercentEncoding(url.path().toUtf8()).trimmed();
+        const int slashIndex = path.lastIndexOf('/');
+        if (slashIndex >= 0) {
+            path = path.mid(slashIndex + 1);
+        }
+        const int dotIndex = path.lastIndexOf('.');
+        if (dotIndex > 0) {
+            path = path.left(dotIndex);
+        }
+        title = path.trimmed();
+    }
+
+    return title.isEmpty() ? QStringLiteral("未知歌曲") : title;
+}
+
+void PlaybackViewModel::prunePlaylistMetadataCache()
+{
+    const QList<QUrl> playlist = m_audioService->playlist();
+    QSet<QString> activeKeys;
+    activeKeys.reserve(playlist.size());
+    for (const QUrl& url : playlist) {
+        activeKeys.insert(normalizePlaylistEntryPath(url));
+    }
+
+    auto it = m_playlistMetadataCache.begin();
+    while (it != m_playlistMetadataCache.end()) {
+        if (!activeKeys.contains(it.key())) {
+            it = m_playlistMetadataCache.erase(it);
+        } else {
+            ++it;
+        }
+    }
 }

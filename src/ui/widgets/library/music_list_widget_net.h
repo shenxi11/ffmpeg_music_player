@@ -3,6 +3,7 @@
 
 #include <QMap>
 #include <QObject>
+#include <QVariantMap>
 #include <QStringList>
 #include <QWidget>
 
@@ -32,6 +33,9 @@ public:
     void onPlayButtonClick(bool flag, const QString filename);
     void onDownloadMusic(QString songName);
     void onTranslateButtonClicked();
+    void setAvailablePlaylists(const QVariantList& playlists);
+    void setFavoritePaths(const QStringList& favoritePaths);
+    void resolveSongAction(const QString& action, const QVariantMap& songData);
 
 signals:
     void signalAddSonglist(const QList<Music>& musicList);
@@ -42,9 +46,13 @@ signals:
     void signalTranslateButtonClicked();
     void loginRequired();
     void addToFavorite(const QString& path, const QString& title, const QString& artist, const QString& duration);
+    void songActionRequested(const QString& action, const QVariantMap& songData);
 
 public:
     void setMainWidget(QWidget* widget) { mainWidget = widget; }
+
+private slots:
+    void onSongActionRequested(const QString& action, const QVariant& payload);
 
 private:
     // 连接拆分：将在线列表信号绑定集中到独立实现中维护。
@@ -54,6 +62,8 @@ private:
     QMap<QString, double> song_duration;
     QMap<QString, QString> song_cover;
     OnlineMusicListViewModel* m_viewModel = nullptr;
+    QString m_pendingResolvedAction;
+    QVariantMap m_pendingResolvedSongData;
     QString currentSongArtist;
     QString currentSongCover;
     QWidget* mainWidget = nullptr;

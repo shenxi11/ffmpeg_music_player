@@ -22,16 +22,20 @@ public:
      * @brief 设置当前播放的歌曲路径（用于高亮显示）
      */
     void setCurrentPlayingPath(const QString& path);
+    void setAvailablePlaylists(const QVariantList& playlists);
+    void setFavoritePaths(const QStringList& favoritePaths);
     
 signals:
     void playMusic(const QString& filename);
     void deleteMusic(const QString& filename);
     void addLocalMusicRequested();
     void addToFavorite(const QString& path, const QString& title, const QString& artist, const QString& duration);
+    void songActionRequested(const QString& action, const QVariantMap& songData);
 
 private slots:
     void onPlayMusic(const QString& filename);
     void onDeleteMusic(const QString& filename);
+    void onSongActionRequested(const QString& action, const QVariant& payload);
 
 private:
     DownloadTaskModel* m_downloadTaskModel;

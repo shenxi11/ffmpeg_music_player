@@ -15,6 +15,8 @@ public:
 
     void setLoggedIn(bool loggedIn, const QString& userAccount = QString());
     void loadRecommendations(const QVariantMap& meta, const QVariantList& recommendationData);
+    void setAvailablePlaylists(const QVariantList& playlists);
+    void setFavoritePaths(const QStringList& favoritePaths);
     void setCurrentPlayingPath(const QString& filePath);
     void setPlayingState(const QString& filePath, bool playing);
     void clearRecommendations();
@@ -43,6 +45,10 @@ signals:
                        const QString& modelVersion);
     void loginRequested();
     void refreshRequested();
+    void songActionRequested(const QString& action, const QVariantMap& songData);
+
+private slots:
+    void onSongActionRequested(const QString& action, const QVariant& payload);
 };
 
 #endif // RECOMMEND_MUSIC_WIDGET_H

@@ -6,6 +6,8 @@ import "../../theme/Theme.js" as Theme
 Rectangle {
     id: root
     color: "transparent"
+    property var availablePlaylists: []
+    property var favoritePaths: []
 
     property int tabLeftMargin: 18
     property int tabSpacing: width >= 1280 ? 18 : 10
@@ -14,6 +16,7 @@ Rectangle {
     signal playMusic(string filename)
     signal deleteMusic(string filename)
     signal addToFavorite(string path, string title, string artist, string duration)
+    signal songActionRequested(string action, var song)
 
     ColumnLayout {
         anchors.fill: parent
@@ -88,15 +91,21 @@ Rectangle {
             currentIndex: tabBar.currentIndex
 
             LocalMusicList {
+                availablePlaylists: root.availablePlaylists
+                favoritePaths: root.favoritePaths
                 onPlayMusic: root.playMusic(filename)
                 onDeleteMusic: root.deleteMusic(filename)
                 onAddToFavorite: root.addToFavorite(path, title, artist, duration)
+                onSongActionRequested: root.songActionRequested(action, song)
             }
 
             DownloadedMusicList {
+                availablePlaylists: root.availablePlaylists
+                favoritePaths: root.favoritePaths
                 onPlayMusic: root.playMusic(filename)
                 onDeleteMusic: root.deleteMusic(filename)
                 onAddToFavorite: root.addToFavorite(path, title, artist, duration)
+                onSongActionRequested: root.songActionRequested(action, song)
             }
 
             DownloadingList {

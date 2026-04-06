@@ -19,6 +19,8 @@ FavoriteMusicWidget::FavoriteMusicWidget(QWidget *parent)
                 this, SLOT(handleRemoveFavorite(QVariant)));
         connect(root, SIGNAL(refreshRequested()),
                 this, SIGNAL(refreshRequested()));
+        connect(root, SIGNAL(songActionRequested(QString,QVariant)),
+                this, SLOT(handleSongActionRequested(QString,QVariant)));
         qDebug() << "FavoriteMusicWidget: Signals connected";
     } else {
         qDebug() << "FavoriteMusicWidget: ERROR - Root object is null!";
@@ -42,6 +44,24 @@ void FavoriteMusicWidget::loadFavorites(const QVariantList& favoritesData)
             Q_ARG(QVariant, QVariant::fromValue(favoritesData)));
         qDebug() << "FavoriteMusicWidget: Loaded" << favoritesData.size() << "favorite items";
     }
+}
+
+void FavoriteMusicWidget::setAvailablePlaylists(const QVariantList& playlists)
+{
+    QQuickItem* root = rootObject();
+    if (!root) {
+        return;
+    }
+    root->setProperty("availablePlaylists", QVariant::fromValue(playlists));
+}
+
+void FavoriteMusicWidget::setFavoritePaths(const QStringList& favoritePaths)
+{
+    QQuickItem* root = rootObject();
+    if (!root) {
+        return;
+    }
+    root->setProperty("favoritePaths", QVariant::fromValue(favoritePaths));
 }
 
 void FavoriteMusicWidget::setCurrentPlayingPath(const QString& filePath)
@@ -73,5 +93,10 @@ void FavoriteMusicWidget::handleRemoveFavorite(const QVariant& selectedPaths)
         paths.append(item.toString());
     }
     emit removeFavorite(paths);
+}
+
+void FavoriteMusicWidget::handleSongActionRequested(const QString& action, const QVariant& payload)
+{
+    emit songActionRequested(action, payload.toMap());
 }
 

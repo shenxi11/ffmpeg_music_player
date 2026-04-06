@@ -127,6 +127,7 @@ private:
     void handleVmShouldStartRotation();
     void handleVmShouldStopRotation();
     void handleVmShouldLoadLyrics(const QString& songPath);
+    void refreshPlaylistHistoryFromViewModel();
     void handleMusicButtonClicked();
     void handleBufferingStateChanged(bool active);
     void handleProcessChangeRequested(qint64 milliseconds, bool back_flag);

@@ -55,6 +55,16 @@ public:
             qDebug() << "PlaylistHistory::addSong - ERROR: root is null!";
         }
     }
+
+    // 使用真实播放队列快照重建列表。
+    void loadPlaylist(const QVariantList& items)
+    {
+        QQuickItem* root = rootObject();
+        if (root) {
+            QMetaObject::invokeMethod(root, "loadPlaylist",
+                Q_ARG(QVariant, QVariant::fromValue(items)));
+        }
+    }
     
     // 清空列表展示项。
     void clearAll()

@@ -91,6 +91,42 @@ void MusicListWidgetNet::setupConnections()
 
     connect(m_viewModel, &OnlineMusicListViewModel::streamReady, this,
             [this](const QString& file, const QString& artist, const QString& cover) {
+        if (!m_pendingResolvedAction.isEmpty()) {
+            QVariantMap payload = m_pendingResolvedSongData;
+            payload.insert(QStringLiteral("playPath"), file);
+            payload.insert(QStringLiteral("path"), file);
+            payload.insert(QStringLiteral("artist"), artist);
+            payload.insert(QStringLiteral("cover"), cover);
+            const QString action = m_pendingResolvedAction;
+            m_pendingResolvedAction.clear();
+            m_pendingResolvedSongData.clear();
+            emit songActionRequested(action, payload);
+            return;
+        }
         emit signalPlayClick(file, artist, cover, true);
     });
+
+    if (QQuickItem* root = listWidget->rootObject()) {
+        connect(root, SIGNAL(songActionRequested(QString,QVariant)),
+                this, SLOT(onSongActionRequested(QString,QVariant)));
+    }
+}
+
+void MusicListWidgetNet::onSongActionRequested(const QString& action, const QVariant& payloadValue)
+{
+    const QVariantMap payload = payloadValue.toMap();
+    if (action == QStringLiteral("add_favorite")) {
+        emit addToFavorite(payload.value(QStringLiteral("path")).toString(),
+                           payload.value(QStringLiteral("title")).toString(),
+                           payload.value(QStringLiteral("artist")).toString(),
+                           payload.value(QStringLiteral("duration")).toString());
+        return;
+    }
+
+    if (action == QStringLiteral("download")) {
+        onDownloadMusic(payload.value(QStringLiteral("path")).toString());
+        return;
+    }
+
+    resolveSongAction(action, payload);
 }

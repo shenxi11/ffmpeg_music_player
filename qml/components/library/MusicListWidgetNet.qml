@@ -15,8 +15,10 @@ Rectangle {
     property int colCoverWidth: 44
     property int colDurationWidth: width >= 1280 ? 96 : (width >= 960 ? 84 : 72)
     property int colArtistWidth: width >= 1280 ? 160 : (width >= 960 ? 130 : 110)
-    property int colActionWidth: 124
+    property int colActionWidth: 160
     property int contentWidth: Math.max(320, width - sideMargin * 2 - innerMargin * 2)
+    property var availablePlaylists: []
+    property var favoritePaths: []
     property int colTitleWidth: Math.max(140,
                                          contentWidth - colCoverWidth - colDurationWidth
                                          - colArtistWidth - colActionWidth - colGap * 4)
@@ -26,6 +28,7 @@ Rectangle {
     signal removeRequested(string filePath)
     signal downloadRequested(string filePath)
     signal addToFavorite(string path, string title, string artist, string duration)
+    signal songActionRequested(string action, var song)
 
     function looksUnreadable(value) {
         if (value === undefined || value === null) return true
@@ -65,6 +68,30 @@ Rectangle {
 
     function displayArtist(item) {
         return normalizeText(item.artist, "未知艺术家")
+    }
+
+    function isFavoritePath(path) {
+        var target = normalizePath(path)
+        for (var i = 0; i < favoritePaths.length; ++i) {
+            if (normalizePath(favoritePaths[i]) === target) {
+                return true
+            }
+        }
+        return false
+    }
+
+    function buildSongPayload(item) {
+        return {
+            path: item.filePath || "",
+            playPath: item.filePath || "",
+            title: displayTitle(item),
+            artist: displayArtist(item),
+            duration: item.duration || "0:00",
+            cover: item.cover || "",
+            isLocal: false,
+            isFavorite: isFavoritePath(item.filePath || ""),
+            sourceType: "online"
+        }
     }
 
     // 顶部标题
@@ -191,10 +218,15 @@ Rectangle {
         
         Rectangle {
             id: itemRoot
+            property bool rowHovered: rowHoverHandler.hovered || actionStrip.interactionActive
             width: listView.width
             height: 60
-            color: itemArea.containsMouse || playBtnArea.containsMouse || downloadBtnArea.containsMouse ? "#f0f0f0" : "#ffffff"
+            color: rowHovered ? "#f0f0f0" : "#ffffff"
             radius: 4
+
+            HoverHandler {
+                id: rowHoverHandler
+            }
             
             Row {
                 anchors.fill: parent
@@ -253,116 +285,38 @@ Rectangle {
                 }
                 
                 // 操作按钮（hover 时显示）
-                Row {
+                SongActionStrip {
+                    id: actionStrip
                     width: root.colActionWidth
-                    spacing: 8
                     anchors.verticalCenter: parent.verticalCenter
-                    opacity: itemArea.containsMouse ? 1.0 : 0.0
-                    visible: opacity > 0
-                    
-                    Behavior on opacity { NumberAnimation { duration: 150 } }
-                    
-                    // 喜欢按钮
-                    Rectangle {
-                        width: 32
-                        height: 32
-                        radius: 16
-                        color: favBtnArea.containsMouse ? "#ffe0e6" : "transparent"
-                        border.width: 1
-                        border.color: favBtnArea.containsMouse ? "#EC4141" : "#D6DCE8"
-                        
-                        Image {
-                            anchors.centerIn: parent
-                            width: 18
-                            height: 18
-                            source: favBtnArea.containsMouse
-                                    ? root.listIconPrefix + "list_icon_favorite_hover.svg"
-                                    : root.listIconPrefix + "list_icon_favorite_default.svg"
-                            fillMode: Image.PreserveAspectFit
+                    z: 1
+                    opacity: rowHovered ? 1.0 : 0.0
+                    enabled: rowHovered
+                    availablePlaylists: root.availablePlaylists
+                    songData: root.buildSongPayload(model)
+                    favoriteActive: root.isFavoritePath(model.filePath || "")
+                    showDownloadButton: true
+                    showRemoveAction: false
+
+                    onActionRequested: function(action, payload) {
+                        if (action === "play") {
+                            root.playRequested(model.filePath, root.displayArtist(model), model.cover || "")
+                            return
                         }
-                        
-                        MouseArea {
-                            id: favBtnArea
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                root.addToFavorite(
-                                    model.filePath || "",
-                                    root.displayTitle(model),
-                                    root.displayArtist(model),
-                                    model.duration || ""
-                                )
-                            }
+                        if (action === "add_favorite") {
+                            root.addToFavorite(
+                                model.filePath || "",
+                                root.displayTitle(model),
+                                root.displayArtist(model),
+                                model.duration || ""
+                            )
+                            return
                         }
-                    }
-                    
-                    // 播放按钮
-                    Rectangle {
-                        width: 32
-                        height: 32
-                        radius: 16
-                        color: model.isPlaying ? "#EC4141" : (playBtnArea.containsMouse ? "#FDECEC" : "transparent")
-                        border.width: 1
-                        border.color: model.isPlaying ? "#EC4141" : "#D6DCE8"
-                        
-                        Image {
-                            anchors.centerIn: parent
-                            width: 18
-                            height: 18
-                            source: {
-                                if (model.isPlaying) {
-                                    return playBtnArea.containsMouse
-                                            ? root.playerIconPrefix + "player_btn_pause_hover.svg"
-                                            : root.playerIconPrefix + "player_btn_pause_default.svg"
-                                }
-                                return playBtnArea.containsMouse
-                                        ? root.playerIconPrefix + "player_btn_play_hover.svg"
-                                        : root.playerIconPrefix + "player_btn_play_default.svg"
-                            }
-                            fillMode: Image.PreserveAspectFit
+                        if (action === "download") {
+                            root.downloadRequested(model.filePath || "")
+                            return
                         }
-                        
-                        MouseArea {
-                            id: playBtnArea
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                console.log("[MusicListWidgetNet] Play clicked - path:", model.filePath)
-                                console.log("[MusicListWidgetNet] artist:", model.artist)
-                                console.log("[MusicListWidgetNet] cover:", model.cover)
-                                root.playRequested(model.filePath, root.displayArtist(model), model.cover || "")
-                            }
-                        }
-                    }
-                    
-                    // 下载按钮（网络音乐）
-                    Rectangle {
-                        width: 32
-                        height: 32
-                        radius: 16
-                        color: downloadBtnArea.containsMouse ? "#FDECEC" : "transparent"
-                        border.width: 1
-                        border.color: downloadBtnArea.containsMouse ? "#EC4141" : "#D6DCE8"
-                        
-                        Image {
-                            anchors.centerIn: parent
-                            width: 18
-                            height: 18
-                            source: downloadBtnArea.containsMouse
-                                    ? root.listIconPrefix + "list_icon_download_hover.svg"
-                                    : root.listIconPrefix + "list_icon_download_default.svg"
-                            fillMode: Image.PreserveAspectFit
-                        }
-                        
-                        MouseArea {
-                            id: downloadBtnArea
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.downloadRequested(model.filePath)
-                        }
+                        root.songActionRequested(action, payload)
                     }
                 }
             }
@@ -370,7 +324,6 @@ Rectangle {
             MouseArea {
                 id: itemArea
                 anchors.fill: parent
-                hoverEnabled: true
                 propagateComposedEvents: true
                 onDoubleClicked: {
                     root.playRequested(model.filePath, root.displayArtist(model), model.cover || "")

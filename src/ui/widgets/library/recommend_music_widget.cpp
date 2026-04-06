@@ -24,6 +24,8 @@ RecommendMusicWidget::RecommendMusicWidget(QWidget* parent)
             this, SIGNAL(feedbackEvent(QString,QString,int,int,QString,QString,QString)));
     connect(root, SIGNAL(loginRequested()), this, SIGNAL(loginRequested()));
     connect(root, SIGNAL(refreshRequested()), this, SIGNAL(refreshRequested()));
+    connect(root, SIGNAL(songActionRequested(QString,QVariant)),
+            this, SLOT(onSongActionRequested(QString,QVariant)));
 }
 
 void RecommendMusicWidget::setLoggedIn(bool loggedIn, const QString& userAccount)
@@ -46,6 +48,24 @@ void RecommendMusicWidget::loadRecommendations(const QVariantMap& meta, const QV
     QMetaObject::invokeMethod(root, "loadRecommendations",
                               Q_ARG(QVariant, QVariant::fromValue(meta)),
                               Q_ARG(QVariant, QVariant::fromValue(recommendationData)));
+}
+
+void RecommendMusicWidget::setAvailablePlaylists(const QVariantList& playlists)
+{
+    QQuickItem* root = rootObject();
+    if (!root) {
+        return;
+    }
+    root->setProperty("availablePlaylists", QVariant::fromValue(playlists));
+}
+
+void RecommendMusicWidget::setFavoritePaths(const QStringList& favoritePaths)
+{
+    QQuickItem* root = rootObject();
+    if (!root) {
+        return;
+    }
+    root->setProperty("favoritePaths", QVariant::fromValue(favoritePaths));
 }
 
 void RecommendMusicWidget::setCurrentPlayingPath(const QString& filePath)
@@ -78,4 +98,9 @@ void RecommendMusicWidget::clearRecommendations()
         return;
     }
     QMetaObject::invokeMethod(root, "clearRecommendations");
+}
+
+void RecommendMusicWidget::onSongActionRequested(const QString& action, const QVariant& payload)
+{
+    emit songActionRequested(action, payload.toMap());
 }

@@ -16,10 +16,49 @@ Rectangle {
     property int colNameWidth: Math.max(150,
                                         rowContentWidth - colCoverWidth - colSizeWidth
                                         - colTimeWidth - colActionWidth - 40)
+    property var availablePlaylists: []
+    property var favoritePaths: []
 
     signal playMusic(string filename)
     signal deleteMusic(string filename)
     signal addToFavorite(string path, string title, string artist, string duration)
+    signal songActionRequested(string action, var song)
+
+    function normalizePath(path) {
+        if (!path) return ""
+        var value = String(path).trim()
+        if (value.indexOf("file:///") === 0)
+            value = value.substring(8)
+        try {
+            value = decodeURIComponent(value)
+        } catch (e) {
+        }
+        return value
+    }
+
+    function isFavoritePath(path) {
+        var target = normalizePath(path)
+        for (var i = 0; i < favoritePaths.length; ++i) {
+            if (normalizePath(favoritePaths[i]) === target) {
+                return true
+            }
+        }
+        return false
+    }
+
+    function buildSongPayload(item) {
+        return {
+            path: item.savePath || "",
+            playPath: item.savePath || "",
+            title: item.songName || item.filename || "",
+            artist: item.artist || "未知艺术家",
+            duration: item.duration || "0:00",
+            cover: item.coverUrl || "",
+            isLocal: true,
+            isFavorite: isFavoritePath(item.savePath || ""),
+            sourceType: "downloaded"
+        }
+    }
     
     // 当可见性改变时刷新
     onVisibleChanged: {
@@ -122,15 +161,19 @@ Rectangle {
             model: typeof downloadTaskModel !== 'undefined' ? downloadTaskModel : null
 
             delegate: Rectangle {
+                property bool rowHovered: rowHoverHandler.hovered || actionStrip.interactionActive
                 width: listView.width
                 height: 60
-                color: itemArea.containsMouse || playBtnArea.containsMouse || deleteBtnArea.containsMouse ? "#f0f0f0" : "#ffffff"
+                color: rowHovered ? "#f0f0f0" : "#ffffff"
                 radius: 4
+
+                HoverHandler {
+                    id: rowHoverHandler
+                }
 
                 MouseArea {
                     id: itemArea
                     anchors.fill: parent
-                    hoverEnabled: true
                     propagateComposedEvents: true
                     onDoubleClicked: {
                         root.playMusic(model.savePath || "")
@@ -188,134 +231,41 @@ Rectangle {
                     }
 
                     // 操作按钮
-                    Row {
+                    SongActionStrip {
+                        id: actionStrip
                         Layout.preferredWidth: root.colActionWidth
-                        spacing: 10
-                        opacity: itemArea.containsMouse || playBtnArea.containsMouse || favBtnArea.containsMouse || deleteBtnArea.containsMouse ? 1.0 : 0.0
-                        enabled: opacity > 0
-                        
-                        Behavior on opacity { NumberAnimation { duration: 150 } }
+                        z: 1
+                        opacity: rowHovered ? 1.0 : 0.0
+                        enabled: rowHovered
+                        availablePlaylists: root.availablePlaylists
+                        songData: root.buildSongPayload(model)
+                        favoriteActive: root.isFavoritePath(model.savePath || "")
+                        showDownloadButton: false
+                        showRemoveAction: true
+                        removeActionText: "删除"
 
-                        // 喜欢按钮
-                        Rectangle {
-                            width: 32
-                            height: 32
-                            radius: 16
-                            color: favBtnArea.containsMouse ? "#ffe0e6" : "transparent"
-                            border.width: 1
-                            border.color: favBtnArea.containsMouse ? "#EC4141" : "#D6DCE8"
-
-                            Image {
-                                anchors.centerIn: parent
-                                width: 18
-                                height: 18
-                                source: favBtnArea.containsMouse
-                                        ? root.listIconPrefix + "list_icon_favorite_hover.svg"
-                                        : root.listIconPrefix + "list_icon_favorite_default.svg"
-                                fillMode: Image.PreserveAspectFit
+                        onActionRequested: function(action, payload) {
+                            if (action === "play") {
+                                root.playMusic(model.savePath || "")
+                                return
                             }
-
-                            MouseArea {
-                                id: favBtnArea
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                propagateComposedEvents: false
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    root.addToFavorite(
-                                        model.savePath || "",
-                                        model.songName || "",
-                                        model.artist || "",
-                                        model.duration || ""
-                                    )
-                                }
+                            if (action === "add_favorite") {
+                                root.addToFavorite(
+                                    model.savePath || "",
+                                    model.songName || "",
+                                    model.artist || "",
+                                    model.duration || ""
+                                )
+                                return
                             }
-                        }
-
-                        // 播放按钮（圆形图标样式）
-                        Rectangle {
-                            width: 32
-                            height: 32
-                            radius: 16
-                            color: model.isPlaying ? "#EC4141" : (playBtnArea.containsMouse ? "#FDECEC" : "transparent")
-                            border.width: 1
-                            border.color: model.isPlaying ? "#EC4141" : "#D6DCE8"
-
-                            Image {
-                                anchors.centerIn: parent
-                                width: 18
-                                height: 18
-                                source: {
-                                    if (model.isPlaying) {
-                                        return playBtnArea.containsMouse
-                                                ? root.playerIconPrefix + "player_btn_pause_hover.svg"
-                                                : root.playerIconPrefix + "player_btn_pause_default.svg"
-                                    }
-                                    return playBtnArea.containsMouse
-                                            ? root.playerIconPrefix + "player_btn_play_hover.svg"
-                                            : root.playerIconPrefix + "player_btn_play_default.svg"
+                            if (action === "remove_or_delete") {
+                                root.deleteMusic(model.savePath || "")
+                                if (typeof downloadTaskModel !== 'undefined') {
+                                    downloadTaskModel.removeTask(model.taskId || "")
                                 }
-                                fillMode: Image.PreserveAspectFit
+                                return
                             }
-
-                            MouseArea {
-                                id: playBtnArea
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                propagateComposedEvents: false
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    root.playMusic(model.savePath || "")
-                                }
-                                onEntered: {
-                                    // 阻止事件传播到itemArea
-                                }
-                                onExited: {
-                                    // 阻止事件传播到itemArea
-                                }
-                            }
-                        }
-
-                        // 删除按钮（圆形图标样式）
-                        Rectangle {
-                            width: 32
-                            height: 32
-                            radius: 16
-                            color: deleteBtnArea.containsMouse ? "#FDECEC" : "transparent"
-                            border.width: 1
-                            border.color: deleteBtnArea.containsMouse ? "#EC4141" : "#D6DCE8"
-
-                            Image {
-                                anchors.centerIn: parent
-                                width: 18
-                                height: 18
-                                source: deleteBtnArea.containsMouse
-                                        ? root.listIconPrefix + "list_icon_delete_hover.svg"
-                                        : root.listIconPrefix + "list_icon_delete_default.svg"
-                                fillMode: Image.PreserveAspectFit
-                            }
-
-                            MouseArea {
-                                id: deleteBtnArea
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                propagateComposedEvents: false
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    // 先发送删除信号
-                                    root.deleteMusic(model.savePath || "")
-                                    // 从模型中移除任务
-                                    if (typeof downloadTaskModel !== 'undefined') {
-                                        downloadTaskModel.removeTask(model.taskId || "")
-                                    }
-                                }
-                                onEntered: {
-                                    // 阻止事件传播到itemArea
-                                }
-                                onExited: {
-                                    // 阻止事件传播到itemArea
-                                }
-                            }
+                            root.songActionRequested(action, payload)
                         }
                     }
                 }

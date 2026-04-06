@@ -25,6 +25,7 @@ public:
     void setLoggedIn(bool loggedIn, const QString& userAccount = QString());
     void loadPlaylists(const QVariantList& playlists, int page, int pageSize, int total);
     void loadPlaylistDetail(const QVariantMap& detail);
+    void setFavoritePaths(const QStringList& favoritePaths);
     void setCurrentPlayingPath(const QString& filePath);
     void setPlayingState(const QString& filePath, bool playing);
     void clearData();
@@ -44,6 +45,7 @@ signals:
                                const QString& title,
                                const QString& artist,
                                const QString& cover);
+    void songActionRequested(const QString& action, const QVariantMap& songData);
 
 private slots:
     void handleOpenPlaylistRequested(const QVariant& playlistIdValue);
@@ -54,6 +56,7 @@ private slots:
     void handleRemovePlaylistItemsRequested(const QVariant& playlistIdValue, const QVariant& musicPathsValue);
     void handleReorderPlaylistItemsRequested(const QVariant& playlistIdValue, const QVariant& orderedItemsValue);
     void handleAddCurrentSongRequested(const QVariant& playlistIdValue);
+    void handleSongActionRequested(const QString& action, const QVariant& payload);
 };
 
 #endif // PLAYLIST_WIDGET_H
