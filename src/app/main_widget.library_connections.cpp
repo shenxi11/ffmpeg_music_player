@@ -315,7 +315,7 @@ void MainWidget::handleFavoritePlayMusic(const QString& filePath)
         net_list->signalPlayButtonClick(false, "");
     }
     main_list->signalPlayButtonClick(false, "");
-    localAndDownloadWidget->setCurrentPlayingPath("");
+    localAndDownloadWidget->setPlayingState("", false);
 
     const bool isLocal = !filePath.startsWith("http");
     w->setPlayNet(!isLocal);
@@ -564,7 +564,7 @@ void MainWidget::handlePlaylistPlayMusicWithMetadata(const QString& filePath,
         net_list->signalPlayButtonClick(false, "");
     }
     main_list->signalPlayButtonClick(false, "");
-    localAndDownloadWidget->setCurrentPlayingPath("");
+    localAndDownloadWidget->setPlayingState("", false);
 
     const bool isLocal = !filePath.startsWith("http", Qt::CaseInsensitive);
     w->setPlayNet(!isLocal);
@@ -830,6 +830,12 @@ void MainWidget::handleSongActionRequested(const QString& action, const QVariant
         playSongByAction(songData);
         return;
     }
+    if (action == QStringLiteral("toggle_current_playback")) {
+        if (w && w->playbackViewModel()) {
+            w->playbackViewModel()->togglePlayPause();
+        }
+        return;
+    }
     if (action == QStringLiteral("play_next")) {
         queueSongAsNext(songData);
         return;
@@ -992,7 +998,7 @@ void MainWidget::playSongByAction(const QVariantMap& songData)
         net_list->signalPlayButtonClick(false, "");
     }
     main_list->signalPlayButtonClick(false, "");
-    localAndDownloadWidget->setCurrentPlayingPath("");
+    localAndDownloadWidget->setPlayingState("", false);
 
     const bool isLocal = songData.value(QStringLiteral("isLocal")).toBool();
     const QString title = songData.value(QStringLiteral("title")).toString().trimmed();

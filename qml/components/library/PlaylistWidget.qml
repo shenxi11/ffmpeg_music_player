@@ -1180,7 +1180,9 @@ Rectangle {
                             width: songListView.width
                             height: 62
                             radius: 10
-                            property bool rowHovered: rowHoverHandler.hovered || actionStrip.interactionActive
+                            property bool rowHovered: rowHoverHandler.hovered
+                                                       || coverAction.interactionActive
+                                                       || actionStrip.interactionActive
                             property bool currentTrack: root.isSameTrack(root.currentPlayingPath, model.path)
                             property bool showPauseIcon: currentTrack && root.isPlaying
                             color: currentTrack
@@ -1212,26 +1214,30 @@ Rectangle {
                                     spacing: 8
                                     anchors.verticalCenter: parent.verticalCenter
 
-                                    Rectangle {
+                                    SongCoverAction {
+                                        id: coverAction
                                         width: 40
                                         height: 40
-                                        radius: 6
-                                        color: "#E9ECF5"
-                                        border.width: 1
-                                        border.color: "#D9DFEA"
+                                        rowHovered: songRow.rowHovered
+                                        isCurrentTrack: songRow.currentTrack
+                                        isPlaying: songRow.showPauseIcon
+                                        coverSource: normalizeCoverSource(model.cover_art_url)
+                                        fallbackSource: root.defaultCover
 
-                                        Image {
-                                            anchors.fill: parent
-                                            anchors.margins: 1
-                                            source: normalizeCoverSource(model.cover_art_url)
-                                            fillMode: Image.PreserveAspectCrop
-                                            asynchronous: true
-                                            cache: true
-                                            onStatusChanged: {
-                                                if (status === Image.Error && source !== root.defaultCover) {
-                                                    source = root.defaultCover
-                                                }
+                                        onPlayRequested: {
+                                            if (songRow.currentTrack) {
+                                                root.songActionRequested("toggle_current_playback", root.buildSongPayload(model))
+                                                return
                                             }
+                                            root.playMusicWithMetadata(
+                                                        model.path || "",
+                                                        model.title || "未知歌曲",
+                                                        model.artist || "未知艺术家",
+                                                        model.cover_art_url || "")
+                                        }
+
+                                        onPauseRequested: {
+                                            root.songActionRequested("toggle_current_playback", root.buildSongPayload(model))
                                         }
                                     }
 

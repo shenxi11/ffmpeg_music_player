@@ -54,7 +54,7 @@ void MainWidget::handlePlayWidgetButtonState(bool playing, const QString& filena
     playHistoryWidget->setPlayingState(filename, playing);
     recommendMusicWidget->setPlayingState(filename, playing);
     if (!w->getNetFlag() && !filename.isEmpty()) {
-        localAndDownloadWidget->setCurrentPlayingPath(playing ? filename : "");
+        localAndDownloadWidget->setPlayingState(filename, playing);
     }
 }
 
@@ -74,7 +74,7 @@ void MainWidget::handleLocalListPlayClick(const QString& name, bool flag)
         qDebug() << "[Switch source] Network music -> local music, clear network playing state";
         net_list->signalPlayButtonClick(false, "");
     }
-    localAndDownloadWidget->setCurrentPlayingPath("");
+    localAndDownloadWidget->setPlayingState("", false);
     w->setPlayNet(flag);
 
     m_networkMusicArtist.clear();
@@ -89,7 +89,7 @@ void MainWidget::handleLocalAndDownloadPlayMusic(const QString& filename)
         net_list->signalPlayButtonClick(false, "");
     }
     main_list->signalPlayButtonClick(false, "");
-    localAndDownloadWidget->setCurrentPlayingPath(filename);
+    localAndDownloadWidget->setPlayingState(filename, false);
     w->setPlayNet(false);
     w->playClick(filename);
 }
@@ -146,7 +146,7 @@ void MainWidget::handleNetListPlayClick(const QString& name,
         qDebug() << "[Switch source] Local music -> network music, clear local playing state";
         main_list->signalPlayButtonClick(false, "");
     }
-    localAndDownloadWidget->setCurrentPlayingPath("");
+    localAndDownloadWidget->setPlayingState("", false);
     w->setPlayNet(flag);
 
     const QString normalizedArtist = normalizeArtistForHistory(artist);
@@ -164,7 +164,7 @@ void MainWidget::handleHistoryPlayMusic(const QString& filePath)
         net_list->signalPlayButtonClick(false, "");
     }
     main_list->signalPlayButtonClick(false, "");
-    localAndDownloadWidget->setCurrentPlayingPath("");
+    localAndDownloadWidget->setPlayingState("", false);
 
     bool isLocal = !filePath.startsWith("http");
     w->setPlayNet(!isLocal);
@@ -183,7 +183,7 @@ void MainWidget::handleHistoryPlayMusicWithMetadata(const QString& filePath,
         net_list->signalPlayButtonClick(false, "");
     }
     main_list->signalPlayButtonClick(false, "");
-    localAndDownloadWidget->setCurrentPlayingPath("");
+    localAndDownloadWidget->setPlayingState("", false);
 
     const bool isLocal = !filePath.startsWith("http");
     w->setPlayNet(!isLocal);

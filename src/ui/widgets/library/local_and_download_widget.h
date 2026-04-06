@@ -22,6 +22,7 @@ public:
      * @brief 设置当前播放的歌曲路径（用于高亮显示）
      */
     void setCurrentPlayingPath(const QString& path);
+    void setPlayingState(const QString& filePath, bool playing);
     void setAvailablePlaylists(const QVariantList& playlists);
     void setFavoritePaths(const QStringList& favoritePaths);
     

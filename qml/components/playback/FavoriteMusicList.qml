@@ -10,6 +10,7 @@ Rectangle {
 
     property string userAccount: ""
     property string currentPlayingPath: ""
+    property bool isPlaying: false
     property int sideMargin: width >= 1200 ? 20 : 14
     property int innerMargin: width >= 1200 ? 16 : 12
     property int colGap: width >= 1200 ? 10 : 8
@@ -84,6 +85,11 @@ Rectangle {
             isFavorite: true,
             sourceType: "favorite"
         }
+    }
+
+    function setPlayingState(filePath, playing) {
+        root.currentPlayingPath = filePath || ""
+        root.isPlaying = playing
     }
 
     ListModel {
@@ -221,21 +227,24 @@ Rectangle {
                 width: listView.width
                 height: 62
                 radius: 10
-                property bool rowHovered: rowHoverHandler.hovered || actionStrip.interactionActive
-                property bool isPlaying: root.currentPlayingPath === model.path
+                property bool rowHovered: rowHoverHandler.hovered
+                                           || coverAction.interactionActive
+                                           || actionStrip.interactionActive
+                property bool currentTrack: root.currentPlayingPath === model.path
+                property bool playbackActive: currentTrack && root.isPlaying
 
-                color: isPlaying
+                color: currentTrack
                        ? "#FDECEC"
                        : (rowHovered ? "#F8FAFF" : (index % 2 === 0 ? Theme.bgCard : "#FCFCFD"))
-                border.width: isPlaying ? 1 : 0
-                border.color: isPlaying ? Theme.accent : "transparent"
+                border.width: currentTrack ? 1 : 0
+                border.color: currentTrack ? Theme.accent : "transparent"
 
                 HoverHandler {
                     id: rowHoverHandler
                 }
 
                 Rectangle {
-                    visible: itemRoot.isPlaying
+                    visible: itemRoot.currentTrack
                     width: 3
                     radius: 2
                     color: Theme.accent
@@ -259,33 +268,27 @@ Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
                     }
 
-                    Rectangle {
+                    Library.SongCoverAction {
+                        id: coverAction
                         width: root.colCoverWidth
                         height: 44
                         anchors.verticalCenter: parent.verticalCenter
-                        radius: 6
-                        color: "#E9ECF5"
-                        border.width: 1
-                        border.color: "#D9DFEA"
+                        rowHovered: itemRoot.rowHovered
+                        isCurrentTrack: itemRoot.currentTrack
+                        isPlaying: itemRoot.playbackActive
+                        coverSource: model.cover_art_url || ""
+                        fallbackSource: "qrc:/new/prefix1/icon/Music.png"
 
-                        Image {
-                            anchors.fill: parent
-                            anchors.margins: 2
-                            source: {
-                                var url = model.cover_art_url || ""
-                                return url && url.length > 0 ? url : "qrc:/new/prefix1/icon/Music.png"
+                        onPlayRequested: {
+                            if (itemRoot.currentTrack) {
+                                root.songActionRequested("toggle_current_playback", root.buildSongPayload(model))
+                                return
                             }
-                            fillMode: Image.PreserveAspectCrop
-                            asynchronous: true
-                            cache: true
-                            sourceSize.width: 44
-                            sourceSize.height: 44
+                            root.playMusic(model.path || "")
+                        }
 
-                            onStatusChanged: {
-                                if (status === Image.Error) {
-                                    source = "qrc:/new/prefix1/icon/Music.png"
-                                }
-                            }
+                        onPauseRequested: {
+                            root.songActionRequested("toggle_current_playback", root.buildSongPayload(model))
                         }
                     }
 
@@ -297,8 +300,8 @@ Rectangle {
                         Text {
                             text: root.displayTitle(model)
                             font.pixelSize: 14
-                            font.bold: itemRoot.isPlaying
-                            color: itemRoot.isPlaying ? Theme.accent : Theme.textPrimary
+                            font.bold: itemRoot.currentTrack
+                            color: itemRoot.currentTrack ? Theme.accent : Theme.textPrimary
                             elide: Text.ElideRight
                             width: parent.width
                         }

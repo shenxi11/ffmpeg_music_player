@@ -8,6 +8,8 @@ Rectangle {
     color: "transparent"
     property var availablePlaylists: []
     property var favoritePaths: []
+    property string currentPlayingPath: ""
+    property bool isPlaying: false
 
     property int tabLeftMargin: 18
     property int tabSpacing: width >= 1280 ? 18 : 10
@@ -93,6 +95,8 @@ Rectangle {
             LocalMusicList {
                 availablePlaylists: root.availablePlaylists
                 favoritePaths: root.favoritePaths
+                currentPlayingPath: root.currentPlayingPath
+                isPlaying: root.isPlaying
                 onPlayMusic: root.playMusic(filename)
                 onDeleteMusic: root.deleteMusic(filename)
                 onAddToFavorite: root.addToFavorite(path, title, artist, duration)
@@ -102,6 +106,8 @@ Rectangle {
             DownloadedMusicList {
                 availablePlaylists: root.availablePlaylists
                 favoritePaths: root.favoritePaths
+                currentPlayingPath: root.currentPlayingPath
+                isPlaying: root.isPlaying
                 onPlayMusic: root.playMusic(filename)
                 onDeleteMusic: root.deleteMusic(filename)
                 onAddToFavorite: root.addToFavorite(path, title, artist, duration)

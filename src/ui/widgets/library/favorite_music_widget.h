@@ -22,6 +22,7 @@ public:
     
     // 设置当前播放路径（用于高亮显示）
     void setCurrentPlayingPath(const QString& filePath);
+    void setPlayingState(const QString& filePath, bool playing);
     
     // 清空喜欢列表
     void clearFavorites();

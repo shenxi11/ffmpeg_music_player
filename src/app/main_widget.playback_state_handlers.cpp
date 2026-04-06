@@ -29,6 +29,8 @@ void MainWidget::handleAudioPlaybackStarted(const QString& sessionId, const QUrl
     qDebug() << "[MainWidget] About to call setCurrentPlayingPath on both widgets...";
     playHistoryWidget->setCurrentPlayingPath(filePath);
     favoriteMusicWidget->setCurrentPlayingPath(filePath);
+    favoriteMusicWidget->setPlayingState(filePath, true);
+    localAndDownloadWidget->setPlayingState(filePath, true);
     recommendMusicWidget->setCurrentPlayingPath(filePath);
     recommendMusicWidget->setPlayingState(filePath, true);
     playlistWidget->setCurrentPlayingPath(filePath);
@@ -62,7 +64,9 @@ void MainWidget::handleAudioPlaybackPaused()
     if (filePath.isEmpty()) {
         filePath = url.toString();
     }
+    localAndDownloadWidget->setPlayingState(filePath, false);
     playHistoryWidget->setPlayingState(filePath, false);
+    favoriteMusicWidget->setPlayingState(filePath, false);
     recommendMusicWidget->setPlayingState(filePath, false);
     playlistWidget->setPlayingState(filePath, false);
 }
@@ -78,6 +82,8 @@ void MainWidget::handleAudioPlaybackResumed()
     if (filePath.isEmpty()) {
         filePath = url.toString();
     }
+    localAndDownloadWidget->setPlayingState(filePath, true);
+    favoriteMusicWidget->setPlayingState(filePath, true);
     playHistoryWidget->setPlayingState(filePath, true);
     recommendMusicWidget->setPlayingState(filePath, true);
     playlistWidget->setPlayingState(filePath, true);
@@ -92,10 +98,12 @@ void MainWidget::handleAudioPlaybackStopped()
     qDebug() << "[MainWidget] playbackStopped signal received, clearing currentPlayingPath";
     playHistoryWidget->setCurrentPlayingPath("");
     favoriteMusicWidget->setCurrentPlayingPath("");
+    favoriteMusicWidget->setPlayingState("", false);
     recommendMusicWidget->setCurrentPlayingPath("");
     recommendMusicWidget->setPlayingState("", false);
     playlistWidget->setCurrentPlayingPath("");
     playlistWidget->setPlayingState("", false);
+    localAndDownloadWidget->setPlayingState("", false);
     w->clearSimilarRecommendations();
 }
 

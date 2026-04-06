@@ -18,6 +18,8 @@ Rectangle {
                                         - colTimeWidth - colActionWidth - 40)
     property var availablePlaylists: []
     property var favoritePaths: []
+    property string currentPlayingPath: ""
+    property bool isPlaying: false
 
     signal playMusic(string filename)
     signal deleteMusic(string filename)
@@ -44,6 +46,10 @@ Rectangle {
             }
         }
         return false
+    }
+
+    function isSameTrack(pathA, pathB) {
+        return normalizePath(pathA) === normalizePath(pathB)
     }
 
     function buildSongPayload(item) {
@@ -161,14 +167,33 @@ Rectangle {
             model: typeof downloadTaskModel !== 'undefined' ? downloadTaskModel : null
 
             delegate: Rectangle {
-                property bool rowHovered: rowHoverHandler.hovered || actionStrip.interactionActive
+                property bool currentTrack: root.isSameTrack(root.currentPlayingPath, model.savePath || "")
+                property bool playbackActive: currentTrack && root.isPlaying
+                property bool rowHovered: rowHoverHandler.hovered
+                                           || coverAction.interactionActive
+                                           || actionStrip.interactionActive
                 width: listView.width
                 height: 60
-                color: rowHovered ? "#f0f0f0" : "#ffffff"
+                color: currentTrack
+                       ? "#FDECEC"
+                       : (rowHovered ? "#F8FAFF" : "#ffffff")
                 radius: 4
+                border.width: currentTrack ? 1 : 0
+                border.color: currentTrack ? "#EC4141" : "transparent"
 
                 HoverHandler {
                     id: rowHoverHandler
+                }
+
+                Rectangle {
+                    visible: currentTrack
+                    width: 3
+                    radius: 2
+                    color: "#EC4141"
+                    anchors.left: parent.left
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    anchors.margins: 10
                 }
 
                 MouseArea {
@@ -186,21 +211,26 @@ Rectangle {
                     spacing: 10
 
                     // 专辑图片
-                    Rectangle {
+                    SongCoverAction {
+                        id: coverAction
                         Layout.preferredWidth: root.colCoverWidth
-                        Layout.preferredHeight: 44
-                        radius: 4
-                        color: "#E0E0E0"
-                        
-                        Image {
-                            anchors.fill: parent
-                            anchors.margins: 2
-                            source: model.coverUrl || "qrc:/new/prefix1/icon/Music.png"
-                            fillMode: Image.PreserveAspectCrop
-                            asynchronous: true
-                            cache: true
-                            sourceSize.width: 44
-                            sourceSize.height: 44
+                        Layout.preferredHeight: root.colCoverWidth
+                        rowHovered: rowHovered
+                        isCurrentTrack: currentTrack
+                        isPlaying: playbackActive
+                        coverSource: model.coverUrl || ""
+                        fallbackSource: "qrc:/new/prefix1/icon/Music.png"
+
+                        onPlayRequested: {
+                            if (currentTrack) {
+                                root.songActionRequested("toggle_current_playback", root.buildSongPayload(model))
+                                return
+                            }
+                            root.playMusic(model.savePath || "")
+                        }
+
+                        onPauseRequested: {
+                            root.songActionRequested("toggle_current_playback", root.buildSongPayload(model))
                         }
                     }
 
@@ -209,8 +239,8 @@ Rectangle {
                         Layout.preferredWidth: root.colNameWidth
                         text: model.filename || ""
                         font.pixelSize: 14
-                        font.bold: model.isPlaying
-                        color: model.isPlaying ? "#4A90E2" : "#333333"
+                        font.bold: currentTrack
+                        color: currentTrack ? "#4A90E2" : "#333333"
                         elide: Text.ElideMiddle
                     }
 
@@ -227,7 +257,7 @@ Rectangle {
                         Layout.preferredWidth: root.colTimeWidth
                         text: Qt.formatDateTime(new Date(), "yyyy-MM-dd hh:mm")
                         font.pixelSize: 13
-                        color: "#666666"
+                        color: currentTrack ? "#EC4141" : "#666666"
                     }
 
                     // 操作按钮

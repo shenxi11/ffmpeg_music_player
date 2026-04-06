@@ -6,6 +6,8 @@ Rectangle {
     color: "#F7F9FC"
     property string listIconPrefix: "qrc:/design/design_exports/netease_ui_pack_20260309/icon/ui/list/"
     property string playerIconPrefix: "qrc:/design/design_exports/netease_ui_pack_20260309/icon/ui/player/"
+    property string currentPlayingPath: ""
+    property bool isPlaying: false
     
     // 对外暴露的属性
     property int currentPlayingIndex: -1  // 当前播放的歌曲索引，-1表示没有播放
@@ -78,6 +80,23 @@ Rectangle {
             }
         }
         return false
+    }
+
+    function normalizePath(path) {
+        if (!path) return ""
+        var value = String(path).trim()
+        if (value.indexOf("file:///") === 0) {
+            value = value.substring(8)
+        }
+        try {
+            value = decodeURIComponent(value)
+        } catch (e) {
+        }
+        return value
+    }
+
+    function isSameTrack(pathA, pathB) {
+        return normalizePath(pathA) === normalizePath(pathB)
     }
 
     function buildSongPayload(item) {
@@ -218,7 +237,11 @@ Rectangle {
         
         Rectangle {
             id: itemRoot
-            property bool rowHovered: rowHoverHandler.hovered || actionStrip.interactionActive
+            property bool rowHovered: rowHoverHandler.hovered
+                                       || coverAction.interactionActive
+                                       || actionStrip.interactionActive
+            property bool currentTrack: root.isSameTrack(root.currentPlayingPath, model.filePath || "")
+            property bool playbackActive: currentTrack && root.isPlaying
             width: listView.width
             height: 60
             color: rowHovered ? "#f0f0f0" : "#ffffff"
@@ -235,22 +258,27 @@ Rectangle {
                 spacing: root.colGap
                 
                 // 专辑封面
-                Rectangle {
+                SongCoverAction {
+                    id: coverAction
                     width: root.colCoverWidth
                     height: 44
                     anchors.verticalCenter: parent.verticalCenter
-                    radius: 4
-                    color: "#E0E0E0"
-                    
-                    Image {
-                        anchors.fill: parent
-                        anchors.margins: 2
-                        source: model.cover !== "" ? model.cover : "qrc:/new/prefix1/icon/Music.png"
-                        fillMode: Image.PreserveAspectCrop
-                        asynchronous: true
-                        cache: true
-                        sourceSize.width: 44
-                        sourceSize.height: 44
+                    rowHovered: itemRoot.rowHovered
+                    isCurrentTrack: itemRoot.currentTrack
+                    isPlaying: itemRoot.playbackActive
+                    coverSource: model.cover || ""
+                    fallbackSource: "qrc:/new/prefix1/icon/Music.png"
+
+                    onPlayRequested: {
+                        if (itemRoot.currentTrack) {
+                            root.songActionRequested("toggle_current_playback", root.buildSongPayload(model))
+                            return
+                        }
+                        root.playRequested(model.filePath, root.displayArtist(model), model.cover || "")
+                    }
+
+                    onPauseRequested: {
+                        root.songActionRequested("toggle_current_playback", root.buildSongPayload(model))
                     }
                 }
                 
@@ -259,8 +287,8 @@ Rectangle {
                     width: root.colTitleWidth
                     text: root.displayTitle(model)
                     font.pixelSize: 14
-                    font.bold: model.isPlaying
-                    color: model.isPlaying ? "#409EFF" : "#333333"
+                    font.bold: itemRoot.currentTrack
+                    color: itemRoot.currentTrack ? "#409EFF" : "#333333"
                     elide: Text.ElideRight
                     anchors.verticalCenter: parent.verticalCenter
                 }
@@ -385,6 +413,9 @@ Rectangle {
     }
     
     function setPlayingState(filePath, playing) {
+        root.currentPlayingPath = filePath || ""
+        root.isPlaying = playing
+
         // 如果 filePath 为空，则清除当前播放状态
         if (filePath === "") {
             if (root.currentPlayingIndex >= 0 && root.currentPlayingIndex < musicListModel.count) {
@@ -416,20 +447,20 @@ Rectangle {
                     musicListModel.get(i).isPlaying = true
                     root.currentPlayingIndex = i
                 } else {
-                    // 关闭当前
+                    // 保留当前索引，只关闭“正在播放”状态，便于 UI 呈现暂停态
                     musicListModel.get(i).isPlaying = false
-                    if (root.currentPlayingIndex === i) {
-                        root.currentPlayingIndex = -1
-                    }
+                    root.currentPlayingIndex = i
                 }
                 return
             }
         }
-        
+
         // 没有找到，可能是其他列表的歌曲
-        if (playing && root.currentPlayingIndex >= 0) {
+        if (root.currentPlayingIndex >= 0) {
             musicListModel.get(root.currentPlayingIndex).isPlaying = false
-            root.currentPlayingIndex = -1
+            if (playing) {
+                root.currentPlayingIndex = -1
+            }
         }
     }
 

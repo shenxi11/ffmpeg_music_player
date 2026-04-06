@@ -77,6 +77,17 @@ void FavoriteMusicWidget::setCurrentPlayingPath(const QString& filePath)
     }
 }
 
+void FavoriteMusicWidget::setPlayingState(const QString& filePath, bool playing)
+{
+    QQuickItem* root = rootObject();
+    if (!root) {
+        return;
+    }
+    QMetaObject::invokeMethod(root, "setPlayingState",
+                              Q_ARG(QVariant, filePath),
+                              Q_ARG(QVariant, playing));
+}
+
 void FavoriteMusicWidget::clearFavorites()
 {
     QQuickItem* root = rootObject();

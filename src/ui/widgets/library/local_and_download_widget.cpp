@@ -79,6 +79,17 @@ void LocalAndDownloadWidget::setCurrentPlayingPath(const QString& path)
     if (m_localMusicModel) {
         m_localMusicModel->setCurrentPlayingPath(path);
     }
+    if (QQuickItem* root = rootObject()) {
+        root->setProperty("currentPlayingPath", path);
+    }
+}
+
+void LocalAndDownloadWidget::setPlayingState(const QString& filePath, bool playing)
+{
+    setCurrentPlayingPath(filePath);
+    if (QQuickItem* root = rootObject()) {
+        root->setProperty("isPlaying", playing);
+    }
 }
 
 void LocalAndDownloadWidget::setAvailablePlaylists(const QVariantList& playlists)
