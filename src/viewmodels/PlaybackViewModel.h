@@ -4,7 +4,10 @@
 #include "BaseViewModel.h"
 #include "AudioService.h"
 
+#include <QHash>
 #include <QUrl>
+#include <QVariantList>
+#include <QVariantMap>
 
 /**
  * @brief 播放页视图模型。
@@ -49,6 +52,7 @@ public:
     QString currentFilePath() const { return m_currentFilePath; }
     QString positionText() const { return formatTime(m_position); }
     QString durationText() const { return formatTime(m_duration); }
+    QVariantList playlistSnapshot() const;
 
     Q_INVOKABLE void play(const QUrl& url);
     Q_INVOKABLE void pause();
@@ -58,6 +62,9 @@ public:
     Q_INVOKABLE void togglePlayPause();
     Q_INVOKABLE void playNext();
     Q_INVOKABLE void playPrevious();
+    void appendTrackToQueue(const QUrl& url, bool playIfIdle = true);
+    void queueTrackAsNext(const QUrl& url);
+    void rememberTrackMetadata(const QUrl& url, const QVariantMap& songData);
     Q_INVOKABLE void removeFromPlaylistUrl(const QString& filePath);
     Q_INVOKABLE void clearPlaylist();
     Q_INVOKABLE void setPlayModeValue(int mode);
@@ -77,6 +84,7 @@ signals:
     void currentAlbumArtChanged();
     void currentUrlChanged();
     void currentFilePathChanged();
+    void playlistSnapshotChanged();
 
     void playbackStarted();
     void playbackStopped();
@@ -98,6 +106,10 @@ private slots:
 
 private:
     static QString formatTime(qint64 milliseconds);
+    QVariantMap buildPlaylistSnapshotItem(const QUrl& url, int index) const;
+    static QString normalizePlaylistEntryPath(const QUrl& url);
+    static QString titleFromUrl(const QUrl& url);
+    void prunePlaylistMetadataCache();
     void syncPlaybackStateFromService(const char* sourceTag);
     void updatePlayingState(bool playing);
     void updatePausedState(bool paused);
@@ -123,6 +135,7 @@ private:
     QString m_currentAlbumArt;
     QUrl m_currentUrl;
     QString m_currentFilePath;
+    QHash<QString, QVariantMap> m_playlistMetadataCache;
 };
 
 #endif // PLAYBACKVIEWMODEL_H

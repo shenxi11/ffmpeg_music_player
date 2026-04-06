@@ -379,6 +379,22 @@ void AudioService::addToPlaylist(const QUrl& url)
     emit playlistChanged();
 }
 
+void AudioService::appendToQueue(const QUrl& url)
+{
+    addToPlaylist(url);
+}
+
+void AudioService::insertNextToQueue(const QUrl& url)
+{
+    if (m_currentIndex < 0 || m_currentIndex >= m_playlist.size()) {
+        addToPlaylist(url);
+        play(url);
+        return;
+    }
+
+    insertToPlaylist(m_currentIndex + 1, url);
+}
+
 void AudioService::removeFromPlaylist(int index)
 {
     if (index < 0 || index >= m_playlist.size()) return;

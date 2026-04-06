@@ -771,7 +771,7 @@ void MainWidget::handleRecommendPlayMusicWithMetadata(const QString& filePath,
         main_list->signalPlayButtonClick(false, "");
     }
     net_list->signalPlayButtonClick(false, "");
-    localAndDownloadWidget->setCurrentPlayingPath("");
+    localAndDownloadWidget->setPlayingState("", false);
 
     const QString normalizedArtist = normalizeArtistForHistory(artist);
     w->setPlayNet(true);
@@ -860,7 +860,7 @@ void MainWidget::handlePendingSimilarSongPlayback()
         main_list->signalPlayButtonClick(false, "");
     }
     net_list->signalPlayButtonClick(false, "");
-    localAndDownloadWidget->setCurrentPlayingPath("");
+    localAndDownloadWidget->setPlayingState("", false);
 
     w->setPlayNet(true);
     w->setNetworkMetadata(title, artist, cover);

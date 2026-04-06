@@ -13,6 +13,8 @@ Rectangle {
     property string requestId: ""
     property string modelVersion: ""
     property string scene: "home"
+    property var availablePlaylists: []
+    property var favoritePaths: []
     property string playerIconPrefix: "qrc:/design/design_exports/netease_ui_pack_20260309/icon/ui/player/"
     property string listIconPrefix: "qrc:/design/design_exports/netease_ui_pack_20260309/icon/ui/list/"
 
@@ -23,6 +25,7 @@ Rectangle {
                          string scene, string requestId, string modelVersion)
     signal loginRequested()
     signal refreshRequested()
+    signal songActionRequested(string action, var song)
 
     ListModel {
         id: recommendModel
@@ -50,8 +53,33 @@ Rectangle {
         return normalizePath(pathA) === normalizePath(pathB)
     }
 
+    function isFavoritePath(path) {
+        var target = normalizePath(path)
+        for (var i = 0; i < favoritePaths.length; ++i) {
+            if (normalizePath(favoritePaths[i]) === target) {
+                return true
+            }
+        }
+        return false
+    }
+
     function playPath(item) {
         return normalizeText(item.play_path, normalizeText(item.stream_url, item.path))
+    }
+
+    function buildSongPayload(item) {
+        return {
+            path: normalizeText(item.path, ""),
+            playPath: playPath(item),
+            title: normalizeText(item.title, "未知歌曲"),
+            artist: normalizeText(item.artist, "未知艺术家"),
+            duration: normalizeText(item.duration, "0:00"),
+            cover: normalizeText(item.cover_art_url, ""),
+            isLocal: false,
+            isFavorite: isFavoritePath(normalizeText(item.path, playPath(item))),
+            sourceType: "recommend",
+            songId: normalizeText(item.song_id, item.path)
+        }
     }
 
     function durationMs(item) {
@@ -365,40 +393,38 @@ Rectangle {
                     }
                 }
 
-                Rectangle {
-                    width: 34
-                    height: 34
-                    radius: 17
+                SongActionStrip {
+                    anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.bottom: parent.bottom
-                    anchors.margins: 8
-                    color: favArea.containsMouse ? "#ffe7e7" : "transparent"
-                    border.width: 1
-                    border.color: favArea.containsMouse ? "#F2BFBF" : "#E3E7EF"
+                    anchors.leftMargin: 8
+                    anchors.rightMargin: 8
+                    anchors.bottomMargin: 8
+                    opacity: card.hovered ? 1.0 : 0.0
+                    visible: opacity > 0
+                    availablePlaylists: root.availablePlaylists
+                    songData: root.buildSongPayload(model)
+                    favoriteActive: root.isFavoritePath(root.normalizeText(model.path, root.playPath(model)))
+                    showDownloadButton: true
+                    showRemoveAction: false
 
-                    Image {
-                        anchors.centerIn: parent
-                        width: 18
-                        height: 18
-                        source: favArea.containsMouse
-                                ? root.listIconPrefix + "list_icon_favorite_hover.svg"
-                                : root.listIconPrefix + "list_icon_favorite_default.svg"
-                        fillMode: Image.PreserveAspectFit
-                    }
+                    Behavior on opacity { NumberAnimation { duration: 120 } }
 
-                    MouseArea {
-                        id: favArea
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
+                    onActionRequested: function(action, payload) {
+                        if (action === "play") {
+                            root.playItem(model, true)
+                            return
+                        }
+                        if (action === "add_favorite") {
                             root.reportEvent(model, "like", -1)
                             root.addToFavorite(root.normalizeText(model.path, root.playPath(model)),
                                                model.title || "未知歌曲",
                                                model.artist || "未知艺术家",
                                                model.duration || "0:00",
                                                false)
+                            return
                         }
+                        root.songActionRequested(action, payload)
                     }
                 }
 

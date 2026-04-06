@@ -19,6 +19,8 @@ FavoriteMusicWidget::FavoriteMusicWidget(QWidget *parent)
                 this, SLOT(handleRemoveFavorite(QVariant)));
         connect(root, SIGNAL(refreshRequested()),
                 this, SIGNAL(refreshRequested()));
+        connect(root, SIGNAL(songActionRequested(QString,QVariant)),
+                this, SLOT(handleSongActionRequested(QString,QVariant)));
         qDebug() << "FavoriteMusicWidget: Signals connected";
     } else {
         qDebug() << "FavoriteMusicWidget: ERROR - Root object is null!";
@@ -44,6 +46,24 @@ void FavoriteMusicWidget::loadFavorites(const QVariantList& favoritesData)
     }
 }
 
+void FavoriteMusicWidget::setAvailablePlaylists(const QVariantList& playlists)
+{
+    QQuickItem* root = rootObject();
+    if (!root) {
+        return;
+    }
+    root->setProperty("availablePlaylists", QVariant::fromValue(playlists));
+}
+
+void FavoriteMusicWidget::setFavoritePaths(const QStringList& favoritePaths)
+{
+    QQuickItem* root = rootObject();
+    if (!root) {
+        return;
+    }
+    root->setProperty("favoritePaths", QVariant::fromValue(favoritePaths));
+}
+
 void FavoriteMusicWidget::setCurrentPlayingPath(const QString& filePath)
 {
     QQuickItem* root = rootObject();
@@ -55,6 +75,17 @@ void FavoriteMusicWidget::setCurrentPlayingPath(const QString& filePath)
     } else {
         qDebug() << "[FavoriteMusicWidget] WARNING: root object is null!";
     }
+}
+
+void FavoriteMusicWidget::setPlayingState(const QString& filePath, bool playing)
+{
+    QQuickItem* root = rootObject();
+    if (!root) {
+        return;
+    }
+    QMetaObject::invokeMethod(root, "setPlayingState",
+                              Q_ARG(QVariant, filePath),
+                              Q_ARG(QVariant, playing));
 }
 
 void FavoriteMusicWidget::clearFavorites()
@@ -73,5 +104,10 @@ void FavoriteMusicWidget::handleRemoveFavorite(const QVariant& selectedPaths)
         paths.append(item.toString());
     }
     emit removeFavorite(paths);
+}
+
+void FavoriteMusicWidget::handleSongActionRequested(const QString& action, const QVariant& payload)
+{
+    emit songActionRequested(action, payload.toMap());
 }
 

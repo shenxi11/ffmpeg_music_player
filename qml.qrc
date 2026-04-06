@@ -8,6 +8,8 @@
         <file>qml/components/library/MusicItem.qml</file>
         <file>qml/components/library/MusicListWidget.qml</file>
         <file>qml/components/library/MusicListWidgetNet.qml</file>
+        <file>qml/components/library/SongActionStrip.qml</file>
+        <file>qml/components/library/SongCoverAction.qml</file>
         <file>qml/components/library/RecommendMusicWidget.qml</file>
         <file>qml/components/library/PlaylistWidget.qml</file>
         <file>qml/components/playback/ControlBar.qml</file>

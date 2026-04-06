@@ -2,7 +2,7 @@
 import QtQuick.Controls 2.14
 import QtGraphicalEffects 1.14
 
-// 播放历史列表
+// 播放列表面板：数据来源于真实播放队列快照，而不是本地 append 历史。
 Rectangle {
     id: root
     width: 400
@@ -128,7 +128,6 @@ Rectangle {
             
             onClicked: {
                 root.clearAllRequested()
-                playlistModel.clear()
             }
         }
     }
@@ -162,7 +161,7 @@ Rectangle {
             Rectangle {
                 anchors.fill: parent
                 color: {
-                    if (model.filePath === root.currentPlayingPath) {
+                    if (model.isCurrent || model.filePath === root.currentPlayingPath) {
                         return "#E8F5E9"  // 当前播放：淡绿色
                     }
                     return mouseArea.containsMouse ? "#F0F0F0" : "transparent"
@@ -212,8 +211,8 @@ Rectangle {
                         Text {
                             text: root.displayTitle(model)
                             font.pixelSize: 14
-                            font.bold: model.filePath === root.currentPlayingPath
-                            color: model.filePath === root.currentPlayingPath ? "#EC4141" : "#333333"
+                            font.bold: model.isCurrent || model.filePath === root.currentPlayingPath
+                            color: (model.isCurrent || model.filePath === root.currentPlayingPath) ? "#EC4141" : "#333333"
                             elide: Text.ElideRight
                             width: parent.width
                         }
@@ -246,7 +245,7 @@ Rectangle {
                                 var ctx = getContext("2d")
                                 ctx.clearRect(0, 0, width, height)
                                 
-                                var isCurrentSong = model.filePath === root.currentPlayingPath
+                                var isCurrentSong = model.isCurrent || model.filePath === root.currentPlayingPath
                                 var isPlaying = isCurrentSong && !root.isPaused
                                 ctx.fillStyle = isCurrentSong ? "#EC4141" : "#666666"
                                 
@@ -317,7 +316,6 @@ Rectangle {
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
                                 root.removeRequested(model.filePath)
-                                playlistModel.remove(index)
                             }
                         }
                     }
@@ -352,52 +350,45 @@ Rectangle {
     Text {
         anchors.centerIn: parent
         visible: playlistModel.count === 0
-        text: "暂无播放记录"
+        text: "暂无播放列表"
         font.pixelSize: 16
         color: "#999999"
     }
     
-    // 添加歌曲到列表
-    function addSong(filePath, title, artist, cover) {
-        root.currentPlayingPath = filePath
-        root.isPaused = false
-
-        var normalizedTitle = normalizeText(title, "")
-        if (normalizedTitle.length === 0) {
-            normalizedTitle = normalizeText(baseNameFromPath(filePath), "未知歌曲")
+    // 使用完整快照刷新播放队列，确保 UI 与 AudioService 队列顺序一致。
+    function loadPlaylist(items) {
+        playlistModel.clear()
+        if (!items) return
+        for (var i = 0; i < items.length; ++i) {
+            playlistModel.append(items[i])
         }
-        var normalizedArtist = normalizeText(artist, "未知艺术家")
+    }
 
-        // Existing item: update metadata in-place and keep list order.
-        for (var i = 0; i < playlistModel.count; i++) {
+    // 保留兼容入口，避免旧调用链崩溃；新逻辑应优先使用 loadPlaylist。
+    function addSong(filePath, title, artist, cover) {
+        var foundIndex = -1
+        for (var i = 0; i < playlistModel.count; ++i) {
             if (playlistModel.get(i).filePath === filePath) {
-                var existing = playlistModel.get(i)
-
-                if (normalizedTitle.length > 0) {
-                    playlistModel.setProperty(i, "title", normalizedTitle)
-                }
-                if (normalizedArtist.length > 0 && normalizedArtist !== "未知艺术家") {
-                    playlistModel.setProperty(i, "artist", normalizedArtist)
-                }
-                if (cover && cover.length > 0) {
-                    playlistModel.setProperty(i, "cover", cover)
-                } else if (!existing.cover || existing.cover.length === 0) {
-                    playlistModel.setProperty(i, "cover", "qrc:/new/prefix1/icon/Music.png")
-                }
-                return
+                foundIndex = i
+                break
             }
         }
 
-        // New item: append to tail to avoid reordering on track switch.
-        playlistModel.append({
+        var payload = {
             filePath: filePath,
-            title: normalizedTitle,
-            artist: normalizedArtist,
-            cover: (cover && cover.length > 0) ? cover : "qrc:/new/prefix1/icon/Music.png"
-        })
+            title: title,
+            artist: artist,
+            cover: cover,
+            isCurrent: filePath === currentPlayingPath
+        }
+
+        if (foundIndex >= 0) {
+            playlistModel.set(foundIndex, payload)
+        } else {
+            playlistModel.append(payload)
+        }
     }
-    
-    // 清空列表
+
     function clearAll() {
         playlistModel.clear()
     }

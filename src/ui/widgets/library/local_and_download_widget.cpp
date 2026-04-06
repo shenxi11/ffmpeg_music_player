@@ -48,6 +48,8 @@ LocalAndDownloadWidget::LocalAndDownloadWidget(QWidget *parent)
         // 收藏动作透传给业务层。
         connect(root, SIGNAL(addToFavorite(QString,QString,QString,QString)), 
                 this, SIGNAL(addToFavorite(QString,QString,QString,QString)));
+        connect(root, SIGNAL(songActionRequested(QString,QVariant)),
+                this, SLOT(onSongActionRequested(QString,QVariant)));
         
         qDebug() << "[LocalAndDownloadWidget] Signals connected";
     } else {
@@ -77,5 +79,39 @@ void LocalAndDownloadWidget::setCurrentPlayingPath(const QString& path)
     if (m_localMusicModel) {
         m_localMusicModel->setCurrentPlayingPath(path);
     }
+    if (QQuickItem* root = rootObject()) {
+        root->setProperty("currentPlayingPath", path);
+    }
+}
+
+void LocalAndDownloadWidget::setPlayingState(const QString& filePath, bool playing)
+{
+    setCurrentPlayingPath(filePath);
+    if (QQuickItem* root = rootObject()) {
+        root->setProperty("isPlaying", playing);
+    }
+}
+
+void LocalAndDownloadWidget::setAvailablePlaylists(const QVariantList& playlists)
+{
+    QQuickItem* root = rootObject();
+    if (!root) {
+        return;
+    }
+    root->setProperty("availablePlaylists", QVariant::fromValue(playlists));
+}
+
+void LocalAndDownloadWidget::setFavoritePaths(const QStringList& favoritePaths)
+{
+    QQuickItem* root = rootObject();
+    if (!root) {
+        return;
+    }
+    root->setProperty("favoritePaths", QVariant::fromValue(favoritePaths));
+}
+
+void LocalAndDownloadWidget::onSongActionRequested(const QString& action, const QVariant& payload)
+{
+    emit songActionRequested(action, payload.toMap());
 }
 

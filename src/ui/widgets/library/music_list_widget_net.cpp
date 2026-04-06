@@ -18,6 +18,22 @@ MusicListWidgetNet::MusicListWidgetNet(QWidget* parent)
     setupConnections();
 }
 
+void MusicListWidgetNet::setAvailablePlaylists(const QVariantList& playlists)
+{
+    if (!listWidget || !listWidget->rootObject()) {
+        return;
+    }
+    listWidget->rootObject()->setProperty("availablePlaylists", QVariant::fromValue(playlists));
+}
+
+void MusicListWidgetNet::setFavoritePaths(const QStringList& favoritePaths)
+{
+    if (!listWidget || !listWidget->rootObject()) {
+        return;
+    }
+    listWidget->rootObject()->setProperty("favoritePaths", QVariant::fromValue(favoritePaths));
+}
+
 void MusicListWidgetNet::onPlayClick(const QString name, const QString artist, const QString cover)
 {
     currentSongArtist = artist;
@@ -67,4 +83,41 @@ void MusicListWidgetNet::onPlayButtonClick(bool flag, const QString filename)
 void MusicListWidgetNet::onTranslateButtonClicked()
 {
     emit signalTranslateButtonClicked();
+}
+
+void MusicListWidgetNet::resolveSongAction(const QString& action, const QVariantMap& songData)
+{
+    if (!m_viewModel) {
+        emit songActionRequested(action, songData);
+        return;
+    }
+
+    const QString relativePath = songData.value(QStringLiteral("path")).toString().trimmed();
+    if (relativePath.isEmpty()) {
+        emit songActionRequested(action, songData);
+        return;
+    }
+
+    if (hasPendingResolvedAction()) {
+        qWarning() << "[MusicListWidgetNet] Ignore action while stream resolve is pending:"
+                   << action << "path=" << relativePath;
+        return;
+    }
+
+    m_pendingResolvedAction = action;
+    m_pendingResolvedSongData = songData;
+    m_viewModel->resolveStreamUrl(relativePath,
+                                  songData.value(QStringLiteral("artist")).toString(),
+                                  songData.value(QStringLiteral("cover")).toString());
+}
+
+bool MusicListWidgetNet::hasPendingResolvedAction() const
+{
+    return !m_pendingResolvedAction.isEmpty();
+}
+
+void MusicListWidgetNet::clearPendingResolvedAction()
+{
+    m_pendingResolvedAction.clear();
+    m_pendingResolvedSongData.clear();
 }

@@ -138,6 +138,7 @@ private:
     qint64 m_sidebarSelectedPlaylistId = -1;
     bool m_sidebarShowingSubscribedPlaylists = false;
     bool m_returningToWelcome = false;
+    QVariantMap m_pendingAddToNewPlaylistSong;
 
     QPoint pos_ = QPoint(0, 0);
     bool dragging = false;
@@ -235,6 +236,7 @@ private:
     void handleFavoritePlayMusic(const QString& filePath);
     void handleFavoriteRemoveRequested(const QStringList& paths);
     void handleFavoriteRefreshRequested();
+    void handleFavoritesListUpdated(const QVariantList& favorites);
     void handleRemoveFavoriteResult(bool success);
     void handleLocalAddToFavorite(const QString& path,
                                   const QString& title,
@@ -271,6 +273,14 @@ private:
     void handleAddPlaylistItemsResultReady(bool success, qint64 playlistId, int addedCount, int skippedCount, const QString& message);
     void handleRemovePlaylistItemsResultReady(bool success, qint64 playlistId, int deletedCount, const QString& message);
     void handleReorderPlaylistItemsResultReady(bool success, qint64 playlistId, const QString& message);
+    void handleSongActionRequested(const QString& action, const QVariantMap& songData);
+    void queueSongAsNext(const QVariantMap& songData);
+    void appendSongToPlaybackQueue(const QVariantMap& songData);
+    void addSongToPlaylistByAction(const QVariantMap& songData);
+    void createPlaylistAndAddSong(const QVariantMap& songData);
+    void toggleFavoriteByAction(const QString& action, const QVariantMap& songData);
+    void removeOrDeleteSongByAction(const QVariantMap& songData);
+    void playSongByAction(const QVariantMap& songData);
 
     // 主窗口首页联动处理（替代构造函数内大段 lambda）。
     void handlePlaybackPauseAudioRequested();

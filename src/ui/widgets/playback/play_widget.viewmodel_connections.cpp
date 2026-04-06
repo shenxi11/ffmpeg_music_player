@@ -21,6 +21,8 @@ void PlayWidget::setupPlaybackViewModelConnections()
     connect(m_playbackViewModel, &PlaybackViewModel::currentTitleChanged, this, &PlayWidget::handleVmCurrentTitleChanged);
     connect(m_playbackViewModel, &PlaybackViewModel::currentArtistChanged, this, &PlayWidget::handleVmCurrentArtistChanged);
     connect(m_playbackViewModel, &PlaybackViewModel::currentAlbumArtChanged, this, &PlayWidget::handleVmCurrentAlbumArtChanged);
+    connect(m_playbackViewModel, &PlaybackViewModel::playlistSnapshotChanged,
+            this, &PlayWidget::refreshPlaylistHistoryFromViewModel);
     connect(m_playbackViewModel, &PlaybackViewModel::playbackStarted, this, &PlayWidget::handleVmPlaybackStarted);
     connect(m_playbackViewModel, &PlaybackViewModel::playbackStopped, this, &PlayWidget::handleVmPlaybackStopped);
     connect(m_playbackViewModel, &PlaybackViewModel::shouldStartRotation, this, &PlayWidget::handleVmShouldStartRotation);
@@ -115,8 +117,6 @@ void PlayWidget::handleVmCurrentAlbumArtChanged()
                     ? networkSongArtist
                     : QStringLiteral(u"\u672a\u77e5\u827a\u672f\u5bb6")));
 
-        playlistHistory->addSong(currentPath, title, artist, imagePath);
-        qDebug() << "[MVVM-UI] Added to playlist history:" << title << artist;
         playlistHistory->setCurrentPlayingPath(currentPath);
     }
 
@@ -132,6 +132,7 @@ void PlayWidget::handleVmPlaybackStarted()
 {
     qDebug() << "[MVVM-UI] Playback started";
     emit signalPlayState(ProcessSliderQml::Play);
+    refreshPlaylistHistoryFromViewModel();
 
     QString currentPath = m_playbackViewModel->currentFilePath();
     if (currentPath.isEmpty()) {
@@ -148,6 +149,7 @@ void PlayWidget::handleVmPlaybackStopped()
 {
     qDebug() << "[MVVM-UI] Playback stopped";
     emit signalPlayState(ProcessSliderQml::Stop);
+    refreshPlaylistHistoryFromViewModel();
 
     QString currentPath = m_playbackViewModel->currentFilePath();
     if (currentPath.isEmpty()) {
@@ -173,4 +175,18 @@ void PlayWidget::handleVmShouldLoadLyrics(const QString& songPath)
     qDebug() << "[MVVM-UI] Should load lyrics for:" << songPath;
     filePath = songPath;
     beginTakeLrc(songPath);
+}
+
+void PlayWidget::refreshPlaylistHistoryFromViewModel()
+{
+    if (!playlistHistory || !m_playbackViewModel) {
+        return;
+    }
+
+    const QVariantList snapshot = m_playbackViewModel->playlistSnapshot();
+    playlistHistory->loadPlaylist(snapshot);
+    playlistHistory->setCurrentPlayingPath(m_playbackViewModel->currentFilePath());
+    playlistHistory->setPaused(!m_playbackViewModel->isPlaying());
+
+    qDebug() << "[MVVM-UI] Playlist history synced from queue snapshot, count:" << snapshot.size();
 }
