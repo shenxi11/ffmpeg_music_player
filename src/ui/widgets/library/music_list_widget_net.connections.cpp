@@ -105,6 +105,11 @@ void MusicListWidgetNet::setupConnections()
         }
         emit signalPlayClick(file, artist, cover, true);
     });
+    connect(m_viewModel, &OnlineMusicListViewModel::streamResolveFailed, this,
+            [this]() {
+        m_pendingResolvedAction.clear();
+        m_pendingResolvedSongData.clear();
+    });
 
     if (QQuickItem* root = listWidget->rootObject()) {
         connect(root, SIGNAL(songActionRequested(QString,QVariant)),

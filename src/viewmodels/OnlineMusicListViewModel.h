@@ -29,6 +29,7 @@ signals:
     void streamReady(const QString& streamUrl,
                      const QString& artist,
                      const QString& cover);
+    void streamResolveFailed();
     void downloadStarted(const QString& taskId, const QString& filename);
     void downloadProgress(const QString& taskId,
                           const QString& filename,

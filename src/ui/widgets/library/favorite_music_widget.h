@@ -5,6 +5,9 @@
 #include <QQuickItem>
 #include <QQmlContext>
 #include <QDebug>
+#include <QVariantList>
+#include <QVariantMap>
+#include <QStringList>
 
 class FavoriteMusicWidget : public QQuickWidget
 {

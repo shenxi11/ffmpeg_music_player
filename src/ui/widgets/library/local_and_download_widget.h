@@ -4,6 +4,9 @@
 #include <QQuickWidget>
 #include <QQmlContext>
 #include <QQmlEngine>
+#include <QVariantList>
+#include <QVariantMap>
+#include <QStringList>
 #include "download_task_model.h"
 #include "local_music_model.h"
 

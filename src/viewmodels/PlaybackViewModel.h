@@ -7,6 +7,7 @@
 #include <QHash>
 #include <QUrl>
 #include <QVariantList>
+#include <QVariantMap>
 
 /**
  * @brief 播放页视图模型。

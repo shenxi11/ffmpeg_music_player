@@ -7,6 +7,7 @@
 #include <QFileInfo>
 #include <QInputDialog>
 #include <QToolTip>
+#include <QDir>
 
 namespace {
 QString buildPlaylistCoverPathFromSource(const QString& rawCover)
@@ -696,8 +697,8 @@ void MainWidget::handleCreatePlaylistResultReady(bool success, qint64 playlistId
         QVariantList items;
         items.append(buildPlaylistItemFromSong(m_pendingAddToNewPlaylistSong));
         m_viewModel->addPlaylistItems(m_viewModel->currentUserAccount(), playlistId, items);
-        m_pendingAddToNewPlaylistSong.clear();
     }
+    m_pendingAddToNewPlaylistSong.clear();
 
     if (m_viewModel && isUserLoggedIn()) {
         m_viewModel->requestPlaylists(m_viewModel->currentUserAccount(), 1, 20, false);
