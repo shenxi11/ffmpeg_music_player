@@ -57,6 +57,8 @@ void MainWidget::setupMenuAndAccountConnections()
     connect(userWidgetQml, &UserWidgetQml::loginRequested, this, &MainWidget::handleUserLoginRequested);
     connect(userWidgetQml, &UserWidgetQml::profileRequested, this, &MainWidget::handleUserProfileRequested);
     connect(userWidgetQml, &UserWidgetQml::logoutRequested, this, &MainWidget::handleUserLogoutRequested);
+    connect(userWidgetQml, &UserWidgetQml::blockedInteractionRequested, this,
+            &MainWidget::showLocalOnlyUnavailableMessage);
     connect(m_viewModel, &MainShellViewModel::sessionExpired, this, &MainWidget::handleSessionExpired);
     connect(loginWidget, &LoginWidgetQml::login_, this, &MainWidget::handleLoginWidgetSuccess);
     connect(m_viewModel, &MainShellViewModel::userProfileReady,
@@ -187,6 +189,10 @@ void MainWidget::handleMainMenuAboutRequested()
 
 void MainWidget::handleUserLoginRequested()
 {
+    if (m_localOnlyMode) {
+        showLocalOnlyUnavailableMessage();
+        return;
+    }
     loginWidget->isVisible = !loginWidget->isVisible;
     if (loginWidget->isVisible) {
         loginWidget->show();
@@ -197,6 +203,10 @@ void MainWidget::handleUserLoginRequested()
 
 void MainWidget::handleUserProfileRequested()
 {
+    if (m_localOnlyMode) {
+        showLocalOnlyUnavailableMessage();
+        return;
+    }
     if (!isUserLoggedIn()) {
         showLoginWindow();
         return;
@@ -464,6 +474,9 @@ void MainWidget::handleUploadAvatarResultReady(bool success,
 
 void MainWidget::triggerAutoLoginIfNeeded()
 {
+    if (m_localOnlyMode) {
+        return;
+    }
     const QString cachedAccount = m_viewModel ? m_viewModel->cachedAccount() : QString();
     const QString cachedPassword = m_viewModel ? m_viewModel->cachedPassword() : QString();
     if (!m_viewModel || !loginWidget) {

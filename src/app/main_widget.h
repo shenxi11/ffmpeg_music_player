@@ -45,7 +45,7 @@ class MainWidget : public QWidget
 {
     Q_OBJECT
 public:
-    explicit MainWidget(QWidget *parent = nullptr);
+    explicit MainWidget(bool localOnlyMode = false, QWidget *parent = nullptr);
     ~MainWidget();
     void updatePaint();
     
@@ -68,6 +68,10 @@ public:
     
     // 显示登录窗口
     void showLoginWindow() {
+        if (m_localOnlyMode) {
+            showLocalOnlyUnavailableMessage();
+            return;
+        }
         if (loginWidget) {
             loginWidget->isVisible = true;
             loginWidget->show();
@@ -147,6 +151,7 @@ private:
     QVariantList m_profileFavoritesPreview;
     QVariantList m_profileHistoryPreview;
     QVariantList m_profileOwnedPlaylistsPreview;
+    bool m_localOnlyMode = false;
 
     QPoint pos_ = QPoint(0, 0);
     bool dragging = false;
@@ -202,6 +207,10 @@ private:
                                const QString& avatarUrl,
                                bool loggedIn,
                                bool forceAvatarRefresh = false);
+    bool isLocalOnlyMode() const { return m_localOnlyMode; }
+    void applyLocalOnlyModeUi();
+    void showLocalOnlyUnavailableMessage();
+    void updateSearchBoxForMode();
     void enqueuePluginLoadError(const QString& pluginFilePath, const QString& reason);
     void showPluginDiagnosticsDialog();
 

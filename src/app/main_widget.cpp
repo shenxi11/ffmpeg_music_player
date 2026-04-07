@@ -17,7 +17,7 @@
 #include <QTimer>
 #include <QVBoxLayout>
 
-MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
+MainWidget::MainWidget(bool localOnlyMode, QWidget *parent) : QWidget(parent)
   ,w(nullptr)
   ,list(nullptr)
   ,videoPlayerWindow(nullptr)
@@ -25,6 +25,7 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
   ,settingsWidget(nullptr)
   ,recommendMusicWidget(nullptr)
   ,playlistWidget(nullptr)
+  ,m_localOnlyMode(localOnlyMode)
 {
     resize(1180, 760);
     setMinimumSize(1000, 640);
@@ -372,6 +373,9 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     setupMenuAndAccountConnections();
     setupPlaybackAndListConnections();
     setupLibraryConnections();
+    if (m_localOnlyMode) {
+        applyLocalOnlyModeUi();
+    }
 
     updateAdaptiveLayout();
 }
@@ -502,6 +506,10 @@ void MainWidget::handleWindowToggleRequested()
 
 void MainWidget::showContentPanel(QWidget* activeWidget)
 {
+    if (m_localOnlyMode && activeWidget != localAndDownloadWidget) {
+        activeWidget = localAndDownloadWidget;
+    }
+
     if (recommendMusicWidget) {
         recommendMusicWidget->setVisible(activeWidget == recommendMusicWidget);
     }
@@ -535,9 +543,80 @@ void MainWidget::showContentPanel(QWidget* activeWidget)
     }
 }
 
+void MainWidget::showLocalOnlyUnavailableMessage()
+{
+    QMessageBox::information(this,
+                             QStringLiteral("离线模式"),
+                             QStringLiteral("当前为离线直进模式，仅支持本地功能。"));
+}
+
+void MainWidget::updateSearchBoxForMode()
+{
+    if (!searchBox) {
+        return;
+    }
+
+    if (QQuickItem* rootItem = searchBox->rootObject()) {
+        rootItem->setProperty("placeholderText",
+                              m_localOnlyMode
+                                  ? QStringLiteral(" 离线模式仅支持本地内容")
+                                  : QStringLiteral(" 搜索想听的歌曲吧..."));
+    }
+    searchBox->setEnabled(!m_localOnlyMode);
+    if (m_localOnlyMode) {
+        searchBox->clear();
+    }
+}
+
+void MainWidget::applyLocalOnlyModeUi()
+{
+    updateSearchBoxForMode();
+
+    if (recommendButton) {
+        recommendButton->hide();
+    }
+    if (netButton) {
+        netButton->hide();
+    }
+    if (historyButton) {
+        historyButton->hide();
+    }
+    if (favoriteButton) {
+        favoriteButton->hide();
+    }
+    if (playlistButton) {
+        playlistButton->hide();
+    }
+    if (videoButton) {
+        videoButton->hide();
+    }
+    if (sidebarPlaylistSection) {
+        sidebarPlaylistSection->hide();
+    }
+    if (userWidgetQml) {
+        userWidgetQml->setPopupBlocked(true);
+        userWidgetQml->setLoginState(false);
+        userWidgetQml->setUserInfo(QStringLiteral("本地模式"),
+                                   QStringLiteral("qrc:/new/prefix1/icon/denglu.png"));
+    }
+    if (localButton) {
+        localButton->show();
+        localButton->setChecked(true);
+    }
+    showContentPanel(localAndDownloadWidget);
+    updateSideNavLayout();
+}
+
 void MainWidget::handleRecommendTabToggled(bool checked)
 {
     if (!checked) {
+        return;
+    }
+    if (m_localOnlyMode) {
+        if (localButton) {
+            localButton->setChecked(true);
+        }
+        showLocalOnlyUnavailableMessage();
         return;
     }
 
@@ -566,12 +645,26 @@ void MainWidget::handleNetTabToggled(bool checked)
     if (!checked) {
         return;
     }
+    if (m_localOnlyMode) {
+        if (localButton) {
+            localButton->setChecked(true);
+        }
+        showLocalOnlyUnavailableMessage();
+        return;
+    }
     showContentPanel(net_list);
 }
 
 void MainWidget::handleHistoryTabToggled(bool checked)
 {
     if (!checked) {
+        return;
+    }
+    if (m_localOnlyMode) {
+        if (localButton) {
+            localButton->setChecked(true);
+        }
+        showLocalOnlyUnavailableMessage();
         return;
     }
     showContentPanel(playHistoryWidget);
@@ -589,6 +682,13 @@ void MainWidget::handleFavoriteTabToggled(bool checked)
     if (!checked) {
         return;
     }
+    if (m_localOnlyMode) {
+        if (localButton) {
+            localButton->setChecked(true);
+        }
+        showLocalOnlyUnavailableMessage();
+        return;
+    }
     showContentPanel(favoriteMusicWidget);
 
     const QString userAccount = m_viewModel ? m_viewModel->currentUserAccount() : QString();
@@ -600,6 +700,13 @@ void MainWidget::handleFavoriteTabToggled(bool checked)
 void MainWidget::handlePlaylistTabToggled(bool checked)
 {
     if (!checked) {
+        return;
+    }
+    if (m_localOnlyMode) {
+        if (localButton) {
+            localButton->setChecked(true);
+        }
+        showLocalOnlyUnavailableMessage();
         return;
     }
 
@@ -616,6 +723,13 @@ void MainWidget::handlePlaylistTabToggled(bool checked)
 void MainWidget::handleVideoTabToggled(bool checked)
 {
     if (!checked) {
+        return;
+    }
+    if (m_localOnlyMode) {
+        if (localButton) {
+            localButton->setChecked(true);
+        }
+        showLocalOnlyUnavailableMessage();
         return;
     }
     qDebug() << "[MainWidget] Showing online video list";
@@ -682,6 +796,11 @@ void MainWidget::handleVideoPlaybackStateChanged(bool isPlaying)
 
 void MainWidget::handleSearchRequested(const QString& keyword)
 {
+    if (m_localOnlyMode) {
+        showLocalOnlyUnavailableMessage();
+        return;
+    }
+
     const QString trimmedKeyword = keyword.trimmed();
     if (trimmedKeyword.isEmpty()) {
         QMessageBox::information(this,
@@ -699,6 +818,9 @@ void MainWidget::handleSearchRequested(const QString& keyword)
 
 void MainWidget::handleSearchResultsReady()
 {
+    if (m_localOnlyMode) {
+        return;
+    }
     if (netButton) {
         netButton->setChecked(true);
     }
@@ -988,7 +1110,7 @@ int MainWidget::placeSideNavButton(int row,
                                    int itemHeight,
                                    int panelWidth)
 {
-    if (!button) {
+    if (!button || !button->isVisible()) {
         return row;
     }
     button->setGeometry(0, navStartY + row * itemHeight, panelWidth, itemHeight);

@@ -14,6 +14,10 @@
 
 void MainWidget::handleNetLoginRequired()
 {
+    if (m_localOnlyMode) {
+        showLocalOnlyUnavailableMessage();
+        return;
+    }
     qDebug() << "[MainWidget] Download requires login, showing login window";
     showLoginWindow();
 }

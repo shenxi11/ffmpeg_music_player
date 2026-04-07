@@ -32,6 +32,7 @@ private:
     bool isLoggedIn_;                     // 登录状态
     QString username_;                     // 用户名
     QString avatarSource_;                // 头像资源
+    bool popupBlocked_ = false;           // 是否阻止弹出菜单
 
 public:
     explicit UserWidgetQml(QWidget *parent = nullptr)
@@ -107,6 +108,12 @@ private:
 
 protected:
     void mousePressEvent(QMouseEvent *event) override {
+        if (popupBlocked_) {
+            emit blockedInteractionRequested();
+            event->accept();
+            return;
+        }
+
         QQuickWidget::mousePressEvent(event);
         
         // 点击时显示弹出窗口
@@ -118,6 +125,7 @@ signals:
     void loginRequested();
     void profileRequested();
     void logoutRequested();
+    void blockedInteractionRequested();
     void loginStateChanged(bool loggedIn);  // 新增：登录状态变化信号
 
 public slots:
@@ -196,6 +204,10 @@ public slots:
     // 获取登录状态
     bool getLoginState() const {
         return isLoggedIn_;
+    }
+
+    void setPopupBlocked(bool blocked) {
+        popupBlocked_ = blocked;
     }
 };
 

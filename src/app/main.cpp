@@ -128,17 +128,21 @@ int main(int argc, char *argv[])
     MainWidget* mainWindow = nullptr;
     bool pendingReturnToWelcome = false;
 
-    std::function<void()> enterMainWindow;
+    std::function<void(bool)> enterMainWindow;
     std::function<void(bool)> launchWelcomeFlow;
 
-    enterMainWindow = [&]() {
+    enterMainWindow = [&](bool localOnlyMode) {
         if (mainWindow) {
             return;
         }
 
-        qDebug() << "Server verified, using base URL:" << SettingsManager::instance().serverBaseUrl();
+        if (localOnlyMode) {
+            qDebug() << "Entering main window in local-only mode";
+        } else {
+            qDebug() << "Server verified, using base URL:" << SettingsManager::instance().serverBaseUrl();
+        }
 
-        mainWindow = new MainWidget();
+        mainWindow = new MainWidget(localOnlyMode);
         mainWindow->setAttribute(Qt::WA_DeleteOnClose, true);
         QObject::connect(mainWindow, &MainWidget::requestReturnToWelcome, &a, [&]() {
             pendingReturnToWelcome = true;
@@ -167,7 +171,7 @@ int main(int argc, char *argv[])
             return;
         }
 
-        enterMainWindow();
+        enterMainWindow(welcomeDialog.enterLocalOnly());
     };
 
     QTimer::singleShot(0, &a, [&]() {

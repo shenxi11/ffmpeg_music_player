@@ -300,6 +300,10 @@ void MainWidget::handleHistoryAddToFavorite(const QString& path,
                                             bool isLocal)
 {
     qDebug() << "[PlayHistoryWidget] Add to favorite:" << title << "path:" << path << "isLocal:" << isLocal;
+    if (m_localOnlyMode) {
+        showLocalOnlyUnavailableMessage();
+        return;
+    }
     if (!isUserLoggedIn()) {
         showLoginWindow();
         return;
@@ -313,6 +317,10 @@ void MainWidget::handleHistoryAddToFavorite(const QString& path,
 void MainWidget::handleHistoryLoginRequested()
 {
     qDebug() << "[PlayHistoryWidget] Login requested";
+    if (m_localOnlyMode) {
+        showLocalOnlyUnavailableMessage();
+        return;
+    }
     showLoginWindow();
 }
 
@@ -394,6 +402,10 @@ void MainWidget::handleLocalAddToFavorite(const QString& path,
                                           const QString& duration)
 {
     qDebug() << "[MainWidget] Add to favorite from local/download:" << title;
+    if (m_localOnlyMode) {
+        showLocalOnlyUnavailableMessage();
+        return;
+    }
     if (!isUserLoggedIn()) {
         showLoginWindow();
         return;
@@ -410,6 +422,10 @@ void MainWidget::handleNetAddToFavorite(const QString& path,
                                         const QString& duration)
 {
     qDebug() << "[MainWidget] Add to favorite from online:" << title;
+    if (m_localOnlyMode) {
+        showLocalOnlyUnavailableMessage();
+        return;
+    }
     if (!isUserLoggedIn()) {
         showLoginWindow();
         return;
