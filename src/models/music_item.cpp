@@ -23,7 +23,7 @@ MusicItem::MusicItem(const QString& name, const QString& path, const QString& pi
     {
         pic->setStyleSheet(
                     "QLabel {"
-                    "    border-image: url(:/new/prefix1/icon/Music.png);"
+                    "    border-image: url(:/qml/assets/ai/icons/default-music-cover.svg);"
                     "}"
                     );
     }

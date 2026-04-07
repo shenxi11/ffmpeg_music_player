@@ -84,6 +84,26 @@ QString MainShellViewModel::cachedUsername() const
     return SettingsManager::instance().cachedUsername();
 }
 
+QString MainShellViewModel::cachedAvatarUrl() const
+{
+    return SettingsManager::instance().cachedAvatarUrl();
+}
+
+QString MainShellViewModel::cachedOnlineSessionToken() const
+{
+    return SettingsManager::instance().cachedOnlineSessionToken();
+}
+
+QString MainShellViewModel::cachedProfileCreatedAt() const
+{
+    return SettingsManager::instance().cachedProfileCreatedAt();
+}
+
+QString MainShellViewModel::cachedProfileUpdatedAt() const
+{
+    return SettingsManager::instance().cachedProfileUpdatedAt();
+}
+
 bool MainShellViewModel::autoLoginEnabled() const
 {
     return SettingsManager::instance().autoLoginEnabled();
@@ -102,6 +122,15 @@ QString MainShellViewModel::currentUserAccount() const
 QString MainShellViewModel::currentUserPassword() const
 {
     return User::getInstance()->getPassword();
+}
+
+QString MainShellViewModel::currentOnlineSessionToken() const
+{
+    const QString onlineToken = OnlinePresenceManager::instance().currentToken().trimmed();
+    if (!onlineToken.isEmpty()) {
+        return onlineToken;
+    }
+    return SettingsManager::instance().cachedOnlineSessionToken();
 }
 
 bool MainShellViewModel::hasLoggedInUser() const
@@ -243,11 +272,48 @@ void MainShellViewModel::reorderPlaylistItems(const QString& userAccount, qint64
 
 void MainShellViewModel::handleLoginSuccess(const QString& account,
                                             const QString& password,
-                                            const QString& username)
+                                            const QString& username,
+                                            const QString& avatarUrl,
+                                            const QString& onlineSessionToken)
 {
     OnlinePresenceManager::instance().ensureSessionForUser(account, username);
     SettingsManager::instance().saveAccountCache(account, password, username, true);
+    SettingsManager::instance().saveProfileCache(
+        username,
+        avatarUrl,
+        onlineSessionToken.trimmed().isEmpty()
+            ? OnlinePresenceManager::instance().currentToken()
+            : onlineSessionToken,
+        SettingsManager::instance().cachedProfileCreatedAt(),
+        SettingsManager::instance().cachedProfileUpdatedAt());
     emit accountCacheChanged();
+}
+
+void MainShellViewModel::requestUserProfile()
+{
+    const QString account = currentUserAccount().trimmed().isEmpty()
+            ? cachedAccount()
+            : currentUserAccount();
+    const QString onlineSessionToken = currentOnlineSessionToken();
+    m_request.getUserProfile(account, onlineSessionToken);
+}
+
+void MainShellViewModel::updateCurrentUsername(const QString& username)
+{
+    const QString account = currentUserAccount().trimmed().isEmpty()
+            ? cachedAccount()
+            : currentUserAccount();
+    const QString onlineSessionToken = currentOnlineSessionToken();
+    m_request.updateUsername(account, onlineSessionToken, username);
+}
+
+void MainShellViewModel::uploadCurrentAvatar(const QString& filePath)
+{
+    const QString account = currentUserAccount().trimmed().isEmpty()
+            ? cachedAccount()
+            : currentUserAccount();
+    const QString onlineSessionToken = currentOnlineSessionToken();
+    m_request.uploadAvatar(account, onlineSessionToken, filePath);
 }
 
 void MainShellViewModel::logoutCurrentUser(bool graceful, int gracefulTimeoutMs)

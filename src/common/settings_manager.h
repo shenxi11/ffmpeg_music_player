@@ -61,6 +61,10 @@ public:
     QString cachedAccount() const { return m_cachedAccount; }
     QString cachedPassword() const { return m_cachedPassword; }
     QString cachedUsername() const { return m_cachedUsername; }
+    QString cachedAvatarUrl() const { return m_cachedAvatarUrl; }
+    QString cachedOnlineSessionToken() const { return m_cachedOnlineSessionToken; }
+    QString cachedProfileCreatedAt() const { return m_cachedProfileCreatedAt; }
+    QString cachedProfileUpdatedAt() const { return m_cachedProfileUpdatedAt; }
     bool autoLoginEnabled() const { return m_autoLoginEnabled; }
     bool manualLogoutMarked() const { return m_manualLogoutMarked; }
     bool shouldAutoLogin() const;
@@ -69,6 +73,11 @@ public:
                           const QString& password,
                           const QString& username,
                           bool enableAutoLogin);
+    void saveProfileCache(const QString& username,
+                          const QString& avatarUrl,
+                          const QString& onlineSessionToken,
+                          const QString& createdAt = QString(),
+                          const QString& updatedAt = QString());
     void setAutoLoginEnabled(bool enabled);
     void setManualLogoutMarked(bool marked);
     void clearAccountCache();
@@ -111,6 +120,10 @@ private:
     QString m_cachedAccount;
     QString m_cachedPassword;
     QString m_cachedUsername;
+    QString m_cachedAvatarUrl;
+    QString m_cachedOnlineSessionToken;
+    QString m_cachedProfileCreatedAt;
+    QString m_cachedProfileUpdatedAt;
     bool m_autoLoginEnabled = false;
     bool m_manualLogoutMarked = false;
     bool m_hasServerWelcomeWindowPos = false;

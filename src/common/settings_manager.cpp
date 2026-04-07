@@ -95,6 +95,10 @@ SettingsManager::SettingsManager()
     m_cachedAccount = m_settings.value("account/cache/account").toString().trimmed();
     m_cachedPassword = m_settings.value("account/cache/password").toString();
     m_cachedUsername = m_settings.value("account/cache/username").toString().trimmed();
+    m_cachedAvatarUrl = m_settings.value("account/cache/avatar_url").toString().trimmed();
+    m_cachedOnlineSessionToken = m_settings.value("account/cache/online_session_token").toString().trimmed();
+    m_cachedProfileCreatedAt = m_settings.value("account/cache/profile_created_at").toString().trimmed();
+    m_cachedProfileUpdatedAt = m_settings.value("account/cache/profile_updated_at").toString().trimmed();
     m_autoLoginEnabled = m_settings.value("account/cache/auto_login", false).toBool();
     m_manualLogoutMarked = m_settings.value("account/cache/manual_logout", false).toBool();
     m_serverHost = m_settings.value("server/host", QStringLiteral("192.168.1.208")).toString().trimmed();
@@ -320,22 +324,69 @@ void SettingsManager::setManualLogoutMarked(bool marked)
     m_settings.setValue("account/cache/manual_logout", m_manualLogoutMarked);
 }
 
+void SettingsManager::saveProfileCache(const QString& username,
+                                       const QString& avatarUrl,
+                                       const QString& onlineSessionToken,
+                                       const QString& createdAt,
+                                       const QString& updatedAt)
+{
+    const QString normalizedUsername = username.trimmed();
+    const QString normalizedAvatarUrl = avatarUrl.trimmed();
+    const QString normalizedToken = onlineSessionToken.trimmed();
+    const QString normalizedCreatedAt = createdAt.trimmed();
+    const QString normalizedUpdatedAt = updatedAt.trimmed();
+
+    const bool changed = m_cachedUsername != normalizedUsername
+            || m_cachedAvatarUrl != normalizedAvatarUrl
+            || m_cachedOnlineSessionToken != normalizedToken
+            || m_cachedProfileCreatedAt != normalizedCreatedAt
+            || m_cachedProfileUpdatedAt != normalizedUpdatedAt;
+
+    m_cachedUsername = normalizedUsername;
+    m_cachedAvatarUrl = normalizedAvatarUrl;
+    m_cachedOnlineSessionToken = normalizedToken;
+    m_cachedProfileCreatedAt = normalizedCreatedAt;
+    m_cachedProfileUpdatedAt = normalizedUpdatedAt;
+
+    m_settings.setValue("account/cache/username", m_cachedUsername);
+    m_settings.setValue("account/cache/avatar_url", m_cachedAvatarUrl);
+    m_settings.setValue("account/cache/online_session_token", m_cachedOnlineSessionToken);
+    m_settings.setValue("account/cache/profile_created_at", m_cachedProfileCreatedAt);
+    m_settings.setValue("account/cache/profile_updated_at", m_cachedProfileUpdatedAt);
+
+    if (changed) {
+        emit accountCacheChanged();
+    }
+}
+
 void SettingsManager::clearAccountCache()
 {
     const bool hadCache = !m_cachedAccount.isEmpty()
             || !m_cachedPassword.isEmpty()
-            || !m_cachedUsername.isEmpty();
+            || !m_cachedUsername.isEmpty()
+            || !m_cachedAvatarUrl.isEmpty()
+            || !m_cachedOnlineSessionToken.isEmpty()
+            || !m_cachedProfileCreatedAt.isEmpty()
+            || !m_cachedProfileUpdatedAt.isEmpty();
     const bool autoChanged = m_autoLoginEnabled;
 
     m_cachedAccount.clear();
     m_cachedPassword.clear();
     m_cachedUsername.clear();
+    m_cachedAvatarUrl.clear();
+    m_cachedOnlineSessionToken.clear();
+    m_cachedProfileCreatedAt.clear();
+    m_cachedProfileUpdatedAt.clear();
     m_autoLoginEnabled = false;
     m_manualLogoutMarked = false;
 
     m_settings.remove("account/cache/account");
     m_settings.remove("account/cache/password");
     m_settings.remove("account/cache/username");
+    m_settings.remove("account/cache/avatar_url");
+    m_settings.remove("account/cache/online_session_token");
+    m_settings.remove("account/cache/profile_created_at");
+    m_settings.remove("account/cache/profile_updated_at");
     m_settings.setValue("account/cache/auto_login", false);
     m_settings.setValue("account/cache/manual_logout", false);
 

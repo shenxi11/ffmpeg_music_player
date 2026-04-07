@@ -185,7 +185,7 @@ Rectangle {
                             anchors.fill: parent
                             source: (model.cover && model.cover.length > 0)
                                     ? model.cover
-                                    : "qrc:/new/prefix1/icon/Music.png"
+                                    : "qrc:/qml/assets/ai/icons/default-music-cover.svg"
                             fillMode: Image.PreserveAspectCrop
                             asynchronous: true
                             cache: true

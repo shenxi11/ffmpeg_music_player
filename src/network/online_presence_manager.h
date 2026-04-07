@@ -19,6 +19,7 @@ public:
                           int heartbeatIntervalSec,
                           int ttlSec);
     void ensureSessionForUser(const QString& account, const QString& username);
+    void updateCurrentUsername(const QString& username);
 
     void logoutAndClear(bool blocking = false, int timeoutMs = 1200);
     void clearSession();
@@ -27,6 +28,7 @@ public:
     bool hasSession() const;
     QString currentToken() const;
     QString currentAccount() const { return m_account; }
+    QString currentUsername() const { return m_username; }
     bool currentOnline() const { return m_online; }
     int currentHeartbeatIntervalSec() const { return m_heartbeatIntervalSec; }
     int currentOnlineTtlSec() const { return m_onlineTtlSec; }

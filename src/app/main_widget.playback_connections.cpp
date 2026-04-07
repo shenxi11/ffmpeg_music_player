@@ -18,7 +18,6 @@ void MainWidget::setupPlaybackAndListConnections()
     connect(w, &PlayWidget::signalAddSong, main_list, &MusicListWidgetLocal::onAddSong);
     connect(w, &PlayWidget::signalAddSong, this, &MainWidget::handlePlayWidgetAddSongToCache);
     connect(w, &PlayWidget::signalPlayButtonClick, main_list, &MusicListWidgetLocal::onPlayButtonClick);
-    connect(w, &PlayWidget::signalPlayButtonClick, net_list, &MusicListWidgetNet::onPlayButtonClick);
     connect(w, &PlayWidget::signalPlayButtonClick, this, &MainWidget::handlePlayWidgetButtonState);
 
     connect(w, &PlayWidget::signalMetadataUpdated, main_list, &MusicListWidgetLocal::onUpdateMetadata);

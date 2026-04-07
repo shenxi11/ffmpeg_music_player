@@ -17,6 +17,7 @@
 #include "play_history_widget.h"
 #include "favorite_music_widget.h"
 #include "recommend_music_widget.h"
+#include "user_profile_widget.h"
 #include "viewmodels/MainShellViewModel.h"
 #include <QWidget>
 #include <QButtonGroup>
@@ -87,6 +88,7 @@ private:
     FavoriteMusicWidget* favoriteMusicWidget;  // 喜欢音乐页面组件
     RecommendMusicWidget* recommendMusicWidget;  // 推荐音乐页面组件
     PlaylistWidget* playlistWidget;  // 我的歌单页面组件
+    UserProfileWidget* userProfileWidget = nullptr;  // 个人主页页面组件
     LoginWidgetQml* loginWidget;
     UserWidget* userWidget;
     UserWidgetQml* userWidgetQml;
@@ -139,6 +141,12 @@ private:
     bool m_sidebarShowingSubscribedPlaylists = false;
     bool m_returningToWelcome = false;
     QVariantMap m_pendingAddToNewPlaylistSong;
+    int m_profileFavoritesCount = 0;
+    int m_profileHistoryCount = 0;
+    int m_profileOwnedPlaylistsCount = 0;
+    QVariantList m_profileFavoritesPreview;
+    QVariantList m_profileHistoryPreview;
+    QVariantList m_profileOwnedPlaylistsPreview;
 
     QPoint pos_ = QPoint(0, 0);
     bool dragging = false;
@@ -186,6 +194,14 @@ private:
     void rebuildSidebarPlaylistButtons();
     void clearSidebarPlaylistButtons();
     void syncSidebarPlaylistSelection(qint64 playlistId);
+    QVariantMap cachedUserProfileSnapshot() const;
+    void refreshUserProfileStats();
+    void syncUserProfileStatsToPage();
+    void syncUserProfilePreviewToPage();
+    void applyUserIdentityToUi(const QString& username,
+                               const QString& avatarUrl,
+                               bool loggedIn,
+                               bool forceAvatarRefresh = false);
     void enqueuePluginLoadError(const QString& pluginFilePath, const QString& reason);
     void showPluginDiagnosticsDialog();
 
@@ -219,10 +235,13 @@ private:
     void handleMainMenuPluginDiagnosticsRequested();
     void handleMainMenuAboutRequested();
     void handleUserLoginRequested();
+    void handleUserProfileRequested();
     void handleUserLogoutRequested();
     void handleSettingsReturnToWelcomeRequested();
     void handleSessionExpired();
-    void handleLoginWidgetSuccess(const QString& username);
+    void handleLoginWidgetSuccess(const QString& username,
+                                  const QString& avatarUrl,
+                                  const QString& onlineSessionToken);
     void triggerAutoLoginIfNeeded();
     void handleHistoryDeleteRequested(const QStringList& paths);
     void handleRemoveHistoryResult(bool success);
@@ -248,6 +267,23 @@ private:
                                 const QString& duration);
     void handleAddFavoriteResult(bool success);
     void handleUserLoginStateChanged(bool loggedIn);
+    void handleUserProfileRefreshRequested();
+    void handleUserProfileUsernameSaveRequested(const QString& username);
+    void handleUserProfileAvatarFileSelected(const QString& filePath);
+    void handleUserProfileFavoritesShortcutRequested();
+    void handleUserProfileHistoryShortcutRequested();
+    void handleUserProfilePlaylistsShortcutRequested();
+    void handleUserProfileReloginRequested();
+    void handleUserProfileReady(const QVariantMap& profile);
+    void handleUserProfileRequestFailed(const QString& message, int statusCode);
+    void handleUpdateUsernameResultReady(bool success,
+                                         const QString& username,
+                                         const QString& message,
+                                         int statusCode);
+    void handleUploadAvatarResultReady(bool success,
+                                       const QString& avatarUrl,
+                                       const QString& message,
+                                       int statusCode);
     void handlePlaylistLoginRequested();
     void handlePlaylistRefreshRequested();
     void handlePlaylistOpenRequested(qint64 playlistId);
@@ -281,6 +317,10 @@ private:
     void toggleFavoriteByAction(const QString& action, const QVariantMap& songData);
     void removeOrDeleteSongByAction(const QVariantMap& songData);
     void playSongByAction(const QVariantMap& songData);
+    void rememberPlaybackQueueMetadata(const QString& filePath,
+                                       const QString& title,
+                                       const QString& artist,
+                                       const QString& cover);
 
     // 主窗口首页联动处理（替代构造函数内大段 lambda）。
     void handlePlaybackPauseAudioRequested();

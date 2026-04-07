@@ -178,6 +178,25 @@ public:
      * @brief 歌单排序
      */
     void reorderPlaylistItems(const QString& userAccount, qint64 playlistId, const QVariantList& orderedItems);
+
+    /**
+     * @brief 获取当前用户资料
+     */
+    void getUserProfile(const QString& account, const QString& sessionToken);
+
+    /**
+     * @brief 更新当前用户名
+     */
+    void updateUsername(const QString& account,
+                        const QString& sessionToken,
+                        const QString& username);
+
+    /**
+     * @brief 上传并更新用户头像
+     */
+    void uploadAvatar(const QString& account,
+                      const QString& sessionToken,
+                      const QString& filePath);
     
     /**
      * @brief 获取视频列表
@@ -222,6 +241,9 @@ public:
 signals:
     // 与原 HttpRequest 保持兼容的信号
     void signalLoginFlag(bool flag);
+    void signalLoginProfile(const QString& username,
+                            const QString& avatarUrl,
+                            const QString& onlineSessionToken);
     void signalRegisterFlag(bool flag);
     void signalRegisterResult(bool success, const QString& message);
     void signalResetPasswordResult(bool success, const QString& message);
@@ -246,6 +268,9 @@ signals:
     void signalAddPlaylistItemsResult(bool success, qint64 playlistId, int addedCount, int skippedCount, const QString& message);
     void signalRemovePlaylistItemsResult(bool success, qint64 playlistId, int deletedCount, const QString& message);
     void signalReorderPlaylistItemsResult(bool success, qint64 playlistId, const QString& message);
+    void signalUserProfileResult(bool success, const QVariantMap& profile, const QString& message, int statusCode);
+    void signalUpdateUsernameResult(bool success, const QString& username, const QString& message, int statusCode);
+    void signalUploadAvatarResult(bool success, const QString& avatarUrl, const QString& message, int statusCode);
     void signalRecommendationList(const QVariantMap& meta, const QVariantList& items);
     void signalSimilarRecommendationList(const QVariantMap& meta,
                                           const QVariantList& items,

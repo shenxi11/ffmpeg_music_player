@@ -300,7 +300,7 @@ Rectangle {
 
                     Image {
                         anchors.fill: parent
-                        source: model.cover_art_url || "qrc:/new/prefix1/icon/Music.png"
+                        source: model.cover_art_url || "qrc:/qml/assets/ai/icons/default-music-cover.svg"
                         fillMode: Image.PreserveAspectCrop
                         asynchronous: true
                         cache: true

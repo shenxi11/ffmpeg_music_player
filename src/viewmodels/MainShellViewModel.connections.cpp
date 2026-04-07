@@ -3,6 +3,8 @@
 #include "AudioService.h"
 #include "online_presence_manager.h"
 #include "plugin_manager.h"
+#include "settings_manager.h"
+#include "user.h"
 
 /*
 模块名称: MainShellViewModel 连接配置
@@ -49,6 +51,66 @@ void MainShellViewModel::setupConnections()
             this, &MainShellViewModel::removePlaylistItemsResultReady);
     connect(&m_request, &HttpRequestV2::signalReorderPlaylistItemsResult,
             this, &MainShellViewModel::reorderPlaylistItemsResultReady);
+    connect(&m_request, &HttpRequestV2::signalUserProfileResult,
+            this,
+            [this](bool success, const QVariantMap& profile, const QString& message, int statusCode) {
+                if (!success) {
+                    if (statusCode == 401) {
+                        emit sessionExpired();
+                    }
+                    emit userProfileRequestFailed(message, statusCode);
+                    return;
+                }
+
+                const QString username = profile.value(QStringLiteral("username")).toString();
+                const QString avatarUrl = profile.value(QStringLiteral("avatar_url")).toString();
+                const QString createdAt = profile.value(QStringLiteral("created_at")).toString();
+                const QString updatedAt = profile.value(QStringLiteral("updated_at")).toString();
+                const QString onlineToken = currentOnlineSessionToken();
+
+                if (!username.trimmed().isEmpty()) {
+                    User::getInstance()->setUsername(username);
+                    OnlinePresenceManager::instance().updateCurrentUsername(username);
+                }
+                SettingsManager::instance().saveProfileCache(username,
+                                                             avatarUrl,
+                                                             onlineToken,
+                                                             createdAt,
+                                                             updatedAt);
+                emit userProfileReady(profile);
+            });
+    connect(&m_request, &HttpRequestV2::signalUpdateUsernameResult,
+            this,
+            [this](bool success, const QString& username, const QString& message, int statusCode) {
+                if (success && !username.trimmed().isEmpty()) {
+                    User::getInstance()->setUsername(username);
+                    OnlinePresenceManager::instance().updateCurrentUsername(username);
+                    SettingsManager::instance().saveProfileCache(
+                        username,
+                        SettingsManager::instance().cachedAvatarUrl(),
+                        currentOnlineSessionToken(),
+                        SettingsManager::instance().cachedProfileCreatedAt(),
+                        SettingsManager::instance().cachedProfileUpdatedAt());
+                } else if (statusCode == 401) {
+                    emit sessionExpired();
+                }
+                emit updateUsernameResultReady(success, username, message, statusCode);
+            });
+    connect(&m_request, &HttpRequestV2::signalUploadAvatarResult,
+            this,
+            [this](bool success, const QString& avatarUrl, const QString& message, int statusCode) {
+                if (success) {
+                    SettingsManager::instance().saveProfileCache(
+                        SettingsManager::instance().cachedUsername(),
+                        avatarUrl,
+                        currentOnlineSessionToken(),
+                        SettingsManager::instance().cachedProfileCreatedAt(),
+                        SettingsManager::instance().cachedProfileUpdatedAt());
+                } else if (statusCode == 401) {
+                    emit sessionExpired();
+                }
+                emit uploadAvatarResultReady(success, avatarUrl, message, statusCode);
+            });
 
     connect(&OnlinePresenceManager::instance(),
             &OnlinePresenceManager::sessionExpired,

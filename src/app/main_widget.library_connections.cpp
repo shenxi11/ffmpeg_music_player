@@ -197,6 +197,14 @@ void MainWidget::setupLibraryConnections()
 
     connect(m_viewModel, &MainShellViewModel::historyListReady,
             playHistoryWidget, &PlayHistoryWidget::loadHistory);
+    connect(m_viewModel, &MainShellViewModel::historyListReady,
+            this,
+            [this](const QVariantList& history) {
+                m_profileHistoryCount = history.size();
+                m_profileHistoryPreview = history;
+                syncUserProfileStatsToPage();
+                syncUserProfilePreviewToPage();
+            });
 
     connect(favoriteMusicWidget, &FavoriteMusicWidget::playMusic, this, &MainWidget::handleFavoritePlayMusic);
     connect(favoriteMusicWidget, &FavoriteMusicWidget::removeFavorite, this, &MainWidget::handleFavoriteRemoveRequested);
@@ -206,6 +214,14 @@ void MainWidget::setupLibraryConnections()
             favoriteMusicWidget, &FavoriteMusicWidget::loadFavorites);
     connect(m_viewModel, &MainShellViewModel::favoritesListReady,
             this, &MainWidget::handleFavoritesListUpdated);
+    connect(m_viewModel, &MainShellViewModel::favoritesListReady,
+            this,
+            [this](const QVariantList& favorites) {
+                m_profileFavoritesCount = favorites.size();
+                m_profileFavoritesPreview = favorites;
+                syncUserProfileStatsToPage();
+                syncUserProfilePreviewToPage();
+            });
 
     connect(m_viewModel, &MainShellViewModel::removeFavoriteResultReady, this, &MainWidget::handleRemoveFavoriteResult);
 
@@ -315,7 +331,7 @@ void MainWidget::handleFavoritePlayMusic(const QString& filePath)
 {
     qDebug() << "[FavoriteMusicWidget] Play music:" << filePath;
     if (w->getNetFlag()) {
-        net_list->signalPlayButtonClick(false, "");
+        net_list->setPlayingState("", false);
     }
     main_list->signalPlayButtonClick(false, "");
     localAndDownloadWidget->setPlayingState("", false);
@@ -442,14 +458,43 @@ void MainWidget::handleUserLoginStateChanged(bool loggedIn)
         playHistoryWidget->clearHistory();
         recommendMusicWidget->clearRecommendations();
         playlistWidget->clearData();
+        if (userProfileWidget) {
+            userProfileWidget->setProfileData(cachedUserProfileSnapshot());
+            userProfileWidget->setStatsData(0, 0, 0);
+            userProfileWidget->setPreviewData(QVariantList(), QVariantList(), QVariantList());
+            userProfileWidget->setBusy(false);
+            userProfileWidget->setUsernameSaving(false);
+            userProfileWidget->setAvatarUploading(false);
+            userProfileWidget->setSessionExpired(false);
+            userProfileWidget->setStatusMessage(QStringLiteral("info"),
+                                                QStringLiteral("请先登录后查看个人主页。"));
+            if (userProfileWidget->isVisible()) {
+                showContentPanel(localAndDownloadWidget);
+                if (localButton) {
+                    localButton->setChecked(true);
+                }
+            }
+        }
         m_ownedSidebarPlaylists.clear();
         m_subscribedSidebarPlaylists.clear();
         m_sidebarSelectedPlaylistId = -1;
+        m_profileFavoritesCount = 0;
+        m_profileHistoryCount = 0;
+        m_profileOwnedPlaylistsCount = 0;
+        m_profileFavoritesPreview.clear();
+        m_profileHistoryPreview.clear();
+        m_profileOwnedPlaylistsPreview.clear();
         rebuildSidebarPlaylistButtons();
     } else if (recommendButton && recommendButton->isChecked()) {
         if (m_viewModel) {
             m_viewModel->requestRecommendations(userAccount, QStringLiteral("home"), 24, true);
         }
+    }
+
+    if (loggedIn && userProfileWidget) {
+        userProfileWidget->setProfileData(cachedUserProfileSnapshot());
+        userProfileWidget->setStatusMessage(QStringLiteral("info"),
+                                            QStringLiteral("已进入登录态，正在等待资料同步。"));
     }
 
     if (loggedIn && m_viewModel) {
@@ -564,7 +609,7 @@ void MainWidget::handlePlaylistPlayMusicWithMetadata(const QString& filePath,
     }
 
     if (w->getNetFlag()) {
-        net_list->signalPlayButtonClick(false, "");
+        net_list->setPlayingState("", false);
     }
     main_list->signalPlayButtonClick(false, "");
     localAndDownloadWidget->setPlayingState("", false);
@@ -572,6 +617,7 @@ void MainWidget::handlePlaylistPlayMusicWithMetadata(const QString& filePath,
     const bool isLocal = !filePath.startsWith("http", Qt::CaseInsensitive);
     w->setPlayNet(!isLocal);
     const QString normalizedArtist = normalizeArtistForHistory(artist);
+    rememberPlaybackQueueMetadata(filePath, title, normalizedArtist, cover);
     w->setNetworkMetadata(title, normalizedArtist, cover);
     if (!isLocal && !cover.trimmed().isEmpty()) {
         m_networkMusicArtist = normalizedArtist;
@@ -670,6 +716,10 @@ void MainWidget::handlePlaylistsListReady(const QVariantList& playlists, int pag
             m_ownedSidebarPlaylists.append(playlist);
         }
     }
+    m_profileOwnedPlaylistsCount = m_ownedSidebarPlaylists.size();
+    m_profileOwnedPlaylistsPreview = m_ownedSidebarPlaylists;
+    syncUserProfileStatsToPage();
+    syncUserProfilePreviewToPage();
     favoriteMusicWidget->setAvailablePlaylists(m_ownedSidebarPlaylists);
     localAndDownloadWidget->setAvailablePlaylists(m_ownedSidebarPlaylists);
     net_list->setAvailablePlaylists(m_ownedSidebarPlaylists);
@@ -998,7 +1048,7 @@ void MainWidget::playSongByAction(const QVariantMap& songData)
     }
 
     if (w->getNetFlag()) {
-        net_list->signalPlayButtonClick(false, "");
+        net_list->setPlayingState("", false);
     }
     main_list->signalPlayButtonClick(false, "");
     localAndDownloadWidget->setPlayingState("", false);
@@ -1021,4 +1071,39 @@ void MainWidget::playSongByAction(const QVariantMap& songData)
         w->playbackViewModel()->rememberTrackMetadata(url, songData);
     }
     w->playClick(path);
+}
+
+void MainWidget::rememberPlaybackQueueMetadata(const QString& filePath,
+                                               const QString& title,
+                                               const QString& artist,
+                                               const QString& cover)
+{
+    if (!w || !w->playbackViewModel()) {
+        return;
+    }
+
+    const QString trimmedPath = filePath.trimmed();
+    if (trimmedPath.isEmpty()) {
+        return;
+    }
+
+    QUrl url;
+    if (trimmedPath.startsWith(QStringLiteral("http"), Qt::CaseInsensitive)) {
+        url = QUrl(trimmedPath);
+    } else {
+        url = QUrl::fromLocalFile(QDir::fromNativeSeparators(trimmedPath));
+    }
+
+    if (!url.isValid() || url.isEmpty()) {
+        return;
+    }
+
+    QVariantMap songData;
+    songData.insert(QStringLiteral("title"), title.trimmed());
+    songData.insert(QStringLiteral("artist"), artist.trimmed());
+    songData.insert(QStringLiteral("cover"), cover.trimmed());
+    songData.insert(QStringLiteral("path"), trimmedPath);
+    songData.insert(QStringLiteral("playPath"), trimmedPath);
+    songData.insert(QStringLiteral("isLocal"), !trimmedPath.startsWith(QStringLiteral("http"), Qt::CaseInsensitive));
+    w->playbackViewModel()->rememberTrackMetadata(url, songData);
 }
