@@ -77,6 +77,8 @@ file(GLOB_RECURSE PROJECT_SOURCES CONFIGURE_DEPENDS
 )
 
 list(APPEND PROJECT_SOURCES
+    "${SRC_ROOT}/common/cover_lookup.cpp"
+    "${SRC_ROOT}/common/cover_lookup.h"
     "${SRC_ROOT}/app/main_widget.menu_auth.cpp"
     "${SRC_ROOT}/app/main_widget.library_connections.cpp"
     "${SRC_ROOT}/app/main_widget.playback_connections.cpp"

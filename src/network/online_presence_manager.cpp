@@ -84,6 +84,17 @@ void OnlinePresenceManager::ensureSessionForUser(const QString& account, const Q
     requestStatusRefresh();
 }
 
+void OnlinePresenceManager::updateCurrentUsername(const QString& username)
+{
+    const QString normalizedUsername = username.trimmed();
+    if (normalizedUsername.isEmpty() || m_username == normalizedUsername) {
+        return;
+    }
+
+    m_username = normalizedUsername;
+    emitSnapshot(m_statusMessage);
+}
+
 void OnlinePresenceManager::logoutAndClear(bool blocking, int timeoutMs)
 {
     const QString token = m_sessionToken.trimmed();

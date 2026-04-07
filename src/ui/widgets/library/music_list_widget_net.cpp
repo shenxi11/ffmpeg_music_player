@@ -73,16 +73,16 @@ void MusicListWidgetNet::onRemoveClick(const QString name)
     Q_UNUSED(name);
 }
 
-void MusicListWidgetNet::onPlayButtonClick(bool flag, const QString filename)
-{
-    qDebug() << "[PLAY_STATE] MusicListWidgetNet::onPlayButtonClick flag="
-             << flag << ", filename=" << filename;
-    emit signalPlayButtonClick(flag, filename);
-}
-
 void MusicListWidgetNet::onTranslateButtonClicked()
 {
     emit signalTranslateButtonClicked();
+}
+
+void MusicListWidgetNet::setPlayingState(const QString& filePath, bool playing)
+{
+    if (listWidget) {
+        listWidget->setPlayingState(filePath, playing);
+    }
 }
 
 void MusicListWidgetNet::resolveSongAction(const QString& action, const QVariantMap& songData)

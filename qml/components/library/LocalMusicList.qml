@@ -236,7 +236,7 @@ Rectangle {
                         isCurrentTrack: currentTrack
                         isPlaying: playbackActive
                         coverSource: model.coverUrl || ""
-                        fallbackSource: "qrc:/new/prefix1/icon/Music.png"
+                        fallbackSource: "qrc:/qml/assets/ai/icons/default-music-cover.svg"
 
                         onPlayRequested: {
                             if (currentTrack) {

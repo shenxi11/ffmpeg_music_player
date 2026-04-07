@@ -85,13 +85,85 @@ Rectangle {
     function normalizePath(path) {
         if (!path) return ""
         var value = String(path).trim()
-        if (value.indexOf("file:///") === 0) {
-            value = value.substring(8)
+
+        function safeDecode(text) {
+            try {
+                return decodeURIComponent(text)
+            } catch (e) {
+                return text
+            }
         }
-        try {
-            value = decodeURIComponent(value)
-        } catch (e) {
+
+        function extractProxySource(text) {
+            var question = text.indexOf("?")
+            if (question < 0 || question >= text.length - 1) {
+                return ""
+            }
+
+            var query = text.substring(question + 1).split("&")
+            for (var i = 0; i < query.length; ++i) {
+                var entry = query[i]
+                if (!entry)
+                    continue
+                var eq = entry.indexOf("=")
+                var key = eq >= 0 ? entry.substring(0, eq) : entry
+                var rawValue = eq >= 0 ? entry.substring(eq + 1) : ""
+                if (safeDecode(key) === "src") {
+                    return safeDecode(rawValue)
+                }
+            }
+            return ""
         }
+
+        value = value.replace(/\\/g, "/")
+        var lowerValue = value.toLowerCase()
+
+        if (lowerValue.indexOf("file:///") === 0) {
+            value = safeDecode(value.substring(8))
+            value = value.replace(/\\/g, "/")
+            return value
+        }
+
+        if (/^[a-zA-Z]:\//.test(value)) {
+            return safeDecode(value)
+        }
+
+        if (lowerValue.indexOf("http://") === 0 || lowerValue.indexOf("https://") === 0) {
+            if (value.indexOf("/proxy") >= 0) {
+                var proxySource = extractProxySource(value)
+                if (proxySource.length > 0) {
+                    return normalizePath(proxySource)
+                }
+            }
+
+            var schemePos = value.indexOf("://")
+            var pathStart = value.indexOf("/", schemePos >= 0 ? schemePos + 3 : 0)
+            value = pathStart >= 0 ? value.substring(pathStart) : ""
+            lowerValue = value.toLowerCase()
+
+            var uploadsPos = lowerValue.indexOf("/uploads/")
+            if (uploadsPos >= 0) {
+                value = value.substring(uploadsPos + 1)
+            }
+        }
+
+        value = safeDecode(value)
+        value = value.replace(/\\/g, "/")
+
+        while (value.indexOf("/") === 0) {
+            value = value.substring(1)
+        }
+
+        lowerValue = value.toLowerCase()
+        if (lowerValue.indexOf("uploads/uploads/") === 0) {
+            value = "uploads/" + value.substring("uploads/uploads/".length)
+            lowerValue = value.toLowerCase()
+        }
+
+        if (lowerValue.indexOf("uploads/") === 0) {
+            value = value.substring("uploads/".length)
+        }
+
         return value
     }
 
@@ -267,7 +339,7 @@ Rectangle {
                     isCurrentTrack: itemRoot.currentTrack
                     isPlaying: itemRoot.playbackActive
                     coverSource: model.cover || ""
-                    fallbackSource: "qrc:/new/prefix1/icon/Music.png"
+                    fallbackSource: "qrc:/qml/assets/ai/icons/default-music-cover.svg"
 
                     onPlayRequested: {
                         if (itemRoot.currentTrack) {
@@ -397,7 +469,7 @@ Rectangle {
     
     function removeSong(filePath) {
         for (var i = 0; i < musicListModel.count; i++) {
-            if (musicListModel.get(i).filePath === filePath) {
+            if (isSameTrack(musicListModel.get(i).filePath, filePath)) {
                 musicListModel.remove(i)
                 break
             }
@@ -424,19 +496,10 @@ Rectangle {
             root.currentPlayingIndex = -1
             return
         }
-        
-        // 从完整 URL 中提取相对路径（如果是网络路径）
-        var pathToMatch = filePath
-        if (filePath.indexOf("http") === 0) {
-            var uploadsIndex = filePath.indexOf("/uploads/")
-            if (uploadsIndex !== -1) {
-                pathToMatch = filePath.substring(uploadsIndex + 9)
-            }
-        }
-        
-        // 查找匹配的歌曲
+
+        // 查找匹配的歌曲，统一走当前列表的路径归一化规则。
         for (var i = 0; i < musicListModel.count; i++) {
-            if (musicListModel.get(i).filePath === pathToMatch) {
+            if (isSameTrack(filePath, musicListModel.get(i).filePath)) {
                 // 找到了目标歌曲
                 if (playing) {
                     // 关闭上一首
@@ -501,7 +564,7 @@ Rectangle {
     // 根据filePath查找索引
     function getIndexByFilePath(filePath) {
         for (var i = 0; i < musicListModel.count; i++) {
-            if (musicListModel.get(i).filePath === filePath) {
+            if (isSameTrack(musicListModel.get(i).filePath, filePath)) {
                 return i
             }
         }

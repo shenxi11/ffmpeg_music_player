@@ -132,11 +132,11 @@ Item {
                 height: 18
                 source: root.favoriteActive
                         ? (favoriteArea.containsMouse
-                           ? root.listIconPrefix + "list_icon_favorite_hover.svg"
-                           : root.listIconPrefix + "list_icon_favorite_active.svg")
+                           ? "qrc:/qml/assets/ai/icons/song-action-favorite-hover.svg"
+                           : "qrc:/qml/assets/ai/icons/song-action-favorite-active.svg")
                         : (favoriteArea.containsMouse
-                           ? root.listIconPrefix + "list_icon_favorite_hover.svg"
-                           : root.listIconPrefix + "list_icon_favorite_default.svg")
+                           ? "qrc:/qml/assets/ai/icons/song-action-favorite-hover.svg"
+                           : "qrc:/qml/assets/ai/icons/song-action-favorite-default.svg")
                 fillMode: Image.PreserveAspectFit
             }
 
@@ -163,8 +163,8 @@ Item {
                 width: 18
                 height: 18
                 source: downloadArea.containsMouse
-                        ? root.listIconPrefix + "list_icon_download_hover.svg"
-                        : root.listIconPrefix + "list_icon_download_default.svg"
+                        ? "qrc:/qml/assets/ai/icons/song-action-download-hover.svg"
+                        : "qrc:/qml/assets/ai/icons/song-action-download-default.svg"
                 fillMode: Image.PreserveAspectFit
             }
 
@@ -190,7 +190,7 @@ Item {
                 anchors.centerIn: parent
                 width: 16
                 height: 16
-                source: "qrc:/qml/assets/ai/icons/plus.svg"
+                source: "qrc:/qml/assets/ai/icons/song-action-add.svg"
                 fillMode: Image.PreserveAspectFit
             }
 
@@ -216,7 +216,7 @@ Item {
                 anchors.centerIn: parent
                 width: 16
                 height: 16
-                source: "qrc:/qml/assets/ai/icons/more.svg"
+                source: "qrc:/qml/assets/ai/icons/song-action-more.svg"
                 fillMode: Image.PreserveAspectFit
             }
 

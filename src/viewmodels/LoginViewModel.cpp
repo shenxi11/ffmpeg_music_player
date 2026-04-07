@@ -6,8 +6,8 @@ LoginViewModel::LoginViewModel(QObject* parent)
     : BaseViewModel(parent)
     , m_request(this)
 {
-    connect(&m_request, &HttpRequestV2::signalGetusername,
-            this, &LoginViewModel::onUsernameReceived);
+    connect(&m_request, &HttpRequestV2::signalLoginProfile,
+            this, &LoginViewModel::onLoginProfileReceived);
     connect(&m_request, &HttpRequestV2::signalLoginFlag,
             this, &LoginViewModel::onLoginFlag);
     connect(&m_request, &HttpRequestV2::signalRegisterFlag,
@@ -49,6 +49,8 @@ void LoginViewModel::requestLogin(const QString& account, const QString& passwor
     m_lastRequestedPassword = trimmedPassword;
     m_lastRequestIsAutoLogin = autoLogin;
     m_loginInFlight = true;
+    m_lastAvatarUrl.clear();
+    m_lastOnlineSessionToken.clear();
 
     m_request.login(trimmedAccount, trimmedPassword);
 }
@@ -67,15 +69,19 @@ void LoginViewModel::requestResetPassword(const QString& account, const QString&
     m_request.resetPassword(account, newPassword);
 }
 
-void LoginViewModel::onUsernameReceived(const QString& username)
+void LoginViewModel::onLoginProfileReceived(const QString& username,
+                                            const QString& avatarUrl,
+                                            const QString& onlineSessionToken)
 {
     if (username.trimmed().isEmpty()) {
         return;
     }
 
+    m_lastAvatarUrl = avatarUrl.trimmed();
+    m_lastOnlineSessionToken = onlineSessionToken.trimmed();
     m_loginInFlight = false;
     setIsBusy(false);
-    emit loginSucceeded(username);
+    emit loginSucceeded(username, m_lastAvatarUrl, m_lastOnlineSessionToken);
 }
 
 void LoginViewModel::onLoginFlag(bool success)

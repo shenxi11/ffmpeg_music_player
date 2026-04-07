@@ -30,17 +30,16 @@ public:
 
     void onPlayClick(const QString name, const QString artist, const QString cover);
     void onRemoveClick(const QString name);
-    void onPlayButtonClick(bool flag, const QString filename);
     void onDownloadMusic(QString songName);
     void onTranslateButtonClicked();
     void setAvailablePlaylists(const QVariantList& playlists);
     void setFavoritePaths(const QStringList& favoritePaths);
+    void setPlayingState(const QString& filePath, bool playing);
     void resolveSongAction(const QString& action, const QVariantMap& songData);
 
 signals:
     void signalAddSonglist(const QList<Music>& musicList);
     void signalPlayClick(const QString songName, const QString artist, const QString cover, bool net);
-    void signalPlayButtonClick(bool flag, const QString filename);
     void signalLast(QString songName);
     void signalNext(QString songName);
     void signalTranslateButtonClicked();

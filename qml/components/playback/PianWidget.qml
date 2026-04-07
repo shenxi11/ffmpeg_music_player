@@ -10,7 +10,7 @@ Item {
     signal upClicked()
 
     property string songName: "\u6682\u65e0\u6b4c\u66f2"
-    property string picPath: "qrc:/new/prefix1/icon/pian.png"
+    property string picPath: "qrc:/qml/assets/ai/icons/default-music-cover.svg"
 
     Rectangle {
         anchors.fill: parent

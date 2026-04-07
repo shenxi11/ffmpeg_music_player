@@ -8,7 +8,7 @@ Item {
     z: 2
 
     property string coverSource: ""
-    property string fallbackSource: "qrc:/new/prefix1/icon/Music.png"
+    property string fallbackSource: "qrc:/qml/assets/ai/icons/default-music-cover.svg"
     property string playerIconPrefix: "qrc:/design/design_exports/netease_ui_pack_20260309/icon/ui/player/"
     property int coverSize: 44
     property int cornerRadius: 6

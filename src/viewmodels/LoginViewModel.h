@@ -28,14 +28,18 @@ public:
     void requestResetPassword(const QString& account, const QString& newPassword);
 
 signals:
-    void loginSucceeded(const QString& username);
+    void loginSucceeded(const QString& username,
+                        const QString& avatarUrl,
+                        const QString& onlineSessionToken);
     void loginFailed(const QString& message);
     void registerCompleted(bool success, const QString& message);
     void resetPasswordCompleted(bool success, const QString& message);
     void switchToLoginModeRequested();
 
 private slots:
-    void onUsernameReceived(const QString& username);
+    void onLoginProfileReceived(const QString& username,
+                                const QString& avatarUrl,
+                                const QString& onlineSessionToken);
     void onLoginFlag(bool success);
     void onRegisterFlag(bool success);
     void onRegisterResult(bool success, const QString& message);
@@ -45,6 +49,8 @@ private:
     HttpRequestV2 m_request;
     QString m_lastRequestedAccount;
     QString m_lastRequestedPassword;
+    QString m_lastAvatarUrl;
+    QString m_lastOnlineSessionToken;
     bool m_lastRequestIsAutoLogin = false;
     bool m_loginInFlight = false;
 };

@@ -26,10 +26,15 @@ public:
     QString cachedAccount() const;
     QString cachedPassword() const;
     QString cachedUsername() const;
+    QString cachedAvatarUrl() const;
+    QString cachedOnlineSessionToken() const;
+    QString cachedProfileCreatedAt() const;
+    QString cachedProfileUpdatedAt() const;
     bool autoLoginEnabled() const;
     bool shouldAutoLogin() const;
     QString currentUserAccount() const;
     QString currentUserPassword() const;
+    QString currentOnlineSessionToken() const;
     bool hasLoggedInUser() const;
     void clearCurrentUserProfile();
 
@@ -81,7 +86,12 @@ public:
     void reorderPlaylistItems(const QString& userAccount, qint64 playlistId, const QVariantList& orderedItems);
     void handleLoginSuccess(const QString& account,
                             const QString& password,
-                            const QString& username);
+                            const QString& username,
+                            const QString& avatarUrl = QString(),
+                            const QString& onlineSessionToken = QString());
+    void requestUserProfile();
+    void updateCurrentUsername(const QString& username);
+    void uploadCurrentAvatar(const QString& filePath);
     void logoutCurrentUser(bool graceful, int gracefulTimeoutMs = 0);
     void returnToWelcomeAndKeepAccountCache(bool graceful, int gracefulTimeoutMs = 0);
     void shutdownUserSessionOnAppExit(bool graceful, int gracefulTimeoutMs = 0);
@@ -137,6 +147,16 @@ signals:
     void addPlaylistItemsResultReady(bool success, qint64 playlistId, int addedCount, int skippedCount, const QString& message);
     void removePlaylistItemsResultReady(bool success, qint64 playlistId, int deletedCount, const QString& message);
     void reorderPlaylistItemsResultReady(bool success, qint64 playlistId, const QString& message);
+    void userProfileReady(const QVariantMap& profile);
+    void userProfileRequestFailed(const QString& message, int statusCode);
+    void updateUsernameResultReady(bool success,
+                                   const QString& username,
+                                   const QString& message,
+                                   int statusCode);
+    void uploadAvatarResultReady(bool success,
+                                 const QString& avatarUrl,
+                                 const QString& message,
+                                 int statusCode);
     void sessionExpired();
     void accountCacheChanged();
 

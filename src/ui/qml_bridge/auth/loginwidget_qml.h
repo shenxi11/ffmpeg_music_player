@@ -45,7 +45,7 @@ public:
                 this, SLOT(onResetPasswordRequested(QString, QString)));
 
         connect(m_viewModel, &LoginViewModel::loginSucceeded,
-                this, &LoginWidgetQml::onUsernameReceived);
+                this, &LoginWidgetQml::onLoginSucceeded);
         connect(m_viewModel, &LoginViewModel::loginFailed,
                 this, &LoginWidgetQml::onLoginFailed);
         connect(m_viewModel, &LoginViewModel::switchToLoginModeRequested,
@@ -117,7 +117,7 @@ public:
     bool isVisible;
 
 signals:
-    void login_(QString username);
+    void login_(QString username, QString avatarUrl, QString onlineSessionToken);
 
 private slots:
     void onLoginRequested(const QString &account, const QString &password)
@@ -142,13 +142,15 @@ private slots:
         m_viewModel->requestResetPassword(account, newPassword);
     }
 
-    void onUsernameReceived(const QString &username)
+    void onLoginSucceeded(const QString &username,
+                          const QString& avatarUrl,
+                          const QString& onlineSessionToken)
     {
         if (username.trimmed().isEmpty()) {
             return;
         }
 
-        emit login_(username);
+        emit login_(username, avatarUrl, onlineSessionToken);
         qDebug() << "LoginWidgetQml: Login successful, username:" << username;
         close();
 

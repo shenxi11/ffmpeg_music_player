@@ -97,8 +97,11 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     aiAssistantTopButton->hide();
 
     menuButton = new QPushButton(QStringLiteral(u"\u83dc\u5355"), this);
-    menuButton->setFixedSize(50, 50);
+    menuButton->setFixedHeight(50);
+    menuButton->setMinimumWidth(92);
     menuButton->setObjectName("MainMenuButton");
+    menuButton->setIcon(QIcon(QStringLiteral(":/qml/assets/ai/icons/main-menu.svg")));
+    menuButton->setIconSize(QSize(18, 18));
     
     mainMenu = nullptr;
 
@@ -161,6 +164,10 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     playlistWidget = new PlaylistWidget(this);
     playlistWidget->hide();
     playlistWidget->setObjectName("playlist");
+
+    userProfileWidget = new UserProfileWidget(this);
+    userProfileWidget->hide();
+    userProfileWidget->setObjectName("userProfile");
 
     videoListWidget = nullptr;
 
@@ -516,6 +523,9 @@ void MainWidget::showContentPanel(QWidget* activeWidget)
     if (playlistWidget) {
         playlistWidget->setVisible(activeWidget == playlistWidget);
     }
+    if (userProfileWidget) {
+        userProfileWidget->setVisible(activeWidget == userProfileWidget);
+    }
     if (videoListWidget) {
         const bool showVideo = (activeWidget == videoListWidget);
         videoListWidget->setVisible(showVideo);
@@ -770,10 +780,11 @@ void MainWidget::handleRecommendPlayMusicWithMetadata(const QString& filePath,
     if (!w->getNetFlag()) {
         main_list->signalPlayButtonClick(false, "");
     }
-    net_list->signalPlayButtonClick(false, "");
+    net_list->setPlayingState("", false);
     localAndDownloadWidget->setPlayingState("", false);
 
     const QString normalizedArtist = normalizeArtistForHistory(artist);
+    rememberPlaybackQueueMetadata(filePath, title, normalizedArtist, cover);
     w->setPlayNet(true);
     w->setNetworkMetadata(title, normalizedArtist, cover);
     m_networkMusicArtist = normalizedArtist;
@@ -859,10 +870,11 @@ void MainWidget::handlePendingSimilarSongPlayback()
     if (!w->getNetFlag()) {
         main_list->signalPlayButtonClick(false, "");
     }
-    net_list->signalPlayButtonClick(false, "");
+    net_list->setPlayingState("", false);
     localAndDownloadWidget->setPlayingState("", false);
 
     w->setPlayNet(true);
+    rememberPlaybackQueueMetadata(filePath, title, artist, cover);
     w->setNetworkMetadata(title, artist, cover);
     m_networkMusicArtist = artist;
     m_networkMusicCover = cover;
@@ -1118,7 +1130,7 @@ void MainWidget::rebuildSidebarPlaylistButtons()
         button->setProperty("selectedPlaylist", playlistId == m_sidebarSelectedPlaylistId);
         button->setProperty("playlistId", playlistId);
         button->setProperty("trackCount", playlist.value(QStringLiteral("track_count")).toInt());
-        button->setIcon(QIcon(":/new/prefix1/icon/Music.png"));
+        button->setIcon(QIcon(":/qml/assets/ai/icons/default-music-cover.svg"));
         button->setIconSize(QSize(18, 18));
         button->setToolTip(QStringLiteral("%1\n%2 首")
                                .arg(button->text())
@@ -1217,6 +1229,9 @@ void MainWidget::updateAdaptiveLayout()
     }
     if (playlistWidget) {
         playlistWidget->setGeometry(contentRect);
+    }
+    if (userProfileWidget) {
+        userProfileWidget->setGeometry(contentRect);
     }
     if (recommendMusicWidget) {
         recommendMusicWidget->setGeometry(contentRect);

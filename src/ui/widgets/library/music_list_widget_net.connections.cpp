@@ -84,11 +84,6 @@ void MusicListWidgetNet::setupConnections()
         listWidget->addSongList(songNames, relativePaths, durations, coverUrls, artists);
     });
 
-    connect(this, &MusicListWidgetNet::signalPlayButtonClick, this,
-            [this](bool flag, const QString& filename) {
-        listWidget->setPlayingState(filename, flag);
-    });
-
     connect(m_viewModel, &OnlineMusicListViewModel::streamReady, this,
             [this](const QString& file, const QString& artist, const QString& cover) {
         if (hasPendingResolvedAction()) {

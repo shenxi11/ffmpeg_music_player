@@ -1,4 +1,6 @@
 #include "PlaybackViewModel.h"
+#include "cover_lookup.h"
+#include "local_music_cache.h"
 
 #include <QDir>
 #include <QFileInfo>
@@ -40,6 +42,7 @@ PlaybackViewModel::PlaybackViewModel(QObject* parent)
             this, [this](const QString& title, const QString& artist, qint64 duration) {
                 updateMetadata(title, artist, QString(), QString(), m_currentUrl);
                 updateDuration(duration);
+                cacheCurrentTrackMetadata();
                 emit playlistSnapshotChanged();
             });
     connect(m_audioService, &AudioService::albumArtChanged,
@@ -48,6 +51,7 @@ PlaybackViewModel::PlaybackViewModel(QObject* parent)
                 if (!trimmed.isEmpty() && m_currentAlbumArt != trimmed) {
                     m_currentAlbumArt = trimmed;
                     emit currentAlbumArtChanged();
+                    cacheCurrentTrackMetadata();
                     emit playlistSnapshotChanged();
                 }
             });
@@ -177,10 +181,25 @@ void PlaybackViewModel::rememberTrackMetadata(const QUrl& url, const QVariantMap
         return;
     }
 
-    QVariantMap normalized;
-    normalized.insert(QStringLiteral("title"), songData.value(QStringLiteral("title")).toString().trimmed());
-    normalized.insert(QStringLiteral("artist"), songData.value(QStringLiteral("artist")).toString().trimmed());
-    normalized.insert(QStringLiteral("cover"), songData.value(QStringLiteral("cover")).toString().trimmed());
+    QVariantMap normalized = m_playlistMetadataCache.value(key);
+    const QString title = songData.value(QStringLiteral("title")).toString().trimmed();
+    const QString artist = songData.value(QStringLiteral("artist")).toString().trimmed();
+    QString cover = songData.value(QStringLiteral("cover")).toString().trimmed();
+    if (cover.isEmpty()) {
+        cover = songData.value(QStringLiteral("cover_art_url")).toString().trimmed();
+    }
+
+    if (!title.isEmpty()) {
+        normalized.insert(QStringLiteral("title"), title);
+    }
+    if (!artist.isEmpty()) {
+        normalized.insert(QStringLiteral("artist"), artist);
+    }
+    if (!cover.isEmpty()) {
+        normalized.insert(QStringLiteral("cover"), cover);
+        rememberCoverForMusicPath(key, cover);
+        rememberCoverForSongMeta(title, artist, cover);
+    }
     m_playlistMetadataCache.insert(key, normalized);
 }
 
@@ -245,6 +264,7 @@ void PlaybackViewModel::onAudioServicePlaybackStarted(const QString& sessionId, 
     updatePausedState(false);
     updateBufferingState(false);
     updateMetadata(QString(), QString(), QString(), QString(), url);
+    cacheCurrentTrackMetadata();
     emit playlistSnapshotChanged();
     emit shouldStartRotation();
     emit playbackStarted();
@@ -366,6 +386,26 @@ void PlaybackViewModel::updateMetadata(const QString& title,
                                        const QString& albumArt,
                                        const QUrl& url)
 {
+    const bool urlChanged = !url.isEmpty() && m_currentUrl != url;
+    if (urlChanged) {
+        if (title.trimmed().isEmpty() && !m_currentTitle.isEmpty()) {
+            m_currentTitle.clear();
+            emit currentTitleChanged();
+        }
+        if (artist.trimmed().isEmpty() && !m_currentArtist.isEmpty()) {
+            m_currentArtist.clear();
+            emit currentArtistChanged();
+        }
+        if (album.trimmed().isEmpty() && !m_currentAlbum.isEmpty()) {
+            m_currentAlbum.clear();
+            emit currentAlbumChanged();
+        }
+        if (albumArt.trimmed().isEmpty() && !m_currentAlbumArt.isEmpty()) {
+            m_currentAlbumArt.clear();
+            emit currentAlbumArtChanged();
+        }
+    }
+
     if (m_currentTitle != title) {
         m_currentTitle = title;
         emit currentTitleChanged();
@@ -426,12 +466,12 @@ QVariantMap PlaybackViewModel::buildPlaylistSnapshotItem(const QUrl& url, int in
             ? m_currentArtist.trimmed()
             : (!cachedMetadata.value(QStringLiteral("artist")).toString().trimmed().isEmpty()
                ? cachedMetadata.value(QStringLiteral("artist")).toString().trimmed()
-               : QStringLiteral("未知艺术家"));
+               : resolveArtistForPlaylistEntry(normalizePlaylistEntryPath(url), cachedMetadata));
     const QString cover = isCurrent && !m_currentAlbumArt.trimmed().isEmpty()
             ? m_currentAlbumArt.trimmed()
             : (!cachedMetadata.value(QStringLiteral("cover")).toString().trimmed().isEmpty()
                ? cachedMetadata.value(QStringLiteral("cover")).toString().trimmed()
-               : QStringLiteral("qrc:/new/prefix1/icon/Music.png"));
+               : resolveCoverForPlaylistEntry(normalizePlaylistEntryPath(url), title, artist));
 
     QVariantMap item;
     item.insert(QStringLiteral("filePath"), normalizePlaylistEntryPath(url));
@@ -488,4 +528,88 @@ void PlaybackViewModel::prunePlaylistMetadataCache()
             ++it;
         }
     }
+}
+
+void PlaybackViewModel::cacheCurrentTrackMetadata()
+{
+    QString key;
+    if (!m_currentUrl.isEmpty()) {
+        key = normalizePlaylistEntryPath(m_currentUrl);
+    } else if (!m_currentFilePath.trimmed().isEmpty()) {
+        if (m_currentFilePath.startsWith(QStringLiteral("http"), Qt::CaseInsensitive)) {
+            key = normalizePlaylistEntryPath(QUrl(m_currentFilePath));
+        } else {
+            key = normalizeMusicPathForLookup(m_currentFilePath);
+        }
+    }
+
+    if (key.isEmpty()) {
+        return;
+    }
+
+    QVariantMap metadata = m_playlistMetadataCache.value(key);
+    const QString title = m_currentTitle.trimmed();
+    const QString artist = m_currentArtist.trimmed();
+    const QString cover = m_currentAlbumArt.trimmed();
+
+    if (!title.isEmpty()) {
+        metadata.insert(QStringLiteral("title"), title);
+    }
+    if (!artist.isEmpty()) {
+        metadata.insert(QStringLiteral("artist"), artist);
+    }
+    if (!cover.isEmpty()) {
+        metadata.insert(QStringLiteral("cover"), cover);
+        rememberCoverForMusicPath(key, cover);
+        rememberCoverForSongMeta(title, artist, cover);
+    }
+
+    if (!metadata.isEmpty()) {
+        m_playlistMetadataCache.insert(key, metadata);
+    }
+}
+
+QString PlaybackViewModel::resolveCoverForPlaylistEntry(const QString& filePath,
+                                                        const QString& title,
+                                                        const QString& artist) const
+{
+    const QString normalizedPath = normalizeMusicPathForLookup(filePath);
+    if (!normalizedPath.isEmpty()) {
+        const QList<LocalMusicInfo> localMusicList = LocalMusicCache::instance().getMusicList();
+        for (const LocalMusicInfo& info : localMusicList) {
+            if (normalizeMusicPathForLookup(info.filePath) == normalizedPath &&
+                !info.coverUrl.trimmed().isEmpty()) {
+                return info.coverUrl.trimmed();
+            }
+        }
+    }
+
+    const QString resolved = queryBestCoverForTrack(filePath, title, artist);
+    if (!resolved.trimmed().isEmpty()) {
+        return resolved.trimmed();
+    }
+
+    return QStringLiteral("qrc:/qml/assets/ai/icons/default-music-cover.svg");
+}
+
+QString PlaybackViewModel::resolveArtistForPlaylistEntry(const QString& filePath,
+                                                         const QVariantMap& cachedMetadata) const
+{
+    const QString cachedArtist = cachedMetadata.value(QStringLiteral("artist")).toString().trimmed();
+    if (!cachedArtist.isEmpty()) {
+        return cachedArtist;
+    }
+
+    const QString normalizedPath = normalizeMusicPathForLookup(filePath);
+    if (!normalizedPath.isEmpty()) {
+        const QList<LocalMusicInfo> localMusicList = LocalMusicCache::instance().getMusicList();
+        for (const LocalMusicInfo& info : localMusicList) {
+            if (normalizeMusicPathForLookup(info.filePath) == normalizedPath &&
+                !info.artist.trimmed().isEmpty()) {
+                return info.artist.trimmed();
+            }
+        }
+    }
+
+    return QStringLiteral("未知艺术家");
 }

@@ -29,7 +29,7 @@ Item {
     property int seekTargetTime: 0
     property double seekPendingSinceMs: 0
     property string songName: "\u6682\u65e0\u6b4c\u66f2"
-    property string picPath: "qrc:/new/prefix1/icon/pian.png"
+    property string picPath: "qrc:/qml/assets/ai/icons/default-music-cover.svg"
 
     // 播放控制属性
     property int playState: 0   // 0: Stop, 1: Play, 2: Pause
@@ -40,7 +40,7 @@ Item {
     property bool mlistChecked: false
     property bool deskChecked: false
     property int playMode: 2    // 0: Sequential, 1: RepeatOne, 2: RepeatAll, 3: Shuffle
-    property string playerIconPrefix: "qrc:/design/design_exports/netease_ui_pack_20260309/icon/ui/player/"
+    property string playerIconPrefix: "qrc:/qml/assets/ai/icons/player-control/"
     property int playerPageStyle: 0
     property var styleSpec: PlayerStyle.styleFor(playerPageStyle)
 

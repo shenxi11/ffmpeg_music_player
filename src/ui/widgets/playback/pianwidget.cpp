@@ -4,8 +4,8 @@ PianWidget::PianWidget(QWidget *parent) : QWidget(parent)
 {
 
     picLabel = new QLabel(this);
-    QPixmap image = QPixmap(":/new/prefix1/icon/pian.png");
-    picLabel->setPixmap(image);
+    QIcon defaultCoverIcon(QStringLiteral(":/qml/assets/ai/icons/default-music-cover.svg"));
+    picLabel->setPixmap(defaultCoverIcon.pixmap(100, 100));
     picLabel->setFixedSize(100, 100);
     picLabel->setAlignment(Qt::AlignCenter);
     nameLabel = new QLabel("暂无歌曲", this);
@@ -30,5 +30,10 @@ void PianWidget::mousePressEvent(QMouseEvent *event)
 void PianWidget::onSetPicPath(QString picPath)
 {
     QPixmap image = QPixmap(picPath);
+    if (image.isNull()) {
+        QIcon defaultCoverIcon(QStringLiteral(":/qml/assets/ai/icons/default-music-cover.svg"));
+        picLabel->setPixmap(defaultCoverIcon.pixmap(100, 100));
+        return;
+    }
     picLabel->setPixmap(image);
 }

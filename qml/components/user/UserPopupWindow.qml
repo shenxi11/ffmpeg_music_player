@@ -8,17 +8,18 @@ Window {
     id: popupWindow
     
     width: 180
-    height: 140
+    height: popupWindow.isLoggedIn ? 182 : 140
     flags: Qt.Popup | Qt.FramelessWindowHint | Qt.NoDropShadowWindowHint
     color: "transparent"
     
     // 属性
     property bool isLoggedIn: false
     property string username: "未登录"
-    property string avatarSource: "qrc:/design/design_exports/netease_ui_pack_20260309/icon/ui/base/base_icon_user_default@2x.png"
+    property string avatarSource: "qrc:/qml/assets/ai/icons/default-user-avatar.svg"
     
     // 信号
     signal loginRequested()
+    signal profileRequested()
     signal logoutRequested()
     
     // 点击外部区域关闭
@@ -114,18 +115,44 @@ Window {
                 color: "#EEEEEE"
             }
             
-            // 登录/退出按钮
             Button {
+                visible: popupWindow.isLoggedIn
                 width: parent.width
-                height: 36
-                
+                height: visible ? 36 : 0
+
                 background: Rectangle {
                     color: parent.hovered ? Qt.rgba(0, 0.48, 0.8, 0.1) : "transparent"
                     radius: 8
                     border.width: 1
                     border.color: Qt.rgba(0, 0.48, 0.8, 0.3)
                 }
-                
+
+                contentItem: Text {
+                    text: "个人主页"
+                    font.pixelSize: 14
+                    color: Qt.rgba(0, 0.48, 0.8, 1.0)
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+
+                onClicked: {
+                    popupWindow.profileRequested()
+                    popupWindow.close()
+                }
+            }
+
+            // 登录/退出按钮
+            Button {
+                width: parent.width
+                height: 36
+
+                background: Rectangle {
+                    color: parent.hovered ? Qt.rgba(0, 0.48, 0.8, 0.1) : "transparent"
+                    radius: 8
+                    border.width: 1
+                    border.color: Qt.rgba(0, 0.48, 0.8, 0.3)
+                }
+
                 contentItem: Text {
                     text: popupWindow.isLoggedIn ? "退出登录" : "登录"
                     font.pixelSize: 14
@@ -133,7 +160,7 @@ Window {
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                 }
-                
+
                 onClicked: {
                     if (popupWindow.isLoggedIn) {
                         popupWindow.logoutRequested()

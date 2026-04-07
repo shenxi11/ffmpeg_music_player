@@ -31,6 +31,7 @@ void MainWidget::handleAudioPlaybackStarted(const QString& sessionId, const QUrl
     favoriteMusicWidget->setCurrentPlayingPath(filePath);
     favoriteMusicWidget->setPlayingState(filePath, true);
     localAndDownloadWidget->setPlayingState(filePath, true);
+    net_list->setPlayingState(filePath, true);
     recommendMusicWidget->setCurrentPlayingPath(filePath);
     recommendMusicWidget->setPlayingState(filePath, true);
     playlistWidget->setCurrentPlayingPath(filePath);
@@ -65,6 +66,7 @@ void MainWidget::handleAudioPlaybackPaused()
         filePath = url.toString();
     }
     localAndDownloadWidget->setPlayingState(filePath, false);
+    net_list->setPlayingState(filePath, false);
     playHistoryWidget->setPlayingState(filePath, false);
     favoriteMusicWidget->setPlayingState(filePath, false);
     recommendMusicWidget->setPlayingState(filePath, false);
@@ -83,6 +85,7 @@ void MainWidget::handleAudioPlaybackResumed()
         filePath = url.toString();
     }
     localAndDownloadWidget->setPlayingState(filePath, true);
+    net_list->setPlayingState(filePath, true);
     favoriteMusicWidget->setPlayingState(filePath, true);
     playHistoryWidget->setPlayingState(filePath, true);
     recommendMusicWidget->setPlayingState(filePath, true);
@@ -103,6 +106,7 @@ void MainWidget::handleAudioPlaybackStopped()
     recommendMusicWidget->setPlayingState("", false);
     playlistWidget->setCurrentPlayingPath("");
     playlistWidget->setPlayingState("", false);
+    net_list->setPlayingState("", false);
     localAndDownloadWidget->setPlayingState("", false);
     w->clearSimilarRecommendations();
 }

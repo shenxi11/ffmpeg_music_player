@@ -227,7 +227,7 @@ Rectangle {
                     Image {
                         anchors.fill: parent
                         anchors.margins: 2
-                        source: model.cover !== "" ? model.cover : "qrc:/new/prefix1/icon/Music.png"
+                        source: model.cover !== "" ? model.cover : "qrc:/qml/assets/ai/icons/default-music-cover.svg"
                         fillMode: Image.PreserveAspectCrop
                         smooth: true
                         cache: true

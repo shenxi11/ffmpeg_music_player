@@ -109,6 +109,12 @@ private:
     QVariantMap buildPlaylistSnapshotItem(const QUrl& url, int index) const;
     static QString normalizePlaylistEntryPath(const QUrl& url);
     static QString titleFromUrl(const QUrl& url);
+    void cacheCurrentTrackMetadata();
+    QString resolveCoverForPlaylistEntry(const QString& filePath,
+                                         const QString& title,
+                                         const QString& artist) const;
+    QString resolveArtistForPlaylistEntry(const QString& filePath,
+                                          const QVariantMap& cachedMetadata) const;
     void prunePlaylistMetadataCache();
     void syncPlaybackStateFromService(const char* sourceTag);
     void updatePlayingState(bool playing);

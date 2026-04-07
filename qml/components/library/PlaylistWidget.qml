@@ -20,7 +20,7 @@ Rectangle {
     property bool subscribedGroupExpanded: true
     property string listIconPrefix: "qrc:/design/design_exports/netease_ui_pack_20260309/icon/ui/list/"
     property string playerIconPrefix: "qrc:/design/design_exports/netease_ui_pack_20260309/icon/ui/player/"
-    property string defaultCover: "qrc:/new/prefix1/icon/Music.png"
+    property string defaultCover: "qrc:/qml/assets/ai/icons/default-music-cover.svg"
 
     signal loginRequested()
     signal refreshRequested()

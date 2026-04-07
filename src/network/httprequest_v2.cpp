@@ -1,6 +1,7 @@
 #include "httprequest_v2.h"
 #include "headers.h"
 #include "download_manager.h"
+#include "cover_lookup.h"
 #include "local_music_cache.h"
 #include "online_presence_manager.h"
 #include "settings_manager.h"
@@ -13,6 +14,13 @@
 #include <QJsonArray>
 #include <QStringList>
 #include <QSet>
+#include <QHttpMultiPart>
+#include <QHttpPart>
+#include <QFile>
+#include <QMimeDatabase>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
 #include <QUrl>
 #include <QUrlQuery>
 
@@ -150,27 +158,6 @@ bool shouldRewriteAbsoluteServiceUrl(const QUrl& url, const QUrl& base)
            path.startsWith("/lrc", Qt::CaseInsensitive) ||
            path.startsWith("/download", Qt::CaseInsensitive) ||
            path.startsWith("/files/", Qt::CaseInsensitive);
-}
-
-QString normalizeMusicPathForLookup(QString path)
-{
-    path = path.trimmed();
-    if (path.isEmpty()) {
-        return QString();
-    }
-
-    if (path.startsWith("file://", Qt::CaseInsensitive)) {
-        const QUrl url(path);
-        if (url.isLocalFile()) {
-            path = url.toLocalFile();
-        }
-    }
-
-    path.replace('\\', '/');
-    if (path.size() >= 2 && path[1] == ':') {
-        path = path.toLower();
-    }
-    return path;
 }
 
 QString fileNameFromPath(const QString& path)
@@ -402,6 +389,7 @@ QString parseMessageText(const QJsonObject& obj, const QString& fallback = QStri
     return fallback;
 }
 
+
 int durationSecondsFromText(const QString& duration)
 {
     const QString text = duration.trimmed();
@@ -568,18 +556,6 @@ QString normalizeOnlineMediaPath(const QString& rawPath, const QString& baseUrl)
     return QUrl(baseUrl + "uploads/" + relative).toString();
 }
 
-QHash<QString, QString>& coverLookupTable()
-{
-    static QHash<QString, QString> s_coverByMusicPath;
-    return s_coverByMusicPath;
-}
-
-QHash<QString, QString>& coverLookupByMetaTable()
-{
-    static QHash<QString, QString> s_coverByMeta;
-    return s_coverByMeta;
-}
-
 QString normalizeNullableText(const QString& value)
 {
     const QString trimmed = value.trimmed();
@@ -596,125 +572,21 @@ QString normalizeNullableText(const QString& value)
     return trimmed;
 }
 
-QStringList buildMusicLookupKeys(const QString& rawPath)
+QVariantMap buildUserProfileMap(const QJsonObject& rootObj, const QString& baseUrl)
 {
-    QStringList keys;
-    const QString cleaned = normalizeNullableText(rawPath);
-    if (cleaned.isEmpty()) {
-        return keys;
-    }
-
-    auto appendKey = [&keys](const QString& candidate) {
-        const QString key = normalizeMusicPathForLookup(candidate);
-        if (!key.isEmpty() && !keys.contains(key)) {
-            keys.append(key);
-        }
-    };
-
-    auto appendNameKeys = [&appendKey](const QString& candidatePath) {
-        QString value = candidatePath;
-        value.replace('\\', '/');
-        const QFileInfo info(value);
-        const QString fileName = info.fileName().trimmed();
-        if (!fileName.isEmpty()) {
-            appendKey(fileName);
-        }
-        const QString baseName = info.completeBaseName().trimmed();
-        if (!baseName.isEmpty()) {
-            appendKey(baseName);
-        }
-    };
-
-    appendKey(cleaned);
-    appendNameKeys(cleaned);
-
-    QUrl url(cleaned);
-    if (url.isValid() && (cleaned.startsWith(QStringLiteral("http://"), Qt::CaseInsensitive) ||
-                          cleaned.startsWith(QStringLiteral("https://"), Qt::CaseInsensitive))) {
-        const QString decodedPath = QUrl::fromPercentEncoding(url.path().toUtf8());
-        appendKey(decodedPath);
-        appendNameKeys(decodedPath);
-        if (decodedPath.startsWith('/')) {
-            appendKey(decodedPath.mid(1));
-            appendNameKeys(decodedPath.mid(1));
-        }
-
-        const QString pathLower = decodedPath.toLower();
-        const int uploadsPos = pathLower.indexOf(QStringLiteral("/uploads/"));
-        if (uploadsPos >= 0) {
-            appendKey(decodedPath.mid(uploadsPos + 1));
-            appendNameKeys(decodedPath.mid(uploadsPos + 1));
-        }
-    } else if (cleaned.startsWith('/')) {
-        appendKey(cleaned.mid(1));
-        appendNameKeys(cleaned.mid(1));
-    }
-
-    return keys;
-}
-
-void rememberCoverForMusicPath(const QString& rawPath, const QString& rawCover)
-{
-    const QString cover = normalizeNullableText(rawCover);
-    if (cover.isEmpty()) {
-        return;
-    }
-    const QStringList keys = buildMusicLookupKeys(rawPath);
-    if (keys.isEmpty()) {
-        return;
-    }
-    QHash<QString, QString>& lookup = coverLookupTable();
-    for (const QString& key : keys) {
-        lookup.insert(key, cover);
-    }
-}
-
-QString queryCoverForMusicPath(const QString& rawPath)
-{
-    const QStringList keys = buildMusicLookupKeys(rawPath);
-    if (keys.isEmpty()) {
-        return QString();
-    }
-    const QHash<QString, QString>& lookup = coverLookupTable();
-    for (const QString& key : keys) {
-        auto it = lookup.constFind(key);
-        if (it != lookup.constEnd()) {
-            return it.value();
-        }
-    }
-    return QString();
-}
-
-QString buildSongMetaKey(const QString& title, const QString& artist)
-{
-    const QString t = normalizeNullableText(title).toLower();
-    const QString a = normalizeNullableText(artist).toLower();
-    if (t.isEmpty()) {
-        return QString();
-    }
-    return t + QStringLiteral("|") + a;
-}
-
-void rememberCoverForSongMeta(const QString& title, const QString& artist, const QString& rawCover)
-{
-    const QString cover = normalizeNullableText(rawCover);
-    if (cover.isEmpty()) {
-        return;
-    }
-    const QString key = buildSongMetaKey(title, artist);
-    if (key.isEmpty()) {
-        return;
-    }
-    coverLookupByMetaTable().insert(key, cover);
-}
-
-QString queryCoverForSongMeta(const QString& title, const QString& artist)
-{
-    const QString key = buildSongMetaKey(title, artist);
-    if (key.isEmpty()) {
-        return QString();
-    }
-    return coverLookupByMetaTable().value(key);
+    const QJsonObject data = unwrapDataObject(rootObj);
+    QVariantMap profile;
+    profile.insert(QStringLiteral("account"),
+                   normalizeNullableText(data.value(QStringLiteral("account")).toString()));
+    profile.insert(QStringLiteral("username"),
+                   normalizeNullableText(data.value(QStringLiteral("username")).toString()));
+    profile.insert(QStringLiteral("avatar_url"),
+                   rewriteServiceUrlToBase(data.value(QStringLiteral("avatar_url")).toString(), baseUrl));
+    profile.insert(QStringLiteral("created_at"),
+                   normalizeNullableText(data.value(QStringLiteral("created_at")).toString()));
+    profile.insert(QStringLiteral("updated_at"),
+                   normalizeNullableText(data.value(QStringLiteral("updated_at")).toString()));
+    return profile;
 }
 
 QString buildCoverPathForPlaylistPayload(const QString& rawCover)
@@ -814,19 +686,22 @@ void HttpRequestV2::login(const QString& account, const QString& password)
                     user->setPassword(password);
 
                     QString username;
+                    QString avatarUrl;
                     
                     if (result.contains("username")) {
                         username = result.value("username").toString();
                         user->setUsername(username);
-                        emit signalGetusername(username);
                         qDebug() << "[HttpRequestV2] Login successful, username:" << username;
                     }
+                    avatarUrl = rewriteServiceUrlToBase(result.value("avatar_url").toString(), m_baseUrl);
 
                     const QString onlineToken = result.value("online_session_token").toString().trimmed();
                     const int heartbeatSec = result.value("online_heartbeat_interval_sec").toInt(30);
                     const int ttlSec = result.value("online_ttl_sec").toInt(600);
                     OnlinePresenceManager::instance().onLoginSucceeded(
                         account, username, onlineToken, heartbeatSec, ttlSec);
+                    emit signalLoginProfile(username, avatarUrl, onlineToken);
+                    emit signalGetusername(username);
                     
                     // 设置用户收藏歌曲列表
                     if (result.contains("song_path_list")) {
@@ -2631,6 +2506,163 @@ void HttpRequestV2::reorderPlaylistItems(const QString& userAccount, qint64 play
 
             emit signalReorderPlaylistItemsResult(success, playlistId, message);
         });
+}
+
+void HttpRequestV2::getUserProfile(const QString& account, const QString& sessionToken)
+{
+    const QString trimmedAccount = account.trimmed();
+    const QString trimmedToken = sessionToken.trimmed();
+    if (trimmedAccount.isEmpty() || trimmedToken.isEmpty()) {
+        emit signalUserProfileResult(false, QVariantMap(), QStringLiteral("账号或会话无效"), 400);
+        return;
+    }
+
+    QUrlQuery query;
+    query.addQueryItem(QStringLiteral("account"), trimmedAccount);
+    query.addQueryItem(QStringLiteral("session_token"), trimmedToken);
+
+    QString path = QStringLiteral("users/profile?");
+    path += query.toString(QUrl::FullyEncoded);
+
+    auto options = Network::RequestOptions::critical();
+    options.useCache = false;
+    options.maxRetries = 0;
+
+    m_networkService.get(path, options, [this](const Network::NetworkResponse& response) {
+        if (!response.isSuccess()) {
+            const QString message = extractErrorMessage(response, response.errorString);
+            emit signalUserProfileResult(false, QVariantMap(), message, response.statusCode);
+            return;
+        }
+
+        const QJsonObject rootObj = Network::NetworkService::parseJsonObject(response);
+        const bool success = parseSuccessFlag(rootObj, true);
+        const QString message = parseMessageText(rootObj, success ? QString() : QStringLiteral("获取资料失败"));
+        emit signalUserProfileResult(success,
+                                     success ? buildUserProfileMap(rootObj, m_baseUrl) : QVariantMap(),
+                                     message,
+                                     response.statusCode);
+    });
+}
+
+void HttpRequestV2::updateUsername(const QString& account,
+                                   const QString& sessionToken,
+                                   const QString& username)
+{
+    const QString trimmedAccount = account.trimmed();
+    const QString trimmedToken = sessionToken.trimmed();
+    const QString trimmedUsername = username.trimmed();
+    if (trimmedAccount.isEmpty() || trimmedToken.isEmpty() || trimmedUsername.isEmpty()) {
+        emit signalUpdateUsernameResult(false, QString(), QStringLiteral("用户名或会话无效"), 400);
+        return;
+    }
+
+    QJsonObject payload;
+    payload.insert(QStringLiteral("account"), trimmedAccount);
+    payload.insert(QStringLiteral("session_token"), trimmedToken);
+    payload.insert(QStringLiteral("username"), trimmedUsername);
+
+    auto options = Network::RequestOptions::critical();
+    options.useCache = false;
+    options.maxRetries = 0;
+
+    m_networkService.postJson(QStringLiteral("users/profile/username"), payload, options,
+        [this](const Network::NetworkResponse& response) {
+            if (!response.isSuccess()) {
+                const QString message = extractErrorMessage(response, response.errorString);
+                emit signalUpdateUsernameResult(false, QString(), message, response.statusCode);
+                return;
+            }
+
+            const QJsonObject rootObj = Network::NetworkService::parseJsonObject(response);
+            const bool success = parseSuccessFlag(rootObj, true);
+            const QJsonObject data = unwrapDataObject(rootObj);
+            const QString updatedUsername = normalizeNullableText(
+                data.value(QStringLiteral("username")).toString());
+            const QString message = parseMessageText(rootObj, success ? QString() : QStringLiteral("用户名修改失败"));
+            emit signalUpdateUsernameResult(success,
+                                            success ? updatedUsername : QString(),
+                                            message,
+                                            response.statusCode);
+        });
+}
+
+void HttpRequestV2::uploadAvatar(const QString& account,
+                                 const QString& sessionToken,
+                                 const QString& filePath)
+{
+    const QString trimmedAccount = account.trimmed();
+    const QString trimmedToken = sessionToken.trimmed();
+    const QString trimmedFilePath = filePath.trimmed();
+    if (trimmedAccount.isEmpty() || trimmedToken.isEmpty() || trimmedFilePath.isEmpty()) {
+        emit signalUploadAvatarResult(false, QString(), QStringLiteral("头像上传参数无效"), 400);
+        return;
+    }
+
+    auto* file = new QFile(trimmedFilePath);
+    if (!file->open(QIODevice::ReadOnly)) {
+        file->deleteLater();
+        emit signalUploadAvatarResult(false, QString(), QStringLiteral("头像文件无法读取"), 400);
+        return;
+    }
+
+    QHttpPart accountPart;
+    accountPart.setHeader(QNetworkRequest::ContentDispositionHeader,
+                          QVariant(QStringLiteral("form-data; name=\"account\"")));
+    accountPart.setBody(trimmedAccount.toUtf8());
+
+    QHttpPart tokenPart;
+    tokenPart.setHeader(QNetworkRequest::ContentDispositionHeader,
+                        QVariant(QStringLiteral("form-data; name=\"session_token\"")));
+    tokenPart.setBody(trimmedToken.toUtf8());
+
+    QMimeDatabase mimeDatabase;
+    const QString mimeType = mimeDatabase.mimeTypeForFile(trimmedFilePath).name();
+
+    QHttpPart avatarPart;
+    avatarPart.setHeader(QNetworkRequest::ContentTypeHeader,
+                         mimeType.isEmpty() ? QVariant(QStringLiteral("application/octet-stream"))
+                                            : QVariant(mimeType));
+    avatarPart.setHeader(QNetworkRequest::ContentDispositionHeader,
+                         QVariant(QStringLiteral("form-data; name=\"avatar\"; filename=\"%1\"")
+                                      .arg(QFileInfo(trimmedFilePath).fileName())));
+    avatarPart.setBodyDevice(file);
+
+    auto* multiPart = new QHttpMultiPart(QHttpMultiPart::FormDataType);
+    multiPart->append(accountPart);
+    multiPart->append(tokenPart);
+    multiPart->append(avatarPart);
+    file->setParent(multiPart);
+
+    auto* manager = new QNetworkAccessManager(this);
+    QNetworkRequest request(QUrl(m_baseUrl + QStringLiteral("users/profile/avatar")));
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
+                         QNetworkRequest::NoLessSafeRedirectPolicy);
+
+    QNetworkReply* reply = manager->post(request, multiPart);
+    multiPart->setParent(reply);
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply, manager]() {
+        const int statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        const QByteArray body = reply->readAll();
+        const QJsonDocument doc = QJsonDocument::fromJson(body);
+        const QJsonObject rootObj = doc.isObject() ? doc.object() : QJsonObject();
+        const bool success = reply->error() == QNetworkReply::NoError && parseSuccessFlag(rootObj, true);
+        const QString fallbackMessage = reply->error() == QNetworkReply::NoError
+                ? QStringLiteral("头像上传失败")
+                : reply->errorString();
+        const QString message = parseMessageText(rootObj, fallbackMessage);
+        const QString avatarUrl = rewriteServiceUrlToBase(
+            unwrapDataObject(rootObj).value(QStringLiteral("avatar_url")).toString(),
+            m_baseUrl);
+
+        emit signalUploadAvatarResult(success,
+                                      success ? avatarUrl : QString(),
+                                      message,
+                                      statusCode);
+        reply->deleteLater();
+        manager->deleteLater();
+    });
 }
 
 

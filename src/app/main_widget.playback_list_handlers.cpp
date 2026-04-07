@@ -72,7 +72,7 @@ void MainWidget::handleLocalListPlayClick(const QString& name, bool flag)
 {
     if (w->getNetFlag()) {
         qDebug() << "[Switch source] Network music -> local music, clear network playing state";
-        net_list->signalPlayButtonClick(false, "");
+        net_list->setPlayingState("", false);
     }
     localAndDownloadWidget->setPlayingState("", false);
     w->setPlayNet(flag);
@@ -86,7 +86,7 @@ void MainWidget::handleLocalAndDownloadPlayMusic(const QString& filename)
 {
     qDebug() << "[LocalAndDownloadWidget] Play music:" << filename;
     if (w->getNetFlag()) {
-        net_list->signalPlayButtonClick(false, "");
+        net_list->setPlayingState("", false);
     }
     main_list->signalPlayButtonClick(false, "");
     localAndDownloadWidget->setPlayingState(filename, false);
@@ -150,6 +150,7 @@ void MainWidget::handleNetListPlayClick(const QString& name,
     w->setPlayNet(flag);
 
     const QString normalizedArtist = normalizeArtistForHistory(artist);
+    rememberPlaybackQueueMetadata(name, QString(), normalizedArtist, cover);
     w->setNetworkMetadata(normalizedArtist, cover);
 
     m_networkMusicArtist = normalizedArtist;
@@ -161,7 +162,7 @@ void MainWidget::handleHistoryPlayMusic(const QString& filePath)
 {
     qDebug() << "[PlayHistoryWidget] Play music:" << filePath;
     if (w->getNetFlag()) {
-        net_list->signalPlayButtonClick(false, "");
+        net_list->setPlayingState("", false);
     }
     main_list->signalPlayButtonClick(false, "");
     localAndDownloadWidget->setPlayingState("", false);
@@ -180,7 +181,7 @@ void MainWidget::handleHistoryPlayMusicWithMetadata(const QString& filePath,
              << "title:" << title << "artist:" << artist << "cover:" << cover;
 
     if (w->getNetFlag()) {
-        net_list->signalPlayButtonClick(false, "");
+        net_list->setPlayingState("", false);
     }
     main_list->signalPlayButtonClick(false, "");
     localAndDownloadWidget->setPlayingState("", false);
@@ -188,6 +189,7 @@ void MainWidget::handleHistoryPlayMusicWithMetadata(const QString& filePath,
     const bool isLocal = !filePath.startsWith("http");
     w->setPlayNet(!isLocal);
     const QString normalizedArtist = normalizeArtistForHistory(artist);
+    rememberPlaybackQueueMetadata(filePath, title, normalizedArtist, cover);
     w->setNetworkMetadata(title, normalizedArtist, cover);
     if (!isLocal) {
         m_networkMusicArtist = normalizedArtist;
