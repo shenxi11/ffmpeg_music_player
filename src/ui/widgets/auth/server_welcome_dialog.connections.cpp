@@ -4,6 +4,7 @@
 
 #include <QGuiApplication>
 #include <QKeySequence>
+#include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QScreen>
@@ -20,6 +21,8 @@ void ServerWelcomeDialog::setupInteractionConnections()
 {
     connect(m_verifyButton, &QPushButton::clicked, this, &ServerWelcomeDialog::onVerifyClicked);
     connect(m_cancelButton, &QPushButton::clicked, this, &ServerWelcomeDialog::reject);
+    connect(m_localOnlyEntryLabel, &QLabel::linkActivated, this,
+            &ServerWelcomeDialog::onEnterLocalOnlyClicked);
     connect(m_centerButton, &QPushButton::clicked, this, &ServerWelcomeDialog::moveToScreenCenter);
     connect(m_closeButton, &QPushButton::clicked, this, &ServerWelcomeDialog::reject);
     connect(new QShortcut(QKeySequence(Qt::Key_Escape), this),

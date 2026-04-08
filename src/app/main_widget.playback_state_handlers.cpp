@@ -39,7 +39,7 @@ void MainWidget::handleAudioPlaybackStarted(const QString& sessionId, const QUrl
     qDebug() << "[MainWidget] setCurrentPlayingPath calls completed";
 
     const QString songId = extractSongIdFromMediaPath(filePath);
-    if (!songId.isEmpty() && m_viewModel) {
+    if (!m_localOnlyMode && !songId.isEmpty() && m_viewModel) {
         m_viewModel->requestSimilarRecommendations(songId, 12);
     } else {
         w->clearSimilarRecommendations();
