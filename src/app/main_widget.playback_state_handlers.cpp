@@ -12,13 +12,13 @@
 维护说明: 仅维护状态切换与界面同步，不承载列表播放入口逻辑。
 */
 
-void MainWidget::handleAudioPlaybackStarted(const QString& sessionId, const QUrl& url)
-{
+void MainWidget::handleAudioPlaybackStarted(const QString& sessionId, const QUrl& url) {
     if (m_playbackStateManager) {
         m_playbackStateManager->onAudioPlayIntent();
     }
 
-    qDebug() << "[MainWidget] playbackStarted signal received! sessionId:" << sessionId << "url:" << url;
+    qDebug() << "[MainWidget] playbackStarted signal received! sessionId:" << sessionId
+             << "url:" << url;
 
     QString filePath = url.toLocalFile();
     if (filePath.isEmpty()) {
@@ -39,7 +39,7 @@ void MainWidget::handleAudioPlaybackStarted(const QString& sessionId, const QUrl
     qDebug() << "[MainWidget] setCurrentPlayingPath calls completed";
 
     const QString songId = extractSongIdFromMediaPath(filePath);
-    if (!songId.isEmpty() && m_viewModel) {
+    if (!m_localOnlyMode && !songId.isEmpty() && m_viewModel) {
         m_viewModel->requestSimilarRecommendations(songId, 12);
     } else {
         w->clearSimilarRecommendations();
@@ -54,8 +54,7 @@ void MainWidget::handleAudioPlaybackStarted(const QString& sessionId, const QUrl
     submitPlayHistoryWithRetry(sessionId, filePath, userAccount, 1);
 }
 
-void MainWidget::handleAudioPlaybackPaused()
-{
+void MainWidget::handleAudioPlaybackPaused() {
     if (m_playbackStateManager) {
         m_playbackStateManager->onAudioInactive();
     }
@@ -73,8 +72,7 @@ void MainWidget::handleAudioPlaybackPaused()
     playlistWidget->setPlayingState(filePath, false);
 }
 
-void MainWidget::handleAudioPlaybackResumed()
-{
+void MainWidget::handleAudioPlaybackResumed() {
     if (m_playbackStateManager) {
         m_playbackStateManager->onAudioPlayIntent();
     }
@@ -92,8 +90,7 @@ void MainWidget::handleAudioPlaybackResumed()
     playlistWidget->setPlayingState(filePath, true);
 }
 
-void MainWidget::handleAudioPlaybackStopped()
-{
+void MainWidget::handleAudioPlaybackStopped() {
     if (m_playbackStateManager) {
         m_playbackStateManager->onAudioInactive();
     }
@@ -111,8 +108,7 @@ void MainWidget::handleAudioPlaybackStopped()
     w->clearSimilarRecommendations();
 }
 
-void MainWidget::handlePlayWidgetBigClicked(bool checked)
-{
+void MainWidget::handlePlayWidgetBigClicked(bool checked) {
     qDebug() << "[MainWidget] signalBigClicked checked =" << checked;
     if (checked) {
         if (topWidget) {

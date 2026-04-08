@@ -50,6 +50,7 @@ Rectangle {
             source: root.avatarSource
             fillMode: Image.PreserveAspectFit
             smooth: true
+            cache: false
             
             // 圆形遮罩
             layer.enabled: true

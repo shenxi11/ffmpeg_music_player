@@ -88,6 +88,22 @@ ServerWelcomeDialog::ServerWelcomeDialog(bool autoVerifyOnShow, QWidget* parent)
         "  color: #6f7785;"
         "  font-size: 12px;"
         "}"
+        "QLabel#SecondaryLinkLabel {"
+        "  color: #7d8797;"
+        "  font-size: 12px;"
+        "  padding: 0 4px 0 0;"
+        "}"
+        "QLabel#SecondaryLinkLabel[disabled=\"true\"] {"
+        "  color: #c8cdd7;"
+        "}"
+        "QLabel#SecondaryLinkLabel a {"
+        "  color: #7d8797;"
+        "  text-decoration: none;"
+        "}"
+        "QLabel#SecondaryLinkLabel a:hover {"
+        "  color: #ec4141;"
+        "  text-decoration: underline;"
+        "}"
         "QLineEdit, QSpinBox {"
         "  min-height: 44px;"
         "  border: 1px solid #f1d8d8;"
@@ -272,6 +288,14 @@ ServerWelcomeDialog::ServerWelcomeDialog(bool autoVerifyOnShow, QWidget* parent)
     m_verifyButton->setDefault(true);
     m_cancelButton = new QPushButton(QStringLiteral(u"\u9000\u51fa"), card);
     m_cancelButton->setObjectName(QStringLiteral("CancelButton"));
+    m_localOnlyEntryLabel = new QLabel(card);
+    m_localOnlyEntryLabel->setObjectName(QStringLiteral("SecondaryLinkLabel"));
+    m_localOnlyEntryLabel->setText(
+        QStringLiteral("<a href=\"localOnly\">不连接，直接进入</a>"));
+    m_localOnlyEntryLabel->setTextFormat(Qt::RichText);
+    m_localOnlyEntryLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
+    m_localOnlyEntryLabel->setCursor(Qt::PointingHandCursor);
+    m_localOnlyEntryLabel->setOpenExternalLinks(false);
     m_centerButton = new QPushButton(QStringLiteral("C"), card);
     m_centerButton->setObjectName(QStringLiteral("CenterButton"));
     m_centerButton->setToolTip(QStringLiteral(u"\u6062\u590d\u5c45\u4e2d"));
@@ -296,6 +320,11 @@ ServerWelcomeDialog::ServerWelcomeDialog(bool autoVerifyOnShow, QWidget* parent)
     buttonLayout->addStretch();
     buttonLayout->addWidget(m_cancelButton);
     buttonLayout->addWidget(m_verifyButton);
+
+    QHBoxLayout* localOnlyLayout = new QHBoxLayout();
+    localOnlyLayout->setContentsMargins(0, 0, 0, 0);
+    localOnlyLayout->addStretch();
+    localOnlyLayout->addWidget(m_localOnlyEntryLabel, 0, Qt::AlignRight);
 
     QHBoxLayout* brandLayout = new QHBoxLayout();
     brandLayout->setSpacing(14);
@@ -329,6 +358,7 @@ ServerWelcomeDialog::ServerWelcomeDialog(bool autoVerifyOnShow, QWidget* parent)
     rightLayout->addWidget(statusFrame);
     rightLayout->addStretch();
     rightLayout->addLayout(buttonLayout);
+    rightLayout->addLayout(localOnlyLayout);
 
     QHBoxLayout* contentLayout = new QHBoxLayout();
     contentLayout->setSpacing(14);
@@ -466,6 +496,7 @@ QPoint ServerWelcomeDialog::adjustedWindowPos(const QPoint& desiredTopLeft, bool
 
 void ServerWelcomeDialog::onVerifyClicked()
 {
+    m_enterLocalOnly = false;
     setUiBusy(true);
     setStatusMessage(QStringLiteral(u"\u6b63\u5728\u9a8c\u8bc1\u670d\u52a1\u5668\uff0c\u8bf7\u7a0d\u5019..."), false);
 
@@ -496,6 +527,16 @@ void ServerWelcomeDialog::onVerifyClicked()
     setUiBusy(false);
 }
 
+void ServerWelcomeDialog::onEnterLocalOnlyClicked()
+{
+    if (m_verifyButton && !m_verifyButton->isEnabled()) {
+        return;
+    }
+
+    m_enterLocalOnly = true;
+    accept();
+}
+
 void ServerWelcomeDialog::setUiBusy(bool busy)
 {
     if (m_hostEdit) {
@@ -512,6 +553,9 @@ void ServerWelcomeDialog::setUiBusy(bool busy)
     }
     if (m_cancelButton) {
         m_cancelButton->setEnabled(!busy);
+    }
+    if (m_localOnlyEntryLabel) {
+        m_localOnlyEntryLabel->setEnabled(!busy);
     }
 }
 

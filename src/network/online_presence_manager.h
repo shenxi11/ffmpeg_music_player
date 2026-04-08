@@ -1,22 +1,19 @@
 #ifndef ONLINE_PRESENCE_MANAGER_H
 #define ONLINE_PRESENCE_MANAGER_H
 
+#include "network/network_service.h"
+
 #include <QObject>
 #include <QTimer>
 
-#include "network/network_service.h"
-
-class OnlinePresenceManager : public QObject
-{
+class OnlinePresenceManager : public QObject {
     Q_OBJECT
 
-public:
+  public:
     static OnlinePresenceManager& instance();
 
-    void onLoginSucceeded(const QString& account,
-                          const QString& username,
-                          const QString& sessionTokenFromLogin,
-                          int heartbeatIntervalSec,
+    void onLoginSucceeded(const QString& account, const QString& username,
+                          const QString& sessionTokenFromLogin, int heartbeatIntervalSec,
                           int ttlSec);
     void ensureSessionForUser(const QString& account, const QString& username);
     void updateCurrentUsername(const QString& username);
@@ -27,38 +24,49 @@ public:
 
     bool hasSession() const;
     QString currentToken() const;
-    QString currentAccount() const { return m_account; }
-    QString currentUsername() const { return m_username; }
-    bool currentOnline() const { return m_online; }
-    int currentHeartbeatIntervalSec() const { return m_heartbeatIntervalSec; }
-    int currentOnlineTtlSec() const { return m_onlineTtlSec; }
-    int currentTtlRemainingSec() const { return m_ttlRemainingSec; }
-    QString currentStatusMessage() const { return m_statusMessage; }
-    qint64 currentLastSeenAt() const { return m_lastSeenAt; }
+    QString currentAccount() const {
+        return m_account;
+    }
+    QString currentUsername() const {
+        return m_username;
+    }
+    bool currentOnline() const {
+        return m_online;
+    }
+    int currentHeartbeatIntervalSec() const {
+        return m_heartbeatIntervalSec;
+    }
+    int currentOnlineTtlSec() const {
+        return m_onlineTtlSec;
+    }
+    int currentTtlRemainingSec() const {
+        return m_ttlRemainingSec;
+    }
+    QString currentStatusMessage() const {
+        return m_statusMessage;
+    }
+    qint64 currentLastSeenAt() const {
+        return m_lastSeenAt;
+    }
 
-signals:
+  signals:
     void sessionExpired();
-    void presenceSnapshotChanged(const QString& account,
-                                 const QString& sessionToken,
-                                 bool online,
-                                 int heartbeatIntervalSec,
-                                 int onlineTtlSec,
-                                 int ttlRemainingSec,
-                                 const QString& statusMessage,
-                                 qint64 lastSeenAt);
+    void presenceSnapshotChanged(const QString& account, const QString& sessionToken, bool online,
+                                 int heartbeatIntervalSec, int onlineTtlSec, int ttlRemainingSec,
+                                 const QString& statusMessage, qint64 lastSeenAt);
 
-private:
+  private:
     explicit OnlinePresenceManager(QObject* parent = nullptr);
     ~OnlinePresenceManager() override = default;
 
     OnlinePresenceManager(const OnlinePresenceManager&) = delete;
     OnlinePresenceManager& operator=(const OnlinePresenceManager&) = delete;
 
-private slots:
+  private slots:
     void onHeartbeatTimerTimeout();
     void triggerImmediateHeartbeat();
 
-private:
+  private:
     void startSessionIfNeeded();
     void sendHeartbeat();
     void emitSnapshot(const QString& statusMessage = QString());
@@ -67,12 +75,10 @@ private:
     QString buildDeviceId() const;
     static int normalizeIntervalSec(int value);
     static int normalizeTtlSec(int value);
-    bool parseEnvelope(const Network::NetworkResponse& response,
-                       QJsonObject* dataOut,
-                       int* codeOut,
+    bool parseEnvelope(const Network::NetworkResponse& response, QJsonObject* dataOut, int* codeOut,
                        QString* messageOut) const;
 
-private:
+  private:
     Network::NetworkService& m_networkService;
     QTimer m_heartbeatTimer;
 

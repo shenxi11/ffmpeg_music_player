@@ -7,38 +7,32 @@
 
 namespace {
 
-QHash<QString, QString>& coverLookupTable()
-{
+QHash<QString, QString>& coverLookupTable() {
     static QHash<QString, QString> s_coverByMusicPath;
     return s_coverByMusicPath;
 }
 
-QHash<QString, QString>& coverLookupByMetaTable()
-{
+QHash<QString, QString>& coverLookupByMetaTable() {
     static QHash<QString, QString> s_coverByMeta;
     return s_coverByMeta;
 }
 
-QString normalizeNullableText(const QString& value)
-{
+QString normalizeNullableText(const QString& value) {
     const QString trimmed = value.trimmed();
     if (trimmed.isEmpty()) {
         return QString();
     }
 
     const QString lower = trimmed.toLower();
-    if (lower == QStringLiteral("null") ||
-        lower == QStringLiteral("undefined") ||
-        lower == QStringLiteral("none") ||
-        lower == QStringLiteral("(null)")) {
+    if (lower == QStringLiteral("null") || lower == QStringLiteral("undefined") ||
+        lower == QStringLiteral("none") || lower == QStringLiteral("(null)")) {
         return QString();
     }
 
     return trimmed;
 }
 
-QStringList buildMusicLookupKeys(const QString& rawPath)
-{
+QStringList buildMusicLookupKeys(const QString& rawPath) {
     QStringList keys;
     const QString cleaned = normalizeNullableText(rawPath);
     if (cleaned.isEmpty()) {
@@ -94,8 +88,7 @@ QStringList buildMusicLookupKeys(const QString& rawPath)
     return keys;
 }
 
-QString buildSongMetaKey(const QString& title, const QString& artist)
-{
+QString buildSongMetaKey(const QString& title, const QString& artist) {
     const QString t = normalizeNullableText(title).toLower();
     const QString a = normalizeNullableText(artist).toLower();
     if (t.isEmpty()) {
@@ -106,8 +99,7 @@ QString buildSongMetaKey(const QString& title, const QString& artist)
 
 } // namespace
 
-QString normalizeMusicPathForLookup(QString path)
-{
+QString normalizeMusicPathForLookup(QString path) {
     path = path.trimmed();
     if (path.isEmpty()) {
         return QString();
@@ -127,8 +119,7 @@ QString normalizeMusicPathForLookup(QString path)
     return path;
 }
 
-void rememberCoverForMusicPath(const QString& rawPath, const QString& rawCover)
-{
+void rememberCoverForMusicPath(const QString& rawPath, const QString& rawCover) {
     const QString cover = normalizeNullableText(rawCover);
     if (cover.isEmpty()) {
         return;
@@ -145,8 +136,7 @@ void rememberCoverForMusicPath(const QString& rawPath, const QString& rawCover)
     }
 }
 
-QString queryCoverForMusicPath(const QString& rawPath)
-{
+QString queryCoverForMusicPath(const QString& rawPath) {
     const QStringList keys = buildMusicLookupKeys(rawPath);
     if (keys.isEmpty()) {
         return QString();
@@ -163,8 +153,8 @@ QString queryCoverForMusicPath(const QString& rawPath)
     return QString();
 }
 
-void rememberCoverForSongMeta(const QString& title, const QString& artist, const QString& rawCover)
-{
+void rememberCoverForSongMeta(const QString& title, const QString& artist,
+                              const QString& rawCover) {
     const QString cover = normalizeNullableText(rawCover);
     if (cover.isEmpty()) {
         return;
@@ -178,8 +168,7 @@ void rememberCoverForSongMeta(const QString& title, const QString& artist, const
     coverLookupByMetaTable().insert(key, cover);
 }
 
-QString queryCoverForSongMeta(const QString& title, const QString& artist)
-{
+QString queryCoverForSongMeta(const QString& title, const QString& artist) {
     const QString key = buildSongMetaKey(title, artist);
     if (key.isEmpty()) {
         return QString();
@@ -188,8 +177,8 @@ QString queryCoverForSongMeta(const QString& title, const QString& artist)
     return coverLookupByMetaTable().value(key);
 }
 
-QString queryBestCoverForTrack(const QString& rawPath, const QString& title, const QString& artist)
-{
+QString queryBestCoverForTrack(const QString& rawPath, const QString& title,
+                               const QString& artist) {
     const QString byPath = queryCoverForMusicPath(rawPath);
     if (!byPath.trimmed().isEmpty()) {
         return byPath.trimmed();

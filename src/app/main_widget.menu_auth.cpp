@@ -11,21 +11,17 @@
 
 namespace {
 
-QString defaultAvatarSource()
-{
+QString defaultAvatarSource() {
     return QStringLiteral("qrc:/qml/assets/ai/icons/default-user-avatar.svg");
 }
 
-QString buildAvatarDisplaySource(const QString& avatarUrl, bool forceRefresh)
-{
+QString buildAvatarDisplaySource(const QString& avatarUrl, bool forceRefresh) {
     const QString trimmed = avatarUrl.trimmed();
     if (trimmed.isEmpty()) {
         return defaultAvatarSource();
     }
 
-    if (!forceRefresh ||
-        (!trimmed.startsWith(QStringLiteral("http://"), Qt::CaseInsensitive) &&
-         !trimmed.startsWith(QStringLiteral("https://"), Qt::CaseInsensitive))) {
+    if (trimmed.startsWith(QStringLiteral("qrc:/"), Qt::CaseInsensitive)) {
         return trimmed;
     }
 
@@ -34,15 +30,18 @@ QString buildAvatarDisplaySource(const QString& avatarUrl, bool forceRefresh)
         return trimmed;
     }
 
+    if (!forceRefresh) {
+        return url.toString();
+    }
+
     QUrlQuery query(url);
     query.removeAllQueryItems(QStringLiteral("t"));
-    query.addQueryItem(QStringLiteral("t"),
-                       QString::number(QDateTime::currentMSecsSinceEpoch()));
+    query.addQueryItem(QStringLiteral("t"), QString::number(QDateTime::currentMSecsSinceEpoch()));
     url.setQuery(query);
     return url.toString();
 }
 
-}
+} // namespace
 
 /*
 模块名称: MainWidget 菜单与账号连接
@@ -51,49 +50,52 @@ QString buildAvatarDisplaySource(const QString& avatarUrl, bool forceRefresh)
 维护说明: 菜单弹层与账号区域交互仅在本模块集中维护。
 */
 
-void MainWidget::setupMenuAndAccountConnections()
-{
+void MainWidget::setupMenuAndAccountConnections() {
     connect(menuButton, &QPushButton::clicked, this, &MainWidget::handleMenuButtonClicked);
-    connect(userWidgetQml, &UserWidgetQml::loginRequested, this, &MainWidget::handleUserLoginRequested);
-    connect(userWidgetQml, &UserWidgetQml::profileRequested, this, &MainWidget::handleUserProfileRequested);
-    connect(userWidgetQml, &UserWidgetQml::logoutRequested, this, &MainWidget::handleUserLogoutRequested);
-    connect(m_viewModel, &MainShellViewModel::sessionExpired, this, &MainWidget::handleSessionExpired);
+    connect(userWidgetQml, &UserWidgetQml::loginRequested, this,
+            &MainWidget::handleUserLoginRequested);
+    connect(userWidgetQml, &UserWidgetQml::profileRequested, this,
+            &MainWidget::handleUserProfileRequested);
+    connect(userWidgetQml, &UserWidgetQml::logoutRequested, this,
+            &MainWidget::handleUserLogoutRequested);
+    connect(userWidgetQml, &UserWidgetQml::blockedInteractionRequested, this,
+            &MainWidget::showLocalOnlyUnavailableMessage);
+    connect(m_viewModel, &MainShellViewModel::sessionExpired, this,
+            &MainWidget::handleSessionExpired);
     connect(loginWidget, &LoginWidgetQml::login_, this, &MainWidget::handleLoginWidgetSuccess);
-    connect(m_viewModel, &MainShellViewModel::userProfileReady,
-            this, &MainWidget::handleUserProfileReady);
-    connect(m_viewModel, &MainShellViewModel::userProfileRequestFailed,
-            this, &MainWidget::handleUserProfileRequestFailed);
-    connect(m_viewModel, &MainShellViewModel::updateUsernameResultReady,
-            this, &MainWidget::handleUpdateUsernameResultReady);
-    connect(m_viewModel, &MainShellViewModel::uploadAvatarResultReady,
-            this, &MainWidget::handleUploadAvatarResultReady);
+    connect(m_viewModel, &MainShellViewModel::userProfileReady, this,
+            &MainWidget::handleUserProfileReady);
+    connect(m_viewModel, &MainShellViewModel::userProfileRequestFailed, this,
+            &MainWidget::handleUserProfileRequestFailed);
+    connect(m_viewModel, &MainShellViewModel::updateUsernameResultReady, this,
+            &MainWidget::handleUpdateUsernameResultReady);
+    connect(m_viewModel, &MainShellViewModel::uploadAvatarResultReady, this,
+            &MainWidget::handleUploadAvatarResultReady);
 
     if (userProfileWidget) {
-        connect(userProfileWidget, &UserProfileWidget::refreshRequested,
-                this, &MainWidget::handleUserProfileRefreshRequested);
-        connect(userProfileWidget, &UserProfileWidget::usernameSaveRequested,
-                this, &MainWidget::handleUserProfileUsernameSaveRequested);
-        connect(userProfileWidget, &UserProfileWidget::avatarFileSelected,
-                this, &MainWidget::handleUserProfileAvatarFileSelected);
-        connect(userProfileWidget, &UserProfileWidget::favoritesShortcutRequested,
-                this, &MainWidget::handleUserProfileFavoritesShortcutRequested);
-        connect(userProfileWidget, &UserProfileWidget::historyShortcutRequested,
-                this, &MainWidget::handleUserProfileHistoryShortcutRequested);
-        connect(userProfileWidget, &UserProfileWidget::playlistsShortcutRequested,
-                this, &MainWidget::handleUserProfilePlaylistsShortcutRequested);
-        connect(userProfileWidget, &UserProfileWidget::reloginRequested,
-                this, &MainWidget::handleUserProfileReloginRequested);
+        connect(userProfileWidget, &UserProfileWidget::refreshRequested, this,
+                &MainWidget::handleUserProfileRefreshRequested);
+        connect(userProfileWidget, &UserProfileWidget::usernameSaveRequested, this,
+                &MainWidget::handleUserProfileUsernameSaveRequested);
+        connect(userProfileWidget, &UserProfileWidget::avatarFileSelected, this,
+                &MainWidget::handleUserProfileAvatarFileSelected);
+        connect(userProfileWidget, &UserProfileWidget::favoritesShortcutRequested, this,
+                &MainWidget::handleUserProfileFavoritesShortcutRequested);
+        connect(userProfileWidget, &UserProfileWidget::historyShortcutRequested, this,
+                &MainWidget::handleUserProfileHistoryShortcutRequested);
+        connect(userProfileWidget, &UserProfileWidget::playlistsShortcutRequested, this,
+                &MainWidget::handleUserProfilePlaylistsShortcutRequested);
+        connect(userProfileWidget, &UserProfileWidget::reloginRequested, this,
+                &MainWidget::handleUserProfileReloginRequested);
     }
 
     applyUserIdentityToUi(m_viewModel ? m_viewModel->cachedUsername() : QString(),
-                          m_viewModel ? m_viewModel->cachedAvatarUrl() : QString(),
-                          false);
+                          m_viewModel ? m_viewModel->cachedAvatarUrl() : QString(), false);
 
     triggerAutoLoginIfNeeded();
 }
 
-void MainWidget::handleMenuButtonClicked()
-{
+void MainWidget::handleMenuButtonClicked() {
     ensureMainMenuCreated();
     if (!mainMenu) {
         return;
@@ -109,21 +111,21 @@ void MainWidget::handleMenuButtonClicked()
     mainMenu->showMenu(globalPos);
 }
 
-void MainWidget::ensureMainMenuCreated()
-{
+void MainWidget::ensureMainMenuCreated() {
     if (mainMenu) {
         return;
     }
 
     mainMenu = new MainMenu(this);
     connect(mainMenu, &MainMenu::pluginRequested, this, &MainWidget::handleMainMenuPluginRequested);
-    connect(mainMenu, &MainMenu::settingsRequested, this, &MainWidget::handleMainMenuSettingsRequested);
-    connect(mainMenu, &MainMenu::pluginDiagnosticsRequested, this, &MainWidget::handleMainMenuPluginDiagnosticsRequested);
+    connect(mainMenu, &MainMenu::settingsRequested, this,
+            &MainWidget::handleMainMenuSettingsRequested);
+    connect(mainMenu, &MainMenu::pluginDiagnosticsRequested, this,
+            &MainWidget::handleMainMenuPluginDiagnosticsRequested);
     connect(mainMenu, &MainMenu::aboutRequested, this, &MainWidget::handleMainMenuAboutRequested);
 }
 
-void MainWidget::handleMainMenuPluginRequested(const QString& pluginId)
-{
+void MainWidget::handleMainMenuPluginRequested(const QString& pluginId) {
     qDebug() << "Plugin requested, id:" << pluginId;
     PluginInterface* plugin = m_viewModel ? m_viewModel->pluginById(pluginId) : nullptr;
 
@@ -150,43 +152,41 @@ void MainWidget::handleMainMenuPluginRequested(const QString& pluginId)
         }
     } else {
         qWarning() << "Plugin not found:" << pluginId;
-        QMessageBox::warning(this,
-                             QStringLiteral(u"错误"),
-                             QStringLiteral(u"插件“") + pluginId
-                                 + QStringLiteral(u"”未找到或加载失败。"));
+        QMessageBox::warning(this, QStringLiteral(u"错误"),
+                             QStringLiteral(u"插件“") + pluginId +
+                                 QStringLiteral(u"”未找到或加载失败。"));
     }
 }
 
-void MainWidget::handleMainMenuSettingsRequested()
-{
+void MainWidget::handleMainMenuSettingsRequested() {
     qDebug() << "Settings requested";
     if (!settingsWidget) {
         settingsWidget = new SettingsWidget(nullptr);
         connect(settingsWidget, &QObject::destroyed, this, [this]() {
             settingsWidget = nullptr;
         });
-        connect(settingsWidget, &SettingsWidget::returnToWelcomeRequested,
-                this, &MainWidget::handleSettingsReturnToWelcomeRequested);
+        connect(settingsWidget, &SettingsWidget::returnToWelcomeRequested, this,
+                &MainWidget::handleSettingsReturnToWelcomeRequested);
     }
     settingsWidget->show();
     settingsWidget->raise();
     settingsWidget->activateWindow();
 }
 
-void MainWidget::handleMainMenuPluginDiagnosticsRequested()
-{
+void MainWidget::handleMainMenuPluginDiagnosticsRequested() {
     showPluginDiagnosticsDialog();
 }
 
-void MainWidget::handleMainMenuAboutRequested()
-{
-    QMessageBox::about(this,
-                       QStringLiteral(u"关于"),
+void MainWidget::handleMainMenuAboutRequested() {
+    QMessageBox::about(this, QStringLiteral(u"关于"),
                        QStringLiteral(u"FFmpeg 音乐播放器 v1.0\n已集成音频转换与语音翻译。"));
 }
 
-void MainWidget::handleUserLoginRequested()
-{
+void MainWidget::handleUserLoginRequested() {
+    if (m_localOnlyMode) {
+        showLocalOnlyUnavailableMessage();
+        return;
+    }
     loginWidget->isVisible = !loginWidget->isVisible;
     if (loginWidget->isVisible) {
         loginWidget->show();
@@ -195,8 +195,11 @@ void MainWidget::handleUserLoginRequested()
     }
 }
 
-void MainWidget::handleUserProfileRequested()
-{
+void MainWidget::handleUserProfileRequested() {
+    if (m_localOnlyMode) {
+        showLocalOnlyUnavailableMessage();
+        return;
+    }
     if (!isUserLoggedIn()) {
         showLoginWindow();
         return;
@@ -218,18 +221,33 @@ void MainWidget::handleUserProfileRequested()
     refreshUserProfileStats();
 }
 
-void MainWidget::handleUserLogoutRequested()
-{
+void MainWidget::handleUserLogoutRequested() {
     if (m_viewModel) {
         m_viewModel->logoutCurrentUser(false);
     }
     userWidgetQml->setLoginState(false);
 }
 
-void MainWidget::handleSettingsReturnToWelcomeRequested()
-{
+void MainWidget::handleSettingsReturnToWelcomeRequested() {
     qDebug() << "[MainWidget] return to welcome requested";
     m_returningToWelcome = true;
+
+    if (w && w->playbackViewModel()) {
+        w->playbackViewModel()->stop();
+        w->playbackViewModel()->clearPlaylist();
+    }
+    if (playHistoryWidget) {
+        playHistoryWidget->setPlayingState(QString(), false);
+    }
+    if (recommendMusicWidget) {
+        recommendMusicWidget->setPlayingState(QString(), false);
+    }
+    if (net_list) {
+        net_list->setPlayingState(QString(), false);
+    }
+    if (localAndDownloadWidget) {
+        localAndDownloadWidget->setPlayingState(QString(), false);
+    }
 
     if (m_viewModel) {
         m_viewModel->returnToWelcomeAndKeepAccountCache(true, 1200);
@@ -243,8 +261,7 @@ void MainWidget::handleSettingsReturnToWelcomeRequested()
     close();
 }
 
-void MainWidget::handleSessionExpired()
-{
+void MainWidget::handleSessionExpired() {
     qWarning() << "[MainWidget] online session expired, forcing logout";
     if (userProfileWidget) {
         userProfileWidget->setBusy(false);
@@ -258,31 +275,24 @@ void MainWidget::handleSessionExpired()
         m_viewModel->clearCurrentUserProfile();
     }
     userWidgetQml->setLoginState(false);
-    QMessageBox::warning(this,
-                         QStringLiteral("登录状态失效"),
+    QMessageBox::warning(this, QStringLiteral("登录状态失效"),
                          QStringLiteral("在线会话已失效，请重新登录。"));
 }
 
-void MainWidget::handleLoginWidgetSuccess(const QString& username,
-                                          const QString& avatarUrl,
-                                          const QString& onlineSessionToken)
-{
+void MainWidget::handleLoginWidgetSuccess(const QString& username, const QString& avatarUrl,
+                                          const QString& onlineSessionToken) {
     if (m_viewModel) {
         m_viewModel->handleLoginSuccess(m_viewModel->currentUserAccount(),
-                                        m_viewModel->currentUserPassword(),
-                                        username,
-                                        avatarUrl,
+                                        m_viewModel->currentUserPassword(), username, avatarUrl,
                                         onlineSessionToken);
-        loginWidget->setSavedAccount(m_viewModel->cachedAccount(),
-                                     m_viewModel->cachedPassword(),
+        loginWidget->setSavedAccount(m_viewModel->cachedAccount(), m_viewModel->cachedPassword(),
                                      m_viewModel->cachedUsername());
     }
     applyUserIdentityToUi(username, avatarUrl, true);
     loginWidget->close();
 }
 
-void MainWidget::handleUserProfileRefreshRequested()
-{
+void MainWidget::handleUserProfileRefreshRequested() {
     if (!isUserLoggedIn() || !m_viewModel || !userProfileWidget) {
         return;
     }
@@ -293,8 +303,7 @@ void MainWidget::handleUserProfileRefreshRequested()
     refreshUserProfileStats();
 }
 
-void MainWidget::handleUserProfileUsernameSaveRequested(const QString& username)
-{
+void MainWidget::handleUserProfileUsernameSaveRequested(const QString& username) {
     if (!m_viewModel || !userProfileWidget) {
         return;
     }
@@ -312,19 +321,16 @@ void MainWidget::handleUserProfileUsernameSaveRequested(const QString& username)
     m_viewModel->updateCurrentUsername(trimmed);
 }
 
-void MainWidget::handleUserProfileAvatarFileSelected(const QString& filePath)
-{
+void MainWidget::handleUserProfileAvatarFileSelected(const QString& filePath) {
     if (!m_viewModel || !userProfileWidget || filePath.trimmed().isEmpty()) {
         return;
     }
     userProfileWidget->setAvatarUploading(true);
-    userProfileWidget->setStatusMessage(QStringLiteral("info"),
-                                        QStringLiteral("正在上传头像..."));
+    userProfileWidget->setStatusMessage(QStringLiteral("info"), QStringLiteral("正在上传头像..."));
     m_viewModel->uploadCurrentAvatar(filePath);
 }
 
-void MainWidget::handleUserProfileFavoritesShortcutRequested()
-{
+void MainWidget::handleUserProfileFavoritesShortcutRequested() {
     if (favoriteButton) {
         favoriteButton->setChecked(true);
     } else if (favoriteMusicWidget) {
@@ -332,8 +338,7 @@ void MainWidget::handleUserProfileFavoritesShortcutRequested()
     }
 }
 
-void MainWidget::handleUserProfileHistoryShortcutRequested()
-{
+void MainWidget::handleUserProfileHistoryShortcutRequested() {
     if (historyButton) {
         historyButton->setChecked(true);
     } else if (playHistoryWidget) {
@@ -341,8 +346,7 @@ void MainWidget::handleUserProfileHistoryShortcutRequested()
     }
 }
 
-void MainWidget::handleUserProfilePlaylistsShortcutRequested()
-{
+void MainWidget::handleUserProfilePlaylistsShortcutRequested() {
     if (!isUserLoggedIn()) {
         showLoginWindow();
         return;
@@ -353,13 +357,11 @@ void MainWidget::handleUserProfilePlaylistsShortcutRequested()
     }
 }
 
-void MainWidget::handleUserProfileReloginRequested()
-{
+void MainWidget::handleUserProfileReloginRequested() {
     showLoginWindow();
 }
 
-void MainWidget::handleUserProfileReady(const QVariantMap& profile)
-{
+void MainWidget::handleUserProfileReady(const QVariantMap& profile) {
     if (!userProfileWidget) {
         return;
     }
@@ -371,33 +373,26 @@ void MainWidget::handleUserProfileReady(const QVariantMap& profile)
     userProfileWidget->setStatusMessage(QStringLiteral("success"),
                                         QStringLiteral("个人资料已同步到最新状态。"));
     if (loginWidget && m_viewModel) {
-        loginWidget->setSavedAccount(m_viewModel->cachedAccount(),
-                                     m_viewModel->cachedPassword(),
+        loginWidget->setSavedAccount(m_viewModel->cachedAccount(), m_viewModel->cachedPassword(),
                                      m_viewModel->cachedUsername());
     }
     applyUserIdentityToUi(profile.value(QStringLiteral("username")).toString(),
-                          profile.value(QStringLiteral("avatar_url")).toString(),
-                          true);
+                          profile.value(QStringLiteral("avatar_url")).toString(), true);
 }
 
-void MainWidget::handleUserProfileRequestFailed(const QString& message, int statusCode)
-{
+void MainWidget::handleUserProfileRequestFailed(const QString& message, int statusCode) {
     Q_UNUSED(statusCode);
     if (!userProfileWidget) {
         return;
     }
     userProfileWidget->setBusy(false);
-    userProfileWidget->setStatusMessage(QStringLiteral("error"),
-                                        message.trimmed().isEmpty()
-                                            ? QStringLiteral("个人资料加载失败，请稍后重试。")
-                                            : message);
+    userProfileWidget->setStatusMessage(
+        QStringLiteral("error"),
+        message.trimmed().isEmpty() ? QStringLiteral("个人资料加载失败，请稍后重试。") : message);
 }
 
-void MainWidget::handleUpdateUsernameResultReady(bool success,
-                                                 const QString& username,
-                                                 const QString& message,
-                                                 int statusCode)
-{
+void MainWidget::handleUpdateUsernameResultReady(bool success, const QString& username,
+                                                 const QString& message, int statusCode) {
     Q_UNUSED(statusCode);
     if (!userProfileWidget) {
         return;
@@ -405,10 +400,9 @@ void MainWidget::handleUpdateUsernameResultReady(bool success,
 
     userProfileWidget->setUsernameSaving(false);
     if (!success) {
-        userProfileWidget->setStatusMessage(QStringLiteral("error"),
-                                            message.trimmed().isEmpty()
-                                                ? QStringLiteral("用户名修改失败，请稍后重试。")
-                                                : message);
+        userProfileWidget->setStatusMessage(
+            QStringLiteral("error"),
+            message.trimmed().isEmpty() ? QStringLiteral("用户名修改失败，请稍后重试。") : message);
         return;
     }
 
@@ -416,23 +410,17 @@ void MainWidget::handleUpdateUsernameResultReady(bool success,
     userProfileWidget->setStatusMessage(QStringLiteral("success"),
                                         QStringLiteral("用户名已更新。"));
     if (loginWidget && m_viewModel) {
-        loginWidget->setSavedAccount(m_viewModel->cachedAccount(),
-                                     m_viewModel->cachedPassword(),
+        loginWidget->setSavedAccount(m_viewModel->cachedAccount(), m_viewModel->cachedPassword(),
                                      m_viewModel->cachedUsername());
     }
-    applyUserIdentityToUi(username,
-                          m_viewModel ? m_viewModel->cachedAvatarUrl() : QString(),
-                          true);
+    applyUserIdentityToUi(username, m_viewModel ? m_viewModel->cachedAvatarUrl() : QString(), true);
     if (m_viewModel) {
         m_viewModel->requestUserProfile();
     }
 }
 
-void MainWidget::handleUploadAvatarResultReady(bool success,
-                                               const QString& avatarUrl,
-                                               const QString& message,
-                                               int statusCode)
-{
+void MainWidget::handleUploadAvatarResultReady(bool success, const QString& avatarUrl,
+                                               const QString& message, int statusCode) {
     Q_UNUSED(statusCode);
     if (!userProfileWidget) {
         return;
@@ -442,28 +430,28 @@ void MainWidget::handleUploadAvatarResultReady(bool success,
     if (!success) {
         userProfileWidget->clearPendingAvatarPreview();
         userProfileWidget->setProfileData(cachedUserProfileSnapshot());
-        userProfileWidget->setStatusMessage(QStringLiteral("error"),
-                                            message.trimmed().isEmpty()
-                                                ? QStringLiteral("头像上传失败，请稍后重试。")
-                                                : message);
+        userProfileWidget->setStatusMessage(
+            QStringLiteral("error"),
+            message.trimmed().isEmpty() ? QStringLiteral("头像上传失败，请稍后重试。") : message);
         return;
     }
 
-    applyUserIdentityToUi(m_viewModel ? m_viewModel->cachedUsername() : QString(),
-                          avatarUrl,
-                          true,
+    applyUserIdentityToUi(m_viewModel ? m_viewModel->cachedUsername() : QString(), avatarUrl, true,
                           true);
     userProfileWidget->clearPendingAvatarPreview();
     userProfileWidget->setProfileData(cachedUserProfileSnapshot());
-    userProfileWidget->setStatusMessage(QStringLiteral("success"),
-                                        QStringLiteral("头像已更新。"));
+    userProfileWidget->setStatusMessage(QStringLiteral("success"), QStringLiteral("头像已更新。"));
     if (m_viewModel) {
         m_viewModel->requestUserProfile();
     }
 }
 
-void MainWidget::triggerAutoLoginIfNeeded()
-{
+void MainWidget::triggerAutoLoginIfNeeded() {
+    if (m_localOnlyMode) {
+        qDebug() << "[MainWidget] Auto login skipped in local-only mode";
+        return;
+    }
+
     const QString cachedAccount = m_viewModel ? m_viewModel->cachedAccount() : QString();
     const QString cachedPassword = m_viewModel ? m_viewModel->cachedPassword() : QString();
     if (!m_viewModel || !loginWidget) {
@@ -489,8 +477,7 @@ void MainWidget::triggerAutoLoginIfNeeded()
     });
 }
 
-QVariantMap MainWidget::cachedUserProfileSnapshot() const
-{
+QVariantMap MainWidget::cachedUserProfileSnapshot() const {
     QVariantMap profile;
     if (!m_viewModel) {
         return profile;
@@ -506,8 +493,10 @@ QVariantMap MainWidget::cachedUserProfileSnapshot() const
     return profile;
 }
 
-void MainWidget::refreshUserProfileStats()
-{
+void MainWidget::refreshUserProfileStats() {
+    if (m_localOnlyMode) {
+        return;
+    }
     if (!m_viewModel || !isUserLoggedIn()) {
         return;
     }
@@ -518,41 +507,34 @@ void MainWidget::refreshUserProfileStats()
     m_viewModel->requestPlaylists(account, 1, 20, true);
 }
 
-void MainWidget::syncUserProfileStatsToPage()
-{
+void MainWidget::syncUserProfileStatsToPage() {
     if (!userProfileWidget) {
         return;
     }
-    userProfileWidget->setStatsData(m_profileFavoritesCount,
-                                    m_profileHistoryCount,
+    userProfileWidget->setStatsData(m_profileFavoritesCount, m_profileHistoryCount,
                                     m_profileOwnedPlaylistsCount);
 }
 
-void MainWidget::syncUserProfilePreviewToPage()
-{
+void MainWidget::syncUserProfilePreviewToPage() {
     if (!userProfileWidget) {
         return;
     }
-    userProfileWidget->setPreviewData(m_profileFavoritesPreview,
-                                      m_profileHistoryPreview,
+    userProfileWidget->setPreviewData(m_profileFavoritesPreview, m_profileHistoryPreview,
                                       m_profileOwnedPlaylistsPreview);
 }
 
-void MainWidget::applyUserIdentityToUi(const QString& username,
-                                       const QString& avatarUrl,
-                                       bool loggedIn,
-                                       bool forceAvatarRefresh)
-{
+void MainWidget::applyUserIdentityToUi(const QString& username, const QString& avatarUrl,
+                                       bool loggedIn, bool forceAvatarRefresh) {
     if (!userWidgetQml) {
         return;
     }
 
-    const QString displayName = loggedIn
+    const QString displayName =
+        loggedIn
             ? (username.trimmed().isEmpty() ? QStringLiteral("未命名用户") : username.trimmed())
             : QStringLiteral("未登录");
-    const QString displayAvatar = loggedIn
-            ? buildAvatarDisplaySource(avatarUrl, forceAvatarRefresh)
-            : defaultAvatarSource();
+    const QString displayAvatar =
+        loggedIn ? buildAvatarDisplaySource(avatarUrl, forceAvatarRefresh) : defaultAvatarSource();
     userWidgetQml->setUserInfo(displayName, displayAvatar);
     userWidgetQml->setLoginState(loggedIn);
 }

@@ -1,6 +1,7 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import QtGraphicalEffects 1.15
 import "../../theme/Theme.js" as Theme
 
 Rectangle {
@@ -47,6 +48,19 @@ Rectangle {
 
     function normalizeArray(items) {
         return items && items.length !== undefined ? items : []
+    }
+
+    function avatarDisplaySource(value) {
+        var source = normalizeText(value, "qrc:/qml/assets/ai/icons/default-user-avatar.svg")
+        if (source.indexOf("qrc:/") === 0 || source.indexOf("file:") === 0)
+            return source
+
+        if (source.indexOf("http://") === 0 || source.indexOf("https://") === 0) {
+            var separator = source.indexOf("?") >= 0 ? "&" : "?"
+            return source + separator + "t=" + Date.now()
+        }
+
+        return source
     }
 
     function songTitle(item) {
@@ -145,8 +159,7 @@ Rectangle {
 
         username = normalizeText(profile.username, "未命名用户")
         account = normalizeText(profile.account, "--")
-        committedAvatarSource = normalizeText(profile.avatar_url,
-                                              "qrc:/qml/assets/ai/icons/default-user-avatar.svg")
+        committedAvatarSource = avatarDisplaySource(profile.avatar_url)
         avatarSource = committedAvatarSource
         createdAt = normalizeText(profile.created_at, "未知")
         updatedAt = normalizeText(profile.updated_at, "未知")
@@ -300,20 +313,36 @@ Rectangle {
                             border.width: 1
                             border.color: "#E2EAF2"
 
-                            Image {
+                            Item {
                                 anchors.fill: parent
                                 anchors.margins: 6
-                                source: root.avatarSource
-                                fillMode: Image.PreserveAspectCrop
-                                smooth: true
-                                cache: false
+
+                                Image {
+                                    id: profileAvatarImage
+                                    anchors.fill: parent
+                                    source: root.avatarSource
+                                    fillMode: Image.PreserveAspectCrop
+                                    smooth: true
+                                    cache: false
+
+                                    layer.enabled: true
+                                    layer.effect: OpacityMask {
+                                        maskSource: Rectangle {
+                                            width: profileAvatarImage.width
+                                            height: profileAvatarImage.height
+                                            radius: width / 2
+                                        }
+                                    }
+                                }
                             }
 
                             Rectangle {
                                 anchors.left: parent.left
                                 anchors.right: parent.right
                                 anchors.bottom: parent.bottom
-                                anchors.margins: 12
+                                anchors.leftMargin: 16
+                                anchors.rightMargin: 16
+                                anchors.bottomMargin: 16
                                 height: 34
                                 radius: 17
                                 color: avatarArea.containsMouse ? "#1A20263A" : "#1420263A"
@@ -810,7 +839,7 @@ Rectangle {
                                 id: playlistsColumn
                                 width: parent.width
                                 spacing: 10
-                                
+
                                 Repeater {
                                     model: Math.min(root.playlistsPreview.length, 8)
 

@@ -28,6 +28,8 @@ public:
     void setPlayingState(const QString& filePath, bool playing);
     void setAvailablePlaylists(const QVariantList& playlists);
     void setFavoritePaths(const QStringList& favoritePaths);
+    void updateDownloadedSongMetadata(const QString& filePath, const QString& coverUrl,
+                                      const QString& duration, const QString& artist);
     
 signals:
     void playMusic(const QString& filename);

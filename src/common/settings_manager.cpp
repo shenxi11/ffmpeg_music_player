@@ -1,17 +1,16 @@
 ﻿#include "settings_manager.h"
+
 #include <QCoreApplication>
 #include <QFileInfo>
 
 namespace {
 
-bool isProjectRoot(const QString& dirPath)
-{
+bool isProjectRoot(const QString& dirPath) {
     const QDir dir(dirPath);
     return QFileInfo::exists(dir.filePath("qml/components/settings/Settings.qml"));
 }
 
-QString defaultAudioCachePath()
-{
+QString defaultAudioCachePath() {
     QString base = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
     if (base.trimmed().isEmpty()) {
         base = QDir::currentPath();
@@ -19,8 +18,7 @@ QString defaultAudioCachePath()
     return QDir(base).absoluteFilePath(QStringLiteral("audio_cache"));
 }
 
-QString inferPreferredLogPath()
-{
+QString inferPreferredLogPath() {
     const QString cwd = QDir::currentPath();
     if (isProjectRoot(cwd)) {
         return QDir(cwd).absoluteFilePath(QStringLiteral("打印日志.txt"));
@@ -40,14 +38,12 @@ QString inferPreferredLogPath()
     return QDir(cwd).absoluteFilePath(QStringLiteral("打印日志.txt"));
 }
 
-bool looksLikeBuildDefaultLogPath(const QString& path)
-{
-    return path.contains("ffmpeg_music_player_build", Qt::CaseInsensitive)
-        && QFileInfo(path).fileName() == QStringLiteral("打印日志.txt");
+bool looksLikeBuildDefaultLogPath(const QString& path) {
+    return path.contains("ffmpeg_music_player_build", Qt::CaseInsensitive) &&
+           QFileInfo(path).fileName() == QStringLiteral("打印日志.txt");
 }
 
-QString normalizedPluginKey(const QString& pluginId)
-{
+QString normalizedPluginKey(const QString& pluginId) {
     QString key = pluginId.trimmed();
     key.replace('/', '_');
     key.replace('\\', '_');
@@ -59,9 +55,7 @@ QString normalizedPluginKey(const QString& pluginId)
 
 } // namespace
 
-SettingsManager::SettingsManager()
-    : m_settings("FFmpegMusicPlayer", "Settings")
-{
+SettingsManager::SettingsManager() : m_settings("FFmpegMusicPlayer", "Settings") {
     static constexpr int kDefaultPlayerPageStyle = 0;
     static constexpr int kMaxPlayerPageStyle = 4;
     const QString preferredPath = inferPreferredLogPath();
@@ -70,8 +64,8 @@ SettingsManager::SettingsManager()
     m_downloadPath = m_settings.value("download/path", "D:/Music").toString();
     m_downloadLyrics = m_settings.value("download/lyrics", true).toBool();
     m_downloadCover = m_settings.value("download/cover", false).toBool();
-    m_audioCachePath = QDir::cleanPath(
-        QDir::fromNativeSeparators(m_settings.value("cache/audio_path", defaultCachePath).toString().trimmed()));
+    m_audioCachePath = QDir::cleanPath(QDir::fromNativeSeparators(
+        m_settings.value("cache/audio_path", defaultCachePath).toString().trimmed()));
     if (m_audioCachePath.isEmpty()) {
         m_audioCachePath = defaultCachePath;
     }
@@ -96,12 +90,16 @@ SettingsManager::SettingsManager()
     m_cachedPassword = m_settings.value("account/cache/password").toString();
     m_cachedUsername = m_settings.value("account/cache/username").toString().trimmed();
     m_cachedAvatarUrl = m_settings.value("account/cache/avatar_url").toString().trimmed();
-    m_cachedOnlineSessionToken = m_settings.value("account/cache/online_session_token").toString().trimmed();
-    m_cachedProfileCreatedAt = m_settings.value("account/cache/profile_created_at").toString().trimmed();
-    m_cachedProfileUpdatedAt = m_settings.value("account/cache/profile_updated_at").toString().trimmed();
+    m_cachedOnlineSessionToken =
+        m_settings.value("account/cache/online_session_token").toString().trimmed();
+    m_cachedProfileCreatedAt =
+        m_settings.value("account/cache/profile_created_at").toString().trimmed();
+    m_cachedProfileUpdatedAt =
+        m_settings.value("account/cache/profile_updated_at").toString().trimmed();
     m_autoLoginEnabled = m_settings.value("account/cache/auto_login", false).toBool();
     m_manualLogoutMarked = m_settings.value("account/cache/manual_logout", false).toBool();
-    m_serverHost = m_settings.value("server/host", QStringLiteral("192.168.1.208")).toString().trimmed();
+    m_serverHost =
+        m_settings.value("server/host", QStringLiteral("192.168.1.208")).toString().trimmed();
     m_serverPort = m_settings.value("server/port", 8080).toInt();
     m_playerPageStyle = m_settings.value("player/page_style", kDefaultPlayerPageStyle).toInt();
     if (m_serverHost.isEmpty()) {
@@ -122,9 +120,8 @@ SettingsManager::SettingsManager()
         m_manualLogoutMarked = false;
         m_settings.setValue("account/cache/auto_login", false);
         m_settings.setValue("account/cache/manual_logout", false);
-    } else if (!m_autoLoginEnabled
-               && !m_manualLogoutMarked
-               && !m_settings.contains("account/cache/manual_logout")) {
+    } else if (!m_autoLoginEnabled && !m_manualLogoutMarked &&
+               !m_settings.contains("account/cache/manual_logout")) {
         // 兼容迁移：历史版本可能因会话过期误关自动登录。
         m_autoLoginEnabled = true;
         m_settings.setValue("account/cache/auto_login", true);
@@ -134,8 +131,7 @@ SettingsManager::SettingsManager()
     m_serverWelcomeWindowPos = m_settings.value("ui/server_welcome/pos", QPoint(0, 0)).toPoint();
 }
 
-void SettingsManager::setDownloadPath(const QString& path)
-{
+void SettingsManager::setDownloadPath(const QString& path) {
     if (m_downloadPath != path) {
         m_downloadPath = path;
         m_settings.setValue("download/path", path);
@@ -143,8 +139,7 @@ void SettingsManager::setDownloadPath(const QString& path)
     }
 }
 
-void SettingsManager::setDownloadLyrics(bool enable)
-{
+void SettingsManager::setDownloadLyrics(bool enable) {
     if (m_downloadLyrics != enable) {
         m_downloadLyrics = enable;
         m_settings.setValue("download/lyrics", enable);
@@ -152,8 +147,7 @@ void SettingsManager::setDownloadLyrics(bool enable)
     }
 }
 
-void SettingsManager::setDownloadCover(bool enable)
-{
+void SettingsManager::setDownloadCover(bool enable) {
     if (m_downloadCover != enable) {
         m_downloadCover = enable;
         m_settings.setValue("download/cover", enable);
@@ -161,8 +155,7 @@ void SettingsManager::setDownloadCover(bool enable)
     }
 }
 
-void SettingsManager::setAudioCachePath(const QString& path)
-{
+void SettingsManager::setAudioCachePath(const QString& path) {
     const QString normalized = QDir::cleanPath(QDir::fromNativeSeparators(path.trimmed()));
     if (normalized.isEmpty()) {
         return;
@@ -181,8 +174,7 @@ void SettingsManager::setAudioCachePath(const QString& path)
     }
 }
 
-void SettingsManager::setLogPath(const QString& path)
-{
+void SettingsManager::setLogPath(const QString& path) {
     const QString normalized = QDir::cleanPath(QDir::fromNativeSeparators(path.trimmed()));
     if (normalized.isEmpty()) {
         return;
@@ -195,8 +187,7 @@ void SettingsManager::setLogPath(const QString& path)
     }
 }
 
-void SettingsManager::setServerHost(const QString& host)
-{
+void SettingsManager::setServerHost(const QString& host) {
     const QString normalized = host.trimmed();
     if (normalized.isEmpty() || m_serverHost == normalized) {
         return;
@@ -207,8 +198,7 @@ void SettingsManager::setServerHost(const QString& host)
     emit serverEndpointChanged();
 }
 
-void SettingsManager::setServerPort(int port)
-{
+void SettingsManager::setServerPort(int port) {
     if (port <= 0 || port > 65535 || m_serverPort == port) {
         return;
     }
@@ -218,8 +208,7 @@ void SettingsManager::setServerPort(int port)
     emit serverEndpointChanged();
 }
 
-void SettingsManager::setPlayerPageStyle(int styleId)
-{
+void SettingsManager::setPlayerPageStyle(int styleId) {
     static constexpr int kMinPlayerPageStyle = 0;
     static constexpr int kMaxPlayerPageStyle = 4;
     const int normalized = qBound(kMinPlayerPageStyle, styleId, kMaxPlayerPageStyle);
@@ -232,13 +221,11 @@ void SettingsManager::setPlayerPageStyle(int styleId)
     emit playerPageStyleChanged();
 }
 
-QString SettingsManager::serverBaseUrl() const
-{
+QString SettingsManager::serverBaseUrl() const {
     return QStringLiteral("http://%1:%2/").arg(m_serverHost, QString::number(m_serverPort));
 }
 
-void SettingsManager::setServerEndpoint(const QString& host, int port)
-{
+void SettingsManager::setServerEndpoint(const QString& host, int port) {
     const QString normalizedHost = host.trimmed();
     if (normalizedHost.isEmpty() || port <= 0 || port > 65535) {
         return;
@@ -256,19 +243,15 @@ void SettingsManager::setServerEndpoint(const QString& host, int port)
     emit serverEndpointChanged();
 }
 
-void SettingsManager::saveAccountCache(const QString& account,
-                                       const QString& password,
-                                       const QString& username,
-                                       bool enableAutoLogin)
-{
+void SettingsManager::saveAccountCache(const QString& account, const QString& password,
+                                       const QString& username, bool enableAutoLogin) {
     const QString trimmedAccount = account.trimmed();
     if (trimmedAccount.isEmpty()) {
         return;
     }
 
-    const bool cacheChanged = m_cachedAccount != trimmedAccount
-            || m_cachedPassword != password
-            || m_cachedUsername != username;
+    const bool cacheChanged = m_cachedAccount != trimmedAccount || m_cachedPassword != password ||
+                              m_cachedUsername != username;
     const bool autoChanged = m_autoLoginEnabled != enableAutoLogin;
     const bool manualLogoutChanged = m_manualLogoutMarked;
 
@@ -295,8 +278,7 @@ void SettingsManager::saveAccountCache(const QString& account,
     }
 }
 
-void SettingsManager::setAutoLoginEnabled(bool enabled)
-{
+void SettingsManager::setAutoLoginEnabled(bool enabled) {
     if (enabled && (m_cachedAccount.isEmpty() || m_cachedPassword.isEmpty())) {
         enabled = false;
     }
@@ -314,8 +296,7 @@ void SettingsManager::setAutoLoginEnabled(bool enabled)
     emit autoLoginChanged();
 }
 
-void SettingsManager::setManualLogoutMarked(bool marked)
-{
+void SettingsManager::setManualLogoutMarked(bool marked) {
     if (m_manualLogoutMarked == marked) {
         return;
     }
@@ -324,23 +305,20 @@ void SettingsManager::setManualLogoutMarked(bool marked)
     m_settings.setValue("account/cache/manual_logout", m_manualLogoutMarked);
 }
 
-void SettingsManager::saveProfileCache(const QString& username,
-                                       const QString& avatarUrl,
-                                       const QString& onlineSessionToken,
-                                       const QString& createdAt,
-                                       const QString& updatedAt)
-{
+void SettingsManager::saveProfileCache(const QString& username, const QString& avatarUrl,
+                                       const QString& onlineSessionToken, const QString& createdAt,
+                                       const QString& updatedAt) {
     const QString normalizedUsername = username.trimmed();
     const QString normalizedAvatarUrl = avatarUrl.trimmed();
     const QString normalizedToken = onlineSessionToken.trimmed();
     const QString normalizedCreatedAt = createdAt.trimmed();
     const QString normalizedUpdatedAt = updatedAt.trimmed();
 
-    const bool changed = m_cachedUsername != normalizedUsername
-            || m_cachedAvatarUrl != normalizedAvatarUrl
-            || m_cachedOnlineSessionToken != normalizedToken
-            || m_cachedProfileCreatedAt != normalizedCreatedAt
-            || m_cachedProfileUpdatedAt != normalizedUpdatedAt;
+    const bool changed = m_cachedUsername != normalizedUsername ||
+                         m_cachedAvatarUrl != normalizedAvatarUrl ||
+                         m_cachedOnlineSessionToken != normalizedToken ||
+                         m_cachedProfileCreatedAt != normalizedCreatedAt ||
+                         m_cachedProfileUpdatedAt != normalizedUpdatedAt;
 
     m_cachedUsername = normalizedUsername;
     m_cachedAvatarUrl = normalizedAvatarUrl;
@@ -359,15 +337,11 @@ void SettingsManager::saveProfileCache(const QString& username,
     }
 }
 
-void SettingsManager::clearAccountCache()
-{
-    const bool hadCache = !m_cachedAccount.isEmpty()
-            || !m_cachedPassword.isEmpty()
-            || !m_cachedUsername.isEmpty()
-            || !m_cachedAvatarUrl.isEmpty()
-            || !m_cachedOnlineSessionToken.isEmpty()
-            || !m_cachedProfileCreatedAt.isEmpty()
-            || !m_cachedProfileUpdatedAt.isEmpty();
+void SettingsManager::clearAccountCache() {
+    const bool hadCache =
+        !m_cachedAccount.isEmpty() || !m_cachedPassword.isEmpty() || !m_cachedUsername.isEmpty() ||
+        !m_cachedAvatarUrl.isEmpty() || !m_cachedOnlineSessionToken.isEmpty() ||
+        !m_cachedProfileCreatedAt.isEmpty() || !m_cachedProfileUpdatedAt.isEmpty();
     const bool autoChanged = m_autoLoginEnabled;
 
     m_cachedAccount.clear();
@@ -398,8 +372,7 @@ void SettingsManager::clearAccountCache()
     }
 }
 
-bool SettingsManager::shouldAutoLogin() const
-{
+bool SettingsManager::shouldAutoLogin() const {
     if (m_cachedAccount.isEmpty() || m_cachedPassword.isEmpty()) {
         return false;
     }
@@ -407,8 +380,7 @@ bool SettingsManager::shouldAutoLogin() const
     return m_autoLoginEnabled || !m_manualLogoutMarked;
 }
 
-void SettingsManager::setServerWelcomeWindowPos(const QPoint& pos)
-{
+void SettingsManager::setServerWelcomeWindowPos(const QPoint& pos) {
     if (m_hasServerWelcomeWindowPos && m_serverWelcomeWindowPos == pos) {
         return;
     }
@@ -419,27 +391,21 @@ void SettingsManager::setServerWelcomeWindowPos(const QPoint& pos)
     m_settings.setValue("ui/server_welcome/pos", m_serverWelcomeWindowPos);
 }
 
-QByteArray SettingsManager::pluginWindowGeometry(const QString& pluginId) const
-{
-    const QString key = QStringLiteral("ui/plugins/%1/geometry")
-                            .arg(normalizedPluginKey(pluginId));
+QByteArray SettingsManager::pluginWindowGeometry(const QString& pluginId) const {
+    const QString key = QStringLiteral("ui/plugins/%1/geometry").arg(normalizedPluginKey(pluginId));
     return m_settings.value(key).toByteArray();
 }
 
-void SettingsManager::setPluginWindowGeometry(const QString& pluginId, const QByteArray& geometry)
-{
+void SettingsManager::setPluginWindowGeometry(const QString& pluginId, const QByteArray& geometry) {
     if (geometry.isEmpty()) {
         return;
     }
 
-    const QString key = QStringLiteral("ui/plugins/%1/geometry")
-                            .arg(normalizedPluginKey(pluginId));
+    const QString key = QStringLiteral("ui/plugins/%1/geometry").arg(normalizedPluginKey(pluginId));
     m_settings.setValue(key, geometry);
 }
 
-void SettingsManager::clearPluginWindowGeometry(const QString& pluginId)
-{
-    const QString key = QStringLiteral("ui/plugins/%1/geometry")
-                            .arg(normalizedPluginKey(pluginId));
+void SettingsManager::clearPluginWindowGeometry(const QString& pluginId) {
+    const QString key = QStringLiteral("ui/plugins/%1/geometry").arg(normalizedPluginKey(pluginId));
     m_settings.remove(key);
 }

@@ -1,68 +1,62 @@
 #include "PlaybackViewModel.h"
+
 #include "cover_lookup.h"
 #include "local_music_cache.h"
 
+#include <QDebug>
 #include <QDir>
 #include <QFileInfo>
 #include <QSet>
 #include <QTime>
-#include <QDebug>
 
 PlaybackViewModel::PlaybackViewModel(QObject* parent)
-    : BaseViewModel(parent)
-    , m_audioService(&AudioService::instance())
-{
+    : BaseViewModel(parent), m_audioService(&AudioService::instance()) {
     m_volume = m_audioService->volume();
 
-    connect(m_audioService, &AudioService::playbackStarted,
-            this, &PlaybackViewModel::onAudioServicePlaybackStarted);
-    connect(m_audioService, &AudioService::playbackPaused,
-            this, &PlaybackViewModel::onAudioServicePlaybackPaused);
-    connect(m_audioService, &AudioService::playbackResumed,
-            this, &PlaybackViewModel::onAudioServicePlaybackResumed);
-    connect(m_audioService, &AudioService::playbackStopped,
-            this, &PlaybackViewModel::onAudioServicePlaybackStopped);
-    connect(m_audioService, &AudioService::positionChanged,
-            this, &PlaybackViewModel::onAudioServicePositionChanged);
-    connect(m_audioService, &AudioService::durationChanged,
-            this, &PlaybackViewModel::onAudioServiceDurationChanged);
-    connect(m_audioService, &AudioService::bufferingStarted,
-            this, &PlaybackViewModel::onAudioServiceBufferingStarted);
-    connect(m_audioService, &AudioService::bufferingFinished,
-            this, &PlaybackViewModel::onAudioServiceBufferingFinished);
-    connect(m_audioService, &AudioService::playlistChanged,
-            this, [this]() {
-                prunePlaylistMetadataCache();
-                emit playlistSnapshotChanged();
-            });
-    connect(m_audioService, &AudioService::currentIndexChanged,
-            this, &PlaybackViewModel::playlistSnapshotChanged);
+    connect(m_audioService, &AudioService::playbackStarted, this,
+            &PlaybackViewModel::onAudioServicePlaybackStarted);
+    connect(m_audioService, &AudioService::playbackPaused, this,
+            &PlaybackViewModel::onAudioServicePlaybackPaused);
+    connect(m_audioService, &AudioService::playbackResumed, this,
+            &PlaybackViewModel::onAudioServicePlaybackResumed);
+    connect(m_audioService, &AudioService::playbackStopped, this,
+            &PlaybackViewModel::onAudioServicePlaybackStopped);
+    connect(m_audioService, &AudioService::positionChanged, this,
+            &PlaybackViewModel::onAudioServicePositionChanged);
+    connect(m_audioService, &AudioService::durationChanged, this,
+            &PlaybackViewModel::onAudioServiceDurationChanged);
+    connect(m_audioService, &AudioService::bufferingStarted, this,
+            &PlaybackViewModel::onAudioServiceBufferingStarted);
+    connect(m_audioService, &AudioService::bufferingFinished, this,
+            &PlaybackViewModel::onAudioServiceBufferingFinished);
+    connect(m_audioService, &AudioService::playlistChanged, this, [this]() {
+        prunePlaylistMetadataCache();
+        emit playlistSnapshotChanged();
+    });
+    connect(m_audioService, &AudioService::currentIndexChanged, this,
+            &PlaybackViewModel::playlistSnapshotChanged);
 
-    connect(m_audioService, &AudioService::currentTrackChanged,
-            this, [this](const QString& title, const QString& artist, qint64 duration) {
+    connect(m_audioService, &AudioService::currentTrackChanged, this,
+            [this](const QString& title, const QString& artist, qint64 duration) {
                 updateMetadata(title, artist, QString(), QString(), m_currentUrl);
                 updateDuration(duration);
                 cacheCurrentTrackMetadata();
                 emit playlistSnapshotChanged();
             });
-    connect(m_audioService, &AudioService::albumArtChanged,
-            this, [this](const QString& imagePath) {
-                const QString trimmed = imagePath.trimmed();
-                if (!trimmed.isEmpty() && m_currentAlbumArt != trimmed) {
-                    m_currentAlbumArt = trimmed;
-                    emit currentAlbumArtChanged();
-                    cacheCurrentTrackMetadata();
-                    emit playlistSnapshotChanged();
-                }
-            });
+    connect(m_audioService, &AudioService::albumArtChanged, this, [this](const QString& imagePath) {
+        const QString trimmed = imagePath.trimmed();
+        if (!trimmed.isEmpty() && m_currentAlbumArt != trimmed) {
+            m_currentAlbumArt = trimmed;
+            emit currentAlbumArtChanged();
+            cacheCurrentTrackMetadata();
+            emit playlistSnapshotChanged();
+        }
+    });
 }
 
-PlaybackViewModel::~PlaybackViewModel()
-{
-}
+PlaybackViewModel::~PlaybackViewModel() {}
 
-void PlaybackViewModel::play(const QUrl& url)
-{
+void PlaybackViewModel::play(const QUrl& url) {
     setIsBusy(true);
     clearError();
 
@@ -82,29 +76,24 @@ void PlaybackViewModel::play(const QUrl& url)
     setIsBusy(false);
 }
 
-void PlaybackViewModel::pause()
-{
+void PlaybackViewModel::pause() {
     m_audioService->pause();
 }
 
-void PlaybackViewModel::resume()
-{
+void PlaybackViewModel::resume() {
     m_audioService->resume();
 }
 
-void PlaybackViewModel::stop()
-{
+void PlaybackViewModel::stop() {
     m_audioService->stop();
 }
 
-void PlaybackViewModel::seekTo(qint64 positionMs)
-{
+void PlaybackViewModel::seekTo(qint64 positionMs) {
     m_audioService->seekTo(positionMs);
     updatePosition(positionMs);
 }
 
-void PlaybackViewModel::togglePlayPause()
-{
+void PlaybackViewModel::togglePlayPause() {
     const bool servicePlaying = m_audioService->isPlaying();
     const bool servicePaused = m_audioService->isPaused();
 
@@ -132,24 +121,21 @@ void PlaybackViewModel::togglePlayPause()
     setErrorMessage(QStringLiteral("当前没有可播放的音频源"));
 }
 
-void PlaybackViewModel::playNext()
-{
+void PlaybackViewModel::playNext() {
     m_audioService->playNext();
 }
 
-void PlaybackViewModel::playPrevious()
-{
+void PlaybackViewModel::playPrevious() {
     m_audioService->playPrevious();
 }
 
-void PlaybackViewModel::appendTrackToQueue(const QUrl& url, bool playIfIdle)
-{
+void PlaybackViewModel::appendTrackToQueue(const QUrl& url, bool playIfIdle) {
     if (!url.isValid() || url.isEmpty()) {
         return;
     }
 
-    const bool hasActiveTrack = m_audioService->currentIndex() >= 0
-            && m_audioService->playlistSize() > 0;
+    const bool hasActiveTrack =
+        m_audioService->currentIndex() >= 0 && m_audioService->playlistSize() > 0;
     if (!hasActiveTrack && playIfIdle) {
         play(url);
         return;
@@ -158,14 +144,13 @@ void PlaybackViewModel::appendTrackToQueue(const QUrl& url, bool playIfIdle)
     m_audioService->appendToQueue(url);
 }
 
-void PlaybackViewModel::queueTrackAsNext(const QUrl& url)
-{
+void PlaybackViewModel::queueTrackAsNext(const QUrl& url) {
     if (!url.isValid() || url.isEmpty()) {
         return;
     }
 
-    const bool hasActiveTrack = m_audioService->currentIndex() >= 0
-            && m_audioService->playlistSize() > 0;
+    const bool hasActiveTrack =
+        m_audioService->currentIndex() >= 0 && m_audioService->playlistSize() > 0;
     if (!hasActiveTrack) {
         play(url);
         return;
@@ -174,8 +159,7 @@ void PlaybackViewModel::queueTrackAsNext(const QUrl& url)
     m_audioService->insertNextToQueue(url);
 }
 
-void PlaybackViewModel::rememberTrackMetadata(const QUrl& url, const QVariantMap& songData)
-{
+void PlaybackViewModel::rememberTrackMetadata(const QUrl& url, const QVariantMap& songData) {
     const QString key = normalizePlaylistEntryPath(url);
     if (key.isEmpty()) {
         return;
@@ -203,8 +187,7 @@ void PlaybackViewModel::rememberTrackMetadata(const QUrl& url, const QVariantMap
     m_playlistMetadataCache.insert(key, normalized);
 }
 
-void PlaybackViewModel::removeFromPlaylistUrl(const QString& filePath)
-{
+void PlaybackViewModel::removeFromPlaylistUrl(const QString& filePath) {
     const QString normalizedTarget = normalizePlaylistEntryPath(QUrl::fromUserInput(filePath));
     const QList<QUrl> playlist = m_audioService->playlist();
     for (int index = 0; index < playlist.size(); ++index) {
@@ -215,18 +198,15 @@ void PlaybackViewModel::removeFromPlaylistUrl(const QString& filePath)
     }
 }
 
-void PlaybackViewModel::clearPlaylist()
-{
+void PlaybackViewModel::clearPlaylist() {
     m_audioService->clearPlaylist();
 }
 
-void PlaybackViewModel::setPlayModeValue(int mode)
-{
+void PlaybackViewModel::setPlayModeValue(int mode) {
     m_audioService->setPlayMode(static_cast<AudioService::PlayMode>(mode));
 }
 
-QVariantList PlaybackViewModel::playlistSnapshot() const
-{
+QVariantList PlaybackViewModel::playlistSnapshot() const {
     QVariantList snapshot;
     const QList<QUrl> playlist = m_audioService->playlist();
     snapshot.reserve(playlist.size());
@@ -237,8 +217,7 @@ QVariantList PlaybackViewModel::playlistSnapshot() const
     return snapshot;
 }
 
-void PlaybackViewModel::setVolume(int volume)
-{
+void PlaybackViewModel::setVolume(int volume) {
     const int boundedVolume = qBound(0, volume, 100);
     if (m_volume == boundedVolume) {
         return;
@@ -249,8 +228,7 @@ void PlaybackViewModel::setVolume(int volume)
     emit volumeChanged();
 }
 
-void PlaybackViewModel::onAudioServicePlaybackStarted(const QString& sessionId, const QUrl& url)
-{
+void PlaybackViewModel::onAudioServicePlaybackStarted(const QString& sessionId, const QUrl& url) {
     Q_UNUSED(sessionId);
 
     const QString filePath = url.isLocalFile() ? url.toLocalFile() : url.toString();
@@ -270,24 +248,21 @@ void PlaybackViewModel::onAudioServicePlaybackStarted(const QString& sessionId, 
     emit playbackStarted();
 }
 
-void PlaybackViewModel::onAudioServicePlaybackPaused()
-{
+void PlaybackViewModel::onAudioServicePlaybackPaused() {
     updatePlayingState(false);
     updatePausedState(true);
     updateBufferingState(false);
     emit shouldStopRotation();
 }
 
-void PlaybackViewModel::onAudioServicePlaybackResumed()
-{
+void PlaybackViewModel::onAudioServicePlaybackResumed() {
     updatePlayingState(true);
     updatePausedState(false);
     updateBufferingState(false);
     emit shouldStartRotation();
 }
 
-void PlaybackViewModel::onAudioServicePlaybackStopped()
-{
+void PlaybackViewModel::onAudioServicePlaybackStopped() {
     updatePlayingState(false);
     updatePausedState(false);
     updateBufferingState(false);
@@ -297,37 +272,30 @@ void PlaybackViewModel::onAudioServicePlaybackStopped()
     emit playbackStopped();
 }
 
-void PlaybackViewModel::onAudioServicePositionChanged(qint64 position)
-{
+void PlaybackViewModel::onAudioServicePositionChanged(qint64 position) {
     updatePosition(position);
 }
 
-void PlaybackViewModel::onAudioServiceDurationChanged(qint64 duration)
-{
+void PlaybackViewModel::onAudioServiceDurationChanged(qint64 duration) {
     updateDuration(duration);
 }
 
-void PlaybackViewModel::onAudioServiceBufferingStarted()
-{
+void PlaybackViewModel::onAudioServiceBufferingStarted() {
     updateBufferingState(true);
     syncPlaybackStateFromService("bufferingStarted");
 }
 
-void PlaybackViewModel::onAudioServiceBufferingFinished()
-{
+void PlaybackViewModel::onAudioServiceBufferingFinished() {
     updateBufferingState(false);
     syncPlaybackStateFromService("bufferingFinished");
 }
 
-void PlaybackViewModel::syncPlaybackStateFromService(const char* sourceTag)
-{
+void PlaybackViewModel::syncPlaybackStateFromService(const char* sourceTag) {
     const bool servicePlaying = m_audioService->isPlaying();
     const bool servicePaused = m_audioService->isPaused();
 
-    qDebug() << "[MVVM-UI] Sync playback state from service:"
-             << sourceTag
-             << "servicePlaying=" << servicePlaying
-             << "servicePaused=" << servicePaused;
+    qDebug() << "[MVVM-UI] Sync playback state from service:" << sourceTag
+             << "servicePlaying=" << servicePlaying << "servicePaused=" << servicePaused;
 
     updatePlayingState(servicePlaying);
     updatePausedState(servicePaused);
@@ -339,24 +307,21 @@ void PlaybackViewModel::syncPlaybackStateFromService(const char* sourceTag)
     }
 }
 
-void PlaybackViewModel::updatePlayingState(bool playing)
-{
+void PlaybackViewModel::updatePlayingState(bool playing) {
     if (m_isPlaying != playing) {
         m_isPlaying = playing;
         emit isPlayingChanged();
     }
 }
 
-void PlaybackViewModel::updatePausedState(bool paused)
-{
+void PlaybackViewModel::updatePausedState(bool paused) {
     if (m_isPaused != paused) {
         m_isPaused = paused;
         emit isPausedChanged();
     }
 }
 
-void PlaybackViewModel::updateBufferingState(bool buffering)
-{
+void PlaybackViewModel::updateBufferingState(bool buffering) {
     if (m_isBuffering != buffering) {
         m_isBuffering = buffering;
         emit isBufferingChanged();
@@ -364,28 +329,23 @@ void PlaybackViewModel::updateBufferingState(bool buffering)
     }
 }
 
-void PlaybackViewModel::updatePosition(qint64 pos)
-{
+void PlaybackViewModel::updatePosition(qint64 pos) {
     if (m_position != pos) {
         m_position = pos;
         emit positionChanged();
     }
 }
 
-void PlaybackViewModel::updateDuration(qint64 dur)
-{
+void PlaybackViewModel::updateDuration(qint64 dur) {
     if (m_duration != dur) {
         m_duration = dur;
         emit durationChanged();
     }
 }
 
-void PlaybackViewModel::updateMetadata(const QString& title,
-                                       const QString& artist,
-                                       const QString& album,
-                                       const QString& albumArt,
-                                       const QUrl& url)
-{
+void PlaybackViewModel::updateMetadata(const QString& title, const QString& artist,
+                                       const QString& album, const QString& albumArt,
+                                       const QUrl& url) {
     const bool urlChanged = !url.isEmpty() && m_currentUrl != url;
     if (urlChanged) {
         if (title.trimmed().isEmpty() && !m_currentTitle.isEmpty()) {
@@ -429,8 +389,7 @@ void PlaybackViewModel::updateMetadata(const QString& title,
     }
 }
 
-QString PlaybackViewModel::formatTime(qint64 milliseconds)
-{
+QString PlaybackViewModel::formatTime(qint64 milliseconds) {
     if (milliseconds < 0) {
         return QStringLiteral("00:00");
     }
@@ -447,31 +406,33 @@ QString PlaybackViewModel::formatTime(qint64 milliseconds)
             .arg(seconds, 2, 10, QChar('0'));
     }
 
-    return QStringLiteral("%1:%2")
-        .arg(minutes, 2, 10, QChar('0'))
-        .arg(seconds, 2, 10, QChar('0'));
+    return QStringLiteral("%1:%2").arg(minutes, 2, 10, QChar('0')).arg(seconds, 2, 10, QChar('0'));
 }
 
-QVariantMap PlaybackViewModel::buildPlaylistSnapshotItem(const QUrl& url, int index) const
-{
+QVariantMap PlaybackViewModel::buildPlaylistSnapshotItem(const QUrl& url, int index) const {
     const bool isCurrent = index == m_audioService->currentIndex();
-    const QVariantMap cachedMetadata = m_playlistMetadataCache.value(normalizePlaylistEntryPath(url));
+    const QVariantMap cachedMetadata =
+        m_playlistMetadataCache.value(normalizePlaylistEntryPath(url));
     const QString fallbackTitle = titleFromUrl(url);
-    const QString title = isCurrent && !m_currentTitle.trimmed().isEmpty()
+    const QString title =
+        isCurrent && !m_currentTitle.trimmed().isEmpty()
             ? m_currentTitle.trimmed()
             : (!cachedMetadata.value(QStringLiteral("title")).toString().trimmed().isEmpty()
-               ? cachedMetadata.value(QStringLiteral("title")).toString().trimmed()
-               : fallbackTitle);
-    const QString artist = isCurrent && !m_currentArtist.trimmed().isEmpty()
+                   ? cachedMetadata.value(QStringLiteral("title")).toString().trimmed()
+                   : fallbackTitle);
+    const QString artist =
+        isCurrent && !m_currentArtist.trimmed().isEmpty()
             ? m_currentArtist.trimmed()
             : (!cachedMetadata.value(QStringLiteral("artist")).toString().trimmed().isEmpty()
-               ? cachedMetadata.value(QStringLiteral("artist")).toString().trimmed()
-               : resolveArtistForPlaylistEntry(normalizePlaylistEntryPath(url), cachedMetadata));
-    const QString cover = isCurrent && !m_currentAlbumArt.trimmed().isEmpty()
+                   ? cachedMetadata.value(QStringLiteral("artist")).toString().trimmed()
+                   : resolveArtistForPlaylistEntry(normalizePlaylistEntryPath(url),
+                                                   cachedMetadata));
+    const QString cover =
+        isCurrent && !m_currentAlbumArt.trimmed().isEmpty()
             ? m_currentAlbumArt.trimmed()
             : (!cachedMetadata.value(QStringLiteral("cover")).toString().trimmed().isEmpty()
-               ? cachedMetadata.value(QStringLiteral("cover")).toString().trimmed()
-               : resolveCoverForPlaylistEntry(normalizePlaylistEntryPath(url), title, artist));
+                   ? cachedMetadata.value(QStringLiteral("cover")).toString().trimmed()
+                   : resolveCoverForPlaylistEntry(normalizePlaylistEntryPath(url), title, artist));
 
     QVariantMap item;
     item.insert(QStringLiteral("filePath"), normalizePlaylistEntryPath(url));
@@ -482,16 +443,14 @@ QVariantMap PlaybackViewModel::buildPlaylistSnapshotItem(const QUrl& url, int in
     return item;
 }
 
-QString PlaybackViewModel::normalizePlaylistEntryPath(const QUrl& url)
-{
+QString PlaybackViewModel::normalizePlaylistEntryPath(const QUrl& url) {
     if (url.isLocalFile()) {
         return QDir::fromNativeSeparators(url.toLocalFile());
     }
     return url.toString(QUrl::FullyDecoded).trimmed();
 }
 
-QString PlaybackViewModel::titleFromUrl(const QUrl& url)
-{
+QString PlaybackViewModel::titleFromUrl(const QUrl& url) {
     QString title;
     if (url.isLocalFile()) {
         title = QFileInfo(url.toLocalFile()).completeBaseName().trimmed();
@@ -511,8 +470,7 @@ QString PlaybackViewModel::titleFromUrl(const QUrl& url)
     return title.isEmpty() ? QStringLiteral("未知歌曲") : title;
 }
 
-void PlaybackViewModel::prunePlaylistMetadataCache()
-{
+void PlaybackViewModel::prunePlaylistMetadataCache() {
     const QList<QUrl> playlist = m_audioService->playlist();
     QSet<QString> activeKeys;
     activeKeys.reserve(playlist.size());
@@ -530,8 +488,7 @@ void PlaybackViewModel::prunePlaylistMetadataCache()
     }
 }
 
-void PlaybackViewModel::cacheCurrentTrackMetadata()
-{
+void PlaybackViewModel::cacheCurrentTrackMetadata() {
     QString key;
     if (!m_currentUrl.isEmpty()) {
         key = normalizePlaylistEntryPath(m_currentUrl);
@@ -571,8 +528,7 @@ void PlaybackViewModel::cacheCurrentTrackMetadata()
 
 QString PlaybackViewModel::resolveCoverForPlaylistEntry(const QString& filePath,
                                                         const QString& title,
-                                                        const QString& artist) const
-{
+                                                        const QString& artist) const {
     const QString normalizedPath = normalizeMusicPathForLookup(filePath);
     if (!normalizedPath.isEmpty()) {
         const QList<LocalMusicInfo> localMusicList = LocalMusicCache::instance().getMusicList();
@@ -593,9 +549,9 @@ QString PlaybackViewModel::resolveCoverForPlaylistEntry(const QString& filePath,
 }
 
 QString PlaybackViewModel::resolveArtistForPlaylistEntry(const QString& filePath,
-                                                         const QVariantMap& cachedMetadata) const
-{
-    const QString cachedArtist = cachedMetadata.value(QStringLiteral("artist")).toString().trimmed();
+                                                         const QVariantMap& cachedMetadata) const {
+    const QString cachedArtist =
+        cachedMetadata.value(QStringLiteral("artist")).toString().trimmed();
     if (!cachedArtist.isEmpty()) {
         return cachedArtist;
     }

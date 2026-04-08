@@ -4,9 +4,7 @@
 #include <QMetaObject>
 #include <QVBoxLayout>
 
-MusicListWidgetNet::MusicListWidgetNet(QWidget* parent)
-    : QWidget(parent)
-{
+MusicListWidgetNet::MusicListWidgetNet(QWidget* parent) : QWidget(parent) {
     listWidget = new MusicListWidgetNetQml(this);
     m_viewModel = new OnlineMusicListViewModel(this);
 
@@ -18,24 +16,22 @@ MusicListWidgetNet::MusicListWidgetNet(QWidget* parent)
     setupConnections();
 }
 
-void MusicListWidgetNet::setAvailablePlaylists(const QVariantList& playlists)
-{
+void MusicListWidgetNet::setAvailablePlaylists(const QVariantList& playlists) {
     if (!listWidget || !listWidget->rootObject()) {
         return;
     }
     listWidget->rootObject()->setProperty("availablePlaylists", QVariant::fromValue(playlists));
 }
 
-void MusicListWidgetNet::setFavoritePaths(const QStringList& favoritePaths)
-{
+void MusicListWidgetNet::setFavoritePaths(const QStringList& favoritePaths) {
     if (!listWidget || !listWidget->rootObject()) {
         return;
     }
     listWidget->rootObject()->setProperty("favoritePaths", QVariant::fromValue(favoritePaths));
 }
 
-void MusicListWidgetNet::onPlayClick(const QString name, const QString artist, const QString cover)
-{
+void MusicListWidgetNet::onPlayClick(const QString name, const QString artist,
+                                     const QString cover) {
     currentSongArtist = artist;
     currentSongCover = cover;
     if (m_viewModel) {
@@ -43,13 +39,10 @@ void MusicListWidgetNet::onPlayClick(const QString name, const QString artist, c
     }
 }
 
-void MusicListWidgetNet::onDownloadMusic(QString songName)
-{
+void MusicListWidgetNet::onDownloadMusic(QString songName) {
     if (mainWidget) {
         bool isLoggedIn = false;
-        QMetaObject::invokeMethod(mainWidget,
-                                  "isUserLoggedIn",
-                                  Qt::DirectConnection,
+        QMetaObject::invokeMethod(mainWidget, "isUserLoggedIn", Qt::DirectConnection,
                                   Q_RETURN_ARG(bool, isLoggedIn));
 
         if (!isLoggedIn) {
@@ -68,25 +61,21 @@ void MusicListWidgetNet::onDownloadMusic(QString songName)
     }
 }
 
-void MusicListWidgetNet::onRemoveClick(const QString name)
-{
+void MusicListWidgetNet::onRemoveClick(const QString name) {
     Q_UNUSED(name);
 }
 
-void MusicListWidgetNet::onTranslateButtonClicked()
-{
+void MusicListWidgetNet::onTranslateButtonClicked() {
     emit signalTranslateButtonClicked();
 }
 
-void MusicListWidgetNet::setPlayingState(const QString& filePath, bool playing)
-{
+void MusicListWidgetNet::setPlayingState(const QString& filePath, bool playing) {
     if (listWidget) {
         listWidget->setPlayingState(filePath, playing);
     }
 }
 
-void MusicListWidgetNet::resolveSongAction(const QString& action, const QVariantMap& songData)
-{
+void MusicListWidgetNet::resolveSongAction(const QString& action, const QVariantMap& songData) {
     if (!m_viewModel) {
         emit songActionRequested(action, songData);
         return;
@@ -106,18 +95,15 @@ void MusicListWidgetNet::resolveSongAction(const QString& action, const QVariant
 
     m_pendingResolvedAction = action;
     m_pendingResolvedSongData = songData;
-    m_viewModel->resolveStreamUrl(relativePath,
-                                  songData.value(QStringLiteral("artist")).toString(),
+    m_viewModel->resolveStreamUrl(relativePath, songData.value(QStringLiteral("artist")).toString(),
                                   songData.value(QStringLiteral("cover")).toString());
 }
 
-bool MusicListWidgetNet::hasPendingResolvedAction() const
-{
+bool MusicListWidgetNet::hasPendingResolvedAction() const {
     return !m_pendingResolvedAction.isEmpty();
 }
 
-void MusicListWidgetNet::clearPendingResolvedAction()
-{
+void MusicListWidgetNet::clearPendingResolvedAction() {
     m_pendingResolvedAction.clear();
     m_pendingResolvedSongData.clear();
 }

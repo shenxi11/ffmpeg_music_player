@@ -23,7 +23,7 @@ public slots:
     void onPlayClick(const QString songName);
     void onRemoveClick(const QString songeName);
     void onTranslateButtonClicked();
-    void onUpdateMetadata(QString filePath, QString coverUrl, QString duration);
+    void onUpdateMetadata(QString filePath, QString coverUrl, QString duration, QString artist);
 
 signals:
     void signalAddButtonClicked();

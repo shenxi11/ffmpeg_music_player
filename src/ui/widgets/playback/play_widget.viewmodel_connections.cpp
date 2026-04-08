@@ -3,6 +3,35 @@
 #include <QChar>
 #include <QDebug>
 
+namespace {
+
+QString normalizeLocalArtist(const QString& artist)
+{
+    const QString trimmed = artist.trimmed();
+    if (trimmed.isEmpty()) {
+        return QString();
+    }
+
+    const QString lower = trimmed.toLower();
+    if (trimmed == QStringLiteral("未知艺术家") || trimmed == QStringLiteral("未知歌手") ||
+        lower == QStringLiteral("unknown artist") || lower == QStringLiteral("unknown") ||
+        lower == QStringLiteral("<unknown>")) {
+        return QString();
+    }
+    return trimmed;
+}
+
+QString formatDurationMicros(qint64 durationMicros)
+{
+    const qint64 safeMicros = qMax<qint64>(0, durationMicros);
+    const qint64 totalSeconds = safeMicros / 1000000;
+    const qint64 minutes = totalSeconds / 60;
+    const qint64 seconds = totalSeconds % 60;
+    return QStringLiteral("%1:%2").arg(minutes).arg(seconds, 2, 10, QChar('0'));
+}
+
+} // namespace
+
 /*
 模块名称: PlayWidget 与 ViewModel 连接
 功能概述: 维护 PlaybackViewModel 到 PlayWidget 的状态绑定与 UI 回写。
@@ -61,6 +90,7 @@ void PlayWidget::handleVmDurationChanged()
     qDebug() << "[MVVM-UI] Duration changed:" << durationMs << "ms";
     duration = durationMs * 1000;
     process_slider->setMaxSeconds(durationMs / 1000);
+    emitLocalMetadataUpdateIfNeeded();
 }
 
 void PlayWidget::handleVmCurrentTitleChanged()
@@ -81,6 +111,7 @@ void PlayWidget::handleVmCurrentArtistChanged()
         currentSongArtist = artist;
         refreshStageTexts();
     }
+    emitLocalMetadataUpdateIfNeeded();
 }
 
 void PlayWidget::handleVmCurrentAlbumArtChanged()
@@ -120,12 +151,7 @@ void PlayWidget::handleVmCurrentAlbumArtChanged()
         playlistHistory->setCurrentPlayingPath(currentPath);
     }
 
-    if (!currentPath.isEmpty() && !play_net) {
-        const QString durationStr = QString("%1:%2")
-            .arg(duration / 60000000)
-            .arg((duration / 1000000) % 60, 2, 10, QChar('0'));
-        emit signalMetadataUpdated(currentPath, imagePath, durationStr);
-    }
+    emitLocalMetadataUpdateIfNeeded();
 }
 
 void PlayWidget::handleVmPlaybackStarted()
@@ -189,4 +215,25 @@ void PlayWidget::refreshPlaylistHistoryFromViewModel()
     playlistHistory->setPaused(!m_playbackViewModel->isPlaying());
 
     qDebug() << "[MVVM-UI] Playlist history synced from queue snapshot, count:" << snapshot.size();
+}
+
+void PlayWidget::emitLocalMetadataUpdateIfNeeded()
+{
+    if (play_net || !m_playbackViewModel) {
+        return;
+    }
+
+    QString currentPath = m_playbackViewModel->currentFilePath();
+    if (currentPath.isEmpty()) {
+        currentPath = filePath;
+    }
+    if (currentPath.isEmpty()) {
+        return;
+    }
+
+    const QString coverUrl = m_playbackViewModel->currentAlbumArt().trimmed();
+    const QString artist = normalizeLocalArtist(m_playbackViewModel->currentArtist());
+    const QString durationText = formatDurationMicros(duration);
+
+    emit signalMetadataUpdated(currentPath, coverUrl, durationText, artist);
 }

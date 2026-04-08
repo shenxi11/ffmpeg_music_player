@@ -167,22 +167,28 @@ Rectangle {
             model: typeof downloadTaskModel !== 'undefined' ? downloadTaskModel : null
 
             delegate: Rectangle {
+                id: itemRoot
                 property bool currentTrack: root.isSameTrack(root.currentPlayingPath, model.savePath || "")
                 property bool playbackActive: currentTrack && root.isPlaying
-                property bool rowHovered: rowHoverHandler.hovered
-                                           || coverAction.interactionActive
-                                           || actionStrip.interactionActive
+                property bool rowVisualHovered: rowHoverArea.containsMouse
+                                                 || coverAction.interactionActive
+                                                 || actionStrip.interactionActive
+                property bool coverVisualHovered: rowHoverArea.containsMouse
+                                                   || coverAction.interactionActive
                 width: listView.width
                 height: 60
                 color: currentTrack
                        ? "#FDECEC"
-                       : (rowHovered ? "#F8FAFF" : "#ffffff")
+                       : (rowVisualHovered ? "#F8FAFF" : "#ffffff")
                 radius: 4
                 border.width: currentTrack ? 1 : 0
                 border.color: currentTrack ? "#EC4141" : "transparent"
 
-                HoverHandler {
-                    id: rowHoverHandler
+                MouseArea {
+                    id: rowHoverArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    acceptedButtons: Qt.NoButton
                 }
 
                 Rectangle {
@@ -196,11 +202,9 @@ Rectangle {
                     anchors.margins: 10
                 }
 
-                MouseArea {
-                    id: itemArea
-                    anchors.fill: parent
-                    propagateComposedEvents: true
-                    onDoubleClicked: {
+                TapHandler {
+                    acceptedButtons: Qt.LeftButton
+                    onDoubleTapped: {
                         root.playMusic(model.savePath || "")
                     }
                 }
@@ -215,7 +219,9 @@ Rectangle {
                         id: coverAction
                         Layout.preferredWidth: root.colCoverWidth
                         Layout.preferredHeight: root.colCoverWidth
-                        rowHovered: rowHovered
+                        z: 2
+                        Layout.alignment: Qt.AlignVCenter
+                        rowHovered: coverVisualHovered
                         isCurrentTrack: currentTrack
                         isPlaying: playbackActive
                         coverSource: model.coverUrl || ""
@@ -265,8 +271,8 @@ Rectangle {
                         id: actionStrip
                         Layout.preferredWidth: root.colActionWidth
                         z: 1
-                        opacity: rowHovered ? 1.0 : 0.0
-                        enabled: rowHovered
+                        opacity: rowVisualHovered ? 1.0 : 0.0
+                        enabled: rowVisualHovered
                         availablePlaylists: root.availablePlaylists
                         songData: root.buildSongPayload(model)
                         favoriteActive: root.isFavoritePath(model.savePath || "")

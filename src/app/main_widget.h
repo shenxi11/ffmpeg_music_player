@@ -1,35 +1,36 @@
 ﻿#ifndef TEST_WIDGET_H
 #define TEST_WIDGET_H
-#include"play_widget.h"
+#include "VideoPlayerWindow.h"
+#include "favorite_music_widget.h"
+#include "local_and_download_widget.h"
+#include "loginwidget_qml.h"
+#include "main_menu.h"
 #include "music_list_widget.h"
 #include "music_list_widget_local.h"
 #include "music_list_widget_net.h"
-#include "local_and_download_widget.h"
+#include "play_history_widget.h"
+#include "play_widget.h"
 #include "playlist_widget.h"
-#include "loginwidget_qml.h"
+#include "recommend_music_widget.h"
 #include "searchbox_qml.h"
+#include "settings_widget.h"
+#include "user_profile_widget.h"
 #include "user_widget.h"
 #include "userwidget_qml.h"
-#include "main_menu.h"
-#include "VideoPlayerWindow.h"
 #include "video_list_widget.h"
-#include "settings_widget.h"
-#include "play_history_widget.h"
-#include "favorite_music_widget.h"
-#include "recommend_music_widget.h"
-#include "user_profile_widget.h"
 #include "viewmodels/MainShellViewModel.h"
-#include <QWidget>
+
 #include <QButtonGroup>
-#include <QScreen>
 #include <QGuiApplication>
-#include <QStringList>
-#include <QVariantMap>
-#include <QVariantList>
-#include <QPainter>
 #include <QLinearGradient>
-#include <QMouseEvent>
 #include <QList>
+#include <QMouseEvent>
+#include <QPainter>
+#include <QScreen>
+#include <QStringList>
+#include <QVariantList>
+#include <QVariantMap>
+#include <QWidget>
 
 class PlaybackStateManager;
 class QCloseEvent;
@@ -41,17 +42,16 @@ class QScrollArea;
 class QVBoxLayout;
 class QLabel;
 
-class MainWidget : public QWidget
-{
+class MainWidget : public QWidget {
     Q_OBJECT
-public:
-    explicit MainWidget(QWidget *parent = nullptr);
+  public:
+    explicit MainWidget(bool localOnlyMode = false, QWidget* parent = nullptr);
     ~MainWidget();
     void updatePaint();
-    
+
     // 检查登录状态（Q_INVOKABLE 供 QMetaObject::invokeMethod 调用）
-    Q_INVOKABLE bool isUserLoggedIn() const { 
-        return userWidgetQml ? userWidgetQml->getLoginState() : false; 
+    Q_INVOKABLE bool isUserLoggedIn() const {
+        return userWidgetQml ? userWidgetQml->getLoginState() : false;
     }
     Q_INVOKABLE QVariantMap agentVideoWindowState() const;
     Q_INVOKABLE bool agentPlayVideo(const QString& source);
@@ -65,30 +65,34 @@ public:
     Q_INVOKABLE QVariantMap agentDesktopLyricsState() const;
     Q_INVOKABLE bool agentSetDesktopLyricsVisible(bool visible);
     Q_INVOKABLE bool agentSetDesktopLyricsStyle(const QVariantMap& style);
-    
+
     // 显示登录窗口
     void showLoginWindow() {
+        if (m_localOnlyMode) {
+            showLocalOnlyUnavailableMessage();
+            return;
+        }
         if (loginWidget) {
             loginWidget->isVisible = true;
             loginWidget->show();
         }
     }
-    
-signals:
-    void loginRequired();  // 需要登录时发出的信号
+
+  signals:
+    void loginRequired(); // 需要登录时发出的信号
     void requestReturnToWelcome();
-    
-private:
+
+  private:
     PlayWidget* w;
     MusicListWidget* list;
     MusicListWidgetLocal* main_list;
-    LocalAndDownloadWidget* localAndDownloadWidget;  // 本地与下载页面组件
+    LocalAndDownloadWidget* localAndDownloadWidget; // 本地与下载页面组件
     MusicListWidgetNet* net_list;
-    PlayHistoryWidget* playHistoryWidget;  // 最近播放页面组件
-    FavoriteMusicWidget* favoriteMusicWidget;  // 喜欢音乐页面组件
-    RecommendMusicWidget* recommendMusicWidget;  // 推荐音乐页面组件
-    PlaylistWidget* playlistWidget;  // 我的歌单页面组件
-    UserProfileWidget* userProfileWidget = nullptr;  // 个人主页页面组件
+    PlayHistoryWidget* playHistoryWidget;           // 最近播放页面组件
+    FavoriteMusicWidget* favoriteMusicWidget;       // 喜欢音乐页面组件
+    RecommendMusicWidget* recommendMusicWidget;     // 推荐音乐页面组件
+    PlaylistWidget* playlistWidget;                 // 我的歌单页面组件
+    UserProfileWidget* userProfileWidget = nullptr; // 个人主页页面组件
     LoginWidgetQml* loginWidget;
     UserWidget* userWidget;
     UserWidgetQml* userWidgetQml;
@@ -115,14 +119,14 @@ private:
     QLabel* sidebarPlaylistEmptyLabel = nullptr;
     QPushButton* aiAssistantTopButton = nullptr;
     VideoPlayerWindow* videoPlayerWindow;
-    VideoListWidget* videoListWidget;  // 在线视频列表窗口
-    SettingsWidget* settingsWidget;    // 设置窗口
+    VideoListWidget* videoListWidget; // 在线视频列表窗口
+    SettingsWidget* settingsWidget;   // 设置窗口
 
     QPushButton* Login;
     MainShellViewModel* m_viewModel = nullptr;
     AgentChatViewModel* m_agentChatViewModel = nullptr;
     AgentChatWindow* m_agentChatWindow = nullptr;
-    
+
     // 在线音乐元数据缓存（用于追加最近播放记录）
     QString m_networkMusicArtist;
     QString m_networkMusicCover;
@@ -147,12 +151,13 @@ private:
     QVariantList m_profileFavoritesPreview;
     QVariantList m_profileHistoryPreview;
     QVariantList m_profileOwnedPlaylistsPreview;
+    bool m_localOnlyMode = false;
 
     QPoint pos_ = QPoint(0, 0);
     bool dragging = false;
-protected:
-    void paintEvent(QPaintEvent *event) override
-    {
+
+  protected:
+    void paintEvent(QPaintEvent* event) override {
         Q_UNUSED(event);
 
         QPainter painter(this);
@@ -164,16 +169,15 @@ protected:
         gradient.setColorAt(0.5, QColor("#FAFAFA")); // 接近纯白
         gradient.setColorAt(1, QColor("#F0F0F2"));   // 浅灰色
         painter.fillRect(rect(), gradient);
+    }
 
-     }
+    void mouseMoveEvent(QMouseEvent* event) override;
+    void mousePressEvent(QMouseEvent* event) override;
+    void mouseReleaseEvent(QMouseEvent* event) override;
+    void resizeEvent(QResizeEvent* event) override;
+    void closeEvent(QCloseEvent* event) override;
 
-    void mouseMoveEvent(QMouseEvent *event) override;
-    void mousePressEvent(QMouseEvent *event) override;
-    void mouseReleaseEvent(QMouseEvent *event) override;
-    void resizeEvent(QResizeEvent *event) override;
-    void closeEvent(QCloseEvent *event) override;
-
-private:
+  private:
     // 菜单与账号相关信号连接拆分到独立实现文件，避免构造函数臃肿。
     void setupMenuAndAccountConnections();
     // 播放控制、列表联动与播放状态相关连接拆分到独立实现文件。
@@ -181,10 +185,8 @@ private:
     // 收藏、历史、登录态联动连接拆分到独立实现文件。
     void setupLibraryConnections();
 
-    void submitPlayHistoryWithRetry(const QString& sessionId,
-                                    const QString& filePath,
-                                    const QString& userAccount,
-                                    int retryCount);
+    void submitPlayHistoryWithRetry(const QString& sessionId, const QString& filePath,
+                                    const QString& userAccount, int retryCount);
     static QString normalizeArtistForHistory(const QString& artist);
     static QString extractSongIdFromMediaPath(const QString& rawPath);
     QRect computeContentRect() const;
@@ -198,10 +200,12 @@ private:
     void refreshUserProfileStats();
     void syncUserProfileStatsToPage();
     void syncUserProfilePreviewToPage();
-    void applyUserIdentityToUi(const QString& username,
-                               const QString& avatarUrl,
-                               bool loggedIn,
+    void applyUserIdentityToUi(const QString& username, const QString& avatarUrl, bool loggedIn,
                                bool forceAvatarRefresh = false);
+    bool isLocalOnlyMode() const { return m_localOnlyMode; }
+    void applyLocalOnlyModeUi();
+    void showLocalOnlyUnavailableMessage();
+    void updateSearchBoxForMode();
     void enqueuePluginLoadError(const QString& pluginFilePath, const QString& reason);
     void showPluginDiagnosticsDialog();
 
@@ -212,16 +216,16 @@ private:
     void handlePlayWidgetNetFlagChanged(bool netFlag);
     void handlePlayWidgetAddSongToCache(const QString& fileName, const QString& path);
     void handlePlayWidgetButtonState(bool playing, const QString& filename);
-    void handlePlayWidgetMetadataUpdated(const QString& filePath, const QString& coverUrl, const QString& duration);
+    void handlePlayWidgetMetadataUpdated(const QString& filePath, const QString& coverUrl,
+                                         const QString& duration, const QString& artist);
     void handleLocalListPlayClick(const QString& name, bool flag);
     void handleLocalAndDownloadPlayMusic(const QString& filename);
     void handleLocalAndDownloadDeleteMusic(const QString& filename);
-    void handleNetListPlayClick(const QString& name, const QString& artist, const QString& cover, bool flag);
+    void handleNetListPlayClick(const QString& name, const QString& artist, const QString& cover,
+                                bool flag);
     void handleHistoryPlayMusic(const QString& filePath);
-    void handleHistoryPlayMusicWithMetadata(const QString& filePath,
-                                            const QString& title,
-                                            const QString& artist,
-                                            const QString& cover);
+    void handleHistoryPlayMusicWithMetadata(const QString& filePath, const QString& title,
+                                            const QString& artist, const QString& cover);
     void handleAudioPlaybackStarted(const QString& sessionId, const QUrl& url);
     void handleAudioPlaybackPaused();
     void handleAudioPlaybackResumed();
@@ -239,17 +243,13 @@ private:
     void handleUserLogoutRequested();
     void handleSettingsReturnToWelcomeRequested();
     void handleSessionExpired();
-    void handleLoginWidgetSuccess(const QString& username,
-                                  const QString& avatarUrl,
+    void handleLoginWidgetSuccess(const QString& username, const QString& avatarUrl,
                                   const QString& onlineSessionToken);
     void triggerAutoLoginIfNeeded();
     void handleHistoryDeleteRequested(const QStringList& paths);
     void handleRemoveHistoryResult(bool success);
-    void handleHistoryAddToFavorite(const QString& path,
-                                    const QString& title,
-                                    const QString& artist,
-                                    const QString& duration,
-                                    bool isLocal);
+    void handleHistoryAddToFavorite(const QString& path, const QString& title,
+                                    const QString& artist, const QString& duration, bool isLocal);
     void handleHistoryLoginRequested();
     void handleHistoryRefreshRequested();
     void handleFavoritePlayMusic(const QString& filePath);
@@ -257,13 +257,9 @@ private:
     void handleFavoriteRefreshRequested();
     void handleFavoritesListUpdated(const QVariantList& favorites);
     void handleRemoveFavoriteResult(bool success);
-    void handleLocalAddToFavorite(const QString& path,
-                                  const QString& title,
-                                  const QString& artist,
+    void handleLocalAddToFavorite(const QString& path, const QString& title, const QString& artist,
                                   const QString& duration);
-    void handleNetAddToFavorite(const QString& path,
-                                const QString& title,
-                                const QString& artist,
+    void handleNetAddToFavorite(const QString& path, const QString& title, const QString& artist,
                                 const QString& duration);
     void handleAddFavoriteResult(bool success);
     void handleUserLoginStateChanged(bool loggedIn);
@@ -276,14 +272,10 @@ private:
     void handleUserProfileReloginRequested();
     void handleUserProfileReady(const QVariantMap& profile);
     void handleUserProfileRequestFailed(const QString& message, int statusCode);
-    void handleUpdateUsernameResultReady(bool success,
-                                         const QString& username,
-                                         const QString& message,
-                                         int statusCode);
-    void handleUploadAvatarResultReady(bool success,
-                                       const QString& avatarUrl,
-                                       const QString& message,
-                                       int statusCode);
+    void handleUpdateUsernameResultReady(bool success, const QString& username,
+                                         const QString& message, int statusCode);
+    void handleUploadAvatarResultReady(bool success, const QString& avatarUrl,
+                                       const QString& message, int statusCode);
     void handlePlaylistLoginRequested();
     void handlePlaylistRefreshRequested();
     void handlePlaylistOpenRequested(qint64 playlistId);
@@ -292,12 +284,11 @@ private:
     void handleSidebarCreatePlaylistClicked();
     void handleSidebarPlaylistItemClicked();
     void handlePlaylistCreateRequested(const QString& name, const QString& description);
-    void handlePlaylistUpdateRequested(qint64 playlistId, const QString& name, const QString& description);
+    void handlePlaylistUpdateRequested(qint64 playlistId, const QString& name,
+                                       const QString& description);
     void handlePlaylistDeleteRequested(qint64 playlistId);
-    void handlePlaylistPlayMusicWithMetadata(const QString& filePath,
-                                             const QString& title,
-                                             const QString& artist,
-                                             const QString& cover);
+    void handlePlaylistPlayMusicWithMetadata(const QString& filePath, const QString& title,
+                                             const QString& artist, const QString& cover);
     void handlePlaylistRemoveSongsRequested(qint64 playlistId, const QStringList& musicPaths);
     void handlePlaylistReorderSongsRequested(qint64 playlistId, const QVariantList& orderedItems);
     void handlePlaylistAddCurrentSongRequested(qint64 playlistId);
@@ -306,9 +297,12 @@ private:
     void handleCreatePlaylistResultReady(bool success, qint64 playlistId, const QString& message);
     void handleUpdatePlaylistResultReady(bool success, qint64 playlistId, const QString& message);
     void handleDeletePlaylistResultReady(bool success, qint64 playlistId, const QString& message);
-    void handleAddPlaylistItemsResultReady(bool success, qint64 playlistId, int addedCount, int skippedCount, const QString& message);
-    void handleRemovePlaylistItemsResultReady(bool success, qint64 playlistId, int deletedCount, const QString& message);
-    void handleReorderPlaylistItemsResultReady(bool success, qint64 playlistId, const QString& message);
+    void handleAddPlaylistItemsResultReady(bool success, qint64 playlistId, int addedCount,
+                                           int skippedCount, const QString& message);
+    void handleRemovePlaylistItemsResultReady(bool success, qint64 playlistId, int deletedCount,
+                                              const QString& message);
+    void handleReorderPlaylistItemsResultReady(bool success, qint64 playlistId,
+                                               const QString& message);
     void handleSongActionRequested(const QString& action, const QVariantMap& songData);
     void queueSongAsNext(const QVariantMap& songData);
     void appendSongToPlaybackQueue(const QVariantMap& songData);
@@ -317,10 +311,8 @@ private:
     void toggleFavoriteByAction(const QString& action, const QVariantMap& songData);
     void removeOrDeleteSongByAction(const QVariantMap& songData);
     void playSongByAction(const QVariantMap& songData);
-    void rememberPlaybackQueueMetadata(const QString& filePath,
-                                       const QString& title,
-                                       const QString& artist,
-                                       const QString& cover);
+    void rememberPlaybackQueueMetadata(const QString& filePath, const QString& title,
+                                       const QString& artist, const QString& cover);
 
     // 主窗口首页联动处理（替代构造函数内大段 lambda）。
     void handlePlaybackPauseAudioRequested();
@@ -341,48 +333,28 @@ private:
     void handleVideoPlaybackStateChanged(bool isPlaying);
     void handleSearchRequested(const QString& keyword);
     void handleSearchResultsReady();
-    void handleSimilarRecommendationListReady(const QVariantMap& meta,
-                                              const QVariantList& items,
+    void handleSimilarRecommendationListReady(const QVariantMap& meta, const QVariantList& items,
                                               const QString& anchorSongId);
     void handleRecommendRefreshRequested();
     void handleRecommendLoginRequested();
-    void handleRecommendPlayMusicWithMetadata(const QString& filePath,
-                                              const QString& title,
-                                              const QString& artist,
-                                              const QString& cover,
-                                              const QString& duration,
-                                              const QString& songId,
-                                              const QString& requestId,
-                                              const QString& modelVersion,
+    void handleRecommendPlayMusicWithMetadata(const QString& filePath, const QString& title,
+                                              const QString& artist, const QString& cover,
+                                              const QString& duration, const QString& songId,
+                                              const QString& requestId, const QString& modelVersion,
                                               const QString& scene);
-    void handleRecommendAddToFavorite(const QString& path,
-                                      const QString& title,
-                                      const QString& artist,
-                                      const QString& duration,
-                                      bool isLocal);
-    void handleRecommendFeedbackEvent(const QString& songId,
-                                      const QString& eventType,
-                                      int playMs,
-                                      int durationMs,
-                                      const QString& scene,
-                                      const QString& requestId,
-                                      const QString& modelVersion);
+    void handleRecommendAddToFavorite(const QString& path, const QString& title,
+                                      const QString& artist, const QString& duration, bool isLocal);
+    void handleRecommendFeedbackEvent(const QString& songId, const QString& eventType, int playMs,
+                                      int durationMs, const QString& scene,
+                                      const QString& requestId, const QString& modelVersion);
     void handleSimilarSongSelected(const QVariantMap& item);
     void handlePendingSimilarSongPlayback();
-    void schedulePlayHistoryRetry(const QString& sessionId,
-                                  const QString& filePath,
-                                  const QString& userAccount,
-                                  int retryCount);
+    void schedulePlayHistoryRetry(const QString& sessionId, const QString& filePath,
+                                  const QString& userAccount, int retryCount);
     void handlePlayHistoryRetryTimeout();
-    int placeSideNavButton(int row,
-                           QPushButton* button,
-                           int navStartY,
-                           int itemHeight,
+    int placeSideNavButton(int row, QPushButton* button, int navStartY, int itemHeight,
                            int panelWidth);
     void ensureAgentChatWindow();
 };
 
 #endif // TEST_WIDGET_H
-
-
-

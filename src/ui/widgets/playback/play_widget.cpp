@@ -764,25 +764,42 @@ void PlayWidget::updateCoverPresentation(const QString& imagePath) {
         rotatingCircle->setImage(imagePath);
     }
 
-    if (!squareCoverLabel || imagePath.trimmed().isEmpty()) {
+    if (!squareCoverLabel) {
         return;
     }
 
-    QString localPath = imagePath;
-    if (imagePath.startsWith("file:///")) {
-        localPath = QUrl(imagePath).toLocalFile();
-    } else if (imagePath.startsWith("qrc:")) {
-        localPath = imagePath.mid(3);
+    const QString trimmedPath = imagePath.trimmed();
+    QString localPath = trimmedPath;
+    if (trimmedPath.startsWith("file:///")) {
+        localPath = QUrl(trimmedPath).toLocalFile();
+    } else if (trimmedPath.startsWith("qrc:")) {
+        localPath = trimmedPath.mid(3);
     }
 
     QPixmap cover(localPath);
     if (cover.isNull()) {
-        cover = QIcon(QStringLiteral(":/qml/assets/ai/icons/default-music-cover.svg"))
-                    .pixmap(squareCoverLabel->size());
+        cover = defaultCoverPixmapForSize(squareCoverLabel->size());
     }
     if (!cover.isNull()) {
         squareCoverLabel->setPixmap(cover);
     }
+}
+
+QPixmap PlayWidget::defaultCoverPixmapForSize(const QSize& requestedSize) const {
+    QSize safeSize = requestedSize;
+    if (safeSize.width() <= 0 || safeSize.height() <= 0) {
+        safeSize = QSize(220, 220);
+    }
+
+    const qreal dpr = devicePixelRatioF();
+    const QSize deviceSize(qMax(1, qRound(safeSize.width() * dpr)),
+                           qMax(1, qRound(safeSize.height() * dpr)));
+    QPixmap cover = QIcon(QStringLiteral(":/qml/assets/ai/icons/default-music-cover.svg"))
+                        .pixmap(deviceSize);
+    if (!cover.isNull()) {
+        cover.setDevicePixelRatio(dpr);
+    }
+    return cover;
 }
 
 int PlayWidget::collapsedPlaybackHeight() const {
@@ -928,6 +945,26 @@ void PlayWidget::updateAdaptiveLayout() {
         const int inset = qMax(14, squareCoverHost->width() / 12);
         squareCoverLabel->setGeometry(inset, inset, qMax(1, squareCoverHost->width() - inset * 2),
                                       qMax(1, squareCoverHost->height() - inset * 2));
+        if (squareVisible) {
+            QPixmap cover;
+            const QString currentCover =
+                m_playbackViewModel ? m_playbackViewModel->currentAlbumArt().trimmed() : QString();
+            QString localPath = currentCover;
+            if (currentCover.startsWith("file:///")) {
+                localPath = QUrl(currentCover).toLocalFile();
+            } else if (currentCover.startsWith("qrc:")) {
+                localPath = currentCover.mid(3);
+            }
+            if (!localPath.isEmpty()) {
+                cover.load(localPath);
+            }
+            if (cover.isNull()) {
+                cover = defaultCoverPixmapForSize(squareCoverLabel->size());
+            }
+            if (!cover.isNull()) {
+                squareCoverLabel->setPixmap(cover);
+            }
+        }
     }
 
     if (nameLabel) {

@@ -369,6 +369,51 @@ DownloadTask DownloadManager::getTask(const QString& taskId) const
     return m_allTasks.value(taskId);
 }
 
+bool DownloadManager::updateTaskMetadataBySavePath(const QString& savePath, const QString& coverUrl,
+                                                   const QString& artist,
+                                                   const QString& duration)
+{
+    const QString normalizedPath = savePath.trimmed();
+    const QString normalizedCover = coverUrl.trimmed();
+    const QString normalizedArtist = artist.trimmed();
+    const QString normalizedDuration = duration.trimmed();
+    if (normalizedPath.isEmpty()) {
+        return false;
+    }
+
+    QMutexLocker locker(&m_tasksMutex);
+    for (auto it = m_allTasks.begin(); it != m_allTasks.end(); ++it) {
+        DownloadTask& task = it.value();
+        if (task.savePath.trimmed() != normalizedPath) {
+            continue;
+        }
+
+        bool changed = false;
+        if (!normalizedCover.isEmpty() && task.coverUrl.trimmed() != normalizedCover) {
+            task.coverUrl = normalizedCover;
+            changed = true;
+        }
+        if (!normalizedArtist.isEmpty() && task.artist.trimmed() != normalizedArtist) {
+            task.artist = normalizedArtist;
+            changed = true;
+        }
+        if (!normalizedDuration.isEmpty() && task.duration.trimmed() != normalizedDuration) {
+            task.duration = normalizedDuration;
+            changed = true;
+        }
+
+        if (!changed) {
+            return true;
+        }
+
+        saveTaskInfo(task);
+        qDebug() << "[DownloadManager] Updated task metadata:" << normalizedPath;
+        return true;
+    }
+
+    return false;
+}
+
 void DownloadManager::processQueue()
 {
     QMutexLocker locker(&m_tasksMutex);
@@ -524,6 +569,8 @@ void DownloadManager::saveTaskInfo(const DownloadTask& task)
     m_settings->setValue("createTime", task.createTime);
     m_settings->setValue("errorMsg", task.errorMsg);
     m_settings->setValue("coverUrl", task.coverUrl);
+    m_settings->setValue("artist", task.artist);
+    m_settings->setValue("duration", task.duration);
     m_settings->endGroup();
     m_settings->sync();
 }
@@ -545,6 +592,8 @@ void DownloadManager::loadTaskInfo()
         task.createTime = m_settings->value("createTime").toDateTime();
         task.errorMsg = m_settings->value("errorMsg").toString();
         task.coverUrl = m_settings->value("coverUrl").toString();
+        task.artist = m_settings->value("artist").toString();
+        task.duration = m_settings->value("duration").toString();
         m_settings->endGroup();
         m_allTasks.insert(taskId, task);
     }

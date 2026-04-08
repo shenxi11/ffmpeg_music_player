@@ -1,11 +1,13 @@
 #include "main_widget.h"
-#include "plugin_manager.h"
-#include "searchbox_qml.h"
+
+#include "AgentChatViewModel.h"
+#include "AgentChatWindow.h"
 #include "VideoPlayerWindow.h"
 #include "playback_state_manager.h"
 #include "plugin_host_window.h"
-#include "AgentChatViewModel.h"
-#include "AgentChatWindow.h"
+#include "plugin_manager.h"
+#include "searchbox_qml.h"
+
 #include <QApplication>
 #include <QCoreApplication>
 #include <QFileInfo>
@@ -17,50 +19,46 @@
 #include <QTimer>
 #include <QVBoxLayout>
 
-MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
-  ,w(nullptr)
-  ,list(nullptr)
-  ,videoPlayerWindow(nullptr)
-  ,videoListWidget(nullptr)
-  ,settingsWidget(nullptr)
-  ,recommendMusicWidget(nullptr)
-  ,playlistWidget(nullptr)
-{
+MainWidget::MainWidget(bool localOnlyMode, QWidget* parent)
+    : QWidget(parent), w(nullptr), list(nullptr), videoPlayerWindow(nullptr),
+      videoListWidget(nullptr), settingsWidget(nullptr), recommendMusicWidget(nullptr),
+      playlistWidget(nullptr), m_localOnlyMode(localOnlyMode) {
     resize(1180, 760);
     setMinimumSize(1000, 640);
     setWindowFlags(Qt::CustomizeWindowHint);
     setAttribute(Qt::WA_QuitOnClose, true);
     setWindowTitle(QStringLiteral(u"\u4e91\u97f3\u4e50"));
     setWindowIcon(QIcon("qrc:/new/prefix1/icon/netease.ico"));
-    
+
     setObjectName("MainWidget");
     m_viewModel = new MainShellViewModel(this);
 
     m_playbackStateManager = new PlaybackStateManager(this);
-    connect(m_playbackStateManager, &PlaybackStateManager::pauseAudioRequested,
-            this, &MainWidget::handlePlaybackPauseAudioRequested);
-    connect(m_playbackStateManager, &PlaybackStateManager::pauseVideoRequested,
-            this, &MainWidget::handlePlaybackPauseVideoRequested);
-    
+    connect(m_playbackStateManager, &PlaybackStateManager::pauseAudioRequested, this,
+            &MainWidget::handlePlaybackPauseAudioRequested);
+    connect(m_playbackStateManager, &PlaybackStateManager::pauseVideoRequested, this,
+            &MainWidget::handlePlaybackPauseVideoRequested);
+
     m_pluginErrorDialogTimer = new QTimer(this);
     m_pluginErrorDialogTimer->setSingleShot(true);
     m_pluginErrorDialogTimer->setInterval(300);
-    connect(m_pluginErrorDialogTimer, &QTimer::timeout,
-            this, &MainWidget::handlePluginErrorDialogTimeout);
-    connect(m_viewModel, &MainShellViewModel::pluginLoadFailed, this, &MainWidget::enqueuePluginLoadError);
+    connect(m_pluginErrorDialogTimer, &QTimer::timeout, this,
+            &MainWidget::handlePluginErrorDialogTimeout);
+    connect(m_viewModel, &MainShellViewModel::pluginLoadFailed, this,
+            &MainWidget::enqueuePluginLoadError);
 
     QString pluginPath = QCoreApplication::applicationDirPath() + "/plugin";
     int loadedCount = m_viewModel ? m_viewModel->loadPlugins(pluginPath) : 0;
     qDebug() << "Loaded" << loadedCount << "plugins from" << pluginPath;
-    const QVector<PluginLoadFailure> failures = m_viewModel ? m_viewModel->pluginLoadFailures()
-                                                            : QVector<PluginLoadFailure>();
+    const QVector<PluginLoadFailure> failures =
+        m_viewModel ? m_viewModel->pluginLoadFailures() : QVector<PluginLoadFailure>();
     for (const PluginLoadFailure& failure : failures) {
         enqueuePluginLoadError(failure.filePath, failure.reason);
     }
 
     topWidget = new QWidget(this);
     topWidget->setObjectName("TopBar");
-    
+
     QPushButton* minimizeButton = new QPushButton(topWidget);
     minimizeButton->setObjectName("WindowToggleButton");
     minimizeButton->setFixedSize(30, 30);
@@ -84,12 +82,12 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     searchBox->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
     // userWidget = new UserWidget(this);
-    
+
     userWidgetQml = new UserWidgetQml(this);
     userWidgetQml->setFixedHeight(40);
     userWidgetQml->setMinimumWidth(120);
     userWidgetQml->setMaximumWidth(150);
-    
+
     aiAssistantTopButton = new QPushButton(QStringLiteral(u"AI助手"), this);
     aiAssistantTopButton->setFixedHeight(36);
     aiAssistantTopButton->setMinimumWidth(84);
@@ -102,7 +100,7 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     menuButton->setObjectName("MainMenuButton");
     menuButton->setIcon(QIcon(QStringLiteral(":/qml/assets/ai/icons/main-menu.svg")));
     menuButton->setIconSize(QSize(18, 18));
-    
+
     mainMenu = nullptr;
 
     QHBoxLayout* widget_op_layout = new QHBoxLayout(topWidget);
@@ -116,7 +114,6 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     widget_op_layout->addWidget(closeButton);
     widget_op_layout->setSpacing(10);
     widget_op_layout->setContentsMargins(220, 5, 10, 5);
-
 
     topWidget->setLayout(widget_op_layout);
     topWidget->setGeometry(0, 0, this->width(), 60);
@@ -139,7 +136,6 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     localAndDownloadWidget->hide();
     localAndDownloadWidget->setObjectName("localAndDownload");
 
-
     list = new MusicListWidget(this);
     list->clear();
     list->close();
@@ -148,11 +144,11 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     net_list->setMainWidget(this);
     net_list->hide();
     net_list->setObjectName("net");
-    
+
     playHistoryWidget = new PlayHistoryWidget(this);
     playHistoryWidget->hide();
     playHistoryWidget->setObjectName("playHistory");
-    
+
     favoriteMusicWidget = new FavoriteMusicWidget(this);
     favoriteMusicWidget->hide();
     favoriteMusicWidget->setObjectName("favoriteMusic");
@@ -171,10 +167,9 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
 
     videoListWidget = nullptr;
 
-
     leftWidget = new QWidget(this);
     leftWidget->setObjectName("MainLeftPanel");
-    
+
     recommendButton = new QPushButton(QStringLiteral(u"\u63a8\u8350\u97f3\u4e50"), leftWidget);
     recommendButton->setCheckable(true);
     recommendButton->setObjectName("RecommendMusicBtn");
@@ -194,8 +189,9 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     historyButton->setCheckable(true);
     historyButton->setObjectName("SideNavButton");
     historyButton->setProperty("sideNav", true);
-    
-    favoriteButton = new QPushButton(QStringLiteral(u"\u6211\u559c\u6b22\u7684\u97f3\u4e50"), leftWidget);
+
+    favoriteButton =
+        new QPushButton(QStringLiteral(u"\u6211\u559c\u6b22\u7684\u97f3\u4e50"), leftWidget);
     favoriteButton->setCheckable(true);
     favoriteButton->setObjectName("FavoriteMusicBtn");
     favoriteButton->setVisible(false);
@@ -206,7 +202,7 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     playlistButton->setObjectName("SideNavButton");
     playlistButton->setProperty("sideNav", true);
     playlistButton->hide();
-    
+
     videoButton = new QPushButton(QStringLiteral(u"\u89c6\u9891\u64ad\u653e"), leftWidget);
     videoButton->setCheckable(true);
     videoButton->setObjectName("VideoPlayerBtn");
@@ -229,7 +225,7 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     icolabel->setScaledContents(true);
     icolabel->setFixedSize(40, 40);
 
-    QLabel *textLabel = new QLabel(QStringLiteral(u"\u4e91\u97f3\u4e50"), brandWidget);
+    QLabel* textLabel = new QLabel(QStringLiteral(u"\u4e91\u97f3\u4e50"), brandWidget);
     QFont font;
     font.setFamily("Microsoft YaHei");
     font.setPointSize(16);
@@ -257,11 +253,13 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     playlistTabsLayout->setContentsMargins(0, 0, 0, 0);
     playlistTabsLayout->setSpacing(8);
 
-    sidebarOwnedTabButton = new QPushButton(QStringLiteral(u"\u81ea\u5efa\u6b4c\u5355"), playlistTabsWidget);
+    sidebarOwnedTabButton =
+        new QPushButton(QStringLiteral(u"\u81ea\u5efa\u6b4c\u5355"), playlistTabsWidget);
     sidebarOwnedTabButton->setObjectName("SidebarPlaylistTabButton");
     sidebarOwnedTabButton->setCheckable(true);
 
-    sidebarSubscribedTabButton = new QPushButton(QStringLiteral(u"\u6536\u85cf\u6b4c\u5355"), playlistTabsWidget);
+    sidebarSubscribedTabButton =
+        new QPushButton(QStringLiteral(u"\u6536\u85cf\u6b4c\u5355"), playlistTabsWidget);
     sidebarSubscribedTabButton->setObjectName("SidebarPlaylistTabButton");
     sidebarSubscribedTabButton->setCheckable(true);
 
@@ -286,7 +284,8 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     sidebarPlaylistListLayout->setContentsMargins(0, 0, 0, 0);
     sidebarPlaylistListLayout->setSpacing(6);
 
-    sidebarPlaylistEmptyLabel = new QLabel(QStringLiteral(u"\u6682\u65e0\u6b4c\u5355"), sidebarPlaylistListContainer);
+    sidebarPlaylistEmptyLabel =
+        new QLabel(QStringLiteral(u"\u6682\u65e0\u6b4c\u5355"), sidebarPlaylistListContainer);
     sidebarPlaylistEmptyLabel->setObjectName("SidebarPlaylistEmptyLabel");
     sidebarPlaylistEmptyLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     sidebarPlaylistListLayout->addWidget(sidebarPlaylistEmptyLabel);
@@ -304,10 +303,14 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     connect(favoriteButton, &QPushButton::toggled, this, &MainWidget::handleFavoriteTabToggled);
     connect(playlistButton, &QPushButton::toggled, this, &MainWidget::handlePlaylistTabToggled);
     connect(videoButton, &QPushButton::toggled, this, &MainWidget::handleVideoTabToggled);
-    connect(aiAssistantTopButton, &QPushButton::clicked, this, &MainWidget::handleAiAssistantClicked);
-    connect(sidebarOwnedTabButton, &QPushButton::clicked, this, &MainWidget::handleSidebarOwnedTabClicked);
-    connect(sidebarSubscribedTabButton, &QPushButton::clicked, this, &MainWidget::handleSidebarSubscribedTabClicked);
-    connect(sidebarPlaylistAddButton, &QPushButton::clicked, this, &MainWidget::handleSidebarCreatePlaylistClicked);
+    connect(aiAssistantTopButton, &QPushButton::clicked, this,
+            &MainWidget::handleAiAssistantClicked);
+    connect(sidebarOwnedTabButton, &QPushButton::clicked, this,
+            &MainWidget::handleSidebarOwnedTabClicked);
+    connect(sidebarSubscribedTabButton, &QPushButton::clicked, this,
+            &MainWidget::handleSidebarSubscribedTabClicked);
+    connect(sidebarPlaylistAddButton, &QPushButton::clicked, this,
+            &MainWidget::handleSidebarCreatePlaylistClicked);
 
     localButton->setChecked(true);
     updateSidebarPlaylistTabs();
@@ -316,8 +319,8 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
 
     w = new PlayWidget(this, this);
     w->setGeometry(rect());
-    w->setMask(QRegion(0, height() - w->collapsedPlaybackHeight(),
-                       qMax(1, width()), w->collapsedPlaybackHeight()));
+    w->setMask(QRegion(0, height() - w->collapsedPlaybackHeight(), qMax(1, width()),
+                       w->collapsedPlaybackHeight()));
 
     qDebug() << "[MainWidget] PlayWidget created successfully";
 
@@ -328,10 +331,10 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
     videoListWidget = new VideoListWidget(w, this);
     videoListWidget->hide();
     videoListWidget->setObjectName("videoList");
-    connect(videoListWidget, &VideoListWidget::videoPlayerWindowReady,
-            this, &MainWidget::handleVideoPlayerWindowReady);
-    connect(videoListWidget, &VideoListWidget::videoPlaybackStateChanged,
-            this, &MainWidget::handleVideoPlaybackStateChanged);
+    connect(videoListWidget, &VideoListWidget::videoPlayerWindowReady, this,
+            &MainWidget::handleVideoPlayerWindowReady);
+    connect(videoListWidget, &VideoListWidget::videoPlaybackStateChanged, this,
+            &MainWidget::handleVideoPlaybackStateChanged);
 
     qDebug() << "[MainWidget] VideoListWidget created successfully";
 
@@ -342,42 +345,47 @@ MainWidget::MainWidget(QWidget *parent) : QWidget(parent)
         m_viewModel->registerPluginHostService(QStringLiteral("audioService"),
                                                m_viewModel->audioServiceObject());
         if (m_playbackStateManager) {
-            m_viewModel->registerPluginHostService(QStringLiteral("playbackStateManager"), m_playbackStateManager);
+            m_viewModel->registerPluginHostService(QStringLiteral("playbackStateManager"),
+                                                   m_playbackStateManager);
         }
     }
 
     connect(searchBox, &SearchBoxQml::search, this, &MainWidget::handleSearchRequested);
 
-    connect(m_viewModel, &MainShellViewModel::searchResultsReady, net_list, &MusicListWidgetNet::signalAddSonglist);
-    connect(m_viewModel, &MainShellViewModel::searchResultsReady, this, &MainWidget::handleSearchResultsReady);
-    connect(m_viewModel, &MainShellViewModel::recommendationListReady,
-            recommendMusicWidget, &RecommendMusicWidget::loadRecommendations);
-    connect(m_viewModel, &MainShellViewModel::similarRecommendationListReady,
-            this, &MainWidget::handleSimilarRecommendationListReady);
+    connect(m_viewModel, &MainShellViewModel::searchResultsReady, net_list,
+            &MusicListWidgetNet::signalAddSonglist);
+    connect(m_viewModel, &MainShellViewModel::searchResultsReady, this,
+            &MainWidget::handleSearchResultsReady);
+    connect(m_viewModel, &MainShellViewModel::recommendationListReady, recommendMusicWidget,
+            &RecommendMusicWidget::loadRecommendations);
+    connect(m_viewModel, &MainShellViewModel::similarRecommendationListReady, this,
+            &MainWidget::handleSimilarRecommendationListReady);
 
-    connect(recommendMusicWidget, &RecommendMusicWidget::refreshRequested,
-            this, &MainWidget::handleRecommendRefreshRequested);
-    connect(recommendMusicWidget, &RecommendMusicWidget::loginRequested,
-            this, &MainWidget::handleRecommendLoginRequested);
-    connect(recommendMusicWidget, &RecommendMusicWidget::playMusicWithMetadata,
-            this, &MainWidget::handleRecommendPlayMusicWithMetadata);
-    connect(recommendMusicWidget, &RecommendMusicWidget::addToFavorite,
-            this, &MainWidget::handleRecommendAddToFavorite);
-    connect(recommendMusicWidget, &RecommendMusicWidget::feedbackEvent,
-            this, &MainWidget::handleRecommendFeedbackEvent);
+    connect(recommendMusicWidget, &RecommendMusicWidget::refreshRequested, this,
+            &MainWidget::handleRecommendRefreshRequested);
+    connect(recommendMusicWidget, &RecommendMusicWidget::loginRequested, this,
+            &MainWidget::handleRecommendLoginRequested);
+    connect(recommendMusicWidget, &RecommendMusicWidget::playMusicWithMetadata, this,
+            &MainWidget::handleRecommendPlayMusicWithMetadata);
+    connect(recommendMusicWidget, &RecommendMusicWidget::addToFavorite, this,
+            &MainWidget::handleRecommendAddToFavorite);
+    connect(recommendMusicWidget, &RecommendMusicWidget::feedbackEvent, this,
+            &MainWidget::handleRecommendFeedbackEvent);
 
-    connect(w, &PlayWidget::signalSimilarSongSelected,
-            this, &MainWidget::handleSimilarSongSelected);
+    connect(w, &PlayWidget::signalSimilarSongSelected, this,
+            &MainWidget::handleSimilarSongSelected);
 
     setupMenuAndAccountConnections();
     setupPlaybackAndListConnections();
     setupLibraryConnections();
+    if (m_localOnlyMode) {
+        applyLocalOnlyModeUi();
+    }
 
     updateAdaptiveLayout();
 }
 
-QVariantMap MainWidget::agentVideoWindowState() const
-{
+QVariantMap MainWidget::agentVideoWindowState() const {
     if (!videoPlayerWindow) {
         return {{QStringLiteral("available"), false}};
     }
@@ -387,8 +395,7 @@ QVariantMap MainWidget::agentVideoWindowState() const
     return snapshot;
 }
 
-bool MainWidget::agentPlayVideo(const QString& source)
-{
+bool MainWidget::agentPlayVideo(const QString& source) {
     if (!videoPlayerWindow) {
         return false;
     }
@@ -405,8 +412,7 @@ bool MainWidget::agentPlayVideo(const QString& source)
     return true;
 }
 
-bool MainWidget::agentPauseVideo()
-{
+bool MainWidget::agentPauseVideo() {
     if (!videoPlayerWindow) {
         return false;
     }
@@ -414,33 +420,27 @@ bool MainWidget::agentPauseVideo()
     return true;
 }
 
-bool MainWidget::agentResumeVideo()
-{
+bool MainWidget::agentResumeVideo() {
     return videoPlayerWindow ? videoPlayerWindow->resumePlayback() : false;
 }
 
-bool MainWidget::agentSeekVideo(qint64 positionMs)
-{
+bool MainWidget::agentSeekVideo(qint64 positionMs) {
     return videoPlayerWindow ? videoPlayerWindow->seekToPosition(positionMs) : false;
 }
 
-bool MainWidget::agentSetVideoFullScreen(bool enabled)
-{
+bool MainWidget::agentSetVideoFullScreen(bool enabled) {
     return videoPlayerWindow ? videoPlayerWindow->setFullScreenEnabled(enabled) : false;
 }
 
-bool MainWidget::agentSetVideoPlaybackRate(double rate)
-{
+bool MainWidget::agentSetVideoPlaybackRate(double rate) {
     return videoPlayerWindow ? videoPlayerWindow->setPlaybackRateValue(rate) : false;
 }
 
-bool MainWidget::agentSetVideoQualityPreset(const QString& preset)
-{
+bool MainWidget::agentSetVideoQualityPreset(const QString& preset) {
     return videoPlayerWindow ? videoPlayerWindow->setQualityPresetValue(preset) : false;
 }
 
-bool MainWidget::agentCloseVideoWindow()
-{
+bool MainWidget::agentCloseVideoWindow() {
     if (!videoPlayerWindow) {
         return false;
     }
@@ -448,30 +448,25 @@ bool MainWidget::agentCloseVideoWindow()
     return true;
 }
 
-QVariantMap MainWidget::agentDesktopLyricsState() const
-{
+QVariantMap MainWidget::agentDesktopLyricsState() const {
     return w ? w->desktopLyricSnapshot() : QVariantMap{{QStringLiteral("available"), false}};
 }
 
-bool MainWidget::agentSetDesktopLyricsVisible(bool visible)
-{
+bool MainWidget::agentSetDesktopLyricsVisible(bool visible) {
     return w ? w->setDesktopLyricVisible(visible) : false;
 }
 
-bool MainWidget::agentSetDesktopLyricsStyle(const QVariantMap& style)
-{
+bool MainWidget::agentSetDesktopLyricsStyle(const QVariantMap& style) {
     return w ? w->setDesktopLyricStyleFromMap(style) : false;
 }
 
-void MainWidget::handlePlaybackPauseAudioRequested()
-{
+void MainWidget::handlePlaybackPauseAudioRequested() {
     if (m_viewModel) {
         m_viewModel->pauseAudioIfPlaying();
     }
 }
 
-void MainWidget::handlePlaybackPauseVideoRequested()
-{
+void MainWidget::handlePlaybackPauseVideoRequested() {
     if (videoListWidget) {
         videoListWidget->pauseVideoPlayback();
     } else if (videoPlayerWindow) {
@@ -479,20 +474,17 @@ void MainWidget::handlePlaybackPauseVideoRequested()
     }
 }
 
-void MainWidget::handlePluginErrorDialogTimeout()
-{
+void MainWidget::handlePluginErrorDialogTimeout() {
     if (m_pendingPluginErrors.isEmpty()) {
         return;
     }
-    QMessageBox::warning(this,
-                         QStringLiteral("插件加载告警"),
-                         QStringLiteral("以下插件加载失败：\n\n")
-                             + m_pendingPluginErrors.join(QStringLiteral("\n\n")));
+    QMessageBox::warning(this, QStringLiteral("插件加载告警"),
+                         QStringLiteral("以下插件加载失败：\n\n") +
+                             m_pendingPluginErrors.join(QStringLiteral("\n\n")));
     m_pendingPluginErrors.clear();
 }
 
-void MainWidget::handleWindowToggleRequested()
-{
+void MainWidget::handleWindowToggleRequested() {
     if (isMaximized()) {
         showNormal();
     } else {
@@ -500,8 +492,11 @@ void MainWidget::handleWindowToggleRequested()
     }
 }
 
-void MainWidget::showContentPanel(QWidget* activeWidget)
-{
+void MainWidget::showContentPanel(QWidget* activeWidget) {
+    if (m_localOnlyMode && activeWidget != localAndDownloadWidget) {
+        activeWidget = localAndDownloadWidget;
+    }
+
     if (recommendMusicWidget) {
         recommendMusicWidget->setVisible(activeWidget == recommendMusicWidget);
     }
@@ -535,9 +530,75 @@ void MainWidget::showContentPanel(QWidget* activeWidget)
     }
 }
 
-void MainWidget::handleRecommendTabToggled(bool checked)
-{
+void MainWidget::showLocalOnlyUnavailableMessage() {
+    QMessageBox::information(this, QStringLiteral("离线模式"),
+                             QStringLiteral("当前为离线直进模式，仅支持本地功能。"));
+}
+
+void MainWidget::updateSearchBoxForMode() {
+    if (!searchBox) {
+        return;
+    }
+
+    if (QQuickItem* rootItem = searchBox->rootObject()) {
+        rootItem->setProperty(
+            "placeholderText",
+            m_localOnlyMode ? QStringLiteral(" 离线模式仅支持本地内容")
+                            : QStringLiteral(" 搜索想听的歌曲吧..."));
+    }
+    searchBox->setEnabled(!m_localOnlyMode);
+    if (m_localOnlyMode) {
+        searchBox->clear();
+    }
+}
+
+void MainWidget::applyLocalOnlyModeUi() {
+    updateSearchBoxForMode();
+
+    if (recommendButton) {
+        recommendButton->hide();
+    }
+    if (netButton) {
+        netButton->hide();
+    }
+    if (historyButton) {
+        historyButton->hide();
+    }
+    if (favoriteButton) {
+        favoriteButton->hide();
+    }
+    if (playlistButton) {
+        playlistButton->hide();
+    }
+    if (videoButton) {
+        videoButton->hide();
+    }
+    if (sidebarPlaylistSection) {
+        sidebarPlaylistSection->hide();
+    }
+    if (userWidgetQml) {
+        userWidgetQml->setPopupBlocked(true);
+        userWidgetQml->setLoginState(false);
+        userWidgetQml->setUserInfo(QStringLiteral("本地模式"),
+                                   QStringLiteral("qrc:/qml/assets/ai/icons/default-user-avatar.svg"));
+    }
+    if (localButton) {
+        localButton->show();
+        localButton->setChecked(true);
+    }
+    showContentPanel(localAndDownloadWidget);
+    updateSideNavLayout();
+}
+
+void MainWidget::handleRecommendTabToggled(bool checked) {
     if (!checked) {
+        return;
+    }
+    if (m_localOnlyMode) {
+        if (localButton) {
+            localButton->setChecked(true);
+        }
+        showLocalOnlyUnavailableMessage();
         return;
     }
 
@@ -553,25 +614,36 @@ void MainWidget::handleRecommendTabToggled(bool checked)
     }
 }
 
-void MainWidget::handleLocalTabToggled(bool checked)
-{
+void MainWidget::handleLocalTabToggled(bool checked) {
     if (!checked) {
         return;
     }
     showContentPanel(localAndDownloadWidget);
 }
 
-void MainWidget::handleNetTabToggled(bool checked)
-{
+void MainWidget::handleNetTabToggled(bool checked) {
     if (!checked) {
+        return;
+    }
+    if (m_localOnlyMode) {
+        if (localButton) {
+            localButton->setChecked(true);
+        }
+        showLocalOnlyUnavailableMessage();
         return;
     }
     showContentPanel(net_list);
 }
 
-void MainWidget::handleHistoryTabToggled(bool checked)
-{
+void MainWidget::handleHistoryTabToggled(bool checked) {
     if (!checked) {
+        return;
+    }
+    if (m_localOnlyMode) {
+        if (localButton) {
+            localButton->setChecked(true);
+        }
+        showLocalOnlyUnavailableMessage();
         return;
     }
     showContentPanel(playHistoryWidget);
@@ -584,9 +656,15 @@ void MainWidget::handleHistoryTabToggled(bool checked)
     }
 }
 
-void MainWidget::handleFavoriteTabToggled(bool checked)
-{
+void MainWidget::handleFavoriteTabToggled(bool checked) {
     if (!checked) {
+        return;
+    }
+    if (m_localOnlyMode) {
+        if (localButton) {
+            localButton->setChecked(true);
+        }
+        showLocalOnlyUnavailableMessage();
         return;
     }
     showContentPanel(favoriteMusicWidget);
@@ -597,9 +675,15 @@ void MainWidget::handleFavoriteTabToggled(bool checked)
     }
 }
 
-void MainWidget::handlePlaylistTabToggled(bool checked)
-{
+void MainWidget::handlePlaylistTabToggled(bool checked) {
     if (!checked) {
+        return;
+    }
+    if (m_localOnlyMode) {
+        if (localButton) {
+            localButton->setChecked(true);
+        }
+        showLocalOnlyUnavailableMessage();
         return;
     }
 
@@ -613,22 +697,26 @@ void MainWidget::handlePlaylistTabToggled(bool checked)
     m_viewModel->requestPlaylists(userAccount, 1, 20, true);
 }
 
-void MainWidget::handleVideoTabToggled(bool checked)
-{
+void MainWidget::handleVideoTabToggled(bool checked) {
     if (!checked) {
+        return;
+    }
+    if (m_localOnlyMode) {
+        if (localButton) {
+            localButton->setChecked(true);
+        }
+        showLocalOnlyUnavailableMessage();
         return;
     }
     qDebug() << "[MainWidget] Showing online video list";
     showContentPanel(videoListWidget);
 }
 
-void MainWidget::handleAiAssistantClicked()
-{
+void MainWidget::handleAiAssistantClicked() {
     qDebug() << "[MainWidget] AI assistant button clicked";
     ensureAgentChatWindow();
     if (!m_agentChatWindow || !m_agentChatViewModel) {
-        QMessageBox::warning(this,
-                             QStringLiteral("AI 助手"),
+        QMessageBox::warning(this, QStringLiteral("AI 助手"),
                              QStringLiteral("聊天窗口创建失败，请检查日志。"));
         return;
     }
@@ -638,18 +726,16 @@ void MainWidget::handleAiAssistantClicked()
     const QRect hostRect = geometry();
     const QSize chatSize = m_agentChatWindow->size();
     const QPoint centerPos = mapToGlobal(QPoint(hostRect.width() / 2 - chatSize.width() / 2,
-                                                 hostRect.height() / 2 - chatSize.height() / 2));
+                                                hostRect.height() / 2 - chatSize.height() / 2));
     m_agentChatWindow->move(centerPos);
     m_agentChatWindow->show();
     m_agentChatWindow->raise();
     m_agentChatWindow->activateWindow();
     qDebug() << "[MainWidget] AI assistant window visible =" << m_agentChatWindow->isVisible()
-             << "pos =" << m_agentChatWindow->pos()
-             << "size =" << m_agentChatWindow->size();
+             << "pos =" << m_agentChatWindow->pos() << "size =" << m_agentChatWindow->size();
 }
 
-void MainWidget::handlePlayStateChanged(ProcessSliderQml::State state)
-{
+void MainWidget::handlePlayStateChanged(ProcessSliderQml::State state) {
     if (!m_playbackStateManager) {
         return;
     }
@@ -661,14 +747,12 @@ void MainWidget::handlePlayStateChanged(ProcessSliderQml::State state)
     }
 }
 
-void MainWidget::handleVideoPlayerWindowReady(VideoPlayerWindow* window)
-{
+void MainWidget::handleVideoPlayerWindowReady(VideoPlayerWindow* window) {
     videoPlayerWindow = window;
     qDebug() << "[MainWidget] VideoPlayerWindow linked from VideoListWidget:" << window;
 }
 
-void MainWidget::handleVideoPlaybackStateChanged(bool isPlaying)
-{
+void MainWidget::handleVideoPlaybackStateChanged(bool isPlaying) {
     if (!m_playbackStateManager) {
         return;
     }
@@ -680,12 +764,15 @@ void MainWidget::handleVideoPlaybackStateChanged(bool isPlaying)
     }
 }
 
-void MainWidget::handleSearchRequested(const QString& keyword)
-{
+void MainWidget::handleSearchRequested(const QString& keyword) {
+    if (m_localOnlyMode) {
+        showLocalOnlyUnavailableMessage();
+        return;
+    }
+
     const QString trimmedKeyword = keyword.trimmed();
     if (trimmedKeyword.isEmpty()) {
-        QMessageBox::information(this,
-                                 QStringLiteral("提示"),
+        QMessageBox::information(this, QStringLiteral("提示"),
                                  QStringLiteral("请输入搜索关键词。"));
         return;
     }
@@ -697,8 +784,10 @@ void MainWidget::handleSearchRequested(const QString& keyword)
     }
 }
 
-void MainWidget::handleSearchResultsReady()
-{
+void MainWidget::handleSearchResultsReady() {
+    if (m_localOnlyMode) {
+        return;
+    }
     if (netButton) {
         netButton->setChecked(true);
     }
@@ -706,8 +795,7 @@ void MainWidget::handleSearchResultsReady()
 
 void MainWidget::handleSimilarRecommendationListReady(const QVariantMap& meta,
                                                       const QVariantList& items,
-                                                      const QString& anchorSongId)
-{
+                                                      const QString& anchorSongId) {
     Q_UNUSED(meta);
     Q_UNUSED(anchorSongId);
 
@@ -726,19 +814,15 @@ void MainWidget::handleSimilarRecommendationListReady(const QVariantMap& meta,
         if (songId.trimmed().isEmpty()) {
             continue;
         }
-        m_viewModel->submitRecommendationFeedback(userAccount,
-                                                  songId,
-                                                  QStringLiteral("impression"),
-                                                  item.value(QStringLiteral("scene")).toString(),
-                                                  item.value(QStringLiteral("request_id")).toString(),
-                                                  item.value(QStringLiteral("model_version")).toString(),
-                                                  -1,
-                                                  -1);
+        m_viewModel->submitRecommendationFeedback(
+            userAccount, songId, QStringLiteral("impression"),
+            item.value(QStringLiteral("scene")).toString(),
+            item.value(QStringLiteral("request_id")).toString(),
+            item.value(QStringLiteral("model_version")).toString(), -1, -1);
     }
 }
 
-void MainWidget::handleRecommendRefreshRequested()
-{
+void MainWidget::handleRecommendRefreshRequested() {
     if (!isUserLoggedIn()) {
         if (recommendMusicWidget) {
             recommendMusicWidget->setLoggedIn(false);
@@ -748,34 +832,25 @@ void MainWidget::handleRecommendRefreshRequested()
 
     if (m_viewModel) {
         m_viewModel->requestRecommendations(m_viewModel->currentUserAccount(),
-                                            QStringLiteral("home"),
-                                            24,
-                                            true);
+                                            QStringLiteral("home"), 24, true);
     }
 }
 
-void MainWidget::handleRecommendLoginRequested()
-{
+void MainWidget::handleRecommendLoginRequested() {
     showLoginWindow();
 }
 
-void MainWidget::handleRecommendPlayMusicWithMetadata(const QString& filePath,
-                                                      const QString& title,
-                                                      const QString& artist,
-                                                      const QString& cover,
-                                                      const QString& duration,
-                                                      const QString& songId,
-                                                      const QString& requestId,
-                                                      const QString& modelVersion,
-                                                      const QString& scene)
-{
+void MainWidget::handleRecommendPlayMusicWithMetadata(
+    const QString& filePath, const QString& title, const QString& artist, const QString& cover,
+    const QString& duration, const QString& songId, const QString& requestId,
+    const QString& modelVersion, const QString& scene) {
     Q_UNUSED(duration);
     Q_UNUSED(requestId);
     Q_UNUSED(modelVersion);
     Q_UNUSED(scene);
 
-    qDebug() << "[RecommendMusicWidget] Play music:" << title
-             << "songId:" << songId << "path:" << filePath;
+    qDebug() << "[RecommendMusicWidget] Play music:" << title << "songId:" << songId
+             << "path:" << filePath;
 
     if (!w->getNetFlag()) {
         main_list->signalPlayButtonClick(false, "");
@@ -792,53 +867,38 @@ void MainWidget::handleRecommendPlayMusicWithMetadata(const QString& filePath,
     w->playClick(filePath);
 }
 
-void MainWidget::handleRecommendAddToFavorite(const QString& path,
-                                              const QString& title,
-                                              const QString& artist,
-                                              const QString& duration,
-                                              bool isLocal)
-{
+void MainWidget::handleRecommendAddToFavorite(const QString& path, const QString& title,
+                                              const QString& artist, const QString& duration,
+                                              bool isLocal) {
     if (!isUserLoggedIn()) {
         showLoginWindow();
         return;
     }
     if (m_viewModel) {
-        m_viewModel->addFavorite(m_viewModel->currentUserAccount(),
-                                 path, title, artist, duration, isLocal);
+        m_viewModel->addFavorite(m_viewModel->currentUserAccount(), path, title, artist, duration,
+                                 isLocal);
     }
 }
 
-void MainWidget::handleRecommendFeedbackEvent(const QString& songId,
-                                              const QString& eventType,
-                                              int playMs,
-                                              int durationMs,
-                                              const QString& scene,
+void MainWidget::handleRecommendFeedbackEvent(const QString& songId, const QString& eventType,
+                                              int playMs, int durationMs, const QString& scene,
                                               const QString& requestId,
-                                              const QString& modelVersion)
-{
+                                              const QString& modelVersion) {
     if (!isUserLoggedIn() || !m_viewModel) {
         return;
     }
 
-    m_viewModel->submitRecommendationFeedback(m_viewModel->currentUserAccount(),
-                                              songId,
-                                              eventType,
-                                              scene,
-                                              requestId,
-                                              modelVersion,
-                                              playMs,
-                                              durationMs);
+    m_viewModel->submitRecommendationFeedback(m_viewModel->currentUserAccount(), songId, eventType,
+                                              scene, requestId, modelVersion, playMs, durationMs);
 }
 
-void MainWidget::handleSimilarSongSelected(const QVariantMap& item)
-{
+void MainWidget::handleSimilarSongSelected(const QVariantMap& item) {
     qDebug() << "[MainWidget] Similar song click received, scheduling async play pipeline";
     m_pendingSimilarSongItem = item;
     QTimer::singleShot(0, this, &MainWidget::handlePendingSimilarSongPlayback);
 }
 
-void MainWidget::handlePendingSimilarSongPlayback()
-{
+void MainWidget::handlePendingSimilarSongPlayback() {
     if (!w) {
         qWarning() << "[MainWidget] Similar song selected but PlayWidget is null";
         return;
@@ -848,22 +908,23 @@ void MainWidget::handlePendingSimilarSongPlayback()
     m_pendingSimilarSongItem.clear();
 
     const QString filePath = item.value(QStringLiteral("play_path")).toString().trimmed().isEmpty()
-            ? item.value(QStringLiteral("stream_url")).toString()
-            : item.value(QStringLiteral("play_path")).toString();
+                                 ? item.value(QStringLiteral("stream_url")).toString()
+                                 : item.value(QStringLiteral("play_path")).toString();
     if (filePath.trimmed().isEmpty()) {
         qWarning() << "[MainWidget] Similar song selected but play path is empty";
         return;
     }
 
     const QString title = item.value(QStringLiteral("title")).toString();
-    const QString artist = normalizeArtistForHistory(item.value(QStringLiteral("artist")).toString());
+    const QString artist =
+        normalizeArtistForHistory(item.value(QStringLiteral("artist")).toString());
     const QString cover = item.value(QStringLiteral("cover_art_url")).toString();
     const QString songId = item.value(QStringLiteral("song_id")).toString();
     const QString requestId = item.value(QStringLiteral("request_id")).toString();
     const QString modelVersion = item.value(QStringLiteral("model_version")).toString();
     const QString scene = item.value(QStringLiteral("scene")).toString().trimmed().isEmpty()
-            ? QStringLiteral("detail")
-            : item.value(QStringLiteral("scene")).toString();
+                              ? QStringLiteral("detail")
+                              : item.value(QStringLiteral("scene")).toString();
 
     qDebug() << "[MainWidget] Play similar song:" << title << "songId:" << songId;
 
@@ -882,30 +943,15 @@ void MainWidget::handlePendingSimilarSongPlayback()
 
     if (isUserLoggedIn() && !songId.trimmed().isEmpty() && m_viewModel) {
         const QString userAccount = m_viewModel->currentUserAccount();
-        m_viewModel->submitRecommendationFeedback(userAccount,
-                                                  songId,
-                                                  QStringLiteral("click"),
-                                                  scene,
-                                                  requestId,
-                                                  modelVersion,
-                                                  -1,
-                                                  -1);
-        m_viewModel->submitRecommendationFeedback(userAccount,
-                                                  songId,
-                                                  QStringLiteral("play"),
-                                                  scene,
-                                                  requestId,
-                                                  modelVersion,
-                                                  0,
-                                                  -1);
+        m_viewModel->submitRecommendationFeedback(userAccount, songId, QStringLiteral("click"),
+                                                  scene, requestId, modelVersion, -1, -1);
+        m_viewModel->submitRecommendationFeedback(userAccount, songId, QStringLiteral("play"),
+                                                  scene, requestId, modelVersion, 0, -1);
     }
 }
 
-void MainWidget::submitPlayHistoryWithRetry(const QString& sessionId,
-                                            const QString& filePath,
-                                            const QString& userAccount,
-                                            int retryCount)
-{
+void MainWidget::submitPlayHistoryWithRetry(const QString& sessionId, const QString& filePath,
+                                            const QString& userAccount, int retryCount) {
     if (!m_viewModel || userAccount.trimmed().isEmpty()) {
         return;
     }
@@ -915,14 +961,8 @@ void MainWidget::submitPlayHistoryWithRetry(const QString& sessionId,
     QString album;
     qint64 durationMs = 0;
     bool isLocal = true;
-    if (!m_viewModel->resolveHistorySnapshot(sessionId,
-                                             filePath,
-                                             m_networkMusicArtist,
-                                             &title,
-                                             &artist,
-                                             &album,
-                                             &durationMs,
-                                             &isLocal)) {
+    if (!m_viewModel->resolveHistorySnapshot(sessionId, filePath, m_networkMusicArtist, &title,
+                                             &artist, &album, &durationMs, &isLocal)) {
         qDebug() << "[MainWidget] Skip history add: session not available for" << filePath;
         return;
     }
@@ -935,27 +975,25 @@ void MainWidget::submitPlayHistoryWithRetry(const QString& sessionId,
     }
 
     if (durationMs <= 0 && isLocal) {
-        const int cachedSeconds = m_viewModel ? m_viewModel->localMusicCacheDurationSeconds(filePath) : 0;
+        const int cachedSeconds =
+            m_viewModel ? m_viewModel->localMusicCacheDurationSeconds(filePath) : 0;
         if (cachedSeconds > 0) {
             durationMs = static_cast<qint64>(cachedSeconds) * 1000;
-            qDebug() << "[MainWidget] History duration filled from local cache:" << cachedSeconds << "s";
+            qDebug() << "[MainWidget] History duration filled from local cache:" << cachedSeconds
+                     << "s";
         }
     }
 
     const qint64 durationSec = qMax<qint64>(0, durationMs / 1000);
-    qDebug() << "[MainWidget] Add history:" << title
-             << "durationSec:" << durationSec
+    qDebug() << "[MainWidget] Add history:" << title << "durationSec:" << durationSec
              << "isLocal:" << isLocal;
 
     m_viewModel->addPlayHistory(userAccount, filePath, title, artist, album,
                                 QString::number(durationSec), isLocal);
 }
 
-void MainWidget::schedulePlayHistoryRetry(const QString& sessionId,
-                                          const QString& filePath,
-                                          const QString& userAccount,
-                                          int retryCount)
-{
+void MainWidget::schedulePlayHistoryRetry(const QString& sessionId, const QString& filePath,
+                                          const QString& userAccount, int retryCount) {
     m_pendingHistorySessionId = sessionId;
     m_pendingHistoryFilePath = filePath;
     m_pendingHistoryUserAccount = userAccount;
@@ -963,8 +1001,7 @@ void MainWidget::schedulePlayHistoryRetry(const QString& sessionId,
     QTimer::singleShot(1200, this, &MainWidget::handlePlayHistoryRetryTimeout);
 }
 
-void MainWidget::handlePlayHistoryRetryTimeout()
-{
+void MainWidget::handlePlayHistoryRetryTimeout() {
     if (m_pendingHistoryRetryCount < 0) {
         return;
     }
@@ -982,23 +1019,20 @@ void MainWidget::handlePlayHistoryRetryTimeout()
     submitPlayHistoryWithRetry(sessionId, filePath, userAccount, retryCount);
 }
 
-int MainWidget::placeSideNavButton(int row,
-                                   QPushButton* button,
-                                   int navStartY,
-                                   int itemHeight,
-                                   int panelWidth)
-{
-    if (!button) {
+int MainWidget::placeSideNavButton(int row, QPushButton* button, int navStartY, int itemHeight,
+                                   int panelWidth) {
+    if (!button || !button->isVisible()) {
+        if (button) {
+            button->setGeometry(0, 0, 0, 0);
+        }
         return row;
     }
     button->setGeometry(0, navStartY + row * itemHeight, panelWidth, itemHeight);
     return row + 1;
 }
 
-void MainWidget::enqueuePluginLoadError(const QString& pluginFilePath, const QString& reason)
-{
-    const QString oneError = QStringLiteral("文件: %1\n原因: %2")
-                                 .arg(pluginFilePath, reason);
+void MainWidget::enqueuePluginLoadError(const QString& pluginFilePath, const QString& reason) {
+    const QString oneError = QStringLiteral("文件: %1\n原因: %2").arg(pluginFilePath, reason);
     if (!m_pendingPluginErrors.contains(oneError)) {
         m_pendingPluginErrors.append(oneError);
     }
@@ -1007,8 +1041,7 @@ void MainWidget::enqueuePluginLoadError(const QString& pluginFilePath, const QSt
     }
 }
 
-void MainWidget::showPluginDiagnosticsDialog()
-{
+void MainWidget::showPluginDiagnosticsDialog() {
     const QString report = m_viewModel ? m_viewModel->pluginDiagnosticsReport() : QString();
 
     QMessageBox box(this);
@@ -1020,8 +1053,7 @@ void MainWidget::showPluginDiagnosticsDialog()
     box.exec();
 }
 
-QRect MainWidget::computeContentRect() const
-{
+QRect MainWidget::computeContentRect() const {
     const int topBarHeight = 60;
     const int leftWidth = leftWidget ? leftWidget->width() : 210;
     const int bottomReserved = (w && !w->isUp) ? (w->collapsedPlaybackHeight() + 8) : 100;
@@ -1033,8 +1065,7 @@ QRect MainWidget::computeContentRect() const
     return QRect(x, y, widthValue, heightValue);
 }
 
-void MainWidget::updateSideNavLayout()
-{
+void MainWidget::updateSideNavLayout() {
     if (!leftWidget || !brandWidget) {
         return;
     }
@@ -1069,8 +1100,7 @@ void MainWidget::updateSideNavLayout()
     }
 }
 
-void MainWidget::updateSidebarPlaylistTabs()
-{
+void MainWidget::updateSidebarPlaylistTabs() {
     if (!sidebarOwnedTabButton || !sidebarSubscribedTabButton) {
         return;
     }
@@ -1083,8 +1113,7 @@ void MainWidget::updateSidebarPlaylistTabs()
     sidebarSubscribedTabButton->style()->polish(sidebarSubscribedTabButton);
 }
 
-void MainWidget::clearSidebarPlaylistButtons()
-{
+void MainWidget::clearSidebarPlaylistButtons() {
     for (QPushButton* button : m_sidebarPlaylistButtons) {
         if (sidebarPlaylistListLayout) {
             sidebarPlaylistListLayout->removeWidget(button);
@@ -1096,23 +1125,21 @@ void MainWidget::clearSidebarPlaylistButtons()
     m_sidebarPlaylistButtons.clear();
 }
 
-void MainWidget::rebuildSidebarPlaylistButtons()
-{
+void MainWidget::rebuildSidebarPlaylistButtons() {
     if (!sidebarPlaylistListLayout || !sidebarPlaylistEmptyLabel) {
         return;
     }
 
     clearSidebarPlaylistButtons();
 
-    const QVariantList& source = m_sidebarShowingSubscribedPlaylists
-                                 ? m_subscribedSidebarPlaylists
-                                 : m_ownedSidebarPlaylists;
+    const QVariantList& source = m_sidebarShowingSubscribedPlaylists ? m_subscribedSidebarPlaylists
+                                                                     : m_ownedSidebarPlaylists;
 
     if (source.isEmpty()) {
         sidebarPlaylistEmptyLabel->show();
         sidebarPlaylistEmptyLabel->setText(m_sidebarShowingSubscribedPlaylists
-                                           ? QStringLiteral("暂无收藏歌单")
-                                           : QStringLiteral("暂无自建歌单"));
+                                               ? QStringLiteral("暂无收藏歌单")
+                                               : QStringLiteral("暂无自建歌单"));
         return;
     }
 
@@ -1123,8 +1150,9 @@ void MainWidget::rebuildSidebarPlaylistButtons()
         const qint64 playlistId = playlist.value(QStringLiteral("id")).toLongLong();
         const QString playlistName = playlist.value(QStringLiteral("name")).toString().trimmed();
 
-        auto* button = new QPushButton(playlistName.isEmpty() ? QStringLiteral("未命名歌单") : playlistName,
-                                       sidebarPlaylistListContainer);
+        auto* button =
+            new QPushButton(playlistName.isEmpty() ? QStringLiteral("未命名歌单") : playlistName,
+                            sidebarPlaylistListContainer);
         button->setObjectName("SidebarPlaylistItemButton");
         button->setProperty("sidePlaylistItem", true);
         button->setProperty("selectedPlaylist", playlistId == m_sidebarSelectedPlaylistId);
@@ -1141,8 +1169,7 @@ void MainWidget::rebuildSidebarPlaylistButtons()
     }
 }
 
-void MainWidget::syncSidebarPlaylistSelection(qint64 playlistId)
-{
+void MainWidget::syncSidebarPlaylistSelection(qint64 playlistId) {
     m_sidebarSelectedPlaylistId = playlistId;
     for (QPushButton* button : m_sidebarPlaylistButtons) {
         if (!button) {
@@ -1156,8 +1183,7 @@ void MainWidget::syncSidebarPlaylistSelection(qint64 playlistId)
     }
 }
 
-void MainWidget::ensureAgentChatWindow()
-{
+void MainWidget::ensureAgentChatWindow() {
     if (!m_agentChatViewModel) {
         m_agentChatViewModel = new AgentChatViewModel(this);
         m_agentChatViewModel->setMainShellViewModel(m_viewModel);
@@ -1168,8 +1194,7 @@ void MainWidget::ensureAgentChatWindow()
     }
 }
 
-void MainWidget::updateAdaptiveLayout()
-{
+void MainWidget::updateAdaptiveLayout() {
     const int topBarHeight = 60;
     const int leftWidth = qBound(190, width() / 5, 240);
 
@@ -1201,8 +1226,8 @@ void MainWidget::updateAdaptiveLayout()
         w->setGeometry(rect());
         if (!w->isUp) {
             const int playbackHeight = w->collapsedPlaybackHeight();
-            w->setMask(QRegion(0, qMax(0, height() - playbackHeight),
-                               qMax(1, width()), playbackHeight));
+            w->setMask(
+                QRegion(0, qMax(0, height() - playbackHeight), qMax(1, width()), playbackHeight));
             // 收起时仅显示底部区域，但仍需要保证底部控件可交互。
             w->raise();
         } else {
@@ -1249,45 +1274,36 @@ void MainWidget::updateAdaptiveLayout()
     updateSideNavLayout();
 }
 
-void MainWidget::updatePaint()
-{
+void MainWidget::updatePaint() {
     main_list->update();
 }
-void MainWidget::mousePressEvent(QMouseEvent *event)
-{
-    if(event->button() & Qt::LeftButton)
-    {
+void MainWidget::mousePressEvent(QMouseEvent* event) {
+    if (event->button() & Qt::LeftButton) {
         dragging = true;
         this->pos_ = event->globalPos() - this->geometry().topLeft();
         event->accept();
     }
 }
-void MainWidget::mouseMoveEvent(QMouseEvent *event)
-{
-    if(event->buttons() & Qt::LeftButton && dragging)
-    {
+void MainWidget::mouseMoveEvent(QMouseEvent* event) {
+    if (event->buttons() & Qt::LeftButton && dragging) {
         QPoint p = event->globalPos();
         this->move(p - this->pos_);
         event->accept();
     }
 }
-void MainWidget::mouseReleaseEvent(QMouseEvent *event)
-{
-    if(event->button() & Qt::LeftButton)
-    {
+void MainWidget::mouseReleaseEvent(QMouseEvent* event) {
+    if (event->button() & Qt::LeftButton) {
         dragging = false;
         event->accept();
     }
 }
 
-void MainWidget::resizeEvent(QResizeEvent *event)
-{
+void MainWidget::resizeEvent(QResizeEvent* event) {
     QWidget::resizeEvent(event);
     updateAdaptiveLayout();
 }
 
-void MainWidget::closeEvent(QCloseEvent *event)
-{
+void MainWidget::closeEvent(QCloseEvent* event) {
     qDebug() << "[MainWidget] closeEvent: start shutdown";
     if (!m_returningToWelcome && m_viewModel) {
         m_viewModel->shutdownUserSessionOnAppExit(true, 1200);
@@ -1328,8 +1344,7 @@ void MainWidget::closeEvent(QCloseEvent *event)
     QWidget::closeEvent(event);
 }
 
-MainWidget::~MainWidget()
-{
+MainWidget::~MainWidget() {
     qDebug() << "MainWidget::~MainWidget() - Starting cleanup...";
 
     if (m_agentChatViewModel) {
@@ -1345,25 +1360,25 @@ MainWidget::~MainWidget()
     if (m_viewModel) {
         m_viewModel->shutdownAudioPipeline();
     }
-    
-    if(w) {
+
+    if (w) {
         qDebug() << "MainWidget: Deleting PlayWidget...";
         delete w;
         w = nullptr;
     }
-    
-    if(list) {
+
+    if (list) {
         delete list;
         list = nullptr;
     }
-    
-    if(loginWidget) {
+
+    if (loginWidget) {
         loginWidget->close();
         delete loginWidget;
         loginWidget = nullptr;
     }
-    
-    if(videoPlayerWindow) {
+
+    if (videoPlayerWindow) {
         qDebug() << "MainWidget: Deleting VideoPlayerWindow...";
         videoPlayerWindow->close();
         delete videoPlayerWindow;
@@ -1374,16 +1389,14 @@ MainWidget::~MainWidget()
         delete videoListWidget;
         videoListWidget = nullptr;
     }
-    
+
     qDebug() << "MainWidget: Waiting for thread pool...";
     QThreadPool::globalInstance()->waitForDone(3000);
-    
+
     qDebug() << "MainWidget: Unloading plugins...";
     if (m_viewModel) {
         m_viewModel->unloadAllPlugins();
     }
-    
+
     qDebug() << "MainWidget::~MainWidget() - Cleanup complete";
 }
-
-

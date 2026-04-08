@@ -73,6 +73,7 @@ Window {
                         anchors.margins: 2
                         source: popupWindow.avatarSource
                         fillMode: Image.PreserveAspectCrop
+                        cache: false
                         
                         layer.enabled: true
                         layer.effect: OpacityMask {

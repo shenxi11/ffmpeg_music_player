@@ -1,32 +1,43 @@
 sequenceDiagram
     autonumber
-    participant C as 🖥️ 客户端
-    participant S as 🌐 后端服务
-    participant R as ⚡ Redis缓存
-    participant M as 💾 MySQL数据库
-    participant F as 📁 文件系统
-    
-    rect rgb(230, 240, 255)
-    Note over C,R: 用户登录流程
-    C->>+S: 登录请求 (POST /users/login)
-    S->>+R: 查询缓存 (user:login:{account})
-    alt 缓存命中 🎯
-        R-->>S: 返回缓存数据 (TTL剩余时间)
-    else 缓存未命中 ❌
-        S->>+M: 查询数据库 (SELECT users)
-        M-->>-S: 返回用户信息 + 音乐列表
-        S->>R: 写入缓存 (TTL: 5分钟)
+    participant W as 欢迎页 / 主窗口
+    participant VM as MainShellViewModel / PlaybackViewModel
+    participant API as HttpRequestV2
+    participant S as 私域服务端
+    participant C as LocalMusicCache / SettingsManager
+    participant A as AudioService
+
+    rect rgb(235,245,255)
+    Note over W,S: 启动与资料链
+    W->>API: /client/ping + /client/bootstrap
+    API->>S: 校验服务可达性
+    S-->>API: 基础配置
+    API-->>W: 验证结果
+    W->>VM: 请求用户资料
+    VM->>API: GET /users/profile
+    API->>S: 拉取 profile
+    S-->>API: username / avatar / timestamps
+    API-->>VM: 资料结果
+    VM->>C: 回写资料缓存
+    VM-->>W: 刷新顶部头像与个人主页
     end
-    R-->>-S: 缓存操作完成
-    S-->>-C: 返回登录响应 (JSON)
+
+    rect rgb(240,255,240)
+    Note over W,A: 播放与元数据补偿链
+    W->>VM: 播放歌曲
+    VM->>A: play / pause / seek / queue
+    A-->>VM: currentTitle/currentArtist/currentAlbumArt/position
+    VM-->>W: 刷新播放页、列表页、播放队列
+    W->>C: 回写本地歌曲或下载歌曲元数据
+    C-->>W: 下次启动直接使用已缓存封面/歌手/时长
     end
-    
-    rect rgb(240, 255, 240)
-    Note over C,F: 音乐流媒体请求
-    C->>+S: 请求音乐流 (POST /stream)
-    S->>+M: 查询元数据 (music_files表)
-    M-->>-S: 返回文件路径、歌词、封面
-    S->>+F: 读取音频文件 (支持Range)
-    F-->>-S: 返回文件流 (分块传输)
-    S-->>-C: 传输音频数据 (HTTP Range支持)
+
+    rect rgb(255,245,235)
+    Note over W,S: 在线业务链
+    W->>VM: 推荐/搜索/歌单/收藏/历史/视频请求
+    VM->>API: 业务接口请求
+    API->>S: HTTP/JSON
+    S-->>API: 结构化结果
+    API-->>VM: 业务信号
+    VM-->>W: 刷新对应页面
     end

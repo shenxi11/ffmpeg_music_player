@@ -55,7 +55,8 @@ public:
     /**
      * @brief 更新音乐元数据
      */
-    void updateMetadata(const QString& filePath, const QString& coverUrl, const QString& duration);
+    void updateMetadata(const QString& filePath, const QString& coverUrl, const QString& duration,
+                        const QString& artist);
 
     /**
      * @brief 获取所有音乐列表

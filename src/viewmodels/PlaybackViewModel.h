@@ -1,8 +1,8 @@
 ﻿#ifndef PLAYBACKVIEWMODEL_H
 #define PLAYBACKVIEWMODEL_H
 
-#include "BaseViewModel.h"
 #include "AudioService.h"
+#include "BaseViewModel.h"
 
 #include <QHash>
 #include <QUrl>
@@ -15,8 +15,7 @@
  * 对接 AudioService，统一暴露播放状态、曲目信息、缓冲状态与播放命令。
  * 播放视图只处理展示和交互，底层播放逻辑由服务层与该 ViewModel 协同完成。
  */
-class PlaybackViewModel : public BaseViewModel
-{
+class PlaybackViewModel : public BaseViewModel {
     Q_OBJECT
 
     Q_PROPERTY(bool isPlaying READ isPlaying NOTIFY isPlayingChanged)
@@ -34,24 +33,52 @@ class PlaybackViewModel : public BaseViewModel
     Q_PROPERTY(QString positionText READ positionText NOTIFY positionChanged)
     Q_PROPERTY(QString durationText READ durationText NOTIFY durationChanged)
 
-public:
+  public:
     explicit PlaybackViewModel(QObject* parent = nullptr);
     ~PlaybackViewModel() override;
 
-    bool isPlaying() const { return m_isPlaying; }
-    bool isPaused() const { return m_isPaused; }
-    bool isBuffering() const { return m_isBuffering; }
-    qint64 position() const { return m_position; }
-    qint64 duration() const { return m_duration; }
-    int volume() const { return m_volume; }
-    QString currentTitle() const { return m_currentTitle; }
-    QString currentArtist() const { return m_currentArtist; }
-    QString currentAlbum() const { return m_currentAlbum; }
-    QString currentAlbumArt() const { return m_currentAlbumArt; }
-    QUrl currentUrl() const { return m_currentUrl; }
-    QString currentFilePath() const { return m_currentFilePath; }
-    QString positionText() const { return formatTime(m_position); }
-    QString durationText() const { return formatTime(m_duration); }
+    bool isPlaying() const {
+        return m_isPlaying;
+    }
+    bool isPaused() const {
+        return m_isPaused;
+    }
+    bool isBuffering() const {
+        return m_isBuffering;
+    }
+    qint64 position() const {
+        return m_position;
+    }
+    qint64 duration() const {
+        return m_duration;
+    }
+    int volume() const {
+        return m_volume;
+    }
+    QString currentTitle() const {
+        return m_currentTitle;
+    }
+    QString currentArtist() const {
+        return m_currentArtist;
+    }
+    QString currentAlbum() const {
+        return m_currentAlbum;
+    }
+    QString currentAlbumArt() const {
+        return m_currentAlbumArt;
+    }
+    QUrl currentUrl() const {
+        return m_currentUrl;
+    }
+    QString currentFilePath() const {
+        return m_currentFilePath;
+    }
+    QString positionText() const {
+        return formatTime(m_position);
+    }
+    QString durationText() const {
+        return formatTime(m_duration);
+    }
     QVariantList playlistSnapshot() const;
 
     Q_INVOKABLE void play(const QUrl& url);
@@ -71,7 +98,7 @@ public:
 
     void setVolume(int volume);
 
-signals:
+  signals:
     void isPlayingChanged();
     void isPausedChanged();
     void isBufferingChanged();
@@ -94,7 +121,7 @@ signals:
     void shouldLoadLyrics(const QString& filePath);
     void bufferingStateChanged(bool active);
 
-private slots:
+  private slots:
     void onAudioServicePlaybackStarted(const QString& sessionId, const QUrl& url);
     void onAudioServicePlaybackPaused();
     void onAudioServicePlaybackResumed();
@@ -104,14 +131,13 @@ private slots:
     void onAudioServiceBufferingStarted();
     void onAudioServiceBufferingFinished();
 
-private:
+  private:
     static QString formatTime(qint64 milliseconds);
     QVariantMap buildPlaylistSnapshotItem(const QUrl& url, int index) const;
     static QString normalizePlaylistEntryPath(const QUrl& url);
     static QString titleFromUrl(const QUrl& url);
     void cacheCurrentTrackMetadata();
-    QString resolveCoverForPlaylistEntry(const QString& filePath,
-                                         const QString& title,
+    QString resolveCoverForPlaylistEntry(const QString& filePath, const QString& title,
                                          const QString& artist) const;
     QString resolveArtistForPlaylistEntry(const QString& filePath,
                                           const QVariantMap& cachedMetadata) const;
@@ -122,11 +148,8 @@ private:
     void updateBufferingState(bool buffering);
     void updatePosition(qint64 pos);
     void updateDuration(qint64 dur);
-    void updateMetadata(const QString& title,
-                        const QString& artist,
-                        const QString& album,
-                        const QString& albumArt,
-                        const QUrl& url);
+    void updateMetadata(const QString& title, const QString& artist, const QString& album,
+                        const QString& albumArt, const QUrl& url);
 
     AudioService* m_audioService = nullptr;
     bool m_isPlaying = false;

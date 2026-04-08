@@ -1,7 +1,7 @@
 ﻿#include "main_widget.h"
 
-#include <QDir>
 #include <QDebug>
+#include <QDir>
 #include <QFile>
 #include <QFileInfo>
 
@@ -12,14 +12,16 @@
 维护说明: 仅处理列表与播放链路，不处理会话状态机切换。
 */
 
-void MainWidget::handleNetLoginRequired()
-{
+void MainWidget::handleNetLoginRequired() {
+    if (m_localOnlyMode) {
+        showLocalOnlyUnavailableMessage();
+        return;
+    }
     qDebug() << "[MainWidget] Download requires login, showing login window";
     showLoginWindow();
 }
 
-void MainWidget::handlePlayWidgetLast(const QString& songName, bool netFlag)
-{
+void MainWidget::handlePlayWidgetLast(const QString& songName, bool netFlag) {
     if (netFlag) {
         emit net_list->signalLast(songName);
     } else {
@@ -27,8 +29,7 @@ void MainWidget::handlePlayWidgetLast(const QString& songName, bool netFlag)
     }
 }
 
-void MainWidget::handlePlayWidgetNext(const QString& songName, bool netFlag)
-{
+void MainWidget::handlePlayWidgetNext(const QString& songName, bool netFlag) {
     if (netFlag) {
         emit net_list->signalNext(songName);
     } else {
@@ -36,21 +37,18 @@ void MainWidget::handlePlayWidgetNext(const QString& songName, bool netFlag)
     }
 }
 
-void MainWidget::handlePlayWidgetNetFlagChanged(bool netFlag)
-{
+void MainWidget::handlePlayWidgetNetFlagChanged(bool netFlag) {
     Q_UNUSED(netFlag);
 }
 
-void MainWidget::handlePlayWidgetAddSongToCache(const QString& fileName, const QString& path)
-{
+void MainWidget::handlePlayWidgetAddSongToCache(const QString& fileName, const QString& path) {
     qDebug() << "[LocalMusicCache] Adding music:" << fileName << path;
     if (m_viewModel) {
         m_viewModel->addLocalMusicCacheEntry(path, fileName);
     }
 }
 
-void MainWidget::handlePlayWidgetButtonState(bool playing, const QString& filename)
-{
+void MainWidget::handlePlayWidgetButtonState(bool playing, const QString& filename) {
     playHistoryWidget->setPlayingState(filename, playing);
     recommendMusicWidget->setPlayingState(filename, playing);
     if (!w->getNetFlag() && !filename.isEmpty()) {
@@ -58,18 +56,16 @@ void MainWidget::handlePlayWidgetButtonState(bool playing, const QString& filena
     }
 }
 
-void MainWidget::handlePlayWidgetMetadataUpdated(const QString& filePath,
-                                                 const QString& coverUrl,
-                                                 const QString& duration)
-{
-    qDebug() << "[LocalMusicCache] Updating metadata:" << filePath << coverUrl << duration;
+void MainWidget::handlePlayWidgetMetadataUpdated(const QString& filePath, const QString& coverUrl,
+                                                 const QString& duration, const QString& artist) {
+    qDebug() << "[LocalMusicCache] Updating metadata:" << filePath << coverUrl << duration
+             << artist;
     if (m_viewModel) {
-        m_viewModel->updateLocalMusicCacheMetadata(filePath, coverUrl, duration);
+        m_viewModel->updateLocalMusicCacheMetadata(filePath, coverUrl, duration, artist);
     }
 }
 
-void MainWidget::handleLocalListPlayClick(const QString& name, bool flag)
-{
+void MainWidget::handleLocalListPlayClick(const QString& name, bool flag) {
     if (w->getNetFlag()) {
         qDebug() << "[Switch source] Network music -> local music, clear network playing state";
         net_list->setPlayingState("", false);
@@ -82,8 +78,7 @@ void MainWidget::handleLocalListPlayClick(const QString& name, bool flag)
     w->playClick(name);
 }
 
-void MainWidget::handleLocalAndDownloadPlayMusic(const QString& filename)
-{
+void MainWidget::handleLocalAndDownloadPlayMusic(const QString& filename) {
     qDebug() << "[LocalAndDownloadWidget] Play music:" << filename;
     if (w->getNetFlag()) {
         net_list->setPlayingState("", false);
@@ -94,8 +89,7 @@ void MainWidget::handleLocalAndDownloadPlayMusic(const QString& filename)
     w->playClick(filename);
 }
 
-void MainWidget::handleLocalAndDownloadDeleteMusic(const QString& filename)
-{
+void MainWidget::handleLocalAndDownloadDeleteMusic(const QString& filename) {
     qDebug() << "[LocalAndDownloadWidget] Delete music:" << filename;
     if (m_viewModel) {
         m_viewModel->removeLocalMusicCacheEntry(filename);
@@ -117,9 +111,11 @@ void MainWidget::handleLocalAndDownloadDeleteMusic(const QString& filename)
 
             if (sameFolder.exists() && folderPath.contains(baseName)) {
                 if (sameFolder.removeRecursively()) {
-                    qDebug() << "[LocalAndDownloadWidget] Folder deleted successfully:" << sameFolderPath;
+                    qDebug() << "[LocalAndDownloadWidget] Folder deleted successfully:"
+                             << sameFolderPath;
                 } else {
-                    qWarning() << "[LocalAndDownloadWidget] Failed to delete folder:" << sameFolderPath;
+                    qWarning() << "[LocalAndDownloadWidget] Failed to delete folder:"
+                               << sameFolderPath;
                 }
             }
         } else {
@@ -130,11 +126,8 @@ void MainWidget::handleLocalAndDownloadDeleteMusic(const QString& filename)
     }
 }
 
-void MainWidget::handleNetListPlayClick(const QString& name,
-                                        const QString& artist,
-                                        const QString& cover,
-                                        bool flag)
-{
+void MainWidget::handleNetListPlayClick(const QString& name, const QString& artist,
+                                        const QString& cover, bool flag) {
     qDebug() << "[MainWidget] ========== NET MUSIC PLAY SIGNAL ==========";
     qDebug() << "[MainWidget] name:" << name;
     qDebug() << "[MainWidget] artist:" << artist;
@@ -158,8 +151,7 @@ void MainWidget::handleNetListPlayClick(const QString& name,
     w->playClick(name);
 }
 
-void MainWidget::handleHistoryPlayMusic(const QString& filePath)
-{
+void MainWidget::handleHistoryPlayMusic(const QString& filePath) {
     qDebug() << "[PlayHistoryWidget] Play music:" << filePath;
     if (w->getNetFlag()) {
         net_list->setPlayingState("", false);
@@ -172,13 +164,10 @@ void MainWidget::handleHistoryPlayMusic(const QString& filePath)
     w->playClick(filePath);
 }
 
-void MainWidget::handleHistoryPlayMusicWithMetadata(const QString& filePath,
-                                                    const QString& title,
-                                                    const QString& artist,
-                                                    const QString& cover)
-{
-    qDebug() << "[PlayHistoryWidget] Play music with metadata:" << filePath
-             << "title:" << title << "artist:" << artist << "cover:" << cover;
+void MainWidget::handleHistoryPlayMusicWithMetadata(const QString& filePath, const QString& title,
+                                                    const QString& artist, const QString& cover) {
+    qDebug() << "[PlayHistoryWidget] Play music with metadata:" << filePath << "title:" << title
+             << "artist:" << artist << "cover:" << cover;
 
     if (w->getNetFlag()) {
         net_list->setPlayingState("", false);

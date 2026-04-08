@@ -1,17 +1,17 @@
 #include "main_widget.h"
 
 #include "AudioService.h"
-#include <QUrl>
+
 #include <QCursor>
-#include <QMessageBox>
+#include <QDir>
 #include <QFileInfo>
 #include <QInputDialog>
+#include <QMessageBox>
 #include <QToolTip>
-#include <QDir>
+#include <QUrl>
 
 namespace {
-QString buildPlaylistCoverPathFromSource(const QString& rawCover)
-{
+QString buildPlaylistCoverPathFromSource(const QString& rawCover) {
     QString cover = rawCover.trimmed();
     if (cover.isEmpty()) {
         return QString();
@@ -52,8 +52,7 @@ QString buildPlaylistCoverPathFromSource(const QString& rawCover)
     return cover;
 }
 
-QString normalizeSongPath(const QString& rawPath)
-{
+QString normalizeSongPath(const QString& rawPath) {
     QString path = rawPath.trimmed();
     if (path.startsWith(QStringLiteral("file:///"), Qt::CaseInsensitive)) {
         path = QUrl(path).toLocalFile();
@@ -65,14 +64,12 @@ QString normalizeSongPath(const QString& rawPath)
     return QDir::fromNativeSeparators(path);
 }
 
-bool isResolvedRemotePlaybackPath(const QString& path)
-{
+bool isResolvedRemotePlaybackPath(const QString& path) {
     return path.startsWith(QStringLiteral("http://"), Qt::CaseInsensitive) ||
            path.startsWith(QStringLiteral("https://"), Qt::CaseInsensitive);
 }
 
-QString normalizeDownloadRelativePath(const QString& rawPath)
-{
+QString normalizeDownloadRelativePath(const QString& rawPath) {
     QString path = rawPath.trimmed();
     if (path.isEmpty()) {
         return QString();
@@ -93,8 +90,7 @@ QString normalizeDownloadRelativePath(const QString& rawPath)
     return path;
 }
 
-int durationTextToSeconds(const QString& durationText)
-{
+int durationTextToSeconds(const QString& durationText) {
     const QStringList parts = durationText.trimmed().split(':');
     if (parts.size() == 2) {
         return parts.at(0).toInt() * 60 + parts.at(1).toInt();
@@ -105,8 +101,7 @@ int durationTextToSeconds(const QString& durationText)
     return 0;
 }
 
-QUrl buildActionSongUrl(const QVariantMap& songData)
-{
+QUrl buildActionSongUrl(const QVariantMap& songData) {
     QString path = songData.value(QStringLiteral("playPath")).toString().trimmed();
     if (path.isEmpty()) {
         path = songData.value(QStringLiteral("path")).toString().trimmed();
@@ -128,8 +123,7 @@ QUrl buildActionSongUrl(const QVariantMap& songData)
     return QUrl::fromLocalFile(normalizeSongPath(path));
 }
 
-QVariantMap buildPlaylistItemFromSong(const QVariantMap& songData)
-{
+QVariantMap buildPlaylistItemFromSong(const QVariantMap& songData) {
     QVariantMap item;
     QString musicPath = songData.value(QStringLiteral("playPath")).toString().trimmed();
     if (musicPath.isEmpty()) {
@@ -139,12 +133,14 @@ QVariantMap buildPlaylistItemFromSong(const QVariantMap& songData)
     const QString title = songData.value(QStringLiteral("title")).toString().trimmed();
     const QString artist = songData.value(QStringLiteral("artist")).toString().trimmed();
     const QString cover = songData.value(QStringLiteral("cover")).toString().trimmed();
-    const int durationSeconds = songData.value(QStringLiteral("duration_sec")).toInt() > 0
+    const int durationSeconds =
+        songData.value(QStringLiteral("duration_sec")).toInt() > 0
             ? songData.value(QStringLiteral("duration_sec")).toInt()
             : durationTextToSeconds(songData.value(QStringLiteral("duration")).toString());
 
     item.insert(QStringLiteral("music_path"), musicPath);
-    item.insert(QStringLiteral("music_title"), title.isEmpty() ? QFileInfo(musicPath).completeBaseName() : title);
+    item.insert(QStringLiteral("music_title"),
+                title.isEmpty() ? QFileInfo(musicPath).completeBaseName() : title);
     item.insert(QStringLiteral("artist"), artist);
     item.insert(QStringLiteral("album"), songData.value(QStringLiteral("album")).toString());
     item.insert(QStringLiteral("duration_sec"), durationSeconds);
@@ -159,8 +155,7 @@ QVariantMap buildPlaylistItemFromSong(const QVariantMap& songData)
     return item;
 }
 
-QString playlistNameById(const QVariantList& playlists, qint64 playlistId)
-{
+QString playlistNameById(const QVariantList& playlists, qint64 playlistId) {
     for (const QVariant& item : playlists) {
         const QVariantMap playlist = item.toMap();
         if (playlist.value(QStringLiteral("id")).toLongLong() == playlistId) {
@@ -172,7 +167,7 @@ QString playlistNameById(const QVariantList& playlists, qint64 playlistId)
     }
     return QString();
 }
-}
+} // namespace
 
 /*
 模块名称: MainWidget 收藏与历史连接
@@ -182,23 +177,25 @@ QString playlistNameById(const QVariantList& playlists, qint64 playlistId)
 */
 
 // 建立历史与收藏域的连接关系，并触发必要的数据刷新。
-void MainWidget::setupLibraryConnections()
-{
-    connect(playHistoryWidget, &PlayHistoryWidget::deleteHistory, this, &MainWidget::handleHistoryDeleteRequested);
-    connect(m_viewModel, &MainShellViewModel::removeHistoryResultReady, this, &MainWidget::handleRemoveHistoryResult);
+void MainWidget::setupLibraryConnections() {
+    connect(playHistoryWidget, &PlayHistoryWidget::deleteHistory, this,
+            &MainWidget::handleHistoryDeleteRequested);
+    connect(m_viewModel, &MainShellViewModel::removeHistoryResultReady, this,
+            &MainWidget::handleRemoveHistoryResult);
 
     connect(playHistoryWidget, &PlayHistoryWidget::addToFavorite, this,
             &MainWidget::handleHistoryAddToFavorite);
-    connect(playHistoryWidget, &PlayHistoryWidget::songActionRequested,
-            this, &MainWidget::handleSongActionRequested);
+    connect(playHistoryWidget, &PlayHistoryWidget::songActionRequested, this,
+            &MainWidget::handleSongActionRequested);
 
-    connect(playHistoryWidget, &PlayHistoryWidget::loginRequested, this, &MainWidget::handleHistoryLoginRequested);
-    connect(playHistoryWidget, &PlayHistoryWidget::refreshRequested, this, &MainWidget::handleHistoryRefreshRequested);
+    connect(playHistoryWidget, &PlayHistoryWidget::loginRequested, this,
+            &MainWidget::handleHistoryLoginRequested);
+    connect(playHistoryWidget, &PlayHistoryWidget::refreshRequested, this,
+            &MainWidget::handleHistoryRefreshRequested);
 
-    connect(m_viewModel, &MainShellViewModel::historyListReady,
-            playHistoryWidget, &PlayHistoryWidget::loadHistory);
-    connect(m_viewModel, &MainShellViewModel::historyListReady,
-            this,
+    connect(m_viewModel, &MainShellViewModel::historyListReady, playHistoryWidget,
+            &PlayHistoryWidget::loadHistory);
+    connect(m_viewModel, &MainShellViewModel::historyListReady, this,
             [this](const QVariantList& history) {
                 m_profileHistoryCount = history.size();
                 m_profileHistoryPreview = history;
@@ -206,16 +203,18 @@ void MainWidget::setupLibraryConnections()
                 syncUserProfilePreviewToPage();
             });
 
-    connect(favoriteMusicWidget, &FavoriteMusicWidget::playMusic, this, &MainWidget::handleFavoritePlayMusic);
-    connect(favoriteMusicWidget, &FavoriteMusicWidget::removeFavorite, this, &MainWidget::handleFavoriteRemoveRequested);
-    connect(favoriteMusicWidget, &FavoriteMusicWidget::refreshRequested, this, &MainWidget::handleFavoriteRefreshRequested);
+    connect(favoriteMusicWidget, &FavoriteMusicWidget::playMusic, this,
+            &MainWidget::handleFavoritePlayMusic);
+    connect(favoriteMusicWidget, &FavoriteMusicWidget::removeFavorite, this,
+            &MainWidget::handleFavoriteRemoveRequested);
+    connect(favoriteMusicWidget, &FavoriteMusicWidget::refreshRequested, this,
+            &MainWidget::handleFavoriteRefreshRequested);
 
-    connect(m_viewModel, &MainShellViewModel::favoritesListReady,
-            favoriteMusicWidget, &FavoriteMusicWidget::loadFavorites);
-    connect(m_viewModel, &MainShellViewModel::favoritesListReady,
-            this, &MainWidget::handleFavoritesListUpdated);
-    connect(m_viewModel, &MainShellViewModel::favoritesListReady,
-            this,
+    connect(m_viewModel, &MainShellViewModel::favoritesListReady, favoriteMusicWidget,
+            &FavoriteMusicWidget::loadFavorites);
+    connect(m_viewModel, &MainShellViewModel::favoritesListReady, this,
+            &MainWidget::handleFavoritesListUpdated);
+    connect(m_viewModel, &MainShellViewModel::favoritesListReady, this,
             [this](const QVariantList& favorites) {
                 m_profileFavoritesCount = favorites.size();
                 m_profileFavoritesPreview = favorites;
@@ -223,51 +222,71 @@ void MainWidget::setupLibraryConnections()
                 syncUserProfilePreviewToPage();
             });
 
-    connect(m_viewModel, &MainShellViewModel::removeFavoriteResultReady, this, &MainWidget::handleRemoveFavoriteResult);
+    connect(m_viewModel, &MainShellViewModel::removeFavoriteResultReady, this,
+            &MainWidget::handleRemoveFavoriteResult);
 
-    connect(localAndDownloadWidget, &LocalAndDownloadWidget::addToFavorite,
-            this, &MainWidget::handleLocalAddToFavorite);
+    connect(localAndDownloadWidget, &LocalAndDownloadWidget::addToFavorite, this,
+            &MainWidget::handleLocalAddToFavorite);
 
-    connect(net_list, &MusicListWidgetNet::addToFavorite,
-            this, &MainWidget::handleNetAddToFavorite);
+    connect(net_list, &MusicListWidgetNet::addToFavorite, this,
+            &MainWidget::handleNetAddToFavorite);
 
-    connect(m_viewModel, &MainShellViewModel::addFavoriteResultReady, this, &MainWidget::handleAddFavoriteResult);
-    connect(userWidgetQml, &UserWidgetQml::loginStateChanged, this, &MainWidget::handleUserLoginStateChanged);
+    connect(m_viewModel, &MainShellViewModel::addFavoriteResultReady, this,
+            &MainWidget::handleAddFavoriteResult);
+    connect(userWidgetQml, &UserWidgetQml::loginStateChanged, this,
+            &MainWidget::handleUserLoginStateChanged);
 
-    connect(playlistWidget, &PlaylistWidget::loginRequested, this, &MainWidget::handlePlaylistLoginRequested);
-    connect(playlistWidget, &PlaylistWidget::refreshRequested, this, &MainWidget::handlePlaylistRefreshRequested);
-    connect(playlistWidget, &PlaylistWidget::openPlaylistRequested, this, &MainWidget::handlePlaylistOpenRequested);
-    connect(playlistWidget, &PlaylistWidget::createPlaylistRequested, this, &MainWidget::handlePlaylistCreateRequested);
-    connect(playlistWidget, &PlaylistWidget::updatePlaylistRequested, this, &MainWidget::handlePlaylistUpdateRequested);
-    connect(playlistWidget, &PlaylistWidget::deletePlaylistRequested, this, &MainWidget::handlePlaylistDeleteRequested);
-    connect(playlistWidget, &PlaylistWidget::removePlaylistItemsRequested, this, &MainWidget::handlePlaylistRemoveSongsRequested);
-    connect(playlistWidget, &PlaylistWidget::reorderPlaylistItemsRequested, this, &MainWidget::handlePlaylistReorderSongsRequested);
-    connect(playlistWidget, &PlaylistWidget::addCurrentSongRequested, this, &MainWidget::handlePlaylistAddCurrentSongRequested);
-    connect(playlistWidget, &PlaylistWidget::playMusicWithMetadata, this, &MainWidget::handlePlaylistPlayMusicWithMetadata);
+    connect(playlistWidget, &PlaylistWidget::loginRequested, this,
+            &MainWidget::handlePlaylistLoginRequested);
+    connect(playlistWidget, &PlaylistWidget::refreshRequested, this,
+            &MainWidget::handlePlaylistRefreshRequested);
+    connect(playlistWidget, &PlaylistWidget::openPlaylistRequested, this,
+            &MainWidget::handlePlaylistOpenRequested);
+    connect(playlistWidget, &PlaylistWidget::createPlaylistRequested, this,
+            &MainWidget::handlePlaylistCreateRequested);
+    connect(playlistWidget, &PlaylistWidget::updatePlaylistRequested, this,
+            &MainWidget::handlePlaylistUpdateRequested);
+    connect(playlistWidget, &PlaylistWidget::deletePlaylistRequested, this,
+            &MainWidget::handlePlaylistDeleteRequested);
+    connect(playlistWidget, &PlaylistWidget::removePlaylistItemsRequested, this,
+            &MainWidget::handlePlaylistRemoveSongsRequested);
+    connect(playlistWidget, &PlaylistWidget::reorderPlaylistItemsRequested, this,
+            &MainWidget::handlePlaylistReorderSongsRequested);
+    connect(playlistWidget, &PlaylistWidget::addCurrentSongRequested, this,
+            &MainWidget::handlePlaylistAddCurrentSongRequested);
+    connect(playlistWidget, &PlaylistWidget::playMusicWithMetadata, this,
+            &MainWidget::handlePlaylistPlayMusicWithMetadata);
 
-    connect(m_viewModel, &MainShellViewModel::playlistsListReady, this, &MainWidget::handlePlaylistsListReady);
-    connect(m_viewModel, &MainShellViewModel::playlistDetailReady, this, &MainWidget::handlePlaylistDetailReady);
-    connect(m_viewModel, &MainShellViewModel::createPlaylistResultReady, this, &MainWidget::handleCreatePlaylistResultReady);
-    connect(m_viewModel, &MainShellViewModel::updatePlaylistResultReady, this, &MainWidget::handleUpdatePlaylistResultReady);
-    connect(m_viewModel, &MainShellViewModel::deletePlaylistResultReady, this, &MainWidget::handleDeletePlaylistResultReady);
-    connect(m_viewModel, &MainShellViewModel::addPlaylistItemsResultReady, this, &MainWidget::handleAddPlaylistItemsResultReady);
-    connect(m_viewModel, &MainShellViewModel::removePlaylistItemsResultReady, this, &MainWidget::handleRemovePlaylistItemsResultReady);
-    connect(m_viewModel, &MainShellViewModel::reorderPlaylistItemsResultReady, this, &MainWidget::handleReorderPlaylistItemsResultReady);
+    connect(m_viewModel, &MainShellViewModel::playlistsListReady, this,
+            &MainWidget::handlePlaylistsListReady);
+    connect(m_viewModel, &MainShellViewModel::playlistDetailReady, this,
+            &MainWidget::handlePlaylistDetailReady);
+    connect(m_viewModel, &MainShellViewModel::createPlaylistResultReady, this,
+            &MainWidget::handleCreatePlaylistResultReady);
+    connect(m_viewModel, &MainShellViewModel::updatePlaylistResultReady, this,
+            &MainWidget::handleUpdatePlaylistResultReady);
+    connect(m_viewModel, &MainShellViewModel::deletePlaylistResultReady, this,
+            &MainWidget::handleDeletePlaylistResultReady);
+    connect(m_viewModel, &MainShellViewModel::addPlaylistItemsResultReady, this,
+            &MainWidget::handleAddPlaylistItemsResultReady);
+    connect(m_viewModel, &MainShellViewModel::removePlaylistItemsResultReady, this,
+            &MainWidget::handleRemovePlaylistItemsResultReady);
+    connect(m_viewModel, &MainShellViewModel::reorderPlaylistItemsResultReady, this,
+            &MainWidget::handleReorderPlaylistItemsResultReady);
 
-    connect(favoriteMusicWidget, &FavoriteMusicWidget::songActionRequested,
-            this, &MainWidget::handleSongActionRequested);
-    connect(localAndDownloadWidget, &LocalAndDownloadWidget::songActionRequested,
-            this, &MainWidget::handleSongActionRequested);
-    connect(net_list, &MusicListWidgetNet::songActionRequested,
-            this, &MainWidget::handleSongActionRequested);
-    connect(playlistWidget, &PlaylistWidget::songActionRequested,
-            this, &MainWidget::handleSongActionRequested);
-    connect(recommendMusicWidget, &RecommendMusicWidget::songActionRequested,
-            this, &MainWidget::handleSongActionRequested);
+    connect(favoriteMusicWidget, &FavoriteMusicWidget::songActionRequested, this,
+            &MainWidget::handleSongActionRequested);
+    connect(localAndDownloadWidget, &LocalAndDownloadWidget::songActionRequested, this,
+            &MainWidget::handleSongActionRequested);
+    connect(net_list, &MusicListWidgetNet::songActionRequested, this,
+            &MainWidget::handleSongActionRequested);
+    connect(playlistWidget, &PlaylistWidget::songActionRequested, this,
+            &MainWidget::handleSongActionRequested);
+    connect(recommendMusicWidget, &RecommendMusicWidget::songActionRequested, this,
+            &MainWidget::handleSongActionRequested);
 }
 
-void MainWidget::handleHistoryDeleteRequested(const QStringList& paths)
-{
+void MainWidget::handleHistoryDeleteRequested(const QStringList& paths) {
     qDebug() << "[PlayHistoryWidget] Delete history, count:" << paths.size();
 
     QString userAccount = m_viewModel->currentUserAccount();
@@ -280,8 +299,7 @@ void MainWidget::handleHistoryDeleteRequested(const QStringList& paths)
     }
 }
 
-void MainWidget::handleRemoveHistoryResult(bool success)
-{
+void MainWidget::handleRemoveHistoryResult(bool success) {
     if (success) {
         qDebug() << "[PlayHistoryWidget] Delete history success, refreshing list";
         QString userAccount = m_viewModel->currentUserAccount();
@@ -293,13 +311,11 @@ void MainWidget::handleRemoveHistoryResult(bool success)
     }
 }
 
-void MainWidget::handleHistoryAddToFavorite(const QString& path,
-                                            const QString& title,
-                                            const QString& artist,
-                                            const QString& duration,
-                                            bool isLocal)
-{
-    qDebug() << "[PlayHistoryWidget] Add to favorite:" << title << "path:" << path << "isLocal:" << isLocal;
+void MainWidget::handleHistoryAddToFavorite(const QString& path, const QString& title,
+                                            const QString& artist, const QString& duration,
+                                            bool isLocal) {
+    qDebug() << "[PlayHistoryWidget] Add to favorite:" << title << "path:" << path
+             << "isLocal:" << isLocal;
     if (!isUserLoggedIn()) {
         showLoginWindow();
         return;
@@ -310,14 +326,12 @@ void MainWidget::handleHistoryAddToFavorite(const QString& path,
     }
 }
 
-void MainWidget::handleHistoryLoginRequested()
-{
+void MainWidget::handleHistoryLoginRequested() {
     qDebug() << "[PlayHistoryWidget] Login requested";
     showLoginWindow();
 }
 
-void MainWidget::handleHistoryRefreshRequested()
-{
+void MainWidget::handleHistoryRefreshRequested() {
     qDebug() << "[PlayHistoryWidget] Refresh requested";
     if (isUserLoggedIn()) {
         QString userAccount = m_viewModel->currentUserAccount();
@@ -327,8 +341,7 @@ void MainWidget::handleHistoryRefreshRequested()
     }
 }
 
-void MainWidget::handleFavoritePlayMusic(const QString& filePath)
-{
+void MainWidget::handleFavoritePlayMusic(const QString& filePath) {
     qDebug() << "[FavoriteMusicWidget] Play music:" << filePath;
     if (w->getNetFlag()) {
         net_list->setPlayingState("", false);
@@ -341,8 +354,7 @@ void MainWidget::handleFavoritePlayMusic(const QString& filePath)
     w->playClick(filePath);
 }
 
-void MainWidget::handleFavoriteRemoveRequested(const QStringList& paths)
-{
+void MainWidget::handleFavoriteRemoveRequested(const QStringList& paths) {
     qDebug() << "[FavoriteMusicWidget] Remove favorite, count:" << paths.size();
     QString userAccount = m_viewModel->currentUserAccount();
     if (m_viewModel) {
@@ -350,8 +362,7 @@ void MainWidget::handleFavoriteRemoveRequested(const QStringList& paths)
     }
 }
 
-void MainWidget::handleFavoriteRefreshRequested()
-{
+void MainWidget::handleFavoriteRefreshRequested() {
     qDebug() << "[FavoriteMusicWidget] Refresh requested";
     QString userAccount = m_viewModel->currentUserAccount();
     if (m_viewModel) {
@@ -359,8 +370,7 @@ void MainWidget::handleFavoriteRefreshRequested()
     }
 }
 
-void MainWidget::handleFavoritesListUpdated(const QVariantList& favorites)
-{
+void MainWidget::handleFavoritesListUpdated(const QVariantList& favorites) {
     QStringList favoritePaths;
     favoritePaths.reserve(favorites.size());
     for (const QVariant& item : favorites) {
@@ -377,8 +387,7 @@ void MainWidget::handleFavoritesListUpdated(const QVariantList& favorites)
     recommendMusicWidget->setFavoritePaths(favoritePaths);
 }
 
-void MainWidget::handleRemoveFavoriteResult(bool success)
-{
+void MainWidget::handleRemoveFavoriteResult(bool success) {
     if (success) {
         qDebug() << "[MainWidget] Remove favorite success, refreshing list";
         QString userAccount = m_viewModel->currentUserAccount();
@@ -388,11 +397,8 @@ void MainWidget::handleRemoveFavoriteResult(bool success)
     }
 }
 
-void MainWidget::handleLocalAddToFavorite(const QString& path,
-                                          const QString& title,
-                                          const QString& artist,
-                                          const QString& duration)
-{
+void MainWidget::handleLocalAddToFavorite(const QString& path, const QString& title,
+                                          const QString& artist, const QString& duration) {
     qDebug() << "[MainWidget] Add to favorite from local/download:" << title;
     if (!isUserLoggedIn()) {
         showLoginWindow();
@@ -404,11 +410,8 @@ void MainWidget::handleLocalAddToFavorite(const QString& path,
     }
 }
 
-void MainWidget::handleNetAddToFavorite(const QString& path,
-                                        const QString& title,
-                                        const QString& artist,
-                                        const QString& duration)
-{
+void MainWidget::handleNetAddToFavorite(const QString& path, const QString& title,
+                                        const QString& artist, const QString& duration) {
     qDebug() << "[MainWidget] Add to favorite from online:" << title;
     if (!isUserLoggedIn()) {
         showLoginWindow();
@@ -420,12 +423,12 @@ void MainWidget::handleNetAddToFavorite(const QString& path,
     }
 }
 
-void MainWidget::handleAddFavoriteResult(bool success)
-{
+void MainWidget::handleAddFavoriteResult(bool success) {
     if (success) {
         qDebug() << "[MainWidget] Add to favorite success, refreshing list";
     } else {
-        qWarning() << "[MainWidget] Add to favorite failed, try refreshing list to sync latest state";
+        qWarning()
+            << "[MainWidget] Add to favorite failed, try refreshing list to sync latest state";
     }
 
     QString userAccount = m_viewModel->currentUserAccount();
@@ -434,9 +437,19 @@ void MainWidget::handleAddFavoriteResult(bool success)
     }
 }
 
-void MainWidget::handleUserLoginStateChanged(bool loggedIn)
-{
+void MainWidget::handleUserLoginStateChanged(bool loggedIn) {
     qDebug() << "[MainWidget] Login state changed:" << loggedIn;
+
+    if (m_localOnlyMode) {
+        if (favoriteButton) {
+            favoriteButton->hide();
+        }
+        if (sidebarPlaylistSection) {
+            sidebarPlaylistSection->hide();
+        }
+        updateSideNavLayout();
+        return;
+    }
 
     QString userAccount = loggedIn ? m_viewModel->currentUserAccount() : "";
     playHistoryWidget->setLoggedIn(loggedIn, userAccount);
@@ -502,21 +515,18 @@ void MainWidget::handleUserLoginStateChanged(bool loggedIn)
     }
 }
 
-void MainWidget::handlePlaylistLoginRequested()
-{
+void MainWidget::handlePlaylistLoginRequested() {
     showLoginWindow();
 }
 
-void MainWidget::handlePlaylistRefreshRequested()
-{
+void MainWidget::handlePlaylistRefreshRequested() {
     if (!isUserLoggedIn() || !m_viewModel) {
         return;
     }
     m_viewModel->requestPlaylists(m_viewModel->currentUserAccount(), 1, 20, false);
 }
 
-void MainWidget::handlePlaylistOpenRequested(qint64 playlistId)
-{
+void MainWidget::handlePlaylistOpenRequested(qint64 playlistId) {
     if (!isUserLoggedIn() || !m_viewModel || playlistId <= 0) {
         return;
     }
@@ -524,22 +534,19 @@ void MainWidget::handlePlaylistOpenRequested(qint64 playlistId)
     m_viewModel->requestPlaylistDetail(m_viewModel->currentUserAccount(), playlistId, false);
 }
 
-void MainWidget::handleSidebarOwnedTabClicked()
-{
+void MainWidget::handleSidebarOwnedTabClicked() {
     m_sidebarShowingSubscribedPlaylists = false;
     updateSidebarPlaylistTabs();
     rebuildSidebarPlaylistButtons();
 }
 
-void MainWidget::handleSidebarSubscribedTabClicked()
-{
+void MainWidget::handleSidebarSubscribedTabClicked() {
     m_sidebarShowingSubscribedPlaylists = true;
     updateSidebarPlaylistTabs();
     rebuildSidebarPlaylistButtons();
 }
 
-void MainWidget::handleSidebarCreatePlaylistClicked()
-{
+void MainWidget::handleSidebarCreatePlaylistClicked() {
     if (!isUserLoggedIn()) {
         showLoginWindow();
         return;
@@ -554,8 +561,7 @@ void MainWidget::handleSidebarCreatePlaylistClicked()
     }
 }
 
-void MainWidget::handleSidebarPlaylistItemClicked()
-{
+void MainWidget::handleSidebarPlaylistItemClicked() {
     auto* button = qobject_cast<QPushButton*>(sender());
     if (!button) {
         return;
@@ -574,8 +580,7 @@ void MainWidget::handleSidebarPlaylistItemClicked()
     m_viewModel->requestPlaylistDetail(m_viewModel->currentUserAccount(), playlistId, false);
 }
 
-void MainWidget::handlePlaylistCreateRequested(const QString& name, const QString& description)
-{
+void MainWidget::handlePlaylistCreateRequested(const QString& name, const QString& description) {
     if (!isUserLoggedIn() || !m_viewModel) {
         showLoginWindow();
         return;
@@ -583,27 +588,23 @@ void MainWidget::handlePlaylistCreateRequested(const QString& name, const QStrin
     m_viewModel->createPlaylist(m_viewModel->currentUserAccount(), name, description);
 }
 
-void MainWidget::handlePlaylistUpdateRequested(qint64 playlistId, const QString& name, const QString& description)
-{
+void MainWidget::handlePlaylistUpdateRequested(qint64 playlistId, const QString& name,
+                                               const QString& description) {
     if (!isUserLoggedIn() || !m_viewModel || playlistId <= 0) {
         return;
     }
     m_viewModel->updatePlaylist(m_viewModel->currentUserAccount(), playlistId, name, description);
 }
 
-void MainWidget::handlePlaylistDeleteRequested(qint64 playlistId)
-{
+void MainWidget::handlePlaylistDeleteRequested(qint64 playlistId) {
     if (!isUserLoggedIn() || !m_viewModel || playlistId <= 0) {
         return;
     }
     m_viewModel->deletePlaylist(m_viewModel->currentUserAccount(), playlistId);
 }
 
-void MainWidget::handlePlaylistPlayMusicWithMetadata(const QString& filePath,
-                                                     const QString& title,
-                                                     const QString& artist,
-                                                     const QString& cover)
-{
+void MainWidget::handlePlaylistPlayMusicWithMetadata(const QString& filePath, const QString& title,
+                                                     const QString& artist, const QString& cover) {
     if (filePath.trimmed().isEmpty()) {
         return;
     }
@@ -626,48 +627,44 @@ void MainWidget::handlePlaylistPlayMusicWithMetadata(const QString& filePath,
     w->playClick(filePath);
 }
 
-void MainWidget::handlePlaylistRemoveSongsRequested(qint64 playlistId, const QStringList& musicPaths)
-{
+void MainWidget::handlePlaylistRemoveSongsRequested(qint64 playlistId,
+                                                    const QStringList& musicPaths) {
     if (!isUserLoggedIn() || !m_viewModel || playlistId <= 0 || musicPaths.isEmpty()) {
         return;
     }
     m_viewModel->removePlaylistItems(m_viewModel->currentUserAccount(), playlistId, musicPaths);
 }
 
-void MainWidget::handlePlaylistReorderSongsRequested(qint64 playlistId, const QVariantList& orderedItems)
-{
+void MainWidget::handlePlaylistReorderSongsRequested(qint64 playlistId,
+                                                     const QVariantList& orderedItems) {
     if (!isUserLoggedIn() || !m_viewModel || playlistId <= 0 || orderedItems.isEmpty()) {
         return;
     }
     m_viewModel->reorderPlaylistItems(m_viewModel->currentUserAccount(), playlistId, orderedItems);
 }
 
-void MainWidget::handlePlaylistAddCurrentSongRequested(qint64 playlistId)
-{
+void MainWidget::handlePlaylistAddCurrentSongRequested(qint64 playlistId) {
     if (!isUserLoggedIn() || !m_viewModel || playlistId <= 0) {
         return;
     }
 
     AudioSession* session = AudioService::instance().currentSession();
     if (!session) {
-        QMessageBox::information(this,
-                                 QStringLiteral("提示"),
+        QMessageBox::information(this, QStringLiteral("提示"),
                                  QStringLiteral("当前没有可添加的播放歌曲。"));
         return;
     }
 
     QUrl currentUrl = AudioService::instance().currentUrl();
     if (!currentUrl.isValid() || currentUrl.toString().trimmed().isEmpty()) {
-        QMessageBox::warning(this,
-                             QStringLiteral("提示"),
+        QMessageBox::warning(this, QStringLiteral("提示"),
                              QStringLiteral("当前歌曲路径为空，无法添加到歌单。"));
         return;
     }
 
     QString musicPath = currentUrl.isLocalFile() ? currentUrl.toLocalFile() : currentUrl.toString();
     if (musicPath.trimmed().isEmpty()) {
-        QMessageBox::warning(this,
-                             QStringLiteral("提示"),
+        QMessageBox::warning(this, QStringLiteral("提示"),
                              QStringLiteral("当前歌曲路径为空，无法添加到歌单。"));
         return;
     }
@@ -675,11 +672,12 @@ void MainWidget::handlePlaylistAddCurrentSongRequested(qint64 playlistId)
     QVariantMap item;
     item.insert(QStringLiteral("music_path"), musicPath);
     item.insert(QStringLiteral("music_title"), session->title().trimmed().isEmpty()
-                                              ? QFileInfo(musicPath).completeBaseName()
-                                              : session->title());
+                                                   ? QFileInfo(musicPath).completeBaseName()
+                                                   : session->title());
     item.insert(QStringLiteral("artist"), normalizeArtistForHistory(session->artist()));
     item.insert(QStringLiteral("album"), QString());
-    item.insert(QStringLiteral("duration_sec"), static_cast<int>(qMax<qint64>(0, session->duration() / 1000)));
+    item.insert(QStringLiteral("duration_sec"),
+                static_cast<int>(qMax<qint64>(0, session->duration() / 1000)));
     const bool isLocal = !musicPath.startsWith("http", Qt::CaseInsensitive);
     item.insert(QStringLiteral("is_local"), isLocal);
 
@@ -699,8 +697,8 @@ void MainWidget::handlePlaylistAddCurrentSongRequested(qint64 playlistId)
     m_viewModel->addPlaylistItems(m_viewModel->currentUserAccount(), playlistId, items);
 }
 
-void MainWidget::handlePlaylistsListReady(const QVariantList& playlists, int page, int pageSize, int total)
-{
+void MainWidget::handlePlaylistsListReady(const QVariantList& playlists, int page, int pageSize,
+                                          int total) {
     if (playlistWidget) {
         playlistWidget->loadPlaylists(playlists, page, pageSize, total);
     }
@@ -709,7 +707,8 @@ void MainWidget::handlePlaylistsListReady(const QVariantList& playlists, int pag
     m_subscribedSidebarPlaylists.clear();
     for (const QVariant& item : playlists) {
         const QVariantMap playlist = item.toMap();
-        const QString ownership = playlist.value(QStringLiteral("ownership")).toString().trimmed().toLower();
+        const QString ownership =
+            playlist.value(QStringLiteral("ownership")).toString().trimmed().toLower();
         if (ownership == QStringLiteral("subscribed")) {
             m_subscribedSidebarPlaylists.append(playlist);
         } else {
@@ -727,25 +726,25 @@ void MainWidget::handlePlaylistsListReady(const QVariantList& playlists, int pag
     rebuildSidebarPlaylistButtons();
 }
 
-void MainWidget::handlePlaylistDetailReady(const QVariantMap& detail)
-{
+void MainWidget::handlePlaylistDetailReady(const QVariantMap& detail) {
     if (playlistWidget) {
         playlistWidget->loadPlaylistDetail(detail);
     }
     syncSidebarPlaylistSelection(detail.value(QStringLiteral("id")).toLongLong());
 }
 
-void MainWidget::handleCreatePlaylistResultReady(bool success, qint64 playlistId, const QString& message)
-{
+void MainWidget::handleCreatePlaylistResultReady(bool success, qint64 playlistId,
+                                                 const QString& message) {
     if (!success) {
         m_pendingAddToNewPlaylistSong.clear();
-        QMessageBox::warning(this,
-                             QStringLiteral("创建歌单失败"),
-                             message.trimmed().isEmpty() ? QStringLiteral("请稍后重试。") : message);
+        QMessageBox::warning(this, QStringLiteral("创建歌单失败"),
+                             message.trimmed().isEmpty() ? QStringLiteral("请稍后重试。")
+                                                         : message);
         return;
     }
 
-    if (!m_pendingAddToNewPlaylistSong.isEmpty() && m_viewModel && isUserLoggedIn() && playlistId > 0) {
+    if (!m_pendingAddToNewPlaylistSong.isEmpty() && m_viewModel && isUserLoggedIn() &&
+        playlistId > 0) {
         QVariantList items;
         items.append(buildPlaylistItemFromSong(m_pendingAddToNewPlaylistSong));
         m_viewModel->addPlaylistItems(m_viewModel->currentUserAccount(), playlistId, items);
@@ -757,12 +756,12 @@ void MainWidget::handleCreatePlaylistResultReady(bool success, qint64 playlistId
     }
 }
 
-void MainWidget::handleUpdatePlaylistResultReady(bool success, qint64 playlistId, const QString& message)
-{
+void MainWidget::handleUpdatePlaylistResultReady(bool success, qint64 playlistId,
+                                                 const QString& message) {
     if (!success) {
-        QMessageBox::warning(this,
-                             QStringLiteral("更新歌单失败"),
-                             message.trimmed().isEmpty() ? QStringLiteral("请稍后重试。") : message);
+        QMessageBox::warning(this, QStringLiteral("更新歌单失败"),
+                             message.trimmed().isEmpty() ? QStringLiteral("请稍后重试。")
+                                                         : message);
         return;
     }
 
@@ -775,13 +774,13 @@ void MainWidget::handleUpdatePlaylistResultReady(bool success, qint64 playlistId
     }
 }
 
-void MainWidget::handleDeletePlaylistResultReady(bool success, qint64 playlistId, const QString& message)
-{
+void MainWidget::handleDeletePlaylistResultReady(bool success, qint64 playlistId,
+                                                 const QString& message) {
     Q_UNUSED(playlistId);
     if (!success) {
-        QMessageBox::warning(this,
-                             QStringLiteral("删除歌单失败"),
-                             message.trimmed().isEmpty() ? QStringLiteral("请稍后重试。") : message);
+        QMessageBox::warning(this, QStringLiteral("删除歌单失败"),
+                             message.trimmed().isEmpty() ? QStringLiteral("请稍后重试。")
+                                                         : message);
         return;
     }
 
@@ -790,27 +789,22 @@ void MainWidget::handleDeletePlaylistResultReady(bool success, qint64 playlistId
     }
 }
 
-void MainWidget::handleAddPlaylistItemsResultReady(bool success,
-                                                   qint64 playlistId,
-                                                   int addedCount,
-                                                   int skippedCount,
-                                                   const QString& message)
-{
+void MainWidget::handleAddPlaylistItemsResultReady(bool success, qint64 playlistId, int addedCount,
+                                                   int skippedCount, const QString& message) {
     if (!success) {
-        QMessageBox::warning(this,
-                             QStringLiteral("添加歌曲失败"),
-                             message.trimmed().isEmpty() ? QStringLiteral("请稍后重试。") : message);
+        QMessageBox::warning(this, QStringLiteral("添加歌曲失败"),
+                             message.trimmed().isEmpty() ? QStringLiteral("请稍后重试。")
+                                                         : message);
         return;
     }
 
     const QString playlistName = playlistNameById(m_ownedSidebarPlaylists, playlistId);
-    const QString tipMessage = addedCount > 0
-            ? (playlistName.isEmpty()
-               ? QStringLiteral("已添加到目标歌单")
-               : QStringLiteral("已添加到歌单：%1").arg(playlistName))
-            : (skippedCount > 0
-               ? QStringLiteral("歌曲已存在于目标歌单中")
-               : QStringLiteral("歌单已更新"));
+    const QString tipMessage =
+        addedCount > 0
+            ? (playlistName.isEmpty() ? QStringLiteral("已添加到目标歌单")
+                                      : QStringLiteral("已添加到歌单：%1").arg(playlistName))
+            : (skippedCount > 0 ? QStringLiteral("歌曲已存在于目标歌单中")
+                                : QStringLiteral("歌单已更新"));
     QToolTip::showText(QCursor::pos(), tipMessage, this, rect(), 1800);
 
     if (m_viewModel && isUserLoggedIn()) {
@@ -822,16 +816,13 @@ void MainWidget::handleAddPlaylistItemsResultReady(bool success,
     }
 }
 
-void MainWidget::handleRemovePlaylistItemsResultReady(bool success,
-                                                      qint64 playlistId,
-                                                      int deletedCount,
-                                                      const QString& message)
-{
+void MainWidget::handleRemovePlaylistItemsResultReady(bool success, qint64 playlistId,
+                                                      int deletedCount, const QString& message) {
     Q_UNUSED(deletedCount);
     if (!success) {
-        QMessageBox::warning(this,
-                             QStringLiteral("移除歌曲失败"),
-                             message.trimmed().isEmpty() ? QStringLiteral("请稍后重试。") : message);
+        QMessageBox::warning(this, QStringLiteral("移除歌曲失败"),
+                             message.trimmed().isEmpty() ? QStringLiteral("请稍后重试。")
+                                                         : message);
         return;
     }
 
@@ -840,12 +831,12 @@ void MainWidget::handleRemovePlaylistItemsResultReady(bool success,
     }
 }
 
-void MainWidget::handleReorderPlaylistItemsResultReady(bool success, qint64 playlistId, const QString& message)
-{
+void MainWidget::handleReorderPlaylistItemsResultReady(bool success, qint64 playlistId,
+                                                       const QString& message) {
     if (!success) {
-        QMessageBox::warning(this,
-                             QStringLiteral("排序失败"),
-                             message.trimmed().isEmpty() ? QStringLiteral("请稍后重试。") : message);
+        QMessageBox::warning(this, QStringLiteral("排序失败"),
+                             message.trimmed().isEmpty() ? QStringLiteral("请稍后重试。")
+                                                         : message);
     }
 
     if (m_viewModel && isUserLoggedIn() && playlistId > 0) {
@@ -853,26 +844,38 @@ void MainWidget::handleReorderPlaylistItemsResultReady(bool success, qint64 play
     }
 }
 
-void MainWidget::handleSongActionRequested(const QString& action, const QVariantMap& songData)
-{
+void MainWidget::handleSongActionRequested(const QString& action, const QVariantMap& songData) {
     if (songData.isEmpty()) {
         return;
     }
 
     const bool isLocal = songData.value(QStringLiteral("isLocal")).toBool();
+    if (m_localOnlyMode) {
+        const bool serverOnlyAction =
+            (action == QStringLiteral("add_to_playlist") ||
+             action == QStringLiteral("create_playlist_and_add") ||
+             action == QStringLiteral("add_favorite") ||
+             action == QStringLiteral("remove_favorite") ||
+             action == QStringLiteral("download"));
+        const bool remotePlaybackAction =
+            !isLocal &&
+            (action == QStringLiteral("play") || action == QStringLiteral("play_next") ||
+             action == QStringLiteral("queue_append"));
+        if (serverOnlyAction || remotePlaybackAction) {
+            showLocalOnlyUnavailableMessage();
+            return;
+        }
+    }
+
     QString playPath = songData.value(QStringLiteral("playPath")).toString().trimmed();
     if (playPath.isEmpty()) {
         playPath = songData.value(QStringLiteral("path")).toString().trimmed();
     }
-    const bool requiresResolve = !isLocal
-            && !playPath.isEmpty()
-            && !isResolvedRemotePlaybackPath(playPath)
-            && !QFileInfo(playPath).isAbsolute()
-            && (action == QStringLiteral("play")
-                || action == QStringLiteral("play_next")
-                || action == QStringLiteral("queue_append")
-                || action == QStringLiteral("add_to_playlist")
-                || action == QStringLiteral("create_playlist_and_add"));
+    const bool requiresResolve =
+        !isLocal && !playPath.isEmpty() && !isResolvedRemotePlaybackPath(playPath) &&
+        !QFileInfo(playPath).isAbsolute() &&
+        (action == QStringLiteral("play") || action == QStringLiteral("play_next") ||
+         action == QStringLiteral("queue_append"));
 
     if (requiresResolve) {
         net_list->resolveSongAction(action, songData);
@@ -910,7 +913,8 @@ void MainWidget::handleSongActionRequested(const QString& action, const QVariant
         return;
     }
     if (action == QStringLiteral("download")) {
-        const QString relativePath = normalizeDownloadRelativePath(songData.value(QStringLiteral("path")).toString());
+        const QString relativePath =
+            normalizeDownloadRelativePath(songData.value(QStringLiteral("path")).toString());
         if (!relativePath.isEmpty()) {
             net_list->onDownloadMusic(relativePath);
         }
@@ -921,13 +925,13 @@ void MainWidget::handleSongActionRequested(const QString& action, const QVariant
     }
 }
 
-void MainWidget::queueSongAsNext(const QVariantMap& songData)
-{
+void MainWidget::queueSongAsNext(const QVariantMap& songData) {
     if (!w || !w->playbackViewModel()) {
         return;
     }
 
-    if (AudioService::instance().currentIndex() < 0 || AudioService::instance().playlistSize() <= 0) {
+    if (AudioService::instance().currentIndex() < 0 ||
+        AudioService::instance().playlistSize() <= 0) {
         playSongByAction(songData);
         return;
     }
@@ -940,8 +944,7 @@ void MainWidget::queueSongAsNext(const QVariantMap& songData)
     w->playbackViewModel()->queueTrackAsNext(url);
 }
 
-void MainWidget::appendSongToPlaybackQueue(const QVariantMap& songData)
-{
+void MainWidget::appendSongToPlaybackQueue(const QVariantMap& songData) {
     if (!w || !w->playbackViewModel()) {
         return;
     }
@@ -954,8 +957,7 @@ void MainWidget::appendSongToPlaybackQueue(const QVariantMap& songData)
     w->playbackViewModel()->appendTrackToQueue(url, true);
 }
 
-void MainWidget::addSongToPlaylistByAction(const QVariantMap& songData)
-{
+void MainWidget::addSongToPlaylistByAction(const QVariantMap& songData) {
     if (!isUserLoggedIn() || !m_viewModel) {
         showLoginWindow();
         return;
@@ -972,20 +974,17 @@ void MainWidget::addSongToPlaylistByAction(const QVariantMap& songData)
     m_viewModel->addPlaylistItems(m_viewModel->currentUserAccount(), playlistId, items);
 }
 
-void MainWidget::createPlaylistAndAddSong(const QVariantMap& songData)
-{
+void MainWidget::createPlaylistAndAddSong(const QVariantMap& songData) {
     if (!isUserLoggedIn() || !m_viewModel) {
         showLoginWindow();
         return;
     }
 
     bool ok = false;
-    const QString name = QInputDialog::getText(this,
-                                               QStringLiteral("新建歌单"),
-                                               QStringLiteral("请输入歌单名称："),
-                                               QLineEdit::Normal,
-                                               QString(),
-                                               &ok).trimmed();
+    const QString name =
+        QInputDialog::getText(this, QStringLiteral("新建歌单"), QStringLiteral("请输入歌单名称："),
+                              QLineEdit::Normal, QString(), &ok)
+            .trimmed();
     if (!ok || name.isEmpty()) {
         return;
     }
@@ -994,8 +993,7 @@ void MainWidget::createPlaylistAndAddSong(const QVariantMap& songData)
     m_viewModel->createPlaylist(m_viewModel->currentUserAccount(), name, QString());
 }
 
-void MainWidget::toggleFavoriteByAction(const QString& action, const QVariantMap& songData)
-{
+void MainWidget::toggleFavoriteByAction(const QString& action, const QVariantMap& songData) {
     if (!isUserLoggedIn() || !m_viewModel) {
         showLoginWindow();
         return;
@@ -1011,17 +1009,16 @@ void MainWidget::toggleFavoriteByAction(const QString& action, const QVariantMap
         return;
     }
 
-    m_viewModel->addFavorite(m_viewModel->currentUserAccount(),
-                             path,
+    m_viewModel->addFavorite(m_viewModel->currentUserAccount(), path,
                              songData.value(QStringLiteral("title")).toString(),
                              songData.value(QStringLiteral("artist")).toString(),
                              songData.value(QStringLiteral("duration")).toString(),
                              songData.value(QStringLiteral("isLocal")).toBool());
 }
 
-void MainWidget::removeOrDeleteSongByAction(const QVariantMap& songData)
-{
-    const QString sourceType = songData.value(QStringLiteral("sourceType")).toString().trimmed().toLower();
+void MainWidget::removeOrDeleteSongByAction(const QVariantMap& songData) {
+    const QString sourceType =
+        songData.value(QStringLiteral("sourceType")).toString().trimmed().toLower();
     const QString path = songData.value(QStringLiteral("path")).toString().trimmed();
 
     if (sourceType == QStringLiteral("favorite")) {
@@ -1029,16 +1026,15 @@ void MainWidget::removeOrDeleteSongByAction(const QVariantMap& songData)
         return;
     }
     if (sourceType == QStringLiteral("playlist")) {
-        handlePlaylistRemoveSongsRequested(songData.value(QStringLiteral("playlistId")).toLongLong(),
-                                           QStringList{path});
+        handlePlaylistRemoveSongsRequested(
+            songData.value(QStringLiteral("playlistId")).toLongLong(), QStringList{path});
         return;
     }
 
     handleLocalAndDownloadDeleteMusic(path);
 }
 
-void MainWidget::playSongByAction(const QVariantMap& songData)
-{
+void MainWidget::playSongByAction(const QVariantMap& songData) {
     QString path = songData.value(QStringLiteral("playPath")).toString().trimmed();
     if (path.isEmpty()) {
         path = songData.value(QStringLiteral("path")).toString().trimmed();
@@ -1055,7 +1051,8 @@ void MainWidget::playSongByAction(const QVariantMap& songData)
 
     const bool isLocal = songData.value(QStringLiteral("isLocal")).toBool();
     const QString title = songData.value(QStringLiteral("title")).toString().trimmed();
-    const QString artist = normalizeArtistForHistory(songData.value(QStringLiteral("artist")).toString());
+    const QString artist =
+        normalizeArtistForHistory(songData.value(QStringLiteral("artist")).toString());
     const QString cover = songData.value(QStringLiteral("cover")).toString().trimmed();
     const QUrl url = buildActionSongUrl(songData);
 
@@ -1073,11 +1070,8 @@ void MainWidget::playSongByAction(const QVariantMap& songData)
     w->playClick(path);
 }
 
-void MainWidget::rememberPlaybackQueueMetadata(const QString& filePath,
-                                               const QString& title,
-                                               const QString& artist,
-                                               const QString& cover)
-{
+void MainWidget::rememberPlaybackQueueMetadata(const QString& filePath, const QString& title,
+                                               const QString& artist, const QString& cover) {
     if (!w || !w->playbackViewModel()) {
         return;
     }
@@ -1104,6 +1098,7 @@ void MainWidget::rememberPlaybackQueueMetadata(const QString& filePath,
     songData.insert(QStringLiteral("cover"), cover.trimmed());
     songData.insert(QStringLiteral("path"), trimmedPath);
     songData.insert(QStringLiteral("playPath"), trimmedPath);
-    songData.insert(QStringLiteral("isLocal"), !trimmedPath.startsWith(QStringLiteral("http"), Qt::CaseInsensitive));
+    songData.insert(QStringLiteral("isLocal"),
+                    !trimmedPath.startsWith(QStringLiteral("http"), Qt::CaseInsensitive));
     w->playbackViewModel()->rememberTrackMetadata(url, songData);
 }

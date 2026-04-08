@@ -114,14 +114,16 @@ public:
     }
     
     // 更新封面与时长等补充信息。
-    void updateSongMetadata(const QString& filePath, const QString& coverUrl, const QString& duration)
+    void updateSongMetadata(const QString& filePath, const QString& coverUrl,
+                            const QString& duration, const QString& artist)
     {
         QQuickItem* root = rootObject();
         if (root) {
             QMetaObject::invokeMethod(root, "updateSongMetadata",
                 Q_ARG(QVariant, filePath),
                 Q_ARG(QVariant, coverUrl),
-                Q_ARG(QVariant, duration));
+                Q_ARG(QVariant, duration),
+                Q_ARG(QVariant, artist));
         }
     }
 signals:
