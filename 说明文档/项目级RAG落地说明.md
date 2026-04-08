@@ -1,71 +1,38 @@
-﻿# 项目级 RAG 落地说明
+# 项目级 RAG 落地说明（当前版）
 
-## 目标
+## 1. 目标
+项目级 RAG 的目标不是替代代码阅读，而是为多 Agent 协作、论文写作辅助和复杂链路排障提供一套“以当前代码和当前文档为真相源”的检索基础。
 
-为当前项目建立一套工程协作优先的私有 RAG，用于：
+## 2. 当前适合进入 RAG 的知识源
+当前版本推荐优先索引以下内容：
+- `说明文档/` 下已校准到当前版本的架构、需求、接口和模块说明；
+- `src/app/`、`src/viewmodels/`、`src/audio/`、`src/video/`、`src/network/`、`src/download/`、`src/agent/`；
+- `qml/components/` 与 `qml/theme/`；
+- 关键 PR 与 commit 说明，特别是 2026-04-06 到 2026-04-08 的演进。
 
-- 多 Agent 协作
-- 代码导航
-- 协议联调
-- 架构问答
-- 问题排障
+## 3. 当前不建议直接进入 RAG 的内容
+- 临时日志文件，如 `打印日志.txt`；
+- 未清洗的原始测试输出；
+- 与当前客户端主链无关的历史草稿；
+- 未确认编码和质量的中间文档。
 
-## 当前实现
+## 4. 当前版本下的知识组织建议
+建议把索引内容分成四类：
+1. **架构类**：UI-MVVM、音频、网络、视频、模块索引；
+2. **需求类**：需求文档、需求补充、改造列表、项目总结；
+3. **接口类**：接口变化、服务端新增接口、在线视频接口、歌单接口；
+4. **Agent/能力类**：客户端能力全景、能力模板映射、工具调用约定、典型任务链路。
 
-当前仓库已经新增 `rag/` 子系统，包含：
+## 5. 当前版本的使用建议
+- 面向论文写作时，优先查询“架构类 + 需求类”；
+- 面向联调时，优先查询“接口类 + 网络联调清单”；
+- 面向 Agent 路由时，优先查询“能力类 + 代码主链文档”；
+- 面向播放/封面/下载排障时，优先查询“音频架构 + 模块索引 + recent PR 记录”。
 
-- `rag/ingest/`：扫描、切块、清单与索引构建
-- `rag/retrieval/`：词法检索、向量检索、混合排序
-- `rag/schemas/`：统一 chunk/request/response schema
-- `rag/server/`：FastAPI 检索服务
-- `rag/cases/`：问题案例库
+## 6. 关键前提
+RAG 只有在文档先和代码版本保持一致时才有意义。因此，本次文档全量审计与重写本身就是当前版本 RAG 能否可靠落地的前置条件。
 
-## 默认知识源
-
-第一版默认收录：
-
-- `说明文档/`
-- `src/agent/`
-- `src/audio/`
-- `src/video/`
-- `src/network/`
-- `src/viewmodels/`
-- `src/app/`
-- `qml/`
-- `agent/src/music_agent/`
-- `agent/README.md`
-- `agent/提示文档.md`
-- `agent/Qt端对接建议.md`
-- `agent/Claude Code方法论对当前音乐Agent的架构借鉴清单.md`
-- `README.md`
-- `AUDIO_ARCHITECTURE.md`
-- `VIDEO_ARCHITECTURE.md`
-- `VIDEO_AV_SYNC_STRATEGY.md`
-- `说明文档/接口与协议/接口变化.md`
-- `说明文档/接口与协议/服务端新增接口.md`
-- `说明文档/接口与协议/在线视频接口新增.md`
-- `说明文档/测试资料/用户音乐功能测试脚本.md`
-- `rag/cases/`
-
-## 接口
-
-- `GET /rag/healthz`
-- `POST /rag/index/full`
-- `POST /rag/index/incremental`
-- `POST /rag/query`
-- `POST /rag/query/agent-context`
-
-## 当前边界
-
-- 动态世界状态不进入 RAG
-- Capability Catalog 不进入向量库
-- 当前不做 Graph-RAG
-- 当前不直接索引原始 `打印日志.txt`
-- 向量检索优先走 Qdrant，缺失时允许降级
-
-## 建议接入方式
-
-- `Planner Agent`：优先查 `architecture`
-- `Execution Agent`：优先查 `protocol_lookup`
-- `Debug Agent`：优先查 `incident_lookup`
-- `Review Agent`：优先查 `code_lookup`
+## 7. 当前结论
+- 当前项目适合做“工程协作优先”的 RAG，而不是只做 README 检索；
+- 文档、代码、最近 PR 演进记录应一起作为知识源；
+- 对毕业论文而言，这套经版本校准后的文档可以直接作为高质量索引底座。

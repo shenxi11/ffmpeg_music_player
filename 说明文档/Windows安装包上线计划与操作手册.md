@@ -1,39 +1,38 @@
-﻿# Windows 安装包上线计划与操作手册
+# Windows 安装包上线计划与操作手册（当前版）
 
 ## 1. 目标
-- 对外发布一个可下载的 `Setup.exe`。
-- 用户通过安装向导可自定义安装目录。
-- 支持主程序必装、插件可选安装。
-- 安装后可创建桌面/开始菜单快捷方式，并支持标准卸载。
+本文档用于说明当前 Windows 安装包的构建与上线方式，并补充当前版本启动链特点：首次进入软件后会先显示欢迎页，用户可选择服务器验证进入或离线直进。
 
-## 2. 采用方案（成熟做法）
-- 打包工具：`Inno Setup 6`（Windows 客户端常用方案，支持组件化安装与安装目录自定义）。
-- 构建来源：`CMake Release` 产物。
-- 分层流程：
-  1. 构建层：`cmake --build ... --config Release`
-  2. 分发层：将运行时文件整理到 `staging`（过滤调试符号）
-  3. 安装层：使用 `ISCC` 编译 `.iss` 生成 `Setup.exe`
+## 2. 当前打包方案
+- 构建来源：`CMake Release` 产物；
+- 安装器工具：`Inno Setup 6`；
+- 当前脚本：
+  - `packaging/windows/cloudmusic_installer.iss`
+  - `packaging/windows/build_windows_setup.ps1`
 
-## 3. 已落地文件
-- 安装器脚本：`packaging/windows/cloudmusic_installer.iss`
-- 一键打包脚本：`packaging/windows/build_windows_setup.ps1`
+## 3. 当前安装包上线前检查
+### 3.1 构建层
+- 使用 `Release` 配置构建；
+- 主程序 `ffmpeg_music_player.exe` 存在；
+- 运行时依赖齐全；
+- 不包含 Debug 运行库。
 
-## 4. 安装器能力
-- 自定义安装路径。
-- 安装类型：`Full` / `Minimal` / `Custom`。
-- 组件：
-  - 主程序（必装）
-  - `audio_converter` 插件（可选）
-  - `whisper_translate` 插件（可选）
-- 任务：桌面快捷方式、开始菜单快捷方式。
+### 3.2 功能层
+安装后至少验证：
+1. 应用能正常启动；
+2. 欢迎页能正常显示；
+3. 可验证服务器进入主窗口；
+4. 可使用“离线直进”进入本地模式；
+5. 音频播放正常；
+6. 设置页与返回欢迎页链路正常；
+7. 标准卸载可用。
 
-## 5. 发布前检查清单
-- 使用 `Release` 配置构建。
-- 产物中存在 `ffmpeg_music_player.exe`。
-- staging 目录不存在 Debug 运行库（如 `Qt5Cored.dll`）。
-- 安装后至少验证：启动、连接服务器、音频播放、卸载。
+### 3.3 发布层
+- 安装包命名遵循版本号；
+- 对外提供 SHA256 校验值；
+- 建议附本版本更新说明。
 
-## 6. 实际打包命令
+## 4. 当前推荐打包命令
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\packaging\windows\build_windows_setup.ps1 `
   -BuildDir E:\FFmpeg_whisper\ffmpeg_music_player_build `
@@ -41,24 +40,7 @@ powershell -ExecutionPolicy Bypass -File .\packaging\windows\build_windows_setup
   -Version 1.0.0
 ```
 
-可选参数：
-- `-SkipBuild`：跳过构建，仅生成安装包。
-- `-IsccPath`：指定 `ISCC.exe` 路径。
-- `-OutputDir`：指定安装包输出目录。
-- `-StageDir`：指定 staging 目录。
-
-## 7. 输出目录
-- 安装包：`<BuildDir>\package\output\`
-- 中间产物：`<BuildDir>\package\staging\Release\`
-
-## 8. 网站发布建议
-- 下载区提供：
-  - `YunMusic_Setup_x.y.z.exe`
-  - `SHA256` 校验值
-  - 当前版本更新说明
-- 命名规范：`YunMusic_Setup_1.0.0.exe`
-
-## 9. 下一步优化建议
-- 为安装包加入代码签名（降低 SmartScreen 告警概率）。
-- 在 CI 中接入自动打包与自动上传产物。
-- 增加便携版 zip，覆盖高级用户场景。
+## 5. 当前版本特别说明
+- 客户端不再假定必须连接服务器才能进入主界面；
+- 上线验证时必须同时覆盖在线进入和离线直进两条启动路径；
+- 如果用于答辩或论文展示，离线直进可作为网络不可用时的兜底演示方案。
