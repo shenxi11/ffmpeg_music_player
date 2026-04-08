@@ -1,7 +1,7 @@
 #include "online_presence_manager.h"
 
-#include <QEventLoop>
 #include <QDateTime>
+#include <QEventLoop>
 #include <QJsonObject>
 #include <QSysInfo>
 #include <QTimer>
@@ -12,31 +12,25 @@ constexpr int kDefaultHeartbeatSec = 30;
 constexpr int kDefaultTtlSec = 600;
 constexpr int kMinHeartbeatSec = 5;
 constexpr int kMaxHeartbeatSec = 300;
-}
+} // namespace
 
-OnlinePresenceManager& OnlinePresenceManager::instance()
-{
+OnlinePresenceManager& OnlinePresenceManager::instance() {
     static OnlinePresenceManager manager;
     return manager;
 }
 
 OnlinePresenceManager::OnlinePresenceManager(QObject* parent)
-    : QObject(parent)
-    , m_networkService(Network::NetworkService::instance())
-{
+    : QObject(parent), m_networkService(Network::NetworkService::instance()) {
     m_deviceId = buildDeviceId();
 
     m_heartbeatTimer.setSingleShot(false);
-    connect(&m_heartbeatTimer, &QTimer::timeout,
-            this, &OnlinePresenceManager::onHeartbeatTimerTimeout);
+    connect(&m_heartbeatTimer, &QTimer::timeout, this,
+            &OnlinePresenceManager::onHeartbeatTimerTimeout);
 }
 
-void OnlinePresenceManager::onLoginSucceeded(const QString& account,
-                                             const QString& username,
+void OnlinePresenceManager::onLoginSucceeded(const QString& account, const QString& username,
                                              const QString& sessionTokenFromLogin,
-                                             int heartbeatIntervalSec,
-                                             int ttlSec)
-{
+                                             int heartbeatIntervalSec, int ttlSec) {
     m_account = account.trimmed();
     m_username = username.trimmed();
     m_heartbeatIntervalSec = normalizeIntervalSec(heartbeatIntervalSec);
@@ -56,8 +50,7 @@ void OnlinePresenceManager::onLoginSucceeded(const QString& account,
     startSessionIfNeeded();
 }
 
-void OnlinePresenceManager::ensureSessionForUser(const QString& account, const QString& username)
-{
+void OnlinePresenceManager::ensureSessionForUser(const QString& account, const QString& username) {
     const QString normalizedAccount = account.trimmed();
     const QString normalizedUsername = username.trimmed();
     if (normalizedAccount.isEmpty() && normalizedUsername.isEmpty()) {
@@ -84,8 +77,17 @@ void OnlinePresenceManager::ensureSessionForUser(const QString& account, const Q
     requestStatusRefresh();
 }
 
-void OnlinePresenceManager::logoutAndClear(bool blocking, int timeoutMs)
-{
+void OnlinePresenceManager::updateCurrentUsername(const QString& username) {
+    const QString normalizedUsername = username.trimmed();
+    if (normalizedUsername.isEmpty() || m_username == normalizedUsername) {
+        return;
+    }
+
+    m_username = normalizedUsername;
+    emitSnapshot(m_statusMessage);
+}
+
+void OnlinePresenceManager::logoutAndClear(bool blocking, int timeoutMs) {
     const QString token = m_sessionToken.trimmed();
     if (token.isEmpty()) {
         clearSession();
@@ -106,10 +108,10 @@ void OnlinePresenceManager::logoutAndClear(bool blocking, int timeoutMs)
     options.timeout = qBound(400, timeoutMs, 3000);
 
     if (!blocking) {
-        m_networkService.postJson("users/online/logout", json, options,
-            [](const Network::NetworkResponse& response) {
-                qDebug() << "[OnlinePresence] logout finished:"
-                         << response.statusCode << response.errorString;
+        m_networkService.postJson(
+            "users/online/logout", json, options, [](const Network::NetworkResponse& response) {
+                qDebug() << "[OnlinePresence] logout finished:" << response.statusCode
+                         << response.errorString;
             });
         clearSession();
         return;
@@ -123,11 +125,11 @@ void OnlinePresenceManager::logoutAndClear(bool blocking, int timeoutMs)
     connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
 
     m_networkService.postJson("users/online/logout", json, options,
-        [&](const Network::NetworkResponse& response) {
-            Q_UNUSED(response);
-            done = true;
-            loop.quit();
-        });
+                              [&](const Network::NetworkResponse& response) {
+                                  Q_UNUSED(response);
+                                  done = true;
+                                  loop.quit();
+                              });
 
     timer.start(qBound(400, timeoutMs, 3000));
     loop.exec();
@@ -136,8 +138,7 @@ void OnlinePresenceManager::logoutAndClear(bool blocking, int timeoutMs)
     clearSession();
 }
 
-void OnlinePresenceManager::clearSession()
-{
+void OnlinePresenceManager::clearSession() {
     stopHeartbeatTimer();
     m_heartbeatInFlight = false;
     m_online = false;
@@ -150,8 +151,7 @@ void OnlinePresenceManager::clearSession()
     emitSnapshot(m_statusMessage);
 }
 
-void OnlinePresenceManager::requestStatusRefresh()
-{
+void OnlinePresenceManager::requestStatusRefresh() {
     if (m_sessionToken.trimmed().isEmpty()) {
         m_online = false;
         m_ttlRemainingSec = 0;
@@ -203,35 +203,31 @@ void OnlinePresenceManager::requestStatusRefresh()
         m_online = data.value("online").toBool(false);
         m_lastSeenAt = data.value("last_seen_at").toVariant().toLongLong();
         m_ttlRemainingSec = data.value("ttl_remaining_sec").toInt(0);
-        m_heartbeatIntervalSec = normalizeIntervalSec(data.value("heartbeat_interval_sec").toInt(m_heartbeatIntervalSec));
+        m_heartbeatIntervalSec = normalizeIntervalSec(
+            data.value("heartbeat_interval_sec").toInt(m_heartbeatIntervalSec));
         m_onlineTtlSec = normalizeTtlSec(data.value("online_ttl_sec").toInt(m_onlineTtlSec));
         m_statusMessage = m_online ? QStringLiteral("在线") : QStringLiteral("离线");
         emitSnapshot(m_statusMessage);
     });
 }
 
-bool OnlinePresenceManager::hasSession() const
-{
+bool OnlinePresenceManager::hasSession() const {
     return !m_sessionToken.trimmed().isEmpty();
 }
 
-QString OnlinePresenceManager::currentToken() const
-{
+QString OnlinePresenceManager::currentToken() const {
     return m_sessionToken;
 }
 
-void OnlinePresenceManager::onHeartbeatTimerTimeout()
-{
+void OnlinePresenceManager::onHeartbeatTimerTimeout() {
     sendHeartbeat();
 }
 
-void OnlinePresenceManager::triggerImmediateHeartbeat()
-{
+void OnlinePresenceManager::triggerImmediateHeartbeat() {
     sendHeartbeat();
 }
 
-void OnlinePresenceManager::startSessionIfNeeded()
-{
+void OnlinePresenceManager::startSessionIfNeeded() {
     if (!m_sessionToken.trimmed().isEmpty()) {
         restartHeartbeatTimer();
         return;
@@ -253,14 +249,15 @@ void OnlinePresenceManager::startSessionIfNeeded()
     options.maxRetries = 1;
     options.timeout = 8000;
 
-    m_networkService.postJson("users/online/session/start", json, options,
+    m_networkService.postJson(
+        "users/online/session/start", json, options,
         [this](const Network::NetworkResponse& response) {
             QJsonObject data;
             int code = -1;
             QString message;
             if (!parseEnvelope(response, &data, &code, &message)) {
-                qWarning() << "[OnlinePresence] start session failed:"
-                           << response.statusCode << response.errorString << message;
+                qWarning() << "[OnlinePresence] start session failed:" << response.statusCode
+                           << response.errorString << message;
                 return;
             }
 
@@ -271,7 +268,8 @@ void OnlinePresenceManager::startSessionIfNeeded()
             }
 
             m_sessionToken = token;
-            m_heartbeatIntervalSec = normalizeIntervalSec(data.value("heartbeat_interval_sec").toInt(m_heartbeatIntervalSec));
+            m_heartbeatIntervalSec = normalizeIntervalSec(
+                data.value("heartbeat_interval_sec").toInt(m_heartbeatIntervalSec));
             m_onlineTtlSec = normalizeTtlSec(data.value("online_ttl_sec").toInt(m_onlineTtlSec));
             m_online = true;
             m_lastSeenAt = data.value("last_seen_at").toVariant().toLongLong();
@@ -287,8 +285,7 @@ void OnlinePresenceManager::startSessionIfNeeded()
         });
 }
 
-void OnlinePresenceManager::sendHeartbeat()
-{
+void OnlinePresenceManager::sendHeartbeat() {
     if (m_heartbeatInFlight) {
         return;
     }
@@ -314,8 +311,8 @@ void OnlinePresenceManager::sendHeartbeat()
     options.timeout = 8000;
 
     m_heartbeatInFlight = true;
-    m_networkService.postJson("users/online/heartbeat", json, options,
-        [this](const Network::NetworkResponse& response) {
+    m_networkService.postJson(
+        "users/online/heartbeat", json, options, [this](const Network::NetworkResponse& response) {
             m_heartbeatInFlight = false;
 
             QJsonObject data;
@@ -323,8 +320,8 @@ void OnlinePresenceManager::sendHeartbeat()
             QString message;
             if (!parseEnvelope(response, &data, &code, &message)) {
                 const bool unauthorized = (response.statusCode == 401 || code == 401);
-                qWarning() << "[OnlinePresence] heartbeat failed:"
-                           << response.statusCode << response.errorString << message;
+                qWarning() << "[OnlinePresence] heartbeat failed:" << response.statusCode
+                           << response.errorString << message;
                 if (unauthorized) {
                     stopHeartbeatTimer();
                     m_sessionToken.clear();
@@ -341,7 +338,8 @@ void OnlinePresenceManager::sendHeartbeat()
             if (!renewedToken.isEmpty()) {
                 m_sessionToken = renewedToken;
             }
-            const int heartbeatSec = data.value("heartbeat_interval_sec").toInt(m_heartbeatIntervalSec);
+            const int heartbeatSec =
+                data.value("heartbeat_interval_sec").toInt(m_heartbeatIntervalSec);
             const int ttlSec = data.value("online_ttl_sec").toInt(m_onlineTtlSec);
             const int normalizedHeartbeat = normalizeIntervalSec(heartbeatSec);
             const int normalizedTtl = normalizeTtlSec(ttlSec);
@@ -364,21 +362,18 @@ void OnlinePresenceManager::sendHeartbeat()
         });
 }
 
-void OnlinePresenceManager::restartHeartbeatTimer()
-{
+void OnlinePresenceManager::restartHeartbeatTimer() {
     const int intervalMs = normalizeIntervalSec(m_heartbeatIntervalSec) * 1000;
     m_heartbeatTimer.start(intervalMs);
 }
 
-void OnlinePresenceManager::stopHeartbeatTimer()
-{
+void OnlinePresenceManager::stopHeartbeatTimer() {
     if (m_heartbeatTimer.isActive()) {
         m_heartbeatTimer.stop();
     }
 }
 
-QString OnlinePresenceManager::buildDeviceId() const
-{
+QString OnlinePresenceManager::buildDeviceId() const {
     QString host = QSysInfo::machineHostName().trimmed();
     if (host.isEmpty()) {
         host = QStringLiteral("desktop");
@@ -386,16 +381,14 @@ QString OnlinePresenceManager::buildDeviceId() const
     return QStringLiteral("pc-") + host;
 }
 
-int OnlinePresenceManager::normalizeIntervalSec(int value)
-{
+int OnlinePresenceManager::normalizeIntervalSec(int value) {
     if (value <= 0) {
         value = kDefaultHeartbeatSec;
     }
     return qBound(kMinHeartbeatSec, value, kMaxHeartbeatSec);
 }
 
-int OnlinePresenceManager::normalizeTtlSec(int value)
-{
+int OnlinePresenceManager::normalizeTtlSec(int value) {
     if (value <= 0) {
         return kDefaultTtlSec;
     }
@@ -403,10 +396,8 @@ int OnlinePresenceManager::normalizeTtlSec(int value)
 }
 
 bool OnlinePresenceManager::parseEnvelope(const Network::NetworkResponse& response,
-                                          QJsonObject* dataOut,
-                                          int* codeOut,
-                                          QString* messageOut) const
-{
+                                          QJsonObject* dataOut, int* codeOut,
+                                          QString* messageOut) const {
     if (!response.isSuccess()) {
         if (messageOut) {
             *messageOut = response.errorString;
@@ -445,18 +436,11 @@ bool OnlinePresenceManager::parseEnvelope(const Network::NetworkResponse& respon
     return true;
 }
 
-void OnlinePresenceManager::emitSnapshot(const QString& statusMessage)
-{
+void OnlinePresenceManager::emitSnapshot(const QString& statusMessage) {
     if (!statusMessage.trimmed().isEmpty()) {
         m_statusMessage = statusMessage.trimmed();
     }
 
-    emit presenceSnapshotChanged(m_account,
-                                 m_sessionToken,
-                                 m_online,
-                                 m_heartbeatIntervalSec,
-                                 m_onlineTtlSec,
-                                 m_ttlRemainingSec,
-                                 m_statusMessage,
-                                 m_lastSeenAt);
+    emit presenceSnapshotChanged(m_account, m_sessionToken, m_online, m_heartbeatIntervalSec,
+                                 m_onlineTtlSec, m_ttlRemainingSec, m_statusMessage, m_lastSeenAt);
 }

@@ -4,6 +4,7 @@
 #include <QIcon>
 #include <QApplication>
 #include <QThread>
+#include <QTimer>
 #include <QDir>
 #include <QStandardPaths>
 #include <QFile>
@@ -14,6 +15,7 @@
 #include "logger.h"
 #include "settings_manager.h"
 #include "user.h"
+#include <functional>
 
 #ifdef Q_OS_WIN
 #include <Windows.h>  // For SetDllDirectoryW, GetModuleFileNameW
@@ -62,6 +64,7 @@ int main(int argc, char *argv[])
 #endif
     
     QApplication a(argc, argv);
+    a.setQuitOnLastWindowClosed(false);
 
     // Initialize asynchronous file logger.
     const QString logPath = resolvePrintLogPath();
@@ -122,24 +125,61 @@ int main(int argc, char *argv[])
     int loadedPlugins = pluginManager.loadPlugins(pluginDir);
     qDebug() << "Loaded" << loadedPlugins << "plugins";
 
-    int result = 0;
-    {
-        ServerWelcomeDialog welcomeDialog;
+    MainWidget* mainWindow = nullptr;
+    bool pendingReturnToWelcome = false;
+
+    std::function<void(bool)> enterMainWindow;
+    std::function<void(bool)> launchWelcomeFlow;
+
+    enterMainWindow = [&](bool localOnlyMode) {
+        if (mainWindow) {
+            return;
+        }
+
+        if (localOnlyMode) {
+            qDebug() << "Entering main window in local-only mode";
+        } else {
+            qDebug() << "Server verified, using base URL:"
+                     << SettingsManager::instance().serverBaseUrl();
+        }
+
+        mainWindow = new MainWidget(localOnlyMode);
+        mainWindow->setAttribute(Qt::WA_DeleteOnClose, true);
+        QObject::connect(mainWindow, &MainWidget::requestReturnToWelcome, &a, [&]() {
+            pendingReturnToWelcome = true;
+        });
+        QObject::connect(mainWindow, &QObject::destroyed, &a, [&]() {
+            mainWindow = nullptr;
+            if (pendingReturnToWelcome) {
+                pendingReturnToWelcome = false;
+                QTimer::singleShot(0, &a, [&]() {
+                    launchWelcomeFlow(false);
+                });
+                return;
+            }
+            QTimer::singleShot(0, &a, &QCoreApplication::quit);
+        });
+
+        mainWindow->show();
+        mainWindow->updatePaint();
+    };
+
+    launchWelcomeFlow = [&](bool autoVerifyOnShow) {
+        ServerWelcomeDialog welcomeDialog(autoVerifyOnShow);
         if (welcomeDialog.exec() != QDialog::Accepted) {
             qDebug() << "Server verification canceled or failed, application exits.";
-            cleanupLogger();
-            return 0;
+            QTimer::singleShot(0, &a, &QCoreApplication::quit);
+            return;
         }
-        qDebug() << "Server verified, using base URL:" << SettingsManager::instance().serverBaseUrl();
 
-        MainWidget w;
+        enterMainWindow(welcomeDialog.enterLocalOnly());
+    };
 
-        w.show();
-        w.updatePaint();
+    QTimer::singleShot(0, &a, [&]() {
+        launchWelcomeFlow(true);
+    });
 
-        // qDebug() << "started";
-        result = a.exec();
-    }
+    const int result = a.exec();
     
     // 应用退出前等待线程池任务收敛，减少资源竞争与崩溃概率
     qDebug() << "Application exiting, ensuring cleanup...";

@@ -227,7 +227,7 @@ Rectangle {
                     Image {
                         anchors.fill: parent
                         anchors.margins: 2
-                        source: model.cover !== "" ? model.cover : "qrc:/new/prefix1/icon/Music.png"
+                        source: model.cover !== "" ? model.cover : "qrc:/qml/assets/ai/icons/default-music-cover.svg"
                         fillMode: Image.PreserveAspectCrop
                         smooth: true
                         cache: true
@@ -460,6 +460,23 @@ Rectangle {
         return path
     }
 
+    function normalizeArtistText(artist) {
+        if (!artist) {
+            return ""
+        }
+        var trimmed = artist.toString().trim()
+        if (trimmed.length === 0) {
+            return ""
+        }
+        var lower = trimmed.toLowerCase()
+        if (trimmed === "未知艺术家" || trimmed === "未知歌手"
+                || lower === "unknown artist" || lower === "unknown"
+                || lower === "<unknown>") {
+            return ""
+        }
+        return trimmed
+    }
+
     function clearPlayingState() {
         if (root.currentPlayingIndex >= 0 && root.currentPlayingIndex < musicListModel.count) {
             musicListModel.setProperty(root.currentPlayingIndex, "isPlaying", false)
@@ -533,13 +550,21 @@ Rectangle {
         }
     }
 
-    function updateSongMetadata(filePath, coverUrl, duration) {
+    function updateSongMetadata(filePath, coverUrl, duration, artist) {
         for (var i = 0; i < musicListModel.count; i++) {
             if (musicListModel.get(i).filePath !== filePath) {
                 continue
             }
-            musicListModel.setProperty(i, "cover", coverUrl || "")
-            musicListModel.setProperty(i, "duration", duration || "0:00")
+            if (coverUrl && coverUrl.length > 0) {
+                musicListModel.setProperty(i, "cover", coverUrl)
+            }
+            if (duration && duration.length > 0) {
+                musicListModel.setProperty(i, "duration", duration)
+            }
+            var normalizedArtist = normalizeArtistText(artist)
+            if (normalizedArtist.length > 0) {
+                musicListModel.setProperty(i, "artist", normalizedArtist)
+            }
             return
         }
     }

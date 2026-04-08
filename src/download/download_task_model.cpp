@@ -1,4 +1,5 @@
 #include "download_task_model.h"
+#include "local_music_cache.h"
 
 DownloadTaskModel::DownloadTaskModel(QObject *parent)
     : QAbstractListModel(parent)
@@ -58,7 +59,7 @@ QVariant DownloadTaskModel::data(const QModelIndex &index, int role) const
     case IsPlayingRole:
         return task.savePath == m_currentPlayingPath;
     case CoverUrlRole:
-        return task.coverUrl;
+        return resolveCoverUrl(task);
     default:
         return QVariant();
     }
@@ -93,6 +94,41 @@ void DownloadTaskModel::refresh(bool showCompleted)
     }
     
     endResetModel();
+}
+
+void DownloadTaskModel::updateSongMetadata(const QString& savePath, const QString& coverUrl,
+                                           const QString& duration)
+{
+    const QString normalizedPath = savePath.trimmed();
+    const QString normalizedCover = coverUrl.trimmed();
+    if (normalizedPath.isEmpty()) {
+        return;
+    }
+
+    if (!normalizedCover.isEmpty()) {
+        DownloadManager::instance().updateTaskMetadataBySavePath(normalizedPath, normalizedCover);
+    }
+
+    for (int i = 0; i < m_tasks.count(); ++i) {
+        DownloadTask& task = m_tasks[i];
+        if (task.savePath.trimmed() != normalizedPath) {
+            continue;
+        }
+
+        bool changed = false;
+        if (!normalizedCover.isEmpty() && task.coverUrl.trimmed() != normalizedCover) {
+            task.coverUrl = normalizedCover;
+            changed = true;
+        }
+
+        Q_UNUSED(duration);
+
+        if (changed) {
+            const QModelIndex idx = index(i);
+            emit dataChanged(idx, idx, {CoverUrlRole});
+        }
+        return;
+    }
 }
 
 void DownloadTaskModel::pauseTask(const QString& taskId)
@@ -138,6 +174,28 @@ void DownloadTaskModel::removeTask(const QString& taskId)
     
     // 从下载管理器中删除
     DownloadManager::instance().removeTask(taskId);
+}
+
+QString DownloadTaskModel::resolveCoverUrl(const DownloadTask& task) const
+{
+    const QString taskCover = task.coverUrl.trimmed();
+    if (!taskCover.isEmpty()) {
+        return taskCover;
+    }
+
+    const QString targetPath = task.savePath.trimmed();
+    if (targetPath.isEmpty()) {
+        return QString();
+    }
+
+    const QList<LocalMusicInfo> musicList = LocalMusicCache::instance().getMusicList();
+    for (const LocalMusicInfo& info : musicList) {
+        if (info.filePath.trimmed() == targetPath && !info.coverUrl.trimmed().isEmpty()) {
+            return info.coverUrl.trimmed();
+        }
+    }
+
+    return QString();
 }
 
 void DownloadTaskModel::onDownloadAdded(const QString& taskId, const QString& filename)

@@ -369,6 +369,33 @@ DownloadTask DownloadManager::getTask(const QString& taskId) const
     return m_allTasks.value(taskId);
 }
 
+bool DownloadManager::updateTaskMetadataBySavePath(const QString& savePath, const QString& coverUrl)
+{
+    const QString normalizedPath = savePath.trimmed();
+    const QString normalizedCover = coverUrl.trimmed();
+    if (normalizedPath.isEmpty() || normalizedCover.isEmpty()) {
+        return false;
+    }
+
+    for (auto it = m_allTasks.begin(); it != m_allTasks.end(); ++it) {
+        DownloadTask& task = it.value();
+        if (task.savePath.trimmed() != normalizedPath) {
+            continue;
+        }
+
+        if (task.coverUrl.trimmed() == normalizedCover) {
+            return true;
+        }
+
+        task.coverUrl = normalizedCover;
+        saveTaskInfo(task);
+        qDebug() << "[DownloadManager] Updated task cover metadata:" << normalizedPath;
+        return true;
+    }
+
+    return false;
+}
+
 void DownloadManager::processQueue()
 {
     QMutexLocker locker(&m_tasksMutex);

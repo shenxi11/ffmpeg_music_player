@@ -11,13 +11,16 @@ Rectangle {
     property string userAccount: ""
     property string currentPlayingPath: ""
     property bool isPlaying: false
+    property var favoritePaths: []
     property int selectedPlaylistId: -1
     property var currentPlaylistDetail: ({})
     property int sideMargin: width >= 1200 ? 20 : 14
     property int leftPanelWidth: width >= 1360 ? 280 : (width >= 1100 ? 250 : 220)
+    property bool ownedGroupExpanded: true
+    property bool subscribedGroupExpanded: true
     property string listIconPrefix: "qrc:/design/design_exports/netease_ui_pack_20260309/icon/ui/list/"
     property string playerIconPrefix: "qrc:/design/design_exports/netease_ui_pack_20260309/icon/ui/player/"
-    property string defaultCover: "qrc:/new/prefix1/icon/Music.png"
+    property string defaultCover: "qrc:/qml/assets/ai/icons/default-music-cover.svg"
 
     signal loginRequested()
     signal refreshRequested()
@@ -29,9 +32,18 @@ Rectangle {
     signal reorderPlaylistItemsRequested(var playlistId, var orderedItems)
     signal addCurrentSongRequested(var playlistId)
     signal playMusicWithMetadata(string filePath, string title, string artist, string cover)
+    signal songActionRequested(string action, var song)
 
     ListModel {
         id: playlistModel
+    }
+
+    ListModel {
+        id: ownedPlaylistModel
+    }
+
+    ListModel {
+        id: subscribedPlaylistModel
     }
 
     ListModel {
@@ -94,10 +106,53 @@ Rectangle {
         return normalizePath(pathA) === normalizePath(pathB)
     }
 
+    function isFavoritePath(path) {
+        var target = normalizePath(path)
+        for (var i = 0; i < favoritePaths.length; ++i) {
+            if (normalizePath(favoritePaths[i]) === target) {
+                return true
+            }
+        }
+        return false
+    }
+
     function formatTrackCount(count) {
         var c = Number(count)
         if (isNaN(c) || c < 0) c = 0
         return c + " 首"
+    }
+
+    function normalizeOwnership(value) {
+        var text = normalizeText(value, "").toLowerCase()
+        return text === "subscribed" ? "subscribed" : "owned"
+    }
+
+    function buildSongPayload(item) {
+        return {
+            path: item.path || "",
+            playPath: item.path || "",
+            title: item.title || "未知歌曲",
+            artist: item.artist || "未知艺术家",
+            duration: item.duration || "0:00",
+            cover: item.cover_art_url || "",
+            isLocal: !!item.is_local,
+            isFavorite: isFavoritePath(item.path || ""),
+            sourceType: "playlist",
+            playlistId: Number(root.selectedPlaylistId)
+        }
+    }
+
+    function buildPlaylistEntry(item) {
+        return {
+            id: Number(item.id || 0),
+            name: normalizeText(item.name, "未命名歌单"),
+            description: normalizeText(item.description, ""),
+            cover_url: normalizeText(item.cover_url, ""),
+            track_count: Number(item.track_count || 0),
+            total_duration: normalizeText(item.total_duration, "0:00"),
+            updated_at: normalizeText(item.updated_at, ""),
+            ownership: normalizeOwnership(item.ownership)
+        }
     }
 
     function selectPlaylist(playlistId, requestDetail) {
@@ -118,17 +173,16 @@ Rectangle {
 
     function loadPlaylists(playlists, page, pageSize, total) {
         playlistModel.clear()
+        ownedPlaylistModel.clear()
+        subscribedPlaylistModel.clear()
         for (var i = 0; i < playlists.length; ++i) {
-            var item = playlists[i]
-            playlistModel.append({
-                                     id: Number(item.id || 0),
-                                     name: normalizeText(item.name, "未命名歌单"),
-                                     description: normalizeText(item.description, ""),
-                                     cover_url: normalizeText(item.cover_url, ""),
-                                     track_count: Number(item.track_count || 0),
-                                     total_duration: normalizeText(item.total_duration, "0:00"),
-                                     updated_at: normalizeText(item.updated_at, "")
-                                 })
+            var entry = buildPlaylistEntry(playlists[i])
+            playlistModel.append(entry)
+            if (entry.ownership === "subscribed") {
+                subscribedPlaylistModel.append(entry)
+            } else {
+                ownedPlaylistModel.append(entry)
+            }
         }
 
         if (playlistModel.count === 0) {
@@ -183,11 +237,17 @@ Rectangle {
 
     function clearData() {
         playlistModel.clear()
+        ownedPlaylistModel.clear()
+        subscribedPlaylistModel.clear()
         songModel.clear()
         selectedPlaylistId = -1
         currentPlaylistDetail = ({})
         currentPlayingPath = ""
         isPlaying = false
+    }
+
+    function openCreatePlaylistDialog() {
+        createDialog.open()
     }
 
     function submitReorder() {
@@ -471,6 +531,81 @@ Rectangle {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    Component {
+        id: playlistCardDelegate
+
+        Rectangle {
+            width: ListView.view ? ListView.view.width : 0
+            height: 54
+            radius: 12
+            property bool selected: Number(model.id) === Number(root.selectedPlaylistId)
+            property bool hover: playlistArea.containsMouse
+            color: selected ? "#E5E7EB" : (hover ? "#F1F3F5" : "transparent")
+            border.width: 0
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 10
+                anchors.rightMargin: 10
+                spacing: 8
+
+                Rectangle {
+                    Layout.preferredWidth: 34
+                    Layout.preferredHeight: 34
+                    radius: 8
+                    color: "#ECEFF4"
+                    border.width: 1
+                    border.color: "#DCE3EE"
+
+                    Image {
+                        anchors.fill: parent
+                        anchors.margins: 1
+                        source: normalizeCoverSource(model.cover_url)
+                        fillMode: Image.PreserveAspectCrop
+                        asynchronous: true
+                        cache: true
+                        onStatusChanged: {
+                            if (status === Image.Error && source !== root.defaultCover) {
+                                source = root.defaultCover
+                            }
+                        }
+                    }
+                }
+
+                Column {
+                    Layout.fillWidth: true
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 2
+
+                    Text {
+                        text: model.name || "未命名歌单"
+                        width: parent.width
+                        elide: Text.ElideRight
+                        font.pixelSize: 13
+                        font.weight: selected ? Font.DemiBold : Font.Normal
+                        color: Theme.textPrimary
+                    }
+
+                    Text {
+                        text: formatTrackCount(model.track_count)
+                        width: parent.width
+                        elide: Text.ElideRight
+                        font.pixelSize: 11
+                        color: Theme.textSecondary
+                    }
+                }
+            }
+
+            MouseArea {
+                id: playlistArea
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.selectPlaylist(model.id, true)
             }
         }
     }
@@ -778,33 +913,34 @@ Rectangle {
 
                 ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: 10
-                    spacing: 8
+                    anchors.margins: 12
+                    spacing: 12
 
                     RowLayout {
                         Layout.fillWidth: true
 
                         Text {
-                            text: "自建歌单"
-                            font.pixelSize: 15
+                            text: "我的歌单"
+                            font.pixelSize: 16
                             font.weight: Font.DemiBold
                             color: Theme.textPrimary
                             Layout.fillWidth: true
                         }
 
                         Rectangle {
-                            width: 74
+                            width: 28
                             height: 28
                             radius: 14
-                            color: createArea.containsMouse ? Theme.accent : "transparent"
+                            color: createArea.containsMouse ? "#EEF1F5" : "transparent"
                             border.width: 1
-                            border.color: Theme.accent
+                            border.color: createArea.containsMouse ? "#D8DCE3" : "transparent"
 
                             Text {
                                 anchors.centerIn: parent
-                                text: "新建"
-                                font.pixelSize: 12
-                                color: createArea.containsMouse ? "#FFFFFF" : Theme.accent
+                                text: "+"
+                                font.pixelSize: 16
+                                font.weight: Font.DemiBold
+                                color: Theme.textPrimary
                             }
 
                             MouseArea {
@@ -817,97 +953,151 @@ Rectangle {
                         }
                     }
 
-                    ListView {
-                        id: playlistListView
+                    Rectangle {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        model: playlistModel
-                        spacing: 6
-                        clip: true
+                        radius: 10
+                        color: "#FAFBFC"
+                        border.width: 1
+                        border.color: "#E7EAF0"
 
-                        delegate: Rectangle {
-                            width: playlistListView.width
-                            height: 60
-                            radius: 10
-                            property bool selected: Number(model.id) === Number(root.selectedPlaylistId)
-                            property bool hover: playlistArea.containsMouse
-                            color: selected ? Theme.accentSoft : (hover ? Theme.glassHover : "transparent")
-                            border.width: selected ? 1 : 0
-                            border.color: selected ? Theme.accent : "transparent"
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: 10
+                            spacing: 10
 
-                            RowLayout {
-                                anchors.fill: parent
-                                anchors.leftMargin: 10
-                                anchors.rightMargin: 10
-                                spacing: 8
+                            Rectangle {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 28
+                                color: "transparent"
 
-                                Rectangle {
-                                    Layout.preferredWidth: 40
-                                    Layout.preferredHeight: 40
-                                    radius: 6
-                                    color: "#E7EBF4"
-                                    border.width: 1
-                                    border.color: "#D7DDEA"
-
-                                    Image {
-                                        anchors.fill: parent
-                                        anchors.margins: 1
-                                        source: normalizeCoverSource(model.cover_url)
-                                        fillMode: Image.PreserveAspectCrop
-                                        asynchronous: true
-                                        cache: true
-                                        onStatusChanged: {
-                                            if (status === Image.Error && source !== root.defaultCover) {
-                                                source = root.defaultCover
-                                            }
-                                        }
-                                    }
-                                }
-
-                                Column {
-                                    Layout.fillWidth: true
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    spacing: 2
+                                RowLayout {
+                                    anchors.fill: parent
 
                                     Text {
-                                        text: model.name || "未命名歌单"
-                                        width: parent.width
-                                        elide: Text.ElideRight
-                                        font.pixelSize: 13
-                                        font.weight: selected ? Font.DemiBold : Font.Normal
-                                        color: selected ? Theme.accent : Theme.textPrimary
-                                    }
-
-                                    Text {
-                                        text: formatTrackCount(model.track_count)
-                                        width: parent.width
-                                        elide: Text.ElideRight
-                                        font.pixelSize: 11
+                                        text: ownedGroupExpanded ? "▾" : "▸"
+                                        font.pixelSize: 14
                                         color: Theme.textSecondary
                                     }
+
+                                    Text {
+                                        text: "自建歌单"
+                                        font.pixelSize: 13
+                                        font.weight: Font.DemiBold
+                                        color: Theme.textPrimary
+                                        Layout.fillWidth: true
+                                    }
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: root.ownedGroupExpanded = !root.ownedGroupExpanded
                                 }
                             }
 
-                            MouseArea {
-                                id: playlistArea
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: root.selectPlaylist(model.id, true)
+                            ListView {
+                                id: ownedPlaylistListView
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: root.ownedGroupExpanded
+                                                        ? Math.min(contentHeight, 280)
+                                                        : 0
+                                visible: root.ownedGroupExpanded
+                                model: ownedPlaylistModel
+                                spacing: 4
+                                clip: true
+                                interactive: contentHeight > height
+                                delegate: playlistCardDelegate
+                                ScrollBar.vertical: ScrollBar {
+                                    policy: ScrollBar.AsNeeded
+                                    width: 6
+                                }
                             }
-                        }
 
-                        Label {
-                            anchors.centerIn: parent
-                            visible: playlistListView.count === 0
-                            text: "暂无歌单"
-                            font.pixelSize: 14
-                            color: Theme.textSecondary
-                        }
+                            Label {
+                                Layout.fillWidth: true
+                                visible: root.ownedGroupExpanded && ownedPlaylistModel.count === 0
+                                text: "暂无自建歌单"
+                                font.pixelSize: 12
+                                color: Theme.textSecondary
+                            }
 
-                        ScrollBar.vertical: ScrollBar {
-                            policy: ScrollBar.AsNeeded
-                            width: 8
+                            Rectangle {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 1
+                                color: "#E7EAF0"
+                                visible: root.ownedGroupExpanded || root.subscribedGroupExpanded
+                            }
+
+                            Rectangle {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 28
+                                color: "transparent"
+
+                                RowLayout {
+                                    anchors.fill: parent
+
+                                    Text {
+                                        text: subscribedGroupExpanded ? "▾" : "▸"
+                                        font.pixelSize: 14
+                                        color: Theme.textSecondary
+                                    }
+
+                                    Text {
+                                        text: "收藏歌单"
+                                        font.pixelSize: 13
+                                        font.weight: Font.DemiBold
+                                        color: Theme.textPrimary
+                                        Layout.fillWidth: true
+                                    }
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: root.subscribedGroupExpanded = !root.subscribedGroupExpanded
+                                }
+                            }
+
+                            ListView {
+                                id: subscribedPlaylistListView
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                Layout.preferredHeight: root.subscribedGroupExpanded
+                                                        ? Math.min(contentHeight, 280)
+                                                        : 0
+                                visible: root.subscribedGroupExpanded
+                                model: subscribedPlaylistModel
+                                spacing: 4
+                                clip: true
+                                interactive: contentHeight > height
+                                delegate: playlistCardDelegate
+                                ScrollBar.vertical: ScrollBar {
+                                    policy: ScrollBar.AsNeeded
+                                    width: 6
+                                }
+                            }
+
+                            Label {
+                                Layout.fillWidth: true
+                                visible: root.subscribedGroupExpanded && subscribedPlaylistModel.count === 0
+                                text: "暂无收藏歌单"
+                                font.pixelSize: 12
+                                color: Theme.textSecondary
+                            }
+
+                            Item {
+                                Layout.fillHeight: true
+                            }
+
+                            Label {
+                                Layout.fillWidth: true
+                                visible: playlistModel.count === 0
+                                text: "暂无歌单"
+                                horizontalAlignment: Text.AlignHCenter
+                                font.pixelSize: 13
+                                color: Theme.textSecondary
+                            }
                         }
                     }
                 }
@@ -947,7 +1137,7 @@ Rectangle {
                             }
 
                             Text {
-                                width: Math.max(140, parent.width - 40 - 90 - 150 - 136 - 8 * 3)
+                                width: Math.max(140, parent.width - 40 - 90 - 150 - 160 - 8 * 3)
                                 text: "音频信息"
                                 font.pixelSize: 12
                                 color: Theme.textSecondary
@@ -971,7 +1161,7 @@ Rectangle {
                             }
 
                             Item {
-                                width: 136
+                                width: 160
                                 height: 1
                             }
                         }
@@ -990,14 +1180,20 @@ Rectangle {
                             width: songListView.width
                             height: 62
                             radius: 10
-                            property bool hover: rowArea.containsMouse
+                            property bool rowHovered: rowHoverHandler.hovered
+                                                       || coverAction.interactionActive
+                                                       || actionStrip.interactionActive
                             property bool currentTrack: root.isSameTrack(root.currentPlayingPath, model.path)
                             property bool showPauseIcon: currentTrack && root.isPlaying
                             color: currentTrack
                                    ? "#FDECEC"
-                                   : (hover ? "#F8FAFF" : (index % 2 === 0 ? Theme.bgCard : "#FCFCFD"))
+                                   : (rowHovered ? "#F8FAFF" : (index % 2 === 0 ? Theme.bgCard : "#FCFCFD"))
                             border.width: currentTrack ? 1 : 0
                             border.color: currentTrack ? Theme.accent : "transparent"
+
+                            HoverHandler {
+                                id: rowHoverHandler
+                            }
 
                             Row {
                                 anchors.fill: parent
@@ -1014,30 +1210,34 @@ Rectangle {
                                 }
 
                                 Row {
-                                    width: Math.max(140, parent.width - 40 - 90 - 150 - 136 - 8 * 3)
+                                    width: Math.max(140, parent.width - 40 - 90 - 150 - 160 - 8 * 3)
                                     spacing: 8
                                     anchors.verticalCenter: parent.verticalCenter
 
-                                    Rectangle {
+                                    SongCoverAction {
+                                        id: coverAction
                                         width: 40
                                         height: 40
-                                        radius: 6
-                                        color: "#E9ECF5"
-                                        border.width: 1
-                                        border.color: "#D9DFEA"
+                                        rowHovered: songRow.rowHovered
+                                        isCurrentTrack: songRow.currentTrack
+                                        isPlaying: songRow.showPauseIcon
+                                        coverSource: normalizeCoverSource(model.cover_art_url)
+                                        fallbackSource: root.defaultCover
 
-                                        Image {
-                                            anchors.fill: parent
-                                            anchors.margins: 1
-                                            source: normalizeCoverSource(model.cover_art_url)
-                                            fillMode: Image.PreserveAspectCrop
-                                            asynchronous: true
-                                            cache: true
-                                            onStatusChanged: {
-                                                if (status === Image.Error && source !== root.defaultCover) {
-                                                    source = root.defaultCover
-                                                }
+                                        onPlayRequested: {
+                                            if (songRow.currentTrack) {
+                                                root.songActionRequested("toggle_current_playback", root.buildSongPayload(model))
+                                                return
                                             }
+                                            root.playMusicWithMetadata(
+                                                        model.path || "",
+                                                        model.title || "未知歌曲",
+                                                        model.artist || "未知艺术家",
+                                                        model.cover_art_url || "")
+                                        }
+
+                                        onPauseRequested: {
+                                            root.songActionRequested("toggle_current_playback", root.buildSongPayload(model))
                                         }
                                     }
 
@@ -1082,132 +1282,35 @@ Rectangle {
                                     elide: Text.ElideRight
                                 }
 
-                                Row {
-                                    width: 136
-                                    spacing: 8
+                                SongActionStrip {
+                                    id: actionStrip
+                                    width: 160
                                     anchors.verticalCenter: parent.verticalCenter
-                                    opacity: songRow.hover ? 1.0 : 0.04
-                                    visible: opacity > 0
-
-                                    Behavior on opacity {
-                                        NumberAnimation { duration: 120 }
-                                    }
-
-                                    Rectangle {
-                                        width: 24
-                                        height: 24
-                                        radius: 12
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        color: upArea.containsMouse ? Theme.glassHover : "transparent"
-                                        border.width: 1
-                                        border.color: upArea.containsMouse ? Theme.accent : "#D6DCE8"
-
-                                        Text {
-                                            anchors.centerIn: parent
-                                            text: "↑"
-                                            font.pixelSize: 12
-                                            color: upArea.containsMouse ? Theme.accent : Theme.textSecondary
+                                    z: 1
+                                    opacity: songRow.rowHovered ? 1.0 : 0.0
+                                    enabled: songRow.rowHovered
+                                    availablePlaylists: ownedPlaylistModel
+                                    songData: root.buildSongPayload(model)
+                                    favoriteActive: root.isFavoritePath(model.path || "")
+                                    showDownloadButton: !model.is_local
+                                    showRemoveAction: true
+                                    removeActionText: "从歌单移除"
+                                    onActionRequested: function(action, payload) {
+                                        if (action === "play") {
+                                            root.playMusicWithMetadata(
+                                                        model.path || "",
+                                                        model.title || "未知歌曲",
+                                                        model.artist || "未知艺术家",
+                                                        model.cover_art_url || "")
+                                            return
                                         }
-
-                                        MouseArea {
-                                            id: upArea
-                                            anchors.fill: parent
-                                            hoverEnabled: true
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: root.moveSongByStep(index, -1)
+                                        if (action === "remove_or_delete") {
+                                            root.removePlaylistItemsRequested(
+                                                        root.selectedPlaylistId,
+                                                        [model.path])
+                                            return
                                         }
-                                    }
-
-                                    Rectangle {
-                                        width: 24
-                                        height: 24
-                                        radius: 12
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        color: downArea.containsMouse ? Theme.glassHover : "transparent"
-                                        border.width: 1
-                                        border.color: downArea.containsMouse ? Theme.accent : "#D6DCE8"
-
-                                        Text {
-                                            anchors.centerIn: parent
-                                            text: "↓"
-                                            font.pixelSize: 12
-                                            color: downArea.containsMouse ? Theme.accent : Theme.textSecondary
-                                        }
-
-                                        MouseArea {
-                                            id: downArea
-                                            anchors.fill: parent
-                                            hoverEnabled: true
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: root.moveSongByStep(index, 1)
-                                        }
-                                    }
-
-                                    Rectangle {
-                                        width: 32
-                                        height: 32
-                                        radius: 16
-                                        color: playArea.containsMouse || songRow.showPauseIcon ? Theme.accent : "transparent"
-                                        border.width: 1
-                                        border.color: songRow.showPauseIcon ? Theme.accent : "#D6DCE8"
-
-                                        Image {
-                                            anchors.centerIn: parent
-                                            width: 18
-                                            height: 18
-                                            source: {
-                                                if (songRow.showPauseIcon) {
-                                                    return playArea.containsMouse
-                                                            ? root.playerIconPrefix + "player_btn_pause_hover.svg"
-                                                            : root.playerIconPrefix + "player_btn_pause_default.svg"
-                                                }
-                                                return playArea.containsMouse
-                                                        ? root.playerIconPrefix + "player_btn_play_hover.svg"
-                                                        : root.playerIconPrefix + "player_btn_play_default.svg"
-                                            }
-                                            fillMode: Image.PreserveAspectFit
-                                        }
-
-                                        MouseArea {
-                                            id: playArea
-                                            anchors.fill: parent
-                                            hoverEnabled: true
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: root.playMusicWithMetadata(
-                                                           model.path || "",
-                                                           model.title || "未知歌曲",
-                                                           model.artist || "未知艺术家",
-                                                           model.cover_art_url || "")
-                                        }
-                                    }
-
-                                    Rectangle {
-                                        width: 32
-                                        height: 32
-                                        radius: 16
-                                        color: removeArea.containsMouse ? Theme.accentSoft : "transparent"
-                                        border.width: 1
-                                        border.color: removeArea.containsMouse ? Theme.accent : "#D6DCE8"
-
-                                        Image {
-                                            anchors.centerIn: parent
-                                            width: 18
-                                            height: 18
-                                            source: removeArea.containsMouse
-                                                    ? root.listIconPrefix + "list_icon_delete_hover.svg"
-                                                    : root.listIconPrefix + "list_icon_delete_default.svg"
-                                            fillMode: Image.PreserveAspectFit
-                                        }
-
-                                        MouseArea {
-                                            id: removeArea
-                                            anchors.fill: parent
-                                            hoverEnabled: true
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: root.removePlaylistItemsRequested(
-                                                           root.selectedPlaylistId,
-                                                           [model.path])
-                                        }
+                                        root.songActionRequested(action, payload)
                                     }
                                 }
                             }
@@ -1215,7 +1318,6 @@ Rectangle {
                             MouseArea {
                                 id: rowArea
                                 anchors.fill: parent
-                                hoverEnabled: true
                                 propagateComposedEvents: true
                                 onPressed: mouse.accepted = false
                                 onReleased: mouse.accepted = false

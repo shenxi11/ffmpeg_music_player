@@ -101,6 +101,11 @@ void SettingsWidget::onPlayerPageStyleChanged()
     }
 }
 
+void SettingsWidget::onReturnToWelcomeRequested()
+{
+    emit returnToWelcomeRequested();
+}
+
 void SettingsWidget::syncViewModelToRoot()
 {
     QQuickItem* root = rootObject();
@@ -114,6 +119,10 @@ void SettingsWidget::syncViewModelToRoot()
     QMetaObject::invokeMethod(root, "setAudioCachePath", Q_ARG(QVariant, m_viewModel->audioCachePath()));
     QMetaObject::invokeMethod(root, "setLogPath", Q_ARG(QVariant, m_viewModel->logPath()));
     QMetaObject::invokeMethod(root, "setPlayerPageStyle", Q_ARG(QVariant, m_viewModel->playerPageStyle()));
+    QMetaObject::invokeMethod(root,
+                              "setServerEndpoint",
+                              Q_ARG(QVariant, m_viewModel->serverHost()),
+                              Q_ARG(QVariant, m_viewModel->serverPort()));
 }
 
 void SettingsWidget::syncPresenceToRoot()

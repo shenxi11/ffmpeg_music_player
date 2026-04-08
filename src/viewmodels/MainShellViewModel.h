@@ -13,76 +13,74 @@
  * 负责承接主界面的网络请求、账号缓存、在线会话、音频事件转发与插件管理能力，
  * 让 MainWidget 专注于布局编排和交互转发。
  */
-class MainShellViewModel : public BaseViewModel
-{
+class MainShellViewModel : public BaseViewModel {
     Q_OBJECT
 
-public:
+  public:
     explicit MainShellViewModel(QObject* parent = nullptr);
 
-    HttpRequestV2* requestGateway() { return &m_request; }
+    HttpRequestV2* requestGateway() {
+        return &m_request;
+    }
     QObject* audioServiceObject() const;
 
     QString cachedAccount() const;
     QString cachedPassword() const;
     QString cachedUsername() const;
+    QString cachedAvatarUrl() const;
+    QString cachedOnlineSessionToken() const;
+    QString cachedProfileCreatedAt() const;
+    QString cachedProfileUpdatedAt() const;
     bool autoLoginEnabled() const;
     bool shouldAutoLogin() const;
     QString currentUserAccount() const;
     QString currentUserPassword() const;
+    QString currentOnlineSessionToken() const;
     bool hasLoggedInUser() const;
     void clearCurrentUserProfile();
 
     void searchMusic(const QString& keyword);
     void requestRecommendations(const QString& userAccount,
-                                const QString& scene = QStringLiteral("home"),
-                                int limit = 24,
+                                const QString& scene = QStringLiteral("home"), int limit = 24,
                                 bool excludePlayed = true);
     void requestSimilarRecommendations(const QString& songId, int limit = 12);
-    void submitRecommendationFeedback(const QString& userId,
-                                      const QString& songId,
-                                      const QString& eventType,
-                                      const QString& scene,
-                                      const QString& requestId,
-                                      const QString& modelVersion,
-                                      qint64 playMs,
-                                      qint64 durationMs);
+    void submitRecommendationFeedback(const QString& userId, const QString& songId,
+                                      const QString& eventType, const QString& scene,
+                                      const QString& requestId, const QString& modelVersion,
+                                      qint64 playMs, qint64 durationMs);
     void requestHistory(const QString& userAccount, int limit = 50, bool useCache = true);
-    void addPlayHistory(const QString& userAccount,
-                        const QString& path,
-                        const QString& title,
-                        const QString& artist,
-                        const QString& album,
-                        const QString& duration,
+    void addPlayHistory(const QString& userAccount, const QString& path, const QString& title,
+                        const QString& artist, const QString& album, const QString& duration,
                         bool isLocal);
     void removeHistory(const QString& userAccount, const QStringList& paths);
     void requestFavorites(const QString& userAccount, bool useCache = true);
-    void addFavorite(const QString& userAccount,
-                     const QString& path,
-                     const QString& title,
-                     const QString& artist,
-                     const QString& duration,
-                     bool isLocal);
+    void addFavorite(const QString& userAccount, const QString& path, const QString& title,
+                     const QString& artist, const QString& duration, bool isLocal);
     void removeFavorite(const QString& userAccount, const QStringList& paths);
-    void requestPlaylists(const QString& userAccount, int page = 1, int pageSize = 20, bool useCache = true);
-    void createPlaylist(const QString& userAccount,
-                        const QString& name,
+    void requestPlaylists(const QString& userAccount, int page = 1, int pageSize = 20,
+                          bool useCache = true);
+    void createPlaylist(const QString& userAccount, const QString& name,
                         const QString& description = QString(),
                         const QString& coverPath = QString());
-    void requestPlaylistDetail(const QString& userAccount, qint64 playlistId, bool useCache = false);
+    void requestPlaylistDetail(const QString& userAccount, qint64 playlistId,
+                               bool useCache = false);
     void deletePlaylist(const QString& userAccount, qint64 playlistId);
-    void updatePlaylist(const QString& userAccount,
-                        qint64 playlistId,
-                        const QString& name,
+    void updatePlaylist(const QString& userAccount, qint64 playlistId, const QString& name,
                         const QString& description = QString(),
                         const QString& coverPath = QString());
     void addPlaylistItems(const QString& userAccount, qint64 playlistId, const QVariantList& items);
-    void removePlaylistItems(const QString& userAccount, qint64 playlistId, const QStringList& musicPaths);
-    void reorderPlaylistItems(const QString& userAccount, qint64 playlistId, const QVariantList& orderedItems);
-    void handleLoginSuccess(const QString& account,
-                            const QString& password,
-                            const QString& username);
+    void removePlaylistItems(const QString& userAccount, qint64 playlistId,
+                             const QStringList& musicPaths);
+    void reorderPlaylistItems(const QString& userAccount, qint64 playlistId,
+                              const QVariantList& orderedItems);
+    void handleLoginSuccess(const QString& account, const QString& password,
+                            const QString& username, const QString& avatarUrl = QString(),
+                            const QString& onlineSessionToken = QString());
+    void requestUserProfile();
+    void updateCurrentUsername(const QString& username);
+    void uploadCurrentAvatar(const QString& filePath);
     void logoutCurrentUser(bool graceful, int gracefulTimeoutMs = 0);
+    void returnToWelcomeAndKeepAccountCache(bool graceful, int gracefulTimeoutMs = 0);
     void shutdownUserSessionOnAppExit(bool graceful, int gracefulTimeoutMs = 0);
 
     void pauseAudioIfPlaying();
@@ -98,29 +96,21 @@ public:
     void unloadAllPlugins();
 
     void addLocalMusicCacheEntry(const QString& filePath, const QString& fileName);
-    void updateLocalMusicCacheMetadata(const QString& filePath,
-                                       const QString& coverUrl,
-                                       const QString& duration);
+    void updateLocalMusicCacheMetadata(const QString& filePath, const QString& coverUrl,
+                                       const QString& duration, const QString& artist);
     void removeLocalMusicCacheEntry(const QString& filePath);
     int localMusicCacheDurationSeconds(const QString& filePath) const;
 
-    bool resolveHistorySnapshot(const QString& sessionId,
-                                const QString& filePath,
-                                const QString& fallbackArtist,
-                                QString* title,
-                                QString* artist,
-                                QString* album,
-                                qint64* durationMs,
-                                bool* isLocal) const;
+    bool resolveHistorySnapshot(const QString& sessionId, const QString& filePath,
+                                const QString& fallbackArtist, QString* title, QString* artist,
+                                QString* album, qint64* durationMs, bool* isLocal) const;
 
-signals:
+  signals:
     void searchResultsReady(const QList<Music>& musicList);
     void recommendationListReady(const QVariantMap& meta, const QVariantList& items);
-    void similarRecommendationListReady(const QVariantMap& meta,
-                                        const QVariantList& items,
+    void similarRecommendationListReady(const QVariantMap& meta, const QVariantList& items,
                                         const QString& anchorSongId);
-    void recommendationFeedbackResultReady(bool success,
-                                           const QString& eventType,
+    void recommendationFeedbackResultReady(bool success, const QString& eventType,
                                            const QString& songId);
     void historyListReady(const QVariantList& history);
     void addHistoryResultReady(bool success);
@@ -133,9 +123,17 @@ signals:
     void createPlaylistResultReady(bool success, qint64 playlistId, const QString& message);
     void deletePlaylistResultReady(bool success, qint64 playlistId, const QString& message);
     void updatePlaylistResultReady(bool success, qint64 playlistId, const QString& message);
-    void addPlaylistItemsResultReady(bool success, qint64 playlistId, int addedCount, int skippedCount, const QString& message);
-    void removePlaylistItemsResultReady(bool success, qint64 playlistId, int deletedCount, const QString& message);
+    void addPlaylistItemsResultReady(bool success, qint64 playlistId, int addedCount,
+                                     int skippedCount, const QString& message);
+    void removePlaylistItemsResultReady(bool success, qint64 playlistId, int deletedCount,
+                                        const QString& message);
     void reorderPlaylistItemsResultReady(bool success, qint64 playlistId, const QString& message);
+    void userProfileReady(const QVariantMap& profile);
+    void userProfileRequestFailed(const QString& message, int statusCode);
+    void updateUsernameResultReady(bool success, const QString& username, const QString& message,
+                                   int statusCode);
+    void uploadAvatarResultReady(bool success, const QString& avatarUrl, const QString& message,
+                                 int statusCode);
     void sessionExpired();
     void accountCacheChanged();
 
@@ -146,10 +144,10 @@ signals:
 
     void pluginLoadFailed(const QString& pluginFilePath, const QString& reason);
 
-private slots:
+  private slots:
     void onSessionExpired();
 
-private:
+  private:
     // 连接拆分：集中管理请求层、播放层、在线状态层事件绑定。
     void setupConnections();
 

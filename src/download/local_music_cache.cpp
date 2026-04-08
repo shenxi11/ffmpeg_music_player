@@ -1,5 +1,25 @@
 #include "local_music_cache.h"
 
+namespace {
+
+QString normalizeArtistForCache(const QString& artist)
+{
+    const QString trimmed = artist.trimmed();
+    if (trimmed.isEmpty()) {
+        return QString();
+    }
+
+    const QString lower = trimmed.toLower();
+    if (trimmed == QStringLiteral("未知艺术家") || trimmed == QStringLiteral("未知歌手") ||
+        lower == QStringLiteral("unknown artist") || lower == QStringLiteral("unknown") ||
+        lower == QStringLiteral("<unknown>")) {
+        return QString();
+    }
+    return trimmed;
+}
+
+} // namespace
+
 QJsonObject LocalMusicInfo::toJson() const
 {
     QJsonObject obj;
@@ -63,7 +83,8 @@ void LocalMusicCache::removeMusic(const QString& filePath)
     }
 }
 
-void LocalMusicCache::updateMetadata(const QString& filePath, const QString& coverUrl, const QString& duration)
+void LocalMusicCache::updateMetadata(const QString& filePath, const QString& coverUrl,
+                                     const QString& duration, const QString& artist)
 {
     for (int i = 0; i < m_musicList.size(); ++i) {
         if (m_musicList[i].filePath == filePath) {
@@ -72,6 +93,10 @@ void LocalMusicCache::updateMetadata(const QString& filePath, const QString& cov
             }
             if (!duration.isEmpty()) {
                 m_musicList[i].duration = duration;
+            }
+            const QString normalizedArtist = normalizeArtistForCache(artist);
+            if (!normalizedArtist.isEmpty()) {
+                m_musicList[i].artist = normalizedArtist;
             }
             saveMusicList();
             emit musicListChanged();

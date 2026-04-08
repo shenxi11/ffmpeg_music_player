@@ -42,6 +42,8 @@ public:
     bool downloadLyrics() const;
     bool downloadCover() const;
     int playerPageStyle() const;
+    QString serverHost() const;
+    int serverPort() const;
 
     QString presenceAccount() const { return m_presenceAccount; }
     QString presenceSessionToken() const { return m_presenceSessionToken; }

@@ -31,6 +31,7 @@ void OnlineMusicListViewModel::downloadMusic(const QString& relativePath,
 void OnlineMusicListViewModel::onStreamUrlReady(bool success, const QString& url)
 {
     if (!success) {
+        emit streamResolveFailed();
         return;
     }
     emit streamReady(url, m_currentArtist, m_currentCover);

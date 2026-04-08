@@ -5,6 +5,8 @@
 #include <QQuickItem>
 #include <QQmlContext>
 #include <QDebug>
+#include <QVariant>
+#include <QVariantMap>
 
 class PlayHistoryWidget : public QQuickWidget
 {
@@ -36,9 +38,11 @@ signals:
     void deleteHistory(const QStringList& paths);
     void loginRequested();
     void refreshRequested();
+    void songActionRequested(const QString& action, const QVariantMap& songData);
 
 private slots:
     void handleDeleteHistory(const QVariant& selectedPaths);
+    void handleSongActionRequested(const QString& action, const QVariant& payload);
 };
 
 #endif // PLAY_HISTORY_WIDGET_H

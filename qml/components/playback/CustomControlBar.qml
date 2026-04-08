@@ -19,7 +19,7 @@ Item {
     property real progress: 0.0
     property int currentSeconds: 0
     property int totalSeconds: 0
-    property string songName: "鏆傛棤鎾斁"
+    property string songName: "暂无播放"
     property string artist: ""
     property string coverUrl: ""
     property int loopMode: 0
@@ -43,7 +43,7 @@ Item {
                 id: coverImage
                 anchors.fill: parent
                 anchors.margins: 2
-                source: root.coverUrl || "qrc:/new/prefix1/icon/netease.ico"
+                source: root.coverUrl || "qrc:/qml/assets/ai/icons/default-music-cover.svg"
                 fillMode: Image.PreserveAspectCrop
             }
             
@@ -72,7 +72,7 @@ Item {
             }
             
             Text {
-                text: root.artist || "鏈煡鑹烘湳瀹?
+                text: root.artist || "未知艺术家"
                 font.family: "Microsoft YaHei"
                 font.pixelSize: 12
                 color: "#B3FFFFFF"
@@ -99,7 +99,7 @@ Item {
                 color: prevBtn.containsMouse ? "#40FFFFFF" : "transparent"
                 
                 Text {
-                    text: "鈴?
+                    text: "⏮"
                     font.pixelSize: 20
                     color: "white"
                     anchors.centerIn: parent
@@ -121,7 +121,7 @@ Item {
                 color: playBtn.containsMouse ? "#F2FFFFFF" : "#D9FFFFFF"
                 
                 Text {
-                    text: root.isPlaying ? "鈴? : "鈻?
+                    text: root.isPlaying ? "⏸" : "▶"
                     font.pixelSize: 20
                     color: "#667eea"
                     anchors.centerIn: parent
@@ -146,7 +146,7 @@ Item {
                 color: nextBtn.containsMouse ? "#40FFFFFF" : "transparent"
                 
                 Text {
-                    text: "鈴?
+                    text: "⏭"
                     font.pixelSize: 20
                     color: "white"
                     anchors.centerIn: parent
@@ -363,7 +363,7 @@ Item {
             
             Text {
                 anchors.centerIn: parent
-                text: "鈽?
+                text: "≡"
                 font.pixelSize: 16
                 color: "white"
             }

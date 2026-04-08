@@ -1,6 +1,7 @@
-﻿import QtQuick 2.15
+import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import "../library" as Library
 import "../../theme/Theme.js" as Theme
 
 Rectangle {
@@ -18,7 +19,7 @@ Rectangle {
     property int colCoverWidth: 44
     property int colDurationWidth: width >= 1280 ? 88 : (width >= 960 ? 80 : 70)
     property int colTimeWidth: width >= 1280 ? 150 : (width >= 960 ? 130 : 104)
-    property int colActionWidth: 146
+    property int colActionWidth: 106
     property string listIconPrefix: "qrc:/design/design_exports/netease_ui_pack_20260309/icon/ui/list/"
     property string playerIconPrefix: "qrc:/design/design_exports/netease_ui_pack_20260309/icon/ui/player/"
     property int colTitleWidth: Math.max(140,
@@ -32,6 +33,7 @@ Rectangle {
     signal deleteHistory(var selectedPaths)
     signal loginRequested()
     signal refreshRequested()
+    signal songActionRequested(string action, var song)
 
     function looksUnreadable(value) {
         if (value === undefined || value === null) return true
@@ -92,6 +94,19 @@ Rectangle {
 
     function isSameTrack(pathA, pathB) {
         return normalizePath(pathA) === normalizePath(pathB)
+    }
+
+    function buildSongPayload(item) {
+        return {
+            path: item.path || "",
+            playPath: item.path || "",
+            title: displayTitle(item),
+            artist: displayArtist(item),
+            cover: item.cover_art_url || "",
+            duration: item.duration || "",
+            sourceType: "history",
+            isLocal: true
+        }
     }
 
     function setPlayingState(filePath, playing) {
@@ -303,15 +318,26 @@ Rectangle {
                 width: listView.width
                 height: 62
                 radius: 10
-                property bool containsMouse: false
                 property bool isCurrentTrack: root.isSameTrack(root.currentPlayingPath, model.path)
-                property bool showPauseIcon: isCurrentTrack && root.isPlaying
+                property bool playbackActive: isCurrentTrack && root.isPlaying
+                property bool rowVisualHovered: rowHoverArea.containsMouse
+                                                 || coverAction.interactionActive
+                                                 || actionRowHover.hovered
+                property bool coverVisualHovered: rowHoverArea.containsMouse
+                                                   || coverAction.interactionActive
 
                 color: isCurrentTrack
                        ? "#FDECEC"
-                       : (containsMouse ? "#F8FAFF" : (index % 2 === 0 ? Theme.bgCard : "#FCFCFD"))
+                       : (rowVisualHovered ? "#F8FAFF" : (index % 2 === 0 ? Theme.bgCard : "#FCFCFD"))
                 border.width: isCurrentTrack ? 1 : 0
                 border.color: isCurrentTrack ? Theme.accent : "transparent"
+
+                MouseArea {
+                    id: rowHoverArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    acceptedButtons: Qt.NoButton
+                }
 
                 Rectangle {
                     visible: itemRoot.isCurrentTrack
@@ -338,34 +364,32 @@ Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
                     }
 
-                    Rectangle {
+                    Library.SongCoverAction {
+                        id: coverAction
                         width: root.colCoverWidth
                         height: 44
                         anchors.verticalCenter: parent.verticalCenter
-                        radius: 6
-                        color: "#E9ECF5"
-                        border.width: 1
-                        border.color: "#D9DFEA"
+                        z: 2
+                        rowHovered: itemRoot.coverVisualHovered
+                        isCurrentTrack: itemRoot.isCurrentTrack
+                        isPlaying: itemRoot.playbackActive
+                        coverSource: model.cover_art_url || ""
+                        fallbackSource: "qrc:/qml/assets/ai/icons/default-music-cover.svg"
 
-                        Image {
-                            id: coverImage
-                            anchors.fill: parent
-                            anchors.margins: 2
-                            source: {
-                                var url = model.cover_art_url || ""
-                                return url && url.length > 0 ? url : "qrc:/new/prefix1/icon/Music.png"
+                        onPlayRequested: {
+                            if (itemRoot.isCurrentTrack) {
+                                root.songActionRequested("toggle_current_playback", root.buildSongPayload(model))
+                                return
                             }
-                            fillMode: Image.PreserveAspectCrop
-                            asynchronous: true
-                            cache: true
-                            sourceSize.width: 44
-                            sourceSize.height: 44
+                            var filePath = model.path || ""
+                            var title = root.displayTitle(model)
+                            var artist = root.displayArtist(model)
+                            var cover = model.cover_art_url || ""
+                            root.playMusicWithMetadata(filePath, title, artist, cover)
+                        }
 
-                            onStatusChanged: {
-                                if (status === Image.Error) {
-                                    source = "qrc:/new/prefix1/icon/Music.png"
-                                }
-                            }
+                        onPauseRequested: {
+                            root.songActionRequested("toggle_current_playback", root.buildSongPayload(model))
                         }
                     }
 
@@ -409,14 +433,15 @@ Rectangle {
                     }
 
                     Row {
+                        id: actionRow
                         width: root.colActionWidth
                         spacing: 8
                         anchors.verticalCenter: parent.verticalCenter
-                        opacity: itemRoot.containsMouse ? 1.0 : 0.02
-                        visible: opacity > 0
+                        opacity: itemRoot.rowVisualHovered ? 1.0 : 0.0
+                        enabled: itemRoot.rowVisualHovered
 
-                        Behavior on opacity {
-                            NumberAnimation { duration: 120 }
+                        HoverHandler {
+                            id: actionRowHover
                         }
 
                         Rectangle {
@@ -457,46 +482,6 @@ Rectangle {
                             width: 32
                             height: 32
                             radius: 16
-                            color: playBtnArea.containsMouse || itemRoot.showPauseIcon ? Theme.accent : "transparent"
-                            border.width: 1
-                            border.color: itemRoot.showPauseIcon ? Theme.accent : "#D6DCE8"
-
-                            Image {
-                                anchors.centerIn: parent
-                                width: 18
-                                height: 18
-                                source: {
-                                    if (itemRoot.showPauseIcon) {
-                                        return playBtnArea.containsMouse
-                                                ? root.playerIconPrefix + "player_btn_pause_hover.svg"
-                                                : root.playerIconPrefix + "player_btn_pause_default.svg"
-                                    }
-                                    return playBtnArea.containsMouse
-                                            ? root.playerIconPrefix + "player_btn_play_hover.svg"
-                                            : root.playerIconPrefix + "player_btn_play_default.svg"
-                                }
-                                fillMode: Image.PreserveAspectFit
-                            }
-
-                            MouseArea {
-                                id: playBtnArea
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    var filePath = model.path || ""
-                                    var title = root.displayTitle(model)
-                                    var artist = root.displayArtist(model)
-                                    var cover = model.cover_art_url || ""
-                                    root.playMusicWithMetadata(filePath, title, artist, cover)
-                                }
-                            }
-                        }
-
-                        Rectangle {
-                            width: 32
-                            height: 32
-                            radius: 16
                             color: deleteBtnArea.containsMouse ? Theme.accentSoft : "transparent"
                             border.width: 1
                             border.color: deleteBtnArea.containsMouse ? Theme.accent : "#D6DCE8"
@@ -522,16 +507,9 @@ Rectangle {
                     }
                 }
 
-                MouseArea {
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    propagateComposedEvents: true
-                    onEntered: itemRoot.containsMouse = true
-                    onExited: itemRoot.containsMouse = false
-                    onPressed: mouse.accepted = false
-                    onReleased: mouse.accepted = false
-                    onClicked: mouse.accepted = false
-                    onDoubleClicked: {
+                TapHandler {
+                    acceptedButtons: Qt.LeftButton
+                    onDoubleTapped: {
                         var filePath = model.path || ""
                         var title = root.displayTitle(model)
                         var artist = root.displayArtist(model)

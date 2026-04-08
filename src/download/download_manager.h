@@ -165,6 +165,14 @@ public:
     DownloadTask getTask(const QString& taskId) const;
 
     /**
+     * @brief 按保存路径更新已存在任务的补充元数据
+     * @param savePath 文件完整保存路径
+     * @param coverUrl 封面地址
+     * @return 是否命中并更新了任务
+     */
+    bool updateTaskMetadataBySavePath(const QString& savePath, const QString& coverUrl);
+
+    /**
      * @brief 设置最大并发下载数
      * @param max 最大并发数
      */

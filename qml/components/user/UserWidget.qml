@@ -18,10 +18,11 @@ Rectangle {
     // 属性
     property bool isLoggedIn: false
     property string username: "未登录"
-    property string avatarSource: "qrc:/design/design_exports/netease_ui_pack_20260309/icon/ui/base/base_icon_user_default@2x.png"
+    property string avatarSource: "qrc:/qml/assets/ai/icons/default-user-avatar.svg"
     
     // 信号
     signal loginRequested()
+    signal profileRequested()
     signal logoutRequested()
     
     // 动画
@@ -49,6 +50,7 @@ Rectangle {
             source: root.avatarSource
             fillMode: Image.PreserveAspectFit
             smooth: true
+            cache: false
             
             // 圆形遮罩
             layer.enabled: true
@@ -121,7 +123,7 @@ Rectangle {
     Rectangle {
         id: popupMenu
         width: 180
-        height: 140
+        height: root.isLoggedIn ? 182 : 140
         visible: false  // 默认隐藏
         z: 1000  // 确保在最上层
         
@@ -192,6 +194,34 @@ Rectangle {
                 horizontalAlignment: Text.AlignHCenter
             }
             
+            Button {
+                visible: root.isLoggedIn
+                width: parent.width
+                height: visible ? 28 : 0
+                text: "个人主页"
+
+                background: Rectangle {
+                    color: parent.hovered ? Qt.rgba(0, 0.48, 0.8, 0.1) : "transparent"
+                    radius: 14
+                    border.width: 1
+                    border.color: Qt.rgba(0, 0.48, 0.8, 0.3)
+                }
+
+                contentItem: Text {
+                    text: parent.text
+                    color: Qt.rgba(0, 0.48, 0.8, 1.0)
+                    font.pixelSize: 12
+                    font.bold: true
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+
+                onClicked: {
+                    root.profileRequested()
+                    hidePopup()
+                }
+            }
+
             // 操作按钮
             Button {
                 id: actionButton
@@ -277,7 +307,7 @@ Rectangle {
         root.isLoggedIn = loggedIn
         if (!loggedIn) {
             root.username = "未登录"
-            root.avatarSource = "qrc:/design/design_exports/netease_ui_pack_20260309/icon/ui/base/base_icon_user_default@2x.png"
+            root.avatarSource = "qrc:/qml/assets/ai/icons/default-user-avatar.svg"
         }
     }
 }

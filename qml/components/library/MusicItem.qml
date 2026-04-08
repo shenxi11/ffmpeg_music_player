@@ -8,8 +8,8 @@ Rectangle {
     height: 60
     color: "transparent"
 
-    property string songName: "鏈煡姝屾洸"
-    property string artist: "鏈煡姝屾墜"
+    property string songName: "未知歌曲"
+    property string artist: "未知歌手"
     property string duration: "0:00"
     property string cover: ""
     property string filePath: ""
@@ -47,7 +47,7 @@ Rectangle {
                 id: coverImg
                 anchors.fill: parent
                 anchors.margins: 2
-                source: root.cover !== "" ? root.cover : "qrc:/new/prefix1/icon/Music.png"
+                source: root.cover !== "" ? root.cover : "qrc:/qml/assets/ai/icons/default-music-cover.svg"
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
                 cache: true
@@ -70,13 +70,13 @@ Rectangle {
             }
         }
 
-        // 姝屾洸淇℃伅
+        // 歌曲信息
         Column {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 4
             width: 300
             
-            Text { 
+            Text {
                 text: root.songName
                 font.pixelSize: 14
                 font.bold: true
@@ -84,8 +84,8 @@ Rectangle {
                 elide: Text.ElideRight
                 width: parent.width
             }
-            Text { 
-                text: root.artist !== "" ? root.artist : "鏈煡鑹烘湳瀹?
+            Text {
+                text: root.artist !== "" ? root.artist : "未知艺术家"
                 font.pixelSize: 11
                 color: "#888888"
             }
@@ -112,7 +112,7 @@ Rectangle {
             
             Behavior on opacity { NumberAnimation { duration: 150 } }
 
-            // 鎾斁鎸夐挳
+            // 播放按钮
             Rectangle {
                 width: 32
                 height: 32
@@ -121,7 +121,7 @@ Rectangle {
                 
                 Text {
                     anchors.centerIn: parent
-                    text: root.isPlaying ? "鈴? : "鈻?
+                    text: root.isPlaying ? "⏸" : "▶"
                     font.pixelSize: 14
                     color: playBtnArea.containsMouse ? "white" : "#333333"
                 }
@@ -145,7 +145,7 @@ Rectangle {
                 
                 Text {
                     anchors.centerIn: parent
-                    text: "鍒犻櫎"
+                    text: "删除"
                     font.pixelSize: 12
                     color: removeBtnArea.containsMouse ? "white" : "#666666"
                 }
@@ -169,7 +169,7 @@ Rectangle {
                 
                 Text {
                     anchors.centerIn: parent
-                    text: "涓嬭浇"
+                    text: "下载"
                     font.pixelSize: 12
                     color: downloadBtnArea.containsMouse ? "white" : "#666666"
                 }

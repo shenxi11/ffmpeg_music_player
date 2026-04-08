@@ -88,7 +88,8 @@ signals:
     void signalIsUpChanged(bool flag);
     void signalDeskLrc(const QString lrc_);
     void signalNetFlagChanged(bool net_flag);
-    void signalMetadataUpdated(QString filePath, QString coverUrl, QString duration);
+    void signalMetadataUpdated(QString filePath, QString coverUrl, QString duration,
+                               QString artist);
     void signalSimilarSongSelected(const QVariantMap& item);
 private:
     void setupCoreConnections();
@@ -127,6 +128,7 @@ private:
     void handleVmShouldStartRotation();
     void handleVmShouldStopRotation();
     void handleVmShouldLoadLyrics(const QString& songPath);
+    void refreshPlaylistHistoryFromViewModel();
     void handleMusicButtonClicked();
     void handleBufferingStateChanged(bool active);
     void handleProcessChangeRequested(qint64 milliseconds, bool back_flag);
@@ -144,10 +146,12 @@ private:
     void shutdownQuickWidget(QQuickWidget* widget);
     void applyPlayerPageStyle();
     void updateCoverPresentation(const QString& imagePath);
+    QPixmap defaultCoverPixmapForSize(const QSize& requestedSize) const;
     void refreshStageTexts();
     QString displayArtistText() const;
     void invalidateStageBackgroundCache();
     void rebuildStageBackgroundCache();
+    void emitLocalMetadataUpdateIfNeeded();
 
     void updateAdaptiveLayout();
 

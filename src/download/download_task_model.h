@@ -69,6 +69,11 @@ public:
      */
     void setCurrentPlayingPath(const QString& path);
 
+    /**
+     * @brief 按下载保存路径更新已完成歌曲元数据
+     */
+    void updateSongMetadata(const QString& savePath, const QString& coverUrl, const QString& duration);
+
 signals:
     void currentPlayingPathChanged();
 
@@ -89,6 +94,8 @@ private:
     QList<DownloadTask> m_tasks;
     bool m_showCompleted;
     QString m_currentPlayingPath;
+
+    QString resolveCoverUrl(const DownloadTask& task) const;
 };
 
 #endif // DOWNLOAD_TASK_MODEL_H

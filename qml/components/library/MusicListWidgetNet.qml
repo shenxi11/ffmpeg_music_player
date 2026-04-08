@@ -6,6 +6,8 @@ Rectangle {
     color: "#F7F9FC"
     property string listIconPrefix: "qrc:/design/design_exports/netease_ui_pack_20260309/icon/ui/list/"
     property string playerIconPrefix: "qrc:/design/design_exports/netease_ui_pack_20260309/icon/ui/player/"
+    property string currentPlayingPath: ""
+    property bool isPlaying: false
     
     // 对外暴露的属性
     property int currentPlayingIndex: -1  // 当前播放的歌曲索引，-1表示没有播放
@@ -15,8 +17,10 @@ Rectangle {
     property int colCoverWidth: 44
     property int colDurationWidth: width >= 1280 ? 96 : (width >= 960 ? 84 : 72)
     property int colArtistWidth: width >= 1280 ? 160 : (width >= 960 ? 130 : 110)
-    property int colActionWidth: 124
+    property int colActionWidth: 160
     property int contentWidth: Math.max(320, width - sideMargin * 2 - innerMargin * 2)
+    property var availablePlaylists: []
+    property var favoritePaths: []
     property int colTitleWidth: Math.max(140,
                                          contentWidth - colCoverWidth - colDurationWidth
                                          - colArtistWidth - colActionWidth - colGap * 4)
@@ -26,6 +30,7 @@ Rectangle {
     signal removeRequested(string filePath)
     signal downloadRequested(string filePath)
     signal addToFavorite(string path, string title, string artist, string duration)
+    signal songActionRequested(string action, var song)
 
     function looksUnreadable(value) {
         if (value === undefined || value === null) return true
@@ -65,6 +70,119 @@ Rectangle {
 
     function displayArtist(item) {
         return normalizeText(item.artist, "未知艺术家")
+    }
+
+    function isFavoritePath(path) {
+        var target = normalizePath(path)
+        for (var i = 0; i < favoritePaths.length; ++i) {
+            if (normalizePath(favoritePaths[i]) === target) {
+                return true
+            }
+        }
+        return false
+    }
+
+    function normalizePath(path) {
+        if (!path) return ""
+        var value = String(path).trim()
+
+        function safeDecode(text) {
+            try {
+                return decodeURIComponent(text)
+            } catch (e) {
+                return text
+            }
+        }
+
+        function extractProxySource(text) {
+            var question = text.indexOf("?")
+            if (question < 0 || question >= text.length - 1) {
+                return ""
+            }
+
+            var query = text.substring(question + 1).split("&")
+            for (var i = 0; i < query.length; ++i) {
+                var entry = query[i]
+                if (!entry)
+                    continue
+                var eq = entry.indexOf("=")
+                var key = eq >= 0 ? entry.substring(0, eq) : entry
+                var rawValue = eq >= 0 ? entry.substring(eq + 1) : ""
+                if (safeDecode(key) === "src") {
+                    return safeDecode(rawValue)
+                }
+            }
+            return ""
+        }
+
+        value = value.replace(/\\/g, "/")
+        var lowerValue = value.toLowerCase()
+
+        if (lowerValue.indexOf("file:///") === 0) {
+            value = safeDecode(value.substring(8))
+            value = value.replace(/\\/g, "/")
+            return value
+        }
+
+        if (/^[a-zA-Z]:\//.test(value)) {
+            return safeDecode(value)
+        }
+
+        if (lowerValue.indexOf("http://") === 0 || lowerValue.indexOf("https://") === 0) {
+            if (value.indexOf("/proxy") >= 0) {
+                var proxySource = extractProxySource(value)
+                if (proxySource.length > 0) {
+                    return normalizePath(proxySource)
+                }
+            }
+
+            var schemePos = value.indexOf("://")
+            var pathStart = value.indexOf("/", schemePos >= 0 ? schemePos + 3 : 0)
+            value = pathStart >= 0 ? value.substring(pathStart) : ""
+            lowerValue = value.toLowerCase()
+
+            var uploadsPos = lowerValue.indexOf("/uploads/")
+            if (uploadsPos >= 0) {
+                value = value.substring(uploadsPos + 1)
+            }
+        }
+
+        value = safeDecode(value)
+        value = value.replace(/\\/g, "/")
+
+        while (value.indexOf("/") === 0) {
+            value = value.substring(1)
+        }
+
+        lowerValue = value.toLowerCase()
+        if (lowerValue.indexOf("uploads/uploads/") === 0) {
+            value = "uploads/" + value.substring("uploads/uploads/".length)
+            lowerValue = value.toLowerCase()
+        }
+
+        if (lowerValue.indexOf("uploads/") === 0) {
+            value = value.substring("uploads/".length)
+        }
+
+        return value
+    }
+
+    function isSameTrack(pathA, pathB) {
+        return normalizePath(pathA) === normalizePath(pathB)
+    }
+
+    function buildSongPayload(item) {
+        return {
+            path: item.filePath || "",
+            playPath: item.filePath || "",
+            title: displayTitle(item),
+            artist: displayArtist(item),
+            duration: item.duration || "0:00",
+            cover: item.cover || "",
+            isLocal: false,
+            isFavorite: isFavoritePath(item.filePath || ""),
+            sourceType: "online"
+        }
     }
 
     // 顶部标题
@@ -191,10 +309,19 @@ Rectangle {
         
         Rectangle {
             id: itemRoot
+            property bool rowHovered: rowHoverHandler.hovered
+                                       || coverAction.interactionActive
+                                       || actionStrip.interactionActive
+            property bool currentTrack: root.isSameTrack(root.currentPlayingPath, model.filePath || "")
+            property bool playbackActive: currentTrack && root.isPlaying
             width: listView.width
             height: 60
-            color: itemArea.containsMouse || playBtnArea.containsMouse || downloadBtnArea.containsMouse ? "#f0f0f0" : "#ffffff"
+            color: rowHovered ? "#f0f0f0" : "#ffffff"
             radius: 4
+
+            HoverHandler {
+                id: rowHoverHandler
+            }
             
             Row {
                 anchors.fill: parent
@@ -203,22 +330,27 @@ Rectangle {
                 spacing: root.colGap
                 
                 // 专辑封面
-                Rectangle {
+                SongCoverAction {
+                    id: coverAction
                     width: root.colCoverWidth
                     height: 44
                     anchors.verticalCenter: parent.verticalCenter
-                    radius: 4
-                    color: "#E0E0E0"
-                    
-                    Image {
-                        anchors.fill: parent
-                        anchors.margins: 2
-                        source: model.cover !== "" ? model.cover : "qrc:/new/prefix1/icon/Music.png"
-                        fillMode: Image.PreserveAspectCrop
-                        asynchronous: true
-                        cache: true
-                        sourceSize.width: 44
-                        sourceSize.height: 44
+                    rowHovered: itemRoot.rowHovered
+                    isCurrentTrack: itemRoot.currentTrack
+                    isPlaying: itemRoot.playbackActive
+                    coverSource: model.cover || ""
+                    fallbackSource: "qrc:/qml/assets/ai/icons/default-music-cover.svg"
+
+                    onPlayRequested: {
+                        if (itemRoot.currentTrack) {
+                            root.songActionRequested("toggle_current_playback", root.buildSongPayload(model))
+                            return
+                        }
+                        root.playRequested(model.filePath, root.displayArtist(model), model.cover || "")
+                    }
+
+                    onPauseRequested: {
+                        root.songActionRequested("toggle_current_playback", root.buildSongPayload(model))
                     }
                 }
                 
@@ -227,8 +359,8 @@ Rectangle {
                     width: root.colTitleWidth
                     text: root.displayTitle(model)
                     font.pixelSize: 14
-                    font.bold: model.isPlaying
-                    color: model.isPlaying ? "#409EFF" : "#333333"
+                    font.bold: itemRoot.currentTrack
+                    color: itemRoot.currentTrack ? "#409EFF" : "#333333"
                     elide: Text.ElideRight
                     anchors.verticalCenter: parent.verticalCenter
                 }
@@ -253,116 +385,38 @@ Rectangle {
                 }
                 
                 // 操作按钮（hover 时显示）
-                Row {
+                SongActionStrip {
+                    id: actionStrip
                     width: root.colActionWidth
-                    spacing: 8
                     anchors.verticalCenter: parent.verticalCenter
-                    opacity: itemArea.containsMouse ? 1.0 : 0.0
-                    visible: opacity > 0
-                    
-                    Behavior on opacity { NumberAnimation { duration: 150 } }
-                    
-                    // 喜欢按钮
-                    Rectangle {
-                        width: 32
-                        height: 32
-                        radius: 16
-                        color: favBtnArea.containsMouse ? "#ffe0e6" : "transparent"
-                        border.width: 1
-                        border.color: favBtnArea.containsMouse ? "#EC4141" : "#D6DCE8"
-                        
-                        Image {
-                            anchors.centerIn: parent
-                            width: 18
-                            height: 18
-                            source: favBtnArea.containsMouse
-                                    ? root.listIconPrefix + "list_icon_favorite_hover.svg"
-                                    : root.listIconPrefix + "list_icon_favorite_default.svg"
-                            fillMode: Image.PreserveAspectFit
+                    z: 1
+                    opacity: rowHovered ? 1.0 : 0.0
+                    enabled: rowHovered
+                    availablePlaylists: root.availablePlaylists
+                    songData: root.buildSongPayload(model)
+                    favoriteActive: root.isFavoritePath(model.filePath || "")
+                    showDownloadButton: true
+                    showRemoveAction: false
+
+                    onActionRequested: function(action, payload) {
+                        if (action === "play") {
+                            root.playRequested(model.filePath, root.displayArtist(model), model.cover || "")
+                            return
                         }
-                        
-                        MouseArea {
-                            id: favBtnArea
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                root.addToFavorite(
-                                    model.filePath || "",
-                                    root.displayTitle(model),
-                                    root.displayArtist(model),
-                                    model.duration || ""
-                                )
-                            }
+                        if (action === "add_favorite") {
+                            root.addToFavorite(
+                                model.filePath || "",
+                                root.displayTitle(model),
+                                root.displayArtist(model),
+                                model.duration || ""
+                            )
+                            return
                         }
-                    }
-                    
-                    // 播放按钮
-                    Rectangle {
-                        width: 32
-                        height: 32
-                        radius: 16
-                        color: model.isPlaying ? "#EC4141" : (playBtnArea.containsMouse ? "#FDECEC" : "transparent")
-                        border.width: 1
-                        border.color: model.isPlaying ? "#EC4141" : "#D6DCE8"
-                        
-                        Image {
-                            anchors.centerIn: parent
-                            width: 18
-                            height: 18
-                            source: {
-                                if (model.isPlaying) {
-                                    return playBtnArea.containsMouse
-                                            ? root.playerIconPrefix + "player_btn_pause_hover.svg"
-                                            : root.playerIconPrefix + "player_btn_pause_default.svg"
-                                }
-                                return playBtnArea.containsMouse
-                                        ? root.playerIconPrefix + "player_btn_play_hover.svg"
-                                        : root.playerIconPrefix + "player_btn_play_default.svg"
-                            }
-                            fillMode: Image.PreserveAspectFit
+                        if (action === "download") {
+                            root.downloadRequested(model.filePath || "")
+                            return
                         }
-                        
-                        MouseArea {
-                            id: playBtnArea
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                console.log("[MusicListWidgetNet] Play clicked - path:", model.filePath)
-                                console.log("[MusicListWidgetNet] artist:", model.artist)
-                                console.log("[MusicListWidgetNet] cover:", model.cover)
-                                root.playRequested(model.filePath, root.displayArtist(model), model.cover || "")
-                            }
-                        }
-                    }
-                    
-                    // 下载按钮（网络音乐）
-                    Rectangle {
-                        width: 32
-                        height: 32
-                        radius: 16
-                        color: downloadBtnArea.containsMouse ? "#FDECEC" : "transparent"
-                        border.width: 1
-                        border.color: downloadBtnArea.containsMouse ? "#EC4141" : "#D6DCE8"
-                        
-                        Image {
-                            anchors.centerIn: parent
-                            width: 18
-                            height: 18
-                            source: downloadBtnArea.containsMouse
-                                    ? root.listIconPrefix + "list_icon_download_hover.svg"
-                                    : root.listIconPrefix + "list_icon_download_default.svg"
-                            fillMode: Image.PreserveAspectFit
-                        }
-                        
-                        MouseArea {
-                            id: downloadBtnArea
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.downloadRequested(model.filePath)
-                        }
+                        root.songActionRequested(action, payload)
                     }
                 }
             }
@@ -370,7 +424,6 @@ Rectangle {
             MouseArea {
                 id: itemArea
                 anchors.fill: parent
-                hoverEnabled: true
                 propagateComposedEvents: true
                 onDoubleClicked: {
                     root.playRequested(model.filePath, root.displayArtist(model), model.cover || "")
@@ -416,7 +469,7 @@ Rectangle {
     
     function removeSong(filePath) {
         for (var i = 0; i < musicListModel.count; i++) {
-            if (musicListModel.get(i).filePath === filePath) {
+            if (isSameTrack(musicListModel.get(i).filePath, filePath)) {
                 musicListModel.remove(i)
                 break
             }
@@ -432,6 +485,9 @@ Rectangle {
     }
     
     function setPlayingState(filePath, playing) {
+        root.currentPlayingPath = filePath || ""
+        root.isPlaying = playing
+
         // 如果 filePath 为空，则清除当前播放状态
         if (filePath === "") {
             if (root.currentPlayingIndex >= 0 && root.currentPlayingIndex < musicListModel.count) {
@@ -440,19 +496,10 @@ Rectangle {
             root.currentPlayingIndex = -1
             return
         }
-        
-        // 从完整 URL 中提取相对路径（如果是网络路径）
-        var pathToMatch = filePath
-        if (filePath.indexOf("http") === 0) {
-            var uploadsIndex = filePath.indexOf("/uploads/")
-            if (uploadsIndex !== -1) {
-                pathToMatch = filePath.substring(uploadsIndex + 9)
-            }
-        }
-        
-        // 查找匹配的歌曲
+
+        // 查找匹配的歌曲，统一走当前列表的路径归一化规则。
         for (var i = 0; i < musicListModel.count; i++) {
-            if (musicListModel.get(i).filePath === pathToMatch) {
+            if (isSameTrack(filePath, musicListModel.get(i).filePath)) {
                 // 找到了目标歌曲
                 if (playing) {
                     // 关闭上一首
@@ -463,20 +510,20 @@ Rectangle {
                     musicListModel.get(i).isPlaying = true
                     root.currentPlayingIndex = i
                 } else {
-                    // 关闭当前
+                    // 保留当前索引，只关闭“正在播放”状态，便于 UI 呈现暂停态
                     musicListModel.get(i).isPlaying = false
-                    if (root.currentPlayingIndex === i) {
-                        root.currentPlayingIndex = -1
-                    }
+                    root.currentPlayingIndex = i
                 }
                 return
             }
         }
-        
+
         // 没有找到，可能是其他列表的歌曲
-        if (playing && root.currentPlayingIndex >= 0) {
+        if (root.currentPlayingIndex >= 0) {
             musicListModel.get(root.currentPlayingIndex).isPlaying = false
-            root.currentPlayingIndex = -1
+            if (playing) {
+                root.currentPlayingIndex = -1
+            }
         }
     }
 
@@ -517,7 +564,7 @@ Rectangle {
     // 根据filePath查找索引
     function getIndexByFilePath(filePath) {
         for (var i = 0; i < musicListModel.count; i++) {
-            if (musicListModel.get(i).filePath === filePath) {
+            if (isSameTrack(musicListModel.get(i).filePath, filePath)) {
                 return i
             }
         }
