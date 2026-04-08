@@ -26,8 +26,9 @@ void MainWidget::setupPlaybackAndListConnections() {
             &MusicListWidgetLocal::onUpdateMetadata);
     connect(w, &PlayWidget::signalMetadataUpdated, localAndDownloadWidget,
             [this](const QString& filePath, const QString& coverUrl, const QString& duration,
-                   const QString&) {
-                localAndDownloadWidget->updateDownloadedSongMetadata(filePath, coverUrl, duration);
+                   const QString& artist) {
+                localAndDownloadWidget->updateDownloadedSongMetadata(filePath, coverUrl, duration,
+                                                                     artist);
             });
     connect(w, &PlayWidget::signalMetadataUpdated, this,
             &MainWidget::handlePlayWidgetMetadataUpdated);

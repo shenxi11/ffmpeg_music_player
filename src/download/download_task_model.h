@@ -2,7 +2,9 @@
 #define DOWNLOAD_TASK_MODEL_H
 
 #include <QAbstractListModel>
+#include <QHash>
 #include "download_manager.h"
+#include "local_music_cache.h"
 
 /**
  * @brief 下载任务列表模型，用于QML显示
@@ -24,7 +26,9 @@ public:
         StateTextRole,
         ErrorMsgRole,
         IsPlayingRole,
-        CoverUrlRole
+        CoverUrlRole,
+        ArtistRole,
+        DurationRole
     };
 
     explicit DownloadTaskModel(QObject *parent = nullptr);
@@ -72,7 +76,8 @@ public:
     /**
      * @brief 按下载保存路径更新已完成歌曲元数据
      */
-    void updateSongMetadata(const QString& savePath, const QString& coverUrl, const QString& duration);
+    void updateSongMetadata(const QString& savePath, const QString& coverUrl, const QString& duration,
+                            const QString& artist = QString());
 
 signals:
     void currentPlayingPathChanged();
@@ -94,8 +99,14 @@ private:
     QList<DownloadTask> m_tasks;
     bool m_showCompleted;
     QString m_currentPlayingPath;
+    QHash<QString, LocalMusicInfo> m_localMetadataCache;
 
     QString resolveCoverUrl(const DownloadTask& task) const;
+    QString resolveArtist(const DownloadTask& task) const;
+    QString resolveDuration(const DownloadTask& task) const;
+    void rebuildLocalMetadataCache();
+    void updateLocalMetadataCacheEntry(const QString& savePath, const QString& coverUrl,
+                                       const QString& duration, const QString& artist);
 };
 
 #endif // DOWNLOAD_TASK_MODEL_H

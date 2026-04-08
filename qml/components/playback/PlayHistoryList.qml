@@ -97,6 +97,7 @@ Rectangle {
     }
 
     function buildSongPayload(item) {
+        var isLocal = !!item.is_local
         return {
             path: item.path || "",
             playPath: item.path || "",
@@ -105,7 +106,7 @@ Rectangle {
             cover: item.cover_art_url || "",
             duration: item.duration || "",
             sourceType: "history",
-            isLocal: true
+            isLocal: isLocal
         }
     }
 

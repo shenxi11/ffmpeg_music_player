@@ -45,6 +45,8 @@ struct DownloadTask {
     QString errorMsg;         // 错误信息
     int lastReportedProgress; // 上次报告的进度百分比（用于限流）
     QString coverUrl;         // 专辑图片URL
+    QString artist;           // 艺术家
+    QString duration;         // 时长文本
     
     DownloadTask() 
         : totalSize(0)
@@ -170,7 +172,9 @@ public:
      * @param coverUrl 封面地址
      * @return 是否命中并更新了任务
      */
-    bool updateTaskMetadataBySavePath(const QString& savePath, const QString& coverUrl);
+    bool updateTaskMetadataBySavePath(const QString& savePath, const QString& coverUrl,
+                                      const QString& artist = QString(),
+                                      const QString& duration = QString());
 
     /**
      * @brief 设置最大并发下载数

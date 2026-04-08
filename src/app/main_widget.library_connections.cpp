@@ -875,8 +875,7 @@ void MainWidget::handleSongActionRequested(const QString& action, const QVariant
         !isLocal && !playPath.isEmpty() && !isResolvedRemotePlaybackPath(playPath) &&
         !QFileInfo(playPath).isAbsolute() &&
         (action == QStringLiteral("play") || action == QStringLiteral("play_next") ||
-         action == QStringLiteral("queue_append") || action == QStringLiteral("add_to_playlist") ||
-         action == QStringLiteral("create_playlist_and_add"));
+         action == QStringLiteral("queue_append"));
 
     if (requiresResolve) {
         net_list->resolveSongAction(action, songData);

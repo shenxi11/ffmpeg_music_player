@@ -117,12 +117,13 @@ void LocalAndDownloadWidget::onSongActionRequested(const QString& action, const 
 
 void LocalAndDownloadWidget::updateDownloadedSongMetadata(const QString& filePath,
                                                           const QString& coverUrl,
-                                                          const QString& duration)
+                                                          const QString& duration,
+                                                          const QString& artist)
 {
     if (!m_downloadTaskModel) {
         return;
     }
 
-    m_downloadTaskModel->updateSongMetadata(filePath, coverUrl, duration);
+    m_downloadTaskModel->updateSongMetadata(filePath, coverUrl, duration, artist);
 }
 

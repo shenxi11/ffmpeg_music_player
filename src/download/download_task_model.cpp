@@ -5,6 +5,14 @@ DownloadTaskModel::DownloadTaskModel(QObject *parent)
     : QAbstractListModel(parent)
     , m_showCompleted(false)
 {
+    rebuildLocalMetadataCache();
+    connect(&LocalMusicCache::instance(), &LocalMusicCache::musicListChanged, this, [this]() {
+        rebuildLocalMetadataCache();
+        if (!m_tasks.isEmpty()) {
+            emit dataChanged(index(0), index(m_tasks.count() - 1),
+                             {CoverUrlRole, ArtistRole, DurationRole});
+        }
+    });
     setupConnections();
 }
 
@@ -60,6 +68,10 @@ QVariant DownloadTaskModel::data(const QModelIndex &index, int role) const
         return task.savePath == m_currentPlayingPath;
     case CoverUrlRole:
         return resolveCoverUrl(task);
+    case ArtistRole:
+        return resolveArtist(task);
+    case DurationRole:
+        return resolveDuration(task);
     default:
         return QVariant();
     }
@@ -79,6 +91,8 @@ QHash<int, QByteArray> DownloadTaskModel::roleNames() const
     roles[ErrorMsgRole] = "errorMsg";
     roles[IsPlayingRole] = "isPlaying";
     roles[CoverUrlRole] = "coverUrl";
+    roles[ArtistRole] = "artist";
+    roles[DurationRole] = "duration";
     return roles;
 }
 
@@ -86,6 +100,7 @@ void DownloadTaskModel::refresh(bool showCompleted)
 {
     beginResetModel();
     m_showCompleted = showCompleted;
+    rebuildLocalMetadataCache();
     
     if (showCompleted) {
         m_tasks = DownloadManager::instance().getCompletedTasks();
@@ -97,17 +112,20 @@ void DownloadTaskModel::refresh(bool showCompleted)
 }
 
 void DownloadTaskModel::updateSongMetadata(const QString& savePath, const QString& coverUrl,
-                                           const QString& duration)
+                                           const QString& duration, const QString& artist)
 {
     const QString normalizedPath = savePath.trimmed();
     const QString normalizedCover = coverUrl.trimmed();
+    const QString normalizedDuration = duration.trimmed();
+    const QString normalizedArtist = artist.trimmed();
     if (normalizedPath.isEmpty()) {
         return;
     }
 
-    if (!normalizedCover.isEmpty()) {
-        DownloadManager::instance().updateTaskMetadataBySavePath(normalizedPath, normalizedCover);
-    }
+    updateLocalMetadataCacheEntry(normalizedPath, normalizedCover, normalizedDuration,
+                                  normalizedArtist);
+    DownloadManager::instance().updateTaskMetadataBySavePath(normalizedPath, normalizedCover,
+                                                             normalizedArtist, normalizedDuration);
 
     for (int i = 0; i < m_tasks.count(); ++i) {
         DownloadTask& task = m_tasks[i];
@@ -120,12 +138,18 @@ void DownloadTaskModel::updateSongMetadata(const QString& savePath, const QStrin
             task.coverUrl = normalizedCover;
             changed = true;
         }
-
-        Q_UNUSED(duration);
+        if (!normalizedDuration.isEmpty() && task.duration.trimmed() != normalizedDuration) {
+            task.duration = normalizedDuration;
+            changed = true;
+        }
+        if (!normalizedArtist.isEmpty() && task.artist.trimmed() != normalizedArtist) {
+            task.artist = normalizedArtist;
+            changed = true;
+        }
 
         if (changed) {
             const QModelIndex idx = index(i);
-            emit dataChanged(idx, idx, {CoverUrlRole});
+            emit dataChanged(idx, idx, {CoverUrlRole, ArtistRole, DurationRole});
         }
         return;
     }
@@ -188,14 +212,89 @@ QString DownloadTaskModel::resolveCoverUrl(const DownloadTask& task) const
         return QString();
     }
 
-    const QList<LocalMusicInfo> musicList = LocalMusicCache::instance().getMusicList();
-    for (const LocalMusicInfo& info : musicList) {
-        if (info.filePath.trimmed() == targetPath && !info.coverUrl.trimmed().isEmpty()) {
-            return info.coverUrl.trimmed();
-        }
+    auto it = m_localMetadataCache.constFind(targetPath);
+    if (it != m_localMetadataCache.constEnd() && !it.value().coverUrl.trimmed().isEmpty()) {
+        return it.value().coverUrl.trimmed();
     }
 
     return QString();
+}
+
+QString DownloadTaskModel::resolveArtist(const DownloadTask& task) const
+{
+    const QString taskArtist = task.artist.trimmed();
+    if (!taskArtist.isEmpty()) {
+        return taskArtist;
+    }
+
+    const QString targetPath = task.savePath.trimmed();
+    if (targetPath.isEmpty()) {
+        return QString();
+    }
+
+    auto it = m_localMetadataCache.constFind(targetPath);
+    if (it != m_localMetadataCache.constEnd()) {
+        return it.value().artist.trimmed();
+    }
+
+    return QString();
+}
+
+QString DownloadTaskModel::resolveDuration(const DownloadTask& task) const
+{
+    const QString taskDuration = task.duration.trimmed();
+    if (!taskDuration.isEmpty()) {
+        return taskDuration;
+    }
+
+    const QString targetPath = task.savePath.trimmed();
+    if (targetPath.isEmpty()) {
+        return QString();
+    }
+
+    auto it = m_localMetadataCache.constFind(targetPath);
+    if (it != m_localMetadataCache.constEnd()) {
+        return it.value().duration.trimmed();
+    }
+
+    return QString();
+}
+
+void DownloadTaskModel::rebuildLocalMetadataCache()
+{
+    m_localMetadataCache.clear();
+    const QList<LocalMusicInfo> musicList = LocalMusicCache::instance().getMusicList();
+    for (const LocalMusicInfo& info : musicList) {
+        const QString key = info.filePath.trimmed();
+        if (key.isEmpty()) {
+            continue;
+        }
+        m_localMetadataCache.insert(key, info);
+    }
+}
+
+void DownloadTaskModel::updateLocalMetadataCacheEntry(const QString& savePath,
+                                                      const QString& coverUrl,
+                                                      const QString& duration,
+                                                      const QString& artist)
+{
+    const QString key = savePath.trimmed();
+    if (key.isEmpty()) {
+        return;
+    }
+
+    LocalMusicInfo info = m_localMetadataCache.value(key);
+    info.filePath = key;
+    if (!coverUrl.trimmed().isEmpty()) {
+        info.coverUrl = coverUrl.trimmed();
+    }
+    if (!duration.trimmed().isEmpty()) {
+        info.duration = duration.trimmed();
+    }
+    if (!artist.trimmed().isEmpty()) {
+        info.artist = artist.trimmed();
+    }
+    m_localMetadataCache.insert(key, info);
 }
 
 void DownloadTaskModel::onDownloadAdded(const QString& taskId, const QString& filename)

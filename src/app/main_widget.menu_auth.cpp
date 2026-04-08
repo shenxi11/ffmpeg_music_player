@@ -232,6 +232,23 @@ void MainWidget::handleSettingsReturnToWelcomeRequested() {
     qDebug() << "[MainWidget] return to welcome requested";
     m_returningToWelcome = true;
 
+    if (w && w->playbackViewModel()) {
+        w->playbackViewModel()->stop();
+        w->playbackViewModel()->clearPlaylist();
+    }
+    if (playHistoryWidget) {
+        playHistoryWidget->setPlayingState(QString(), false);
+    }
+    if (recommendMusicWidget) {
+        recommendMusicWidget->setPlayingState(QString(), false);
+    }
+    if (net_list) {
+        net_list->setPlayingState(QString(), false);
+    }
+    if (localAndDownloadWidget) {
+        localAndDownloadWidget->setPlayingState(QString(), false);
+    }
+
     if (m_viewModel) {
         m_viewModel->returnToWelcomeAndKeepAccountCache(true, 1200);
     }
