@@ -351,17 +351,89 @@ QWidget#MainLeftPanel {
     border-right: 1px solid #E8E9EE;
 }
 
+QWidget#SidebarPlaylistSection {
+    background: transparent;
+}
+
+QScrollArea#SidebarPlaylistScrollArea,
+QWidget#SidebarPlaylistListContainer {
+    background: transparent;
+    border: none;
+}
+
+QPushButton#SidebarPlaylistTabButton {
+    min-height: 24px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: #7A7F89;
+    text-align: left;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+QPushButton#SidebarPlaylistTabButton:checked {
+    color: #20232A;
+    font-weight: 700;
+}
+
+QPushButton#SidebarPlaylistTabButton:hover {
+    color: #20232A;
+}
+
+QPushButton#SidebarPlaylistAddButton {
+    border: none;
+    border-radius: 11px;
+    background: transparent;
+    color: #666B75;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+QPushButton#SidebarPlaylistAddButton:hover {
+    background: #E7EAEE;
+    color: #20232A;
+}
+
+QLabel#SidebarPlaylistEmptyLabel {
+    color: #8D93A1;
+    font-size: 12px;
+    padding: 4px 8px;
+}
+
+QPushButton[sidePlaylistItem="true"] {
+    min-height: 42px;
+    max-height: 42px;
+    padding: 0 10px;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: #23262D;
+    text-align: left;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+QPushButton[sidePlaylistItem="true"]:hover {
+    background: #ECEDEF;
+}
+
+QPushButton[sidePlaylistItem="true"][selectedPlaylist="true"] {
+    background: #DCDDDF;
+    color: #14161A;
+    font-weight: 600;
+}
+
 QPushButton#MainMenuButton {
     min-height: 50px;
-    min-width: 50px;
+    min-width: 92px;
     max-height: 50px;
-    max-width: 50px;
-    padding: 0;
+    padding: 0 14px;
     border: none;
     border-radius: 25px;
     background: transparent;
     color: #666666;
-    font-size: 22px;
+    font-size: 17px;
     font-weight: 700;
 }
 

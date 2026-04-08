@@ -5,9 +5,12 @@
         <file>qml/components/auth/LoginWindow.qml</file>
         <file>qml/components/user/UserWidget.qml</file>
         <file>qml/components/user/UserPopupWindow.qml</file>
+        <file>qml/components/user/UserProfilePage.qml</file>
         <file>qml/components/library/MusicItem.qml</file>
         <file>qml/components/library/MusicListWidget.qml</file>
         <file>qml/components/library/MusicListWidgetNet.qml</file>
+        <file>qml/components/library/SongActionStrip.qml</file>
+        <file>qml/components/library/SongCoverAction.qml</file>
         <file>qml/components/library/RecommendMusicWidget.qml</file>
         <file>qml/components/library/PlaylistWidget.qml</file>
         <file>qml/components/playback/ControlBar.qml</file>
@@ -46,6 +49,44 @@
         <file>qml/theme/AiChatTheme.js</file>
         <file>qml/theme/PlayerStyle.js</file>
         <file>styles/netease.qss</file>
+        <file>qml/assets/ai/icons/song-action-favorite-default.svg</file>
+        <file>qml/assets/ai/icons/song-action-favorite-hover.svg</file>
+        <file>qml/assets/ai/icons/song-action-favorite-active.svg</file>
+        <file>qml/assets/ai/icons/song-action-download-default.svg</file>
+        <file>qml/assets/ai/icons/song-action-download-hover.svg</file>
+        <file>qml/assets/ai/icons/song-action-add.svg</file>
+        <file>qml/assets/ai/icons/song-action-more.svg</file>
+        <file>qml/assets/ai/icons/player-control/player_mode_repeat_default.svg</file>
+        <file>qml/assets/ai/icons/player-control/player_mode_repeat_hover.svg</file>
+        <file>qml/assets/ai/icons/player-control/player_mode_repeat_active.svg</file>
+        <file>qml/assets/ai/icons/player-control/player_mode_single_hover.svg</file>
+        <file>qml/assets/ai/icons/player-control/player_mode_single_active.svg</file>
+        <file>qml/assets/ai/icons/player-control/player_mode_shuffle_hover.svg</file>
+        <file>qml/assets/ai/icons/player-control/player_mode_shuffle_active.svg</file>
+        <file>qml/assets/ai/icons/player-control/player_btn_previous_default.svg</file>
+        <file>qml/assets/ai/icons/player-control/player_btn_previous_hover.svg</file>
+        <file>qml/assets/ai/icons/player-control/player_btn_play_default.svg</file>
+        <file>qml/assets/ai/icons/player-control/player_btn_play_hover.svg</file>
+        <file>qml/assets/ai/icons/player-control/player_btn_play_pressed.svg</file>
+        <file>qml/assets/ai/icons/player-control/player_btn_pause_default.svg</file>
+        <file>qml/assets/ai/icons/player-control/player_btn_pause_hover.svg</file>
+        <file>qml/assets/ai/icons/player-control/player_btn_pause_pressed.svg</file>
+        <file>qml/assets/ai/icons/player-control/player_btn_next_default.svg</file>
+        <file>qml/assets/ai/icons/player-control/player_btn_next_hover.svg</file>
+        <file>qml/assets/ai/icons/player-control/player_btn_volume_default.svg</file>
+        <file>qml/assets/ai/icons/player-control/player_btn_volume_hover.svg</file>
+        <file>qml/assets/ai/icons/player-control/player_btn_volume_active.svg</file>
+        <file>qml/assets/ai/icons/player-control/player_btn_mute_default.svg</file>
+        <file>qml/assets/ai/icons/player-control/player_btn_mute_active.svg</file>
+        <file>qml/assets/ai/icons/player-control/player_btn_desktop_lyrics_default.svg</file>
+        <file>qml/assets/ai/icons/player-control/player_btn_desktop_lyrics_hover.svg</file>
+        <file>qml/assets/ai/icons/player-control/player_btn_desktop_lyrics_active.svg</file>
+        <file>qml/assets/ai/icons/player-control/player_btn_playlist_default.svg</file>
+        <file>qml/assets/ai/icons/player-control/player_btn_playlist_hover.svg</file>
+        <file>qml/assets/ai/icons/player-control/player_btn_playlist_active.svg</file>
+        <file>qml/assets/ai/icons/default-user-avatar.svg</file>
+        <file>qml/assets/ai/icons/main-menu.svg</file>
+        <file>qml/assets/ai/icons/default-music-cover.svg</file>
     </qresource>
 </RCC>
 
