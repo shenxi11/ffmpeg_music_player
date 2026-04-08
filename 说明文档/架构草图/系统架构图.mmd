@@ -1,29 +1,61 @@
 graph TB
-    subgraph 客户端层["🖥️ 客户端层"]
-        A["Qt/QML客户端<br/>跨平台UI框架"]
+    subgraph 启动与模式
+        A[main.cpp]
+        B[ServerWelcomeDialog]
+        C[在线验证模式]
+        D[离线本地模式]
     end
-    
-    subgraph 后端服务层["⚙️ 后端服务层"]
-        B["HTTP路由层<br/>🔀 CORS/日志中间件"]
-        C["业务逻辑层<br/>👤 用户管理 | 🎵 音乐管理 | 📡 流媒体服务"]
-        D["缓存层<br/>⚡ Redis<br/>3级缓存策略"]
-        E["数据持久层<br/>💾 MySQL<br/>连接池管理"]
+
+    subgraph 主窗口壳层
+        E[MainWidget]
+        F[MainShellViewModel]
+        G[PlaybackViewModel]
     end
-    
-    subgraph 存储层["📁 存储层"]
-        F["文件系统<br/>🎼 音频文件<br/>📝 歌词文件<br/>🖼️ 封面图片"]
+
+    subgraph 页面层
+        H[本地与下载]
+        I[在线音乐与推荐]
+        J[播放页与播放队列]
+        K[用户主页与用户弹窗]
+        L[视频列表与视频窗口]
+        M[设置页]
     end
-    
-    A -->|"HTTP/JSON<br/>RESTful API"| B
+
+    subgraph 服务与缓存层
+        N[HttpRequestV2]
+        O[AudioService]
+        P[DownloadManager / DownloadTaskModel]
+        Q[SettingsManager / LocalMusicCache / cover_lookup]
+    end
+
+    subgraph 外部系统
+        R[私域服务端]
+        S[本地文件系统]
+    end
+
+    A --> B
     B --> C
-    C -->|"查询/写入<br/>TTL: 5-120min"| D
-    C -->|"CRUD操作<br/>事务管理"| E
-    C -->|"读取/写入<br/>Range请求"| F
-    D -.->|"缓存未命中<br/>回源查询"| E
-    
-    style A fill:#e3f2fd,stroke:#2196f3,stroke-width:3px,color:#000
-    style B fill:#fff3e0,stroke:#ff9800,stroke-width:3px,color:#000
-    style C fill:#f3e5f5,stroke:#9c27b0,stroke-width:3px,color:#000
-    style D fill:#ffebee,stroke:#f44336,stroke-width:3px,color:#000
-    style E fill:#e8f5e9,stroke:#4caf50,stroke-width:3px,color:#000
-    style F fill:#fce4ec,stroke:#e91e63,stroke-width:3px,color:#000
+    B --> D
+    C --> E
+    D --> E
+    E --> F
+    E --> G
+    E --> H
+    E --> I
+    E --> J
+    E --> K
+    E --> L
+    E --> M
+    F --> N
+    F --> Q
+    G --> O
+    H --> P
+    H --> Q
+    I --> N
+    K --> N
+    K --> Q
+    L --> N
+    N --> R
+    O --> S
+    P --> S
+    Q --> S
