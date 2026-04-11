@@ -36,8 +36,6 @@ class PlaybackStateManager;
 class QCloseEvent;
 class QTimer;
 class QUrl;
-class AgentChatViewModel;
-class AgentChatWindow;
 class QScrollArea;
 class QVBoxLayout;
 class QLabel;
@@ -124,8 +122,6 @@ class MainWidget : public QWidget {
 
     QPushButton* Login;
     MainShellViewModel* m_viewModel = nullptr;
-    AgentChatViewModel* m_agentChatViewModel = nullptr;
-    AgentChatWindow* m_agentChatWindow = nullptr;
 
     // 在线音乐元数据缓存（用于追加最近播放记录）
     QString m_networkMusicArtist;
@@ -354,7 +350,6 @@ class MainWidget : public QWidget {
     void handlePlayHistoryRetryTimeout();
     int placeSideNavButton(int row, QPushButton* button, int navStartY, int itemHeight,
                            int panelWidth);
-    void ensureAgentChatWindow();
 };
 
 #endif // TEST_WIDGET_H

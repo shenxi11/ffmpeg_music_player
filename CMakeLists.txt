@@ -54,7 +54,6 @@ find_package(Qt5 REQUIRED COMPONENTS
     QuickWidgets
     Qml
     OpenGL
-    WebSockets
 )
 find_package(Qt5 REQUIRED COMPONENTS Core)
 
@@ -125,6 +124,7 @@ list(FILTER PROJECT_SOURCES EXCLUDE REGEX ".*/PlayViewModel\.cpp$")
 list(FILTER PROJECT_SOURCES EXCLUDE REGEX ".*/main_qml\.cpp$")
 list(FILTER PROJECT_SOURCES EXCLUDE REGEX ".*/qml_bridge\.cpp$")
 list(FILTER PROJECT_SOURCES EXCLUDE REGEX ".*/qml_bridge\.h$")
+list(FILTER PROJECT_SOURCES EXCLUDE REGEX ".*/src/agent/.*")
 
 # include ?????? include + ????
 set(PROJECT_INCLUDE_DIRS
@@ -197,7 +197,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     Qt5::QuickWidgets
     Qt5::Qml
     Qt5::OpenGL
-    Qt5::WebSockets
 )
 
 # 链接 FFmpeg 库
@@ -236,6 +235,7 @@ file(MAKE_DIRECTORY ${PLUGIN_OUTPUT_DIR_RELEASE})
 # 添加插件子目录（作为子项目）
 add_subdirectory(plugins/audio_converter_plugin)
 add_subdirectory(plugins/whisper_translate_plugin)
+add_subdirectory(plugins/ai_assistant_plugin)
 
 # 安装规则
 install(TARGETS ${PROJECT_NAME}

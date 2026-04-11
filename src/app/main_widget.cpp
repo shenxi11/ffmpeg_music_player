@@ -1,7 +1,5 @@
 #include "main_widget.h"
 
-#include "AgentChatViewModel.h"
-#include "AgentChatWindow.h"
 #include "VideoPlayerWindow.h"
 #include "playback_state_manager.h"
 #include "plugin_host_window.h"
@@ -106,7 +104,6 @@ MainWidget::MainWidget(bool localOnlyMode, QWidget* parent)
     QHBoxLayout* widget_op_layout = new QHBoxLayout(topWidget);
 
     widget_op_layout->addWidget(searchBox);
-    widget_op_layout->addWidget(aiAssistantTopButton);
     widget_op_layout->addStretch();
     widget_op_layout->addWidget(menuButton);
     widget_op_layout->addWidget(maximizeButton);
@@ -303,8 +300,6 @@ MainWidget::MainWidget(bool localOnlyMode, QWidget* parent)
     connect(favoriteButton, &QPushButton::toggled, this, &MainWidget::handleFavoriteTabToggled);
     connect(playlistButton, &QPushButton::toggled, this, &MainWidget::handlePlaylistTabToggled);
     connect(videoButton, &QPushButton::toggled, this, &MainWidget::handleVideoTabToggled);
-    connect(aiAssistantTopButton, &QPushButton::clicked, this,
-            &MainWidget::handleAiAssistantClicked);
     connect(sidebarOwnedTabButton, &QPushButton::clicked, this,
             &MainWidget::handleSidebarOwnedTabClicked);
     connect(sidebarSubscribedTabButton, &QPushButton::clicked, this,
@@ -713,26 +708,7 @@ void MainWidget::handleVideoTabToggled(bool checked) {
 }
 
 void MainWidget::handleAiAssistantClicked() {
-    qDebug() << "[MainWidget] AI assistant button clicked";
-    ensureAgentChatWindow();
-    if (!m_agentChatWindow || !m_agentChatViewModel) {
-        QMessageBox::warning(this, QStringLiteral("AI 助手"),
-                             QStringLiteral("聊天窗口创建失败，请检查日志。"));
-        return;
-    }
-
-    m_agentChatViewModel->initialize();
-    m_agentChatWindow->showNormal();
-    const QRect hostRect = geometry();
-    const QSize chatSize = m_agentChatWindow->size();
-    const QPoint centerPos = mapToGlobal(QPoint(hostRect.width() / 2 - chatSize.width() / 2,
-                                                hostRect.height() / 2 - chatSize.height() / 2));
-    m_agentChatWindow->move(centerPos);
-    m_agentChatWindow->show();
-    m_agentChatWindow->raise();
-    m_agentChatWindow->activateWindow();
-    qDebug() << "[MainWidget] AI assistant window visible =" << m_agentChatWindow->isVisible()
-             << "pos =" << m_agentChatWindow->pos() << "size =" << m_agentChatWindow->size();
+    qDebug() << "[MainWidget] Built-in AI assistant entry is disabled; use plugin menu instead.";
 }
 
 void MainWidget::handlePlayStateChanged(ProcessSliderQml::State state) {
@@ -1183,17 +1159,6 @@ void MainWidget::syncSidebarPlaylistSelection(qint64 playlistId) {
     }
 }
 
-void MainWidget::ensureAgentChatWindow() {
-    if (!m_agentChatViewModel) {
-        m_agentChatViewModel = new AgentChatViewModel(this);
-        m_agentChatViewModel->setMainShellViewModel(m_viewModel);
-    }
-
-    if (!m_agentChatWindow) {
-        m_agentChatWindow = new AgentChatWindow(m_agentChatViewModel, nullptr);
-    }
-}
-
 void MainWidget::updateAdaptiveLayout() {
     const int topBarHeight = 60;
     const int leftWidth = qBound(190, width() / 5, 240);
@@ -1317,12 +1282,6 @@ void MainWidget::closeEvent(QCloseEvent* event) {
         settingsWidget->deleteLater();
         settingsWidget = nullptr;
     }
-    if (m_agentChatWindow) {
-        m_agentChatWindow->close();
-    }
-    if (m_agentChatViewModel) {
-        m_agentChatViewModel->shutdownForAppExit();
-    }
     if (loginWidget) {
         loginWidget->close();
     }
@@ -1346,10 +1305,6 @@ void MainWidget::closeEvent(QCloseEvent* event) {
 
 MainWidget::~MainWidget() {
     qDebug() << "MainWidget::~MainWidget() - Starting cleanup...";
-
-    if (m_agentChatViewModel) {
-        m_agentChatViewModel->shutdownForAppExit();
-    }
 
     if (videoListWidget) {
         videoListWidget->pauseVideoPlayback();

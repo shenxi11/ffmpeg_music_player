@@ -1,0 +1,10 @@
+{
+  "id": "cloudmusic.ai_assistant",
+  "name": "AI 助手",
+  "version": "1.0.0",
+  "description": "AI 助手开发已暂停，当前版本仅保留插件占位入口。",
+  "author": "CloudMusic Team",
+  "apiVersion": 1,
+  "capabilities": ["widget"],
+  "permissions": ["ui.widget"]
+}
