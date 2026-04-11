@@ -7,8 +7,11 @@
 #include <QUrl>
 #include <QVariantMap>
 
+class MainShellViewModel;
 class HostStateProvider;
 class ToolRegistry;
+class Music;
+class HttpRequestV2;
 
 /**
  * @brief Agent 工具执行器，负责将 tool_call 映射为客户端业务调用并回传结构化结果。
@@ -21,7 +24,7 @@ public:
     explicit AgentToolExecutor(HostStateProvider* hostStateProvider, QObject* parent = nullptr);
     ~AgentToolExecutor() override;
 
-    void setHostContext(QObject* hostContext);
+    void setMainShellViewModel(MainShellViewModel* shellViewModel);
     ToolRegistry* toolRegistry() const { return m_toolRegistry; }
     bool executeToolCall(const QString& toolCallId,
                          const QString& tool,
@@ -35,7 +38,7 @@ signals:
     void toolProgress(const QString& message);
 
 private slots:
-    void onSearchResultsReady(const QVariantList& musicList);
+    void onSearchResultsReady(const QList<Music>& musicList);
     void onHistoryListReady(const QVariantList& history);
     void onFavoritesListReady(const QVariantList& favorites);
     void onPlaylistsListReady(const QVariantList& playlists, int page, int pageSize, int total);
@@ -63,7 +66,7 @@ private slots:
     void onVideoListReady(const QVariantList& videoList);
     void onVideoStreamUrlReady(const QString& videoUrl);
     void onArtistSearchReady(bool exists, const QString& artist);
-    void onArtistTracksReady(const QVariantList& musicList, const QString& artist);
+    void onArtistTracksReady(const QList<Music>& musicList, const QString& artist);
 
 private:
     struct PendingTask
@@ -79,7 +82,6 @@ private:
     void succeedTool(const QString& toolCallId, const QVariantMap& result);
 
     static QVariantMap makeError(const QString& code, const QString& message, bool retryable = false);
-    static QObject* serviceFromHostContext(QObject* hostContext, const QString& serviceName);
     static qint64 parsePlaylistId(const QVariantMap& args);
     static QUrl toPlayableUrl(const QString& rawPath);
     static QStringList variantToStringList(const QVariant& value);
@@ -92,12 +94,6 @@ private:
 
     QVariantMap resolveTrackById(const QString& trackId) const;
     QVariantMap resolveTrackByPath(const QString& path) const;
-    QVariantMap resolveMusicTabItem(const QString& tab,
-                                    const QVariantMap& args,
-                                    QString* errorCode,
-                                    QString* errorMessage) const;
-    static QVariantMap buildMusicTabSelector(const QVariantMap& args);
-    static bool musicTabActionSupported(const QString& tab, const QString& action);
     QVariantList convertQueueToItems(const QList<QUrl>& urls) const;
     QList<QUrl> buildQueueUrls(const QVariantList& trackIds, QString* errorMessage) const;
     QVariantMap buildQueueSnapshot() const;
@@ -106,10 +102,10 @@ private:
     QStringList buildMusicPathsFromTrackIds(const QVariantList& trackIds) const;
 
 private:
-    QObject* m_hostContext = nullptr;
-    QObject* m_hostService = nullptr;
+    MainShellViewModel* m_shellViewModel = nullptr;
     HostStateProvider* m_hostStateProvider = nullptr;
     ToolRegistry* m_toolRegistry = nullptr;
+    HttpRequestV2* m_requestGateway = nullptr;
 
     QQueue<PendingTask> m_pendingSearch;
     QQueue<PendingTask> m_pendingLyricsFetch;

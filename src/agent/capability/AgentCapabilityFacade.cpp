@@ -30,10 +30,10 @@ AgentCapabilityFacade::AgentCapabilityFacade(HostStateProvider* hostStateProvide
 
 AgentCapabilityFacade::~AgentCapabilityFacade() = default;
 
-void AgentCapabilityFacade::setHostContext(QObject* hostContext)
+void AgentCapabilityFacade::setMainShellViewModel(MainShellViewModel* shellViewModel)
 {
     if (m_toolExecutor) {
-        m_toolExecutor->setHostContext(hostContext);
+        m_toolExecutor->setMainShellViewModel(shellViewModel);
     }
 }
 

@@ -4,7 +4,7 @@
 #include <QString>
 
 /**
- * @brief AI 助手运行状态。
+ * @brief AI 助手连接状态。
  */
 enum class AgentConnectionState
 {
@@ -19,15 +19,15 @@ inline QString agentConnectionStateText(AgentConnectionState state)
 {
     switch (state) {
     case AgentConnectionState::Idle:
-        return QStringLiteral("未就绪");
+        return QStringLiteral("未连接");
     case AgentConnectionState::StartingProcess:
-        return QStringLiteral("正在准备 AI 助手...");
+        return QStringLiteral("正在启动 Agent...");
     case AgentConnectionState::ConnectingSocket:
-        return QStringLiteral("正在初始化本地会话...");
+        return QStringLiteral("正在连接 Agent...");
     case AgentConnectionState::Ready:
-        return QStringLiteral("AI 助手已就绪");
+        return QStringLiteral("已连接");
     case AgentConnectionState::Error:
-        return QStringLiteral("AI 助手异常");
+        return QStringLiteral("连接异常");
     }
     return QStringLiteral("未知状态");
 }

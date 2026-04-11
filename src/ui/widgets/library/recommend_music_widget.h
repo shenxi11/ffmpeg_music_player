@@ -20,8 +20,6 @@ public:
     void setCurrentPlayingPath(const QString& filePath);
     void setPlayingState(const QString& filePath, bool playing);
     void clearRecommendations();
-    QVariantMap recommendationMetaSnapshot() const;
-    QVariantList recommendationItemsSnapshot(int limit = -1) const;
 
 signals:
     void playMusicWithMetadata(const QString& filePath,
@@ -51,10 +49,6 @@ signals:
 
 private slots:
     void onSongActionRequested(const QString& action, const QVariant& payload);
-
-private:
-    QVariantMap m_lastRecommendationMeta;
-    QVariantList m_lastRecommendationItems;
 };
 
 #endif // RECOMMEND_MUSIC_WIDGET_H

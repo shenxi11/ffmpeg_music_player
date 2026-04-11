@@ -15,15 +15,14 @@ class PluginHostContext : public QObject
 public:
     explicit PluginHostContext(QObject* parent = nullptr);
 
-    Q_INVOKABLE void registerService(const QString& serviceName, QObject* service);
-    Q_INVOKABLE void unregisterService(const QString& serviceName);
-    Q_INVOKABLE QObject* service(const QString& serviceName) const;
-    Q_INVOKABLE QStringList serviceKeys() const;
+    void registerService(const QString& serviceName, QObject* service);
+    void unregisterService(const QString& serviceName);
+    QObject* service(const QString& serviceName) const;
+    QStringList serviceKeys() const;
 
-    Q_INVOKABLE void setEnvironmentValue(const QString& key, const QVariant& value);
-    Q_INVOKABLE QVariant environmentValue(const QString& key,
-                                          const QVariant& defaultValue = QVariant()) const;
-    Q_INVOKABLE QVariantMap environmentSnapshot() const;
+    void setEnvironmentValue(const QString& key, const QVariant& value);
+    QVariant environmentValue(const QString& key, const QVariant& defaultValue = QVariant()) const;
+    QVariantMap environmentSnapshot() const;
 
 private:
     QHash<QString, QPointer<QObject>> m_services;

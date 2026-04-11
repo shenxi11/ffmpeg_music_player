@@ -2,14 +2,8 @@
 
 #include <QCoreApplication>
 #include <QFileInfo>
-#include <QThread>
 
 namespace {
-
-const QString kAgentLocalModelBaseUrlLegacyDefault = QStringLiteral("http://127.0.0.1:8080/v1");
-const QString kAgentLocalModelBaseUrlDefault = QStringLiteral("http://127.0.0.1:8081/v1");
-const QString kAgentLocalModelPathDefault =
-    QStringLiteral("E:/models/llm/Qwen2.5-3B-Instruct/qwen2.5-3b-instruct-q4_k_m.gguf");
 
 bool isProjectRoot(const QString& dirPath) {
     const QDir dir(dirPath);
@@ -64,7 +58,6 @@ QString normalizedPluginKey(const QString& pluginId) {
 SettingsManager::SettingsManager() : m_settings("FFmpegMusicPlayer", "Settings") {
     static constexpr int kDefaultPlayerPageStyle = 0;
     static constexpr int kMaxPlayerPageStyle = 4;
-    static constexpr int kDefaultLocalContextSize = 16384;
     const QString preferredPath = inferPreferredLogPath();
     const QString defaultCachePath = defaultAudioCachePath();
 
@@ -109,28 +102,6 @@ SettingsManager::SettingsManager() : m_settings("FFmpegMusicPlayer", "Settings")
         m_settings.value("server/host", QStringLiteral("192.168.1.208")).toString().trimmed();
     m_serverPort = m_settings.value("server/port", 8080).toInt();
     m_playerPageStyle = m_settings.value("player/page_style", kDefaultPlayerPageStyle).toInt();
-    m_agentMode = m_settings.value("agent/mode", QStringLiteral("control")).toString().trimmed();
-    m_agentLocalModelPath =
-        QDir::cleanPath(QDir::fromNativeSeparators(
-            m_settings.value("agent/local_model_path", kAgentLocalModelPathDefault)
-                .toString()
-                .trimmed()));
-    m_agentLocalModelBaseUrl =
-        m_settings.value("agent/local_model_base_url", kAgentLocalModelBaseUrlDefault)
-            .toString()
-            .trimmed();
-    m_agentLocalModelName =
-        m_settings.value("agent/local_model_name", QStringLiteral("Qwen2.5-3B-Instruct"))
-            .toString()
-            .trimmed();
-    m_agentLocalContextSize =
-        m_settings.value("agent/local_context_size", kDefaultLocalContextSize).toInt();
-    m_agentLocalThreadCount =
-        m_settings.value("agent/local_thread_count", qMax(1, QThread::idealThreadCount())).toInt();
-    m_agentRemoteFallbackEnabled =
-        m_settings.value("agent/remote_fallback_enabled", false).toBool();
-    m_agentRemoteBaseUrl = m_settings.value("agent/remote_base_url").toString().trimmed();
-    m_agentRemoteModelName = m_settings.value("agent/remote_model_name").toString().trimmed();
     if (m_serverHost.isEmpty()) {
         m_serverHost = QStringLiteral("192.168.1.208");
         m_settings.setValue("server/host", m_serverHost);
@@ -142,34 +113,6 @@ SettingsManager::SettingsManager() : m_settings("FFmpegMusicPlayer", "Settings")
     if (m_playerPageStyle < 0 || m_playerPageStyle > kMaxPlayerPageStyle) {
         m_playerPageStyle = kDefaultPlayerPageStyle;
         m_settings.setValue("player/page_style", m_playerPageStyle);
-    }
-    if (m_agentMode.isEmpty()) {
-        m_agentMode = QStringLiteral("control");
-        m_settings.setValue("agent/mode", m_agentMode);
-    }
-    if (m_agentLocalModelPath.isEmpty()) {
-        m_agentLocalModelPath = kAgentLocalModelPathDefault;
-        m_settings.setValue("agent/local_model_path", m_agentLocalModelPath);
-    }
-    if (m_agentLocalModelBaseUrl.isEmpty()) {
-        m_agentLocalModelBaseUrl = kAgentLocalModelBaseUrlDefault;
-        m_settings.setValue("agent/local_model_base_url", m_agentLocalModelBaseUrl);
-    } else if (m_agentLocalModelBaseUrl == kAgentLocalModelBaseUrlLegacyDefault) {
-        // 将历史默认值迁移到 8081，避免与本地已占用的 8080 端口冲突。
-        m_agentLocalModelBaseUrl = kAgentLocalModelBaseUrlDefault;
-        m_settings.setValue("agent/local_model_base_url", m_agentLocalModelBaseUrl);
-    }
-    if (m_agentLocalModelName.isEmpty()) {
-        m_agentLocalModelName = QStringLiteral("Qwen2.5-3B-Instruct");
-        m_settings.setValue("agent/local_model_name", m_agentLocalModelName);
-    }
-    if (m_agentLocalContextSize < 2048 || m_agentLocalContextSize > 131072) {
-        m_agentLocalContextSize = kDefaultLocalContextSize;
-        m_settings.setValue("agent/local_context_size", m_agentLocalContextSize);
-    }
-    if (m_agentLocalThreadCount <= 0 || m_agentLocalThreadCount > 128) {
-        m_agentLocalThreadCount = qMax(1, QThread::idealThreadCount());
-        m_settings.setValue("agent/local_thread_count", m_agentLocalThreadCount);
     }
 
     if (m_cachedAccount.isEmpty() || m_cachedPassword.isEmpty()) {
@@ -276,104 +219,6 @@ void SettingsManager::setPlayerPageStyle(int styleId) {
     m_playerPageStyle = normalized;
     m_settings.setValue("player/page_style", m_playerPageStyle);
     emit playerPageStyleChanged();
-}
-
-void SettingsManager::setAgentMode(const QString& mode) {
-    const QString normalized = mode.trimmed().isEmpty() ? QStringLiteral("control") : mode.trimmed();
-    if (m_agentMode == normalized) {
-        return;
-    }
-
-    m_agentMode = normalized;
-    m_settings.setValue("agent/mode", m_agentMode);
-    emit agentSettingsChanged();
-}
-
-void SettingsManager::setAgentLocalModelPath(const QString& modelPath) {
-    const QString normalized = QDir::cleanPath(QDir::fromNativeSeparators(modelPath.trimmed()));
-    if (normalized.isEmpty() || m_agentLocalModelPath == normalized) {
-        return;
-    }
-
-    m_agentLocalModelPath = normalized;
-    m_settings.setValue("agent/local_model_path", m_agentLocalModelPath);
-    emit agentSettingsChanged();
-}
-
-void SettingsManager::setAgentLocalModelBaseUrl(const QString& baseUrl) {
-    const QString normalized = baseUrl.trimmed();
-    if (normalized.isEmpty() || m_agentLocalModelBaseUrl == normalized) {
-        return;
-    }
-
-    m_agentLocalModelBaseUrl = normalized;
-    m_settings.setValue("agent/local_model_base_url", m_agentLocalModelBaseUrl);
-    emit agentSettingsChanged();
-}
-
-void SettingsManager::setAgentLocalModelName(const QString& modelName) {
-    const QString normalized = modelName.trimmed();
-    if (normalized.isEmpty() || m_agentLocalModelName == normalized) {
-        return;
-    }
-
-    m_agentLocalModelName = normalized;
-    m_settings.setValue("agent/local_model_name", m_agentLocalModelName);
-    emit agentSettingsChanged();
-}
-
-void SettingsManager::setAgentLocalContextSize(int contextSize) {
-    const int normalized = qBound(2048, contextSize, 131072);
-    if (m_agentLocalContextSize == normalized) {
-        return;
-    }
-
-    m_agentLocalContextSize = normalized;
-    m_settings.setValue("agent/local_context_size", m_agentLocalContextSize);
-    emit agentSettingsChanged();
-}
-
-void SettingsManager::setAgentLocalThreadCount(int threadCount) {
-    const int normalized = qBound(1, threadCount, 128);
-    if (m_agentLocalThreadCount == normalized) {
-        return;
-    }
-
-    m_agentLocalThreadCount = normalized;
-    m_settings.setValue("agent/local_thread_count", m_agentLocalThreadCount);
-    emit agentSettingsChanged();
-}
-
-void SettingsManager::setAgentRemoteFallbackEnabled(bool enabled) {
-    if (m_agentRemoteFallbackEnabled == enabled) {
-        return;
-    }
-
-    m_agentRemoteFallbackEnabled = enabled;
-    m_settings.setValue("agent/remote_fallback_enabled", m_agentRemoteFallbackEnabled);
-    emit agentSettingsChanged();
-}
-
-void SettingsManager::setAgentRemoteBaseUrl(const QString& baseUrl) {
-    const QString normalized = baseUrl.trimmed();
-    if (m_agentRemoteBaseUrl == normalized) {
-        return;
-    }
-
-    m_agentRemoteBaseUrl = normalized;
-    m_settings.setValue("agent/remote_base_url", m_agentRemoteBaseUrl);
-    emit agentSettingsChanged();
-}
-
-void SettingsManager::setAgentRemoteModelName(const QString& modelName) {
-    const QString normalized = modelName.trimmed();
-    if (m_agentRemoteModelName == normalized) {
-        return;
-    }
-
-    m_agentRemoteModelName = normalized;
-    m_settings.setValue("agent/remote_model_name", m_agentRemoteModelName);
-    emit agentSettingsChanged();
 }
 
 QString SettingsManager::serverBaseUrl() const {

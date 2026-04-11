@@ -113,8 +113,6 @@ int main(int argc, char *argv[])
         QStringLiteral("ui.widget"),
         QStringLiteral("audio.convert"),
         QStringLiteral("speech.transcribe"),
-        QStringLiteral("agent.host.read"),
-        QStringLiteral("agent.host.control"),
         QStringLiteral("network.read"),
         QStringLiteral("storage.read"),
         QStringLiteral("playback.control")

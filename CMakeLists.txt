@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(ffmpeg_music_player VERSION 1.0.0 LANGUAGES C CXX)
+project(ffmpeg_music_player VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -54,22 +54,11 @@ find_package(Qt5 REQUIRED COMPONENTS
     QuickWidgets
     Qml
     OpenGL
-    WebSockets
 )
 find_package(Qt5 REQUIRED COMPONENTS Core)
 
 message(STATUS "Qt5 Version: ${Qt5_VERSION}")
 message(STATUS "Qt5 Location: ${Qt5_DIR}")
-
-set(LLAMA_BUILD_COMMON OFF CACHE BOOL "Disable llama common helpers" FORCE)
-set(LLAMA_BUILD_TESTS OFF CACHE BOOL "Disable llama tests" FORCE)
-set(LLAMA_BUILD_TOOLS OFF CACHE BOOL "Disable llama tools" FORCE)
-set(LLAMA_BUILD_EXAMPLES OFF CACHE BOOL "Disable llama examples" FORCE)
-set(LLAMA_BUILD_SERVER OFF CACHE BOOL "Disable llama server" FORCE)
-set(LLAMA_BUILD_WEBUI OFF CACHE BOOL "Disable llama webui" FORCE)
-set(LLAMA_BUILD_HTML OFF CACHE BOOL "Disable llama html output" FORCE)
-set(LLAMA_ALL_WARNINGS OFF CACHE BOOL "Disable llama warning policy override" FORCE)
-add_subdirectory(third_party/llama.cpp EXCLUDE_FROM_ALL)
 
 # FFmpeg 路径配置
 set(FFMPEG_DIR "E:/ffmpeg4.4/bin")
@@ -188,13 +177,6 @@ add_executable(${PROJECT_NAME}
     ${PROJECT_RESOURCES}
 )
 
-add_executable(agent_embedded_smoke
-    tools/agent_embedded_smoke.cpp
-    src/agent/AgentLocalModelGateway.cpp
-    src/agent/AgentEmbeddedLlamaEngine.cpp
-    src/common/settings_manager.cpp
-)
-
 
 target_link_libraries(ffmpeg_music_player PRIVATE Qt5::Core)
 # Qt5 翻译
@@ -215,27 +197,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     Qt5::QuickWidgets
     Qt5::Qml
     Qt5::OpenGL
-    Qt5::WebSockets
-)
-
-target_link_libraries(agent_embedded_smoke PRIVATE
-    Qt5::Core
-    Qt5::Concurrent
-    llama
-)
-
-target_include_directories(agent_embedded_smoke PRIVATE
-    ${PROJECT_INCLUDE_DIRS}
-    ${FFMPEG_INCLUDE_DIR}
-)
-
-add_custom_command(TARGET agent_embedded_smoke POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        $<TARGET_FILE:llama>
-        $<TARGET_FILE:ggml>
-        $<TARGET_FILE:ggml-base>
-        $<TARGET_FILE:ggml-cpu>
-        $<TARGET_FILE_DIR:agent_embedded_smoke>
 )
 
 # 链接 FFmpeg 库

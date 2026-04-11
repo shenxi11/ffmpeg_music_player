@@ -1,13 +1,14 @@
-﻿#include "ai_assistant_plugin.h"
+#include "ai_assistant_plugin.h"
 
 #include <QDebug>
+#include <QFont>
 #include <QIcon>
-
-#include "ai_assistant_plugin_page.h"
+#include <QLabel>
+#include <QVBoxLayout>
 
 AiAssistantPlugin::AiAssistantPlugin()
 {
-    qDebug() << "AiAssistantPlugin constructed";
+    qDebug() << "AiAssistantPlugin placeholder constructor";
 }
 
 AiAssistantPlugin::~AiAssistantPlugin()
@@ -22,7 +23,7 @@ QString AiAssistantPlugin::pluginName() const
 
 QString AiAssistantPlugin::pluginDescription() const
 {
-    return QStringLiteral("本地运行时 AI 助手插件，通过 clientAutomationHost 访问宿主能力。");
+    return QStringLiteral("AI 助手开发已暂停，当前版本仅保留插件占位入口。");
 }
 
 QString AiAssistantPlugin::pluginVersion() const
@@ -37,14 +38,31 @@ QIcon AiAssistantPlugin::pluginIcon() const
 
 QWidget* AiAssistantPlugin::createWidget(QWidget* parent)
 {
-    return new AiAssistantPluginPage(m_hostContext, m_grantedPermissions, parent);
+    auto* page = new QWidget(parent);
+    auto* layout = new QVBoxLayout(page);
+    layout->setContentsMargins(32, 32, 32, 32);
+    layout->setSpacing(12);
+
+    auto* title = new QLabel(QStringLiteral("AI 助手已暂停开发"), page);
+    QFont titleFont = title->font();
+    titleFont.setPointSize(16);
+    titleFont.setBold(true);
+    title->setFont(titleFont);
+
+    auto* body = new QLabel(
+        QStringLiteral("当前版本只保留空插件占位，不加载本地模型、不启动 Agent runtime，也不执行软件控制。"),
+        page);
+    body->setWordWrap(true);
+
+    layout->addStretch();
+    layout->addWidget(title, 0, Qt::AlignHCenter);
+    layout->addWidget(body, 0, Qt::AlignHCenter);
+    layout->addStretch();
+    return page;
 }
 
 bool AiAssistantPlugin::initialize()
 {
-    if (m_initialized) {
-        return true;
-    }
     m_initialized = true;
     return true;
 }
@@ -66,7 +84,7 @@ int AiAssistantPlugin::pluginApiVersion() const
 
 QStringList AiAssistantPlugin::pluginCapabilities() const
 {
-    return {QStringLiteral("widget"), QStringLiteral("agent.chat")};
+    return {QStringLiteral("widget")};
 }
 
 QString AiAssistantPlugin::pluginAuthor() const
@@ -81,20 +99,5 @@ QStringList AiAssistantPlugin::pluginDependencies() const
 
 QStringList AiAssistantPlugin::pluginPermissions() const
 {
-    return {QStringLiteral("ui.widget"),
-            QStringLiteral("agent.host.read"),
-            QStringLiteral("agent.host.control"),
-            QStringLiteral("network.read"),
-            QStringLiteral("storage.read"),
-            QStringLiteral("playback.control")};
-}
-
-void AiAssistantPlugin::setHostContext(QObject* hostContext)
-{
-    m_hostContext = hostContext;
-}
-
-void AiAssistantPlugin::setGrantedPermissions(const QStringList& permissions)
-{
-    m_grantedPermissions = permissions;
+    return {QStringLiteral("ui.widget")};
 }

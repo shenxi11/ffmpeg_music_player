@@ -18,12 +18,12 @@ class AgentProcessManager;
 class AgentSessionService;
 class AgentWebSocketClient;
 class AgentCapabilityFacade;
-class AgentLocalRuntime;
 class AgentScriptExecutor;
 class HostStateProvider;
+class MainShellViewModel;
 
 /**
- * @brief AI 聊天业务编排层，聚合本地运行时、会话存储与消息模型。
+ * @brief AI 聊天业务编排层，聚合进程管理、连接管理与消息模型。
  */
 class AgentChatViewModel : public QObject
 {
@@ -37,9 +37,6 @@ class AgentChatViewModel : public QObject
     Q_PROPERTY(bool loadingSessions READ loadingSessions NOTIFY sessionLoadingChanged)
     Q_PROPERTY(QString lastError READ lastError NOTIFY lastErrorChanged)
     Q_PROPERTY(bool ready READ isReady NOTIFY connectionStateChanged)
-    Q_PROPERTY(QString agentMode READ agentMode NOTIFY agentSettingsChanged)
-    Q_PROPERTY(QString localModelName READ localModelName NOTIFY agentSettingsChanged)
-    Q_PROPERTY(bool remoteFallbackEnabled READ remoteFallbackEnabled NOTIFY agentSettingsChanged)
 
 public:
     explicit AgentChatViewModel(QObject* parent = nullptr);
@@ -68,8 +65,7 @@ public:
     Q_INVOKABLE QVariantMap validateClientScript(const QString& scriptText) const;
     Q_INVOKABLE QVariantMap dryRunClientScript(const QString& scriptText) const;
     Q_INVOKABLE QString executeClientScript(const QString& scriptText);
-    Q_INVOKABLE void setAgentMode(const QString& mode);
-    void setHostContext(QObject* hostContext);
+    void setMainShellViewModel(MainShellViewModel* shellViewModel);
 
     ChatMessageListModel* messageModel() { return &m_messageModel; }
     ChatSessionListModel* sessionModel() { return &m_sessionModel; }
@@ -80,9 +76,6 @@ public:
     bool loadingSessions() const { return m_loadingSessions; }
     QString lastError() const { return m_lastError; }
     bool isReady() const { return m_state == AgentConnectionState::Ready; }
-    QString agentMode() const;
-    QString localModelName() const;
-    bool remoteFallbackEnabled() const;
 
 signals:
     void connectionStateChanged();
@@ -90,7 +83,6 @@ signals:
     void currentSessionChanged();
     void sessionLoadingChanged();
     void lastErrorChanged();
-    void agentSettingsChanged();
     void toastRequested(const QString& message);
 
 private slots:
@@ -162,7 +154,6 @@ private slots:
                                    bool ok,
                                    const QVariantMap& report);
     void onChunkFlushTimeout();
-    void onAgentSettingsChanged();
 
 private:
     void setupConnections();
@@ -193,9 +184,6 @@ private:
     void clearDebugTrace(const QString& requestId);
     QString nextRequestId();
     void flushPendingChunksForRequest(const QString& requestId);
-    void syncHostSnapshotToAgent();
-    void restartAgentForSettingsChange();
-    void persistCurrentSessionMessages();
 
 private:
     AgentProcessManager* m_processManager = nullptr;
@@ -203,7 +191,6 @@ private:
     AgentWebSocketClient* m_socketClient = nullptr;
     HostStateProvider* m_hostStateProvider = nullptr;
     AgentCapabilityFacade* m_capabilityFacade = nullptr;
-    AgentLocalRuntime* m_localRuntime = nullptr;
     AgentScriptExecutor* m_scriptExecutor = nullptr;
     ChatMessageListModel m_messageModel;
     ChatSessionListModel m_sessionModel;
@@ -220,7 +207,6 @@ private:
     QString m_pendingMessageSessionId;
     bool m_loadingSessions = false;
     bool m_initialSessionsLoaded = false;
-    bool m_restartPending = false;
     QString m_protocolVersion;
     QSet<QString> m_capabilities;
     bool m_toolsEnabledByHealth = true;

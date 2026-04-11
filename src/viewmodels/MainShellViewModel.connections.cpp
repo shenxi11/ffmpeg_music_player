@@ -38,8 +38,6 @@ void MainShellViewModel::setupConnections() {
             &MainShellViewModel::playlistsListReady);
     connect(&m_request, &HttpRequestV2::signalPlaylistDetail, this,
             &MainShellViewModel::playlistDetailReady);
-    connect(&m_request, &HttpRequestV2::signalPlaylistCoverDetail, this,
-            &MainShellViewModel::playlistCoverDetailReady);
     connect(&m_request, &HttpRequestV2::signalCreatePlaylistResult, this,
             &MainShellViewModel::createPlaylistResultReady);
     connect(&m_request, &HttpRequestV2::signalDeletePlaylistResult, this,

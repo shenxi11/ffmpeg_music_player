@@ -7,17 +7,10 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QEventLoop>
-#include <QElapsedTimer>
 #include <QNetworkRequest>
-#include <QProcess>
 #include <QProcessEnvironment>
-#include <QRegularExpression>
-#include <QSet>
-#include <QThread>
 #include <QUrl>
 #include <QDebug>
-
-#include "settings_manager.h"
 
 namespace {
 
@@ -35,20 +28,6 @@ bool looksLikeAgentDir(const QString& path)
     const QDir dir(path);
     return dir.exists(QStringLiteral("pyproject.toml"))
         && dir.exists(QStringLiteral("src/music_agent/server.py"));
-}
-
-QStringList splitProcessOutputLines(const QString& text)
-{
-    QStringList values;
-    const QStringList rawLines = text.split(QRegularExpression(QStringLiteral("[\\r\\n]+")),
-                                            Qt::SkipEmptyParts);
-    for (const QString& rawLine : rawLines) {
-        const QString line = rawLine.trimmed();
-        if (!line.isEmpty() && !values.contains(line)) {
-            values.push_back(line);
-        }
-    }
-    return values;
 }
 
 } // namespace
@@ -110,14 +89,19 @@ bool AgentProcessManager::startAgent()
         return false;
     }
 
-    qDebug() << "[AgentProcess] enforcing single-instance backend on 127.0.0.1:8765";
-    const bool cleanupOk = terminateExistingAgentBackend();
-    if (!cleanupOk) {
-        const QString reason = QStringLiteral("旧 AI 服务实例仍占用 8765 端口，已阻止重复启动。");
-        qWarning() << "[AgentProcess]" << reason;
-        emit startFailed(reason);
-        return false;
+    if (probeHealthReadySync(600)) {
+        m_attachedToExternalService = true;
+        m_starting = false;
+        m_startFailureNotified = false;
+        m_startDeadlineMs = 0;
+        setRunning(true);
+        qDebug() << "[AgentProcess] attach to existing agent at 127.0.0.1:8765";
+        emit started();
+        return true;
     }
+
+    qDebug() << "[AgentProcess] no healthy existing agent found, cleaning stale backend before launch";
+    terminateExistingAgentBackend();
 
     m_starting = true;
     m_startFailureNotified = false;
@@ -132,21 +116,6 @@ bool AgentProcessManager::startAgent()
     m_process->setWorkingDirectory(m_workingDirectory);
     m_process->setProgram(m_programPath);
     m_process->setArguments(m_programArguments);
-    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
-    const SettingsManager& settings = SettingsManager::instance();
-    env.insert(QStringLiteral("LOCAL_MODEL_BASE_URL"), settings.agentLocalModelBaseUrl());
-    env.insert(QStringLiteral("LOCAL_MODEL_NAME"), settings.agentLocalModelName());
-    env.insert(QStringLiteral("REMOTE_MODEL_ENABLED"),
-               settings.agentRemoteFallbackEnabled() ? QStringLiteral("true")
-                                                     : QStringLiteral("false"));
-    if (!settings.agentRemoteBaseUrl().trimmed().isEmpty()) {
-        env.insert(QStringLiteral("REMOTE_MODEL_BASE_URL"), settings.agentRemoteBaseUrl());
-    }
-    if (!settings.agentRemoteModelName().trimmed().isEmpty()) {
-        env.insert(QStringLiteral("REMOTE_MODEL_NAME"), settings.agentRemoteModelName());
-    }
-    env.insert(QStringLiteral("AGENT_DEFAULT_MODE"), settings.agentMode());
-    m_process->setProcessEnvironment(env);
     m_process->start();
 
     qDebug() << "[AgentProcess] starting program:" << m_programPath
@@ -212,8 +181,8 @@ void AgentProcessManager::onProcessFinished(int exitCode, QProcess::ExitStatus e
     m_healthTimer.stop();
     cleanupHealthReply();
 
-    const bool suppressExitSignal = wasStarting && m_startFailureNotified;
-    if (!m_attachedToExternalService && !suppressExitSignal) {
+    // attach 模式下，本进程可能是一次失败启动尝试，不应污染当前“已复用”的连接状态。
+    if (!m_attachedToExternalService) {
         setRunning(false);
         emit exited(exitCode, exitStatus);
     }
@@ -246,15 +215,6 @@ void AgentProcessManager::onReadyReadStandardError()
     const QString text = QString::fromUtf8(m_process->readAllStandardError());
     if (!text.trimmed().isEmpty()) {
         emit stdErrReceived(text);
-    }
-
-    if (m_starting) {
-        const QString lowered = text.toLower();
-        if (lowered.contains(QStringLiteral("address already in use"))
-            || lowered.contains(QStringLiteral("winerror 10048"))
-            || lowered.contains(QStringLiteral("errno 10048"))) {
-            failStartup(QStringLiteral("旧 AI 服务实例仍占用 8765 端口，已阻止重复启动。"));
-        }
     }
 }
 
@@ -321,9 +281,6 @@ void AgentProcessManager::onHealthReplyFinished()
     m_starting = false;
     m_healthTimer.stop();
     setRunning(true);
-    qDebug() << "[AgentProcess] healthz passed, pid=" << processId()
-             << "status=" << status
-             << "ts=" << QDateTime::currentDateTime().toString(Qt::ISODate);
     emit started();
 }
 
@@ -379,11 +336,11 @@ bool AgentProcessManager::resolveStartCommand(const QString& agentDir,
     QString program;
     QStringList args;
 
-    if (QFileInfo::exists(pythonExe)) {
+    if (QFileInfo::exists(serverExe)) {
+        program = serverExe;
+    } else if (QFileInfo::exists(pythonExe)) {
         program = pythonExe;
         args << QStringLiteral("-m") << QStringLiteral("music_agent.server");
-    } else if (QFileInfo::exists(serverExe)) {
-        program = serverExe;
     } else {
         program = QStringLiteral("music-agent-server");
     }
@@ -397,142 +354,47 @@ bool AgentProcessManager::resolveStartCommand(const QString& agentDir,
     return !program.trimmed().isEmpty();
 }
 
-QStringList AgentProcessManager::queryListeningPids(quint16 port) const
-{
-#ifdef Q_OS_WIN
-    const QString script = QStringLiteral(
-        "$pids = @(Get-NetTCPConnection -LocalPort %1 -State Listen -ErrorAction SilentlyContinue | "
-        "Select-Object -ExpandProperty OwningProcess -Unique); "
-        "foreach ($procId in $pids) { Write-Output $procId }").arg(port);
-    QProcess process;
-    process.start(QStringLiteral("powershell"),
-                  QStringList{
-                      QStringLiteral("-NoProfile"),
-                      QStringLiteral("-ExecutionPolicy"),
-                      QStringLiteral("Bypass"),
-                      QStringLiteral("-Command"),
-                      script,
-                  });
-    if (!process.waitForStarted(1500)) {
-        return {};
-    }
-    process.waitForFinished(5000);
-    return splitProcessOutputLines(QString::fromUtf8(process.readAllStandardOutput()));
-#else
-    QProcess process;
-    process.start(QStringLiteral("sh"),
-                  QStringList{
-                      QStringLiteral("-lc"),
-                      QStringLiteral("lsof -t -iTCP:%1 -sTCP:LISTEN 2>/dev/null").arg(port),
-                  });
-    if (!process.waitForStarted(1500)) {
-        return {};
-    }
-    process.waitForFinished(5000);
-    return splitProcessOutputLines(QString::fromUtf8(process.readAllStandardOutput()));
-#endif
-}
-
-QStringList AgentProcessManager::queryAgentBackendPids() const
-{
-#ifdef Q_OS_WIN
-    const QString script = QStringLiteral(
-        "$pids = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | "
-        "Where-Object { $_.CommandLine -like '*music_agent.server*' -or $_.CommandLine -like '*music-agent-server*' } | "
-        "Select-Object -ExpandProperty ProcessId -Unique); "
-        "foreach ($procId in $pids) { Write-Output $procId }");
-    QProcess process;
-    process.start(QStringLiteral("powershell"),
-                  QStringList{
-                      QStringLiteral("-NoProfile"),
-                      QStringLiteral("-ExecutionPolicy"),
-                      QStringLiteral("Bypass"),
-                      QStringLiteral("-Command"),
-                      script,
-                  });
-    if (!process.waitForStarted(1500)) {
-        return {};
-    }
-    process.waitForFinished(5000);
-    return splitProcessOutputLines(QString::fromUtf8(process.readAllStandardOutput()));
-#else
-    QProcess process;
-    process.start(QStringLiteral("sh"),
-                  QStringList{
-                      QStringLiteral("-lc"),
-                      QStringLiteral("pgrep -f 'music_agent.server|music-agent-server' 2>/dev/null"),
-                  });
-    if (!process.waitForStarted(1500)) {
-        return {};
-    }
-    process.waitForFinished(5000);
-    return splitProcessOutputLines(QString::fromUtf8(process.readAllStandardOutput()));
-#endif
-}
-
-bool AgentProcessManager::waitForPortRelease(quint16 port, int timeoutMs) const
-{
-    QElapsedTimer timer;
-    timer.start();
-    while (timer.elapsed() < timeoutMs) {
-        if (queryListeningPids(port).isEmpty()) {
-            return true;
-        }
-        QThread::msleep(150);
-    }
-    return queryListeningPids(port).isEmpty();
-}
-
 bool AgentProcessManager::terminateExistingAgentBackend()
 {
-    const QStringList portPids = queryListeningPids(8765);
-    const QStringList agentPids = queryAgentBackendPids();
-    QSet<QString> uniquePids;
-    for (const QString& pid : portPids) {
-        uniquePids.insert(pid);
-    }
-    for (const QString& pid : agentPids) {
-        uniquePids.insert(pid);
-    }
-
-    qDebug() << "[AgentProcess] stale listener pids:" << portPids
-             << "agent pids:" << agentPids;
+    QStringList commands;
+#ifdef Q_OS_WIN
+    commands
+        << QStringLiteral("$portPids = @(Get-NetTCPConnection -LocalPort 8765 -State Listen -ErrorAction SilentlyContinue | "
+                          "Select-Object -ExpandProperty OwningProcess -Unique); "
+                          "$agentPids = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | "
+                          "Where-Object { $_.CommandLine -like '*music_agent.server*' -or $_.CommandLine -like '*music-agent-server*' } | "
+                          "Select-Object -ExpandProperty ProcessId -Unique); "
+                          "$all = @($portPids + $agentPids | Select-Object -Unique); "
+                          "foreach ($pid in $all) { Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue }; "
+                          "exit 0");
+#else
+    commands
+        << QStringLiteral("pkill -f 'music_agent.server'")
+        << QStringLiteral("pkill -f 'music-agent-server'");
+#endif
 
     bool executed = false;
+    for (const QString& script : commands) {
 #ifdef Q_OS_WIN
-    for (const QString& pid : uniquePids) {
         QProcess process;
-        process.start(QStringLiteral("taskkill"),
+        process.start(QStringLiteral("powershell"),
                       QStringList{
-                          QStringLiteral("/PID"),
-                          pid,
-                          QStringLiteral("/T"),
-                          QStringLiteral("/F"),
+                          QStringLiteral("-NoProfile"),
+                          QStringLiteral("-ExecutionPolicy"),
+                          QStringLiteral("Bypass"),
+                          QStringLiteral("-Command"),
+                          script,
                       });
+#else
+        QProcess process;
+        process.start(QStringLiteral("sh"), QStringList{QStringLiteral("-lc"), script});
+#endif
         if (!process.waitForStarted(1500)) {
             continue;
         }
         process.waitForFinished(5000);
         executed = true;
     }
-#else
-        QProcess process;
-        process.start(QStringLiteral("sh"),
-                      QStringList{QStringLiteral("-lc"),
-                                  QStringLiteral("pkill -f 'music_agent.server'; pkill -f 'music-agent-server'")});
-        if (!process.waitForStarted(1500)) {
-            if (m_process && m_process->state() != QProcess::NotRunning) {
-                m_process->kill();
-                m_process->waitForFinished(1500);
-                executed = true;
-            }
-            const bool released = waitForPortRelease(8765, 1200);
-            qDebug() << "[AgentProcess] port release after cleanup:" << released;
-            return released;
-        }
-        process.waitForFinished(5000);
-        executed = true;
-#endif
 
     if (m_process && m_process->state() != QProcess::NotRunning) {
         m_process->kill();
@@ -540,11 +402,8 @@ bool AgentProcessManager::terminateExistingAgentBackend()
         executed = true;
     }
 
-    const bool released = waitForPortRelease(8765, 2500);
-    qDebug() << "[AgentProcess] forced backend cleanup finished, executed =" << executed
-             << "portReleased=" << released
-             << "remainingListeners=" << queryListeningPids(8765);
-    return released;
+    qDebug() << "[AgentProcess] forced backend cleanup finished, executed =" << executed;
+    return executed;
 }
 
 void AgentProcessManager::beginHealthCheck()

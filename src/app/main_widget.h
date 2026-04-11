@@ -22,14 +22,11 @@
 
 #include <QButtonGroup>
 #include <QGuiApplication>
-#include <QIcon>
 #include <QLinearGradient>
 #include <QList>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QScreen>
-#include <QHash>
-#include <QSet>
 #include <QStringList>
 #include <QVariantList>
 #include <QVariantMap>
@@ -39,8 +36,6 @@ class PlaybackStateManager;
 class QCloseEvent;
 class QTimer;
 class QUrl;
-class ClientAutomationHostService;
-class QNetworkAccessManager;
 class QScrollArea;
 class QVBoxLayout;
 class QLabel;
@@ -68,29 +63,6 @@ class MainWidget : public QWidget {
     Q_INVOKABLE QVariantMap agentDesktopLyricsState() const;
     Q_INVOKABLE bool agentSetDesktopLyricsVisible(bool visible);
     Q_INVOKABLE bool agentSetDesktopLyricsStyle(const QVariantMap& style);
-    Q_INVOKABLE bool agentOfflineMode() const;
-    Q_INVOKABLE QString agentCurrentPageKey() const;
-    Q_INVOKABLE QString agentCurrentMusicTabKey() const;
-    Q_INVOKABLE QString agentLocalDownloadSubTabKey() const;
-    Q_INVOKABLE QString agentSidebarPlaylistTabKey() const;
-    Q_INVOKABLE QVariantMap agentSelectedPlaylistSnapshot() const;
-    Q_INVOKABLE QVariantList agentSelectedTrackIdsSnapshot() const;
-    Q_INVOKABLE QVariantMap agentCurrentTrackSnapshot() const;
-    Q_INVOKABLE QVariantMap agentQueueSnapshot() const;
-    Q_INVOKABLE QVariantMap agentUiOverviewSnapshot() const;
-    Q_INVOKABLE QVariantMap agentUiPageStateSnapshot(const QString& pageKey) const;
-    Q_INVOKABLE QVariantList agentMusicTabItemsSnapshot(const QString& tabKey,
-                                                        const QVariantMap& options = {}) const;
-    Q_INVOKABLE QVariantMap agentResolveMusicTabItem(const QString& tabKey,
-                                                     const QVariantMap& selector) const;
-    Q_INVOKABLE QVariantMap agentInvokeSongAction(const QString& action,
-                                                  const QVariantMap& songData);
-    Q_INVOKABLE QVariantMap agentUserProfileSnapshot() const;
-    Q_INVOKABLE bool agentRefreshUserProfile();
-    Q_INVOKABLE bool agentUpdateUsername(const QString& username);
-    Q_INVOKABLE bool agentUploadAvatar(const QString& filePath);
-    Q_INVOKABLE bool agentLogoutUser();
-    Q_INVOKABLE bool agentReturnToWelcome();
 
     // 显示登录窗口
     void showLoginWindow() {
@@ -150,7 +122,6 @@ class MainWidget : public QWidget {
 
     QPushButton* Login;
     MainShellViewModel* m_viewModel = nullptr;
-    ClientAutomationHostService* m_clientAutomationHostService = nullptr;
 
     // 在线音乐元数据缓存（用于追加最近播放记录）
     QString m_networkMusicArtist;
@@ -176,12 +147,6 @@ class MainWidget : public QWidget {
     QVariantList m_profileFavoritesPreview;
     QVariantList m_profileHistoryPreview;
     QVariantList m_profileOwnedPlaylistsPreview;
-    QHash<qint64, QString> m_playlistDerivedCoverUrls;
-    QSet<qint64> m_playlistCoverPrefetchInFlight;
-    QSet<qint64> m_playlistCoverPrefetchResolved;
-    QNetworkAccessManager* m_sidebarCoverNetworkManager = nullptr;
-    QHash<QString, QIcon> m_sidebarCoverIconCache;
-    QSet<QString> m_sidebarCoverRequestsInFlight;
     bool m_localOnlyMode = false;
 
     QPoint pos_ = QPoint(0, 0);
@@ -227,16 +192,6 @@ class MainWidget : public QWidget {
     void rebuildSidebarPlaylistButtons();
     void clearSidebarPlaylistButtons();
     void syncSidebarPlaylistSelection(qint64 playlistId);
-    QIcon sidebarPlaylistCoverIcon(const QString& coverUrl);
-    QString normalizePlaylistCoverUrl(const QString& coverUrl) const;
-    void applySidebarPlaylistButtonIcon(QPushButton* button, const QString& coverUrl);
-    void requestSidebarPlaylistCoverIcon(const QString& coverUrl);
-    void refreshSidebarPlaylistCoverIcon(qint64 playlistId, const QString& coverUrl);
-    QString lookupPlaylistCoverCache(const QString& account, qint64 playlistId,
-                                     const QString& updatedAt, bool* found) const;
-    void storePlaylistCoverCache(qint64 playlistId, const QString& updatedAt,
-                                 const QString& coverUrl);
-    void clearPlaylistCoverCacheForPlaylist(qint64 playlistId);
     QVariantMap cachedUserProfileSnapshot() const;
     void refreshUserProfileStats();
     void syncUserProfileStatsToPage();
@@ -247,7 +202,6 @@ class MainWidget : public QWidget {
     void applyLocalOnlyModeUi();
     void showLocalOnlyUnavailableMessage();
     void updateSearchBoxForMode();
-    void updateAiAssistantButtonState();
     void enqueuePluginLoadError(const QString& pluginFilePath, const QString& reason);
     void showPluginDiagnosticsDialog();
 
@@ -336,7 +290,6 @@ class MainWidget : public QWidget {
     void handlePlaylistAddCurrentSongRequested(qint64 playlistId);
     void handlePlaylistsListReady(const QVariantList& playlists, int page, int pageSize, int total);
     void handlePlaylistDetailReady(const QVariantMap& detail);
-    void handlePlaylistCoverDetailReady(const QVariantMap& detail);
     void handleCreatePlaylistResultReady(bool success, qint64 playlistId, const QString& message);
     void handleUpdatePlaylistResultReady(bool success, qint64 playlistId, const QString& message);
     void handleDeletePlaylistResultReady(bool success, qint64 playlistId, const QString& message);
@@ -347,9 +300,6 @@ class MainWidget : public QWidget {
     void handleReorderPlaylistItemsResultReady(bool success, qint64 playlistId,
                                                const QString& message);
     void handleSongActionRequested(const QString& action, const QVariantMap& songData);
-    void prefetchPlaylistCoverDetails(const QVariantList& playlists);
-    void applyPlaylistCoverToUiCaches(qint64 playlistId, const QString& coverUrl,
-                                      const QString& updatedAt = QString());
     void queueSongAsNext(const QVariantMap& songData);
     void appendSongToPlaybackQueue(const QVariantMap& songData);
     void addSongToPlaylistByAction(const QVariantMap& songData);
@@ -400,8 +350,6 @@ class MainWidget : public QWidget {
     void handlePlayHistoryRetryTimeout();
     int placeSideNavButton(int row, QPushButton* button, int navStartY, int itemHeight,
                            int panelWidth);
-    QVariantList agentOwnedPlaylistEntries() const;
-    QVariantList agentSubscribedPlaylistEntries() const;
 };
 
 #endif // TEST_WIDGET_H

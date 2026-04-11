@@ -99,20 +99,6 @@ void MusicListWidgetNet::resolveSongAction(const QString& action, const QVariant
                                   songData.value(QStringLiteral("cover")).toString());
 }
 
-QVariantList MusicListWidgetNet::currentItemsSnapshot(int limit) const
-{
-    if (limit <= 0 || limit >= m_currentItems.size()) {
-        return m_currentItems;
-    }
-
-    QVariantList items;
-    items.reserve(limit);
-    for (int i = 0; i < limit; ++i) {
-        items.push_back(m_currentItems.at(i));
-    }
-    return items;
-}
-
 bool MusicListWidgetNet::hasPendingResolvedAction() const {
     return !m_pendingResolvedAction.isEmpty();
 }

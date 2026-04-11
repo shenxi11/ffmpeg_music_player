@@ -1,31 +1,322 @@
 #include "AgentSessionService.h"
 
-#include <QDir>
-#include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QJsonValue>
+#include <QMap>
+#include <QNetworkReply>
+#include <QNetworkRequest>
 #include <QRegularExpression>
-#include <QStandardPaths>
 #include <QUrl>
-#include <QUuid>
-#include <algorithm>
+#include <QUrlQuery>
 
 namespace {
 
-QString ensureAgentDataDir()
+constexpr const char* kBaseHttpUrl = "http://127.0.0.1:8765";
+
+QString normalizeTitle(const QString& title)
 {
-    QString base = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
-    if (base.trimmed().isEmpty()) {
-        base = QDir::currentPath();
-    }
-    const QString dirPath = QDir(base).filePath(QStringLiteral("agent"));
-    QDir().mkpath(dirPath);
-    return dirPath;
+    const QString trimmed = title.trimmed();
+    return trimmed.isEmpty() ? QStringLiteral("新建会话") : trimmed;
 }
 
-QDateTime parseIsoDateTime(const QString& value)
+bool looksLikeCorruptedTitle(const QString& title)
+{
+    const QString trimmed = title.trimmed();
+    if (trimmed.isEmpty()) {
+        return true;
+    }
+    if (trimmed.contains(QChar::ReplacementCharacter)) {
+        return true;
+    }
+
+    int questionCount = 0;
+    int validCount = 0;
+    for (QChar ch : trimmed) {
+        if (ch == QChar('?')) {
+            ++questionCount;
+            continue;
+        }
+        if (!ch.isSpace()) {
+            ++validCount;
+        }
+    }
+
+    if (questionCount == 0) {
+        return false;
+    }
+    if (validCount == 0) {
+        return true;
+    }
+    const double ratio = static_cast<double>(questionCount) / static_cast<double>(questionCount + validCount);
+    return ratio >= 0.35;
+}
+
+QString fallbackTitleFromPreview(const QString& preview)
+{
+    QString text = preview.trimmed();
+    if (text.isEmpty()) {
+        return QStringLiteral("新建会话");
+    }
+
+    text.replace(QRegularExpression(QStringLiteral("\\s+")), QStringLiteral(" "));
+    const int maxLen = 26;
+    if (text.size() > maxLen) {
+        text = text.left(maxLen) + QStringLiteral("...");
+    }
+    return text;
+}
+
+} // namespace
+
+AgentSessionService::AgentSessionService(QObject* parent)
+    : QObject(parent)
+{
+}
+
+void AgentSessionService::fetchSessions(const QString& query, int limit)
+{
+    const quint64 token = ++m_fetchSessionsToken;
+    QMap<QString, QString> queryItems;
+    const QString trimmedQuery = query.trimmed();
+    if (!trimmedQuery.isEmpty()) {
+        queryItems.insert(QStringLiteral("query"), trimmedQuery);
+    }
+    if (limit > 0) {
+        queryItems.insert(QStringLiteral("limit"), QString::number(limit));
+    }
+
+    const QNetworkRequest request = buildJsonRequest(buildUrl(QStringLiteral("/sessions"), queryItems));
+    QNetworkReply* reply = m_networkManager.get(request);
+    connect(reply, &QNetworkReply::finished, this, [this, reply, token]() {
+        const QByteArray body = reply->readAll();
+        const bool ok = (reply->error() == QNetworkReply::NoError);
+        reply->deleteLater();
+
+        if (token != m_fetchSessionsToken) {
+            return;
+        }
+
+        if (!ok) {
+            emit requestFailed(QStringLiteral("fetch_sessions"),
+                               buildReplyError(QStringLiteral("获取会话列表失败"), reply, body));
+            return;
+        }
+
+        QJsonParseError parseError;
+        const QJsonDocument doc = QJsonDocument::fromJson(body, &parseError);
+        if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
+            emit requestFailed(QStringLiteral("fetch_sessions"),
+                               QStringLiteral("会话列表响应 JSON 解析失败。"));
+            return;
+        }
+
+        const QJsonArray items = doc.object().value(QStringLiteral("items")).toArray();
+        QVector<ChatSessionItem> sessions;
+        sessions.reserve(items.size());
+        for (const QJsonValue& value : items) {
+            if (!value.isObject()) {
+                continue;
+            }
+            sessions.push_back(parseSessionItem(value.toObject()));
+        }
+        emit sessionsLoaded(sessions);
+    });
+}
+
+void AgentSessionService::createSession(const QString& title)
+{
+    QJsonObject payload;
+    const QString normalized = title.trimmed();
+    if (!normalized.isEmpty()) {
+        payload.insert(QStringLiteral("title"), normalized);
+    }
+
+    const QNetworkRequest request = buildJsonRequest(buildUrl(QStringLiteral("/sessions")));
+    QNetworkReply* reply = m_networkManager.post(
+        request,
+        QJsonDocument(payload).toJson(QJsonDocument::Compact));
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        const QByteArray body = reply->readAll();
+        const bool ok = (reply->error() == QNetworkReply::NoError);
+        reply->deleteLater();
+
+        if (!ok) {
+            emit requestFailed(QStringLiteral("create_session"),
+                               buildReplyError(QStringLiteral("创建会话失败"), reply, body));
+            return;
+        }
+
+        QJsonParseError parseError;
+        const QJsonDocument doc = QJsonDocument::fromJson(body, &parseError);
+        if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
+            emit requestFailed(QStringLiteral("create_session"),
+                               QStringLiteral("创建会话返回内容解析失败。"));
+            return;
+        }
+
+        ChatSessionItem session = parseSessionItem(doc.object());
+        session.title = normalizeTitle(session.title);
+        emit sessionCreated(session);
+    });
+}
+
+void AgentSessionService::fetchSession(const QString& sessionId)
+{
+    const QString sid = sessionId.trimmed();
+    if (sid.isEmpty()) {
+        emit requestFailed(QStringLiteral("fetch_session"),
+                           QStringLiteral("会话 ID 不能为空。"));
+        return;
+    }
+
+    const QNetworkRequest request = buildJsonRequest(
+        buildUrl(QStringLiteral("/sessions/%1").arg(sid)));
+    QNetworkReply* reply = m_networkManager.get(request);
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        const QByteArray body = reply->readAll();
+        const bool ok = (reply->error() == QNetworkReply::NoError);
+        reply->deleteLater();
+
+        if (!ok) {
+            emit requestFailed(QStringLiteral("fetch_session"),
+                               buildReplyError(QStringLiteral("获取会话详情失败"), reply, body));
+            return;
+        }
+
+        QJsonParseError parseError;
+        const QJsonDocument doc = QJsonDocument::fromJson(body, &parseError);
+        if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
+            emit requestFailed(QStringLiteral("fetch_session"),
+                               QStringLiteral("会话详情响应解析失败。"));
+            return;
+        }
+
+        emit sessionLoaded(parseSessionItem(doc.object()));
+    });
+}
+
+void AgentSessionService::fetchSessionMessages(const QString& sessionId)
+{
+    const QString sid = sessionId.trimmed();
+    if (sid.isEmpty()) {
+        emit requestFailed(QStringLiteral("fetch_messages"),
+                           QStringLiteral("会话 ID 不能为空。"));
+        return;
+    }
+
+    const quint64 token = ++m_fetchMessagesToken;
+    const QNetworkRequest request = buildJsonRequest(
+        buildUrl(QStringLiteral("/sessions/%1/messages").arg(sid)));
+    QNetworkReply* reply = m_networkManager.get(request);
+    connect(reply, &QNetworkReply::finished, this, [this, reply, token]() {
+        const QByteArray body = reply->readAll();
+        const bool ok = (reply->error() == QNetworkReply::NoError);
+        reply->deleteLater();
+
+        if (token != m_fetchMessagesToken) {
+            return;
+        }
+
+        if (!ok) {
+            emit requestFailed(QStringLiteral("fetch_messages"),
+                               buildReplyError(QStringLiteral("获取历史消息失败"), reply, body));
+            return;
+        }
+
+        QJsonParseError parseError;
+        const QJsonDocument doc = QJsonDocument::fromJson(body, &parseError);
+        if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
+            emit requestFailed(QStringLiteral("fetch_messages"),
+                               QStringLiteral("历史消息响应解析失败。"));
+            return;
+        }
+
+        const QJsonObject root = doc.object();
+        ChatSessionItem session = parseSessionItem(root.value(QStringLiteral("session")).toObject());
+        QVector<ChatMessageItem> messages;
+        const QJsonArray items = root.value(QStringLiteral("items")).toArray();
+        messages.reserve(items.size());
+        for (const QJsonValue& value : items) {
+            if (!value.isObject()) {
+                continue;
+            }
+            messages.push_back(parseMessageItem(value.toObject()));
+        }
+        emit sessionMessagesLoaded(session, messages);
+    });
+}
+
+void AgentSessionService::renameSession(const QString& sessionId, const QString& title)
+{
+    const QString sid = sessionId.trimmed();
+    const QString trimmedTitle = title.trimmed();
+    if (sid.isEmpty() || trimmedTitle.isEmpty()) {
+        emit requestFailed(QStringLiteral("rename_session"),
+                           QStringLiteral("会话 ID 和标题不能为空。"));
+        return;
+    }
+
+    QJsonObject payload;
+    payload.insert(QStringLiteral("title"), trimmedTitle);
+
+    const QNetworkRequest request = buildJsonRequest(
+        buildUrl(QStringLiteral("/sessions/%1").arg(sid)));
+    QNetworkReply* reply = m_networkManager.sendCustomRequest(
+        request,
+        QByteArrayLiteral("PATCH"),
+        QJsonDocument(payload).toJson(QJsonDocument::Compact));
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        const QByteArray body = reply->readAll();
+        const bool ok = (reply->error() == QNetworkReply::NoError);
+        reply->deleteLater();
+
+        if (!ok) {
+            emit requestFailed(QStringLiteral("rename_session"),
+                               buildReplyError(QStringLiteral("重命名会话失败"), reply, body));
+            return;
+        }
+
+        QJsonParseError parseError;
+        const QJsonDocument doc = QJsonDocument::fromJson(body, &parseError);
+        if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
+            emit requestFailed(QStringLiteral("rename_session"),
+                               QStringLiteral("重命名响应解析失败。"));
+            return;
+        }
+
+        emit sessionUpdated(parseSessionItem(doc.object()));
+    });
+}
+
+void AgentSessionService::deleteSession(const QString& sessionId)
+{
+    const QString sid = sessionId.trimmed();
+    if (sid.isEmpty()) {
+        emit requestFailed(QStringLiteral("delete_session"),
+                           QStringLiteral("会话 ID 不能为空。"));
+        return;
+    }
+
+    const QNetworkRequest request = buildJsonRequest(
+        buildUrl(QStringLiteral("/sessions/%1").arg(sid)));
+    QNetworkReply* reply = m_networkManager.deleteResource(request);
+    connect(reply, &QNetworkReply::finished, this, [this, reply, sid]() {
+        const QByteArray body = reply->readAll();
+        const bool ok = (reply->error() == QNetworkReply::NoError);
+        reply->deleteLater();
+
+        if (!ok) {
+            emit requestFailed(QStringLiteral("delete_session"),
+                               buildReplyError(QStringLiteral("删除会话失败"), reply, body));
+            return;
+        }
+
+        emit sessionDeleted(sid);
+    });
+}
+
+QDateTime AgentSessionService::parseIsoDateTime(const QString& value)
 {
     const QString trimmed = value.trimmed();
     if (trimmed.isEmpty()) {
@@ -39,347 +330,88 @@ QDateTime parseIsoDateTime(const QString& value)
     return dt;
 }
 
-QJsonObject serializeMessage(const ChatMessageItem& item)
+ChatSessionItem AgentSessionService::parseSessionItem(const QJsonObject& obj)
 {
-    QJsonObject obj;
-    obj.insert(QStringLiteral("id"), item.id);
-    obj.insert(QStringLiteral("role"), item.role);
-    obj.insert(QStringLiteral("messageType"), item.messageType);
-    obj.insert(QStringLiteral("text"), item.text);
-    obj.insert(QStringLiteral("rawText"), item.rawText);
-    obj.insert(QStringLiteral("requestId"), item.requestId);
-    obj.insert(QStringLiteral("status"), item.status);
-    obj.insert(QStringLiteral("meta"), QJsonObject::fromVariantMap(item.meta));
-    obj.insert(QStringLiteral("blocks"), QJsonArray::fromVariantList(item.blocks));
-    obj.insert(QStringLiteral("timestamp"), item.timestamp.toUTC().toString(Qt::ISODateWithMs));
-    return obj;
-}
-
-ChatMessageItem parseMessage(const QJsonObject& obj)
-{
-    ChatMessageItem item;
-    item.id = obj.value(QStringLiteral("id")).toString().trimmed();
-    item.role = obj.value(QStringLiteral("role")).toString().trimmed();
-    item.messageType = obj.value(QStringLiteral("messageType")).toString().trimmed();
-    item.text = obj.value(QStringLiteral("text")).toString();
-    item.rawText = obj.value(QStringLiteral("rawText")).toString();
-    item.requestId = obj.value(QStringLiteral("requestId")).toString().trimmed();
-    item.status = obj.value(QStringLiteral("status")).toString().trimmed();
-    item.meta = obj.value(QStringLiteral("meta")).toObject().toVariantMap();
-    item.blocks = obj.value(QStringLiteral("blocks")).toArray().toVariantList();
-    item.timestamp = parseIsoDateTime(obj.value(QStringLiteral("timestamp")).toString());
-    if (!item.timestamp.isValid()) {
-        item.timestamp = QDateTime::currentDateTime();
-    }
-    if (item.messageType.isEmpty()) {
-        item.messageType = QStringLiteral("text");
-    }
-    if (item.rawText.isEmpty()) {
-        item.rawText = item.text;
-    }
-    if (item.text.isEmpty()) {
-        item.text = item.rawText;
-    }
-    if (item.id.isEmpty()) {
-        item.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    ChatSessionItem item;
+    item.sessionId = obj.value(QStringLiteral("sessionId")).toString().trimmed();
+    item.title = normalizeTitle(obj.value(QStringLiteral("title")).toString());
+    item.createdAt = parseIsoDateTime(obj.value(QStringLiteral("createdAt")).toString());
+    item.updatedAt = parseIsoDateTime(obj.value(QStringLiteral("updatedAt")).toString());
+    item.lastPreview = obj.value(QStringLiteral("lastPreview")).toString();
+    item.messageCount = obj.value(QStringLiteral("messageCount")).toInt();
+    item.selected = false;
+    if (looksLikeCorruptedTitle(item.title)) {
+        item.title = fallbackTitleFromPreview(item.lastPreview);
     }
     return item;
 }
 
-QJsonObject serializeSession(const AgentSessionService::SessionRecord& record)
+ChatMessageItem AgentSessionService::parseMessageItem(const QJsonObject& obj)
 {
-    QJsonObject obj;
-    obj.insert(QStringLiteral("sessionId"), record.session.sessionId);
-    obj.insert(QStringLiteral("title"), record.session.title);
-    obj.insert(QStringLiteral("createdAt"), record.session.createdAt.toUTC().toString(Qt::ISODateWithMs));
-    obj.insert(QStringLiteral("updatedAt"), record.session.updatedAt.toUTC().toString(Qt::ISODateWithMs));
-    obj.insert(QStringLiteral("lastPreview"), record.session.lastPreview);
-    obj.insert(QStringLiteral("messageCount"), record.session.messageCount);
-
-    QJsonArray messages;
-    for (const ChatMessageItem& item : record.messages) {
-        messages.push_back(serializeMessage(item));
-    }
-    obj.insert(QStringLiteral("messages"), messages);
-    return obj;
+    ChatMessageItem item;
+    item.id = obj.value(QStringLiteral("messageId")).toString().trimmed();
+    item.role = obj.value(QStringLiteral("role")).toString().trimmed();
+    item.messageType = QStringLiteral("text");
+    item.rawText = obj.value(QStringLiteral("content")).toString();
+    item.text = item.rawText;
+    item.meta.clear();
+    item.requestId = QString();
+    item.timestamp = parseIsoDateTime(obj.value(QStringLiteral("createdAt")).toString());
+    item.status = QStringLiteral("done");
+    item.blocks.clear();
+    return item;
 }
 
-AgentSessionService::SessionRecord parseSession(const QJsonObject& obj)
+QString AgentSessionService::buildReplyError(const QString& fallbackOperation,
+                                             QNetworkReply* reply,
+                                             const QByteArray& body)
 {
-    AgentSessionService::SessionRecord record;
-    record.session.sessionId = obj.value(QStringLiteral("sessionId")).toString().trimmed();
-    record.session.title = AgentSessionService::normalizeTitle(obj.value(QStringLiteral("title")).toString());
-    record.session.createdAt = parseIsoDateTime(obj.value(QStringLiteral("createdAt")).toString());
-    record.session.updatedAt = parseIsoDateTime(obj.value(QStringLiteral("updatedAt")).toString());
-    record.session.lastPreview = obj.value(QStringLiteral("lastPreview")).toString();
-    record.session.messageCount = obj.value(QStringLiteral("messageCount")).toInt();
-
-    const QJsonArray messages = obj.value(QStringLiteral("messages")).toArray();
-    record.messages.reserve(messages.size());
-    for (const QJsonValue& value : messages) {
-        if (value.isObject()) {
-            record.messages.push_back(parseMessage(value.toObject()));
+    QString errorText = fallbackOperation;
+    if (reply) {
+        const QString netError = reply->errorString().trimmed();
+        if (!netError.isEmpty()) {
+            errorText = QStringLiteral("%1：%2").arg(errorText, netError);
         }
-    }
-    AgentSessionService::refreshSessionMeta(&record);
-    return record;
-}
-
-bool titleMatches(const AgentSessionService::SessionRecord& record, const QString& query)
-{
-    if (query.isEmpty()) {
-        return true;
-    }
-    return record.session.title.contains(query, Qt::CaseInsensitive)
-           || record.session.lastPreview.contains(query, Qt::CaseInsensitive);
-}
-
-}
-
-AgentSessionService::AgentSessionService(QObject* parent)
-    : QObject(parent)
-{
-}
-
-void AgentSessionService::fetchSessions(const QString& query, int limit)
-{
-    QVector<SessionRecord> records = loadRecords();
-    const QString trimmedQuery = query.trimmed();
-    records.erase(std::remove_if(records.begin(),
-                                 records.end(),
-                                 [&](const SessionRecord& record) {
-                                     return !titleMatches(record, trimmedQuery);
-                                 }),
-                  records.end());
-
-    std::sort(records.begin(), records.end(), [](const SessionRecord& left, const SessionRecord& right) {
-        return left.session.updatedAt > right.session.updatedAt;
-    });
-
-    if (limit > 0 && records.size() > limit) {
-        records.resize(limit);
-    }
-
-    QVector<ChatSessionItem> sessions;
-    sessions.reserve(records.size());
-    for (const SessionRecord& record : records) {
-        sessions.push_back(record.session);
-    }
-    emit sessionsLoaded(sessions);
-}
-
-void AgentSessionService::createSession(const QString& title)
-{
-    QVector<SessionRecord> records = loadRecords();
-    SessionRecord record;
-    record.session.sessionId = QUuid::createUuid().toString(QUuid::WithoutBraces);
-    record.session.title = normalizeTitle(title);
-    record.session.createdAt = QDateTime::currentDateTime();
-    record.session.updatedAt = record.session.createdAt;
-    record.session.lastPreview.clear();
-    record.session.messageCount = 0;
-    record.session.selected = false;
-
-    records.push_front(record);
-    if (!saveRecords(records)) {
-        emit requestFailed(QStringLiteral("create_session"), QStringLiteral("写入本地会话文件失败。"));
-        return;
-    }
-
-    emit sessionCreated(record.session);
-}
-
-void AgentSessionService::fetchSession(const QString& sessionId)
-{
-    const QVector<SessionRecord> records = loadRecords();
-    const int index = indexOfSession(records, sessionId);
-    if (index < 0) {
-        emit requestFailed(QStringLiteral("fetch_session"), QStringLiteral("未找到指定会话。"));
-        return;
-    }
-    emit sessionLoaded(records.at(index).session);
-}
-
-void AgentSessionService::fetchSessionMessages(const QString& sessionId)
-{
-    const QVector<SessionRecord> records = loadRecords();
-    const int index = indexOfSession(records, sessionId);
-    if (index < 0) {
-        emit requestFailed(QStringLiteral("fetch_messages"), QStringLiteral("未找到指定会话。"));
-        return;
-    }
-    emit sessionMessagesLoaded(records.at(index).session, records.at(index).messages);
-}
-
-void AgentSessionService::renameSession(const QString& sessionId, const QString& title)
-{
-    QVector<SessionRecord> records = loadRecords();
-    const int index = indexOfSession(records, sessionId);
-    if (index < 0) {
-        emit requestFailed(QStringLiteral("rename_session"), QStringLiteral("未找到指定会话。"));
-        return;
-    }
-
-    records[index].session.title = normalizeTitle(title);
-    records[index].session.updatedAt = QDateTime::currentDateTime();
-    if (!saveRecords(records)) {
-        emit requestFailed(QStringLiteral("rename_session"), QStringLiteral("保存会话标题失败。"));
-        return;
-    }
-    emit sessionUpdated(records.at(index).session);
-}
-
-void AgentSessionService::deleteSession(const QString& sessionId)
-{
-    QVector<SessionRecord> records = loadRecords();
-    const int index = indexOfSession(records, sessionId);
-    if (index < 0) {
-        emit requestFailed(QStringLiteral("delete_session"), QStringLiteral("未找到指定会话。"));
-        return;
-    }
-
-    records.removeAt(index);
-    if (!saveRecords(records)) {
-        emit requestFailed(QStringLiteral("delete_session"), QStringLiteral("删除会话失败。"));
-        return;
-    }
-    emit sessionDeleted(sessionId.trimmed());
-}
-
-bool AgentSessionService::saveSessionMessages(const QString& sessionId, const QVector<ChatMessageItem>& messages)
-{
-    QVector<SessionRecord> records = loadRecords();
-    const int index = indexOfSession(records, sessionId);
-    if (index < 0) {
-        return false;
-    }
-
-    records[index].messages = messages;
-    refreshSessionMeta(&records[index]);
-    records[index].session.updatedAt = QDateTime::currentDateTime();
-    const bool ok = saveRecords(records);
-    if (ok) {
-        emit sessionUpdated(records.at(index).session);
-    }
-    return ok;
-}
-
-QString AgentSessionService::storeFilePath() const
-{
-    return QDir(ensureAgentDataDir()).filePath(QStringLiteral("chat_sessions.json"));
-}
-
-QVector<AgentSessionService::SessionRecord> AgentSessionService::loadRecords() const
-{
-    const QString path = storeFilePath();
-    QFile file(path);
-    if (!file.exists()) {
-        return {};
-    }
-    if (!file.open(QIODevice::ReadOnly)) {
-        return {};
-    }
-
-    const QByteArray raw = file.readAll();
-    file.close();
-    if (raw.trimmed().isEmpty()) {
-        return {};
     }
 
     QJsonParseError parseError;
-    const QJsonDocument doc = QJsonDocument::fromJson(raw, &parseError);
-    if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
-        return {};
-    }
-
-    QVector<SessionRecord> records;
-    const QJsonArray sessions = doc.object().value(QStringLiteral("sessions")).toArray();
-    records.reserve(sessions.size());
-    for (const QJsonValue& value : sessions) {
-        if (value.isObject()) {
-            records.push_back(parseSession(value.toObject()));
+    const QJsonDocument doc = QJsonDocument::fromJson(body, &parseError);
+    if (parseError.error == QJsonParseError::NoError && doc.isObject()) {
+        const QJsonObject obj = doc.object();
+        const QString message = obj.value(QStringLiteral("message")).toString().trimmed();
+        const QString detail = obj.value(QStringLiteral("detail")).toString().trimmed();
+        if (!message.isEmpty()) {
+            return QStringLiteral("%1：%2").arg(fallbackOperation, message);
+        }
+        if (!detail.isEmpty()) {
+            return QStringLiteral("%1：%2").arg(fallbackOperation, detail);
         }
     }
-    return records;
+    return errorText;
 }
 
-bool AgentSessionService::saveRecords(const QVector<SessionRecord>& records) const
+QUrl AgentSessionService::buildUrl(const QString& path, const QMap<QString, QString>& queryItems) const
 {
-    QJsonArray sessions;
-    for (const SessionRecord& record : records) {
-        sessions.push_back(serializeSession(record));
-    }
-
-    QJsonObject root;
-    root.insert(QStringLiteral("version"), 1);
-    root.insert(QStringLiteral("sessions"), sessions);
-
-    QFile file(storeFilePath());
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-        return false;
-    }
-    file.write(QJsonDocument(root).toJson(QJsonDocument::Indented));
-    file.close();
-    return true;
-}
-
-int AgentSessionService::indexOfSession(const QVector<SessionRecord>& records, const QString& sessionId) const
-{
-    const QString target = sessionId.trimmed();
-    if (target.isEmpty()) {
-        return -1;
-    }
-    for (int i = 0; i < records.size(); ++i) {
-        if (records.at(i).session.sessionId == target) {
-            return i;
+    QUrl url(QString::fromLatin1(kBaseHttpUrl) + path);
+    if (!queryItems.isEmpty()) {
+        QUrlQuery query(url);
+        for (auto it = queryItems.constBegin(); it != queryItems.constEnd(); ++it) {
+            if (it.value().trimmed().isEmpty()) {
+                continue;
+            }
+            query.addQueryItem(it.key(), it.value());
         }
+        url.setQuery(query);
     }
-    return -1;
+    return url;
 }
 
-QString AgentSessionService::normalizeTitle(const QString& title)
+QNetworkRequest AgentSessionService::buildJsonRequest(const QUrl& url) const
 {
-    const QString trimmed = title.trimmed();
-    return trimmed.isEmpty() ? QStringLiteral("新建会话") : trimmed;
-}
-
-QString AgentSessionService::normalizePreview(const QString& preview)
-{
-    QString text = preview.trimmed();
-    if (text.isEmpty()) {
-        return QString();
-    }
-    text.replace(QRegularExpression(QStringLiteral("\\s+")), QStringLiteral(" "));
-    if (text.size() > 48) {
-        text = text.left(48) + QStringLiteral("...");
-    }
-    return text;
-}
-
-QString AgentSessionService::buildPreviewFromMessages(const QVector<ChatMessageItem>& messages)
-{
-    for (int i = messages.size() - 1; i >= 0; --i) {
-        const ChatMessageItem& item = messages.at(i);
-        const QString candidate = normalizePreview(item.rawText.isEmpty() ? item.text : item.rawText);
-        if (!candidate.isEmpty()) {
-            return candidate;
-        }
-    }
-    return QString();
-}
-
-void AgentSessionService::refreshSessionMeta(SessionRecord* record)
-{
-    if (!record) {
-        return;
-    }
-    if (!record->session.createdAt.isValid()) {
-        record->session.createdAt = QDateTime::currentDateTime();
-    }
-    if (!record->session.updatedAt.isValid()) {
-        record->session.updatedAt = record->session.createdAt;
-    }
-    record->session.title = normalizeTitle(record->session.title);
-    record->session.lastPreview = buildPreviewFromMessages(record->messages);
-    record->session.messageCount = record->messages.size();
+    QNetworkRequest request(url);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
+#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0)
+    request.setTransferTimeout(5000);
+#endif
+    return request;
 }

@@ -26,7 +26,6 @@ class MusicListWidgetNet : public QWidget {
         if (listWidget) {
             listWidget->clearAll();
         }
-        m_currentItems.clear();
     }
 
     void onPlayClick(const QString name, const QString artist, const QString cover);
@@ -37,7 +36,6 @@ class MusicListWidgetNet : public QWidget {
     void setFavoritePaths(const QStringList& favoritePaths);
     void setPlayingState(const QString& filePath, bool playing);
     void resolveSongAction(const QString& action, const QVariantMap& songData);
-    QVariantList currentItemsSnapshot(int limit = -1) const;
 
   signals:
     void signalAddSonglist(const QList<Music>& musicList);
@@ -71,7 +69,6 @@ class MusicListWidgetNet : public QWidget {
     OnlineMusicListViewModel* m_viewModel = nullptr;
     QString m_pendingResolvedAction;
     QVariantMap m_pendingResolvedSongData;
-    QVariantList m_currentItems;
     QString currentSongArtist;
     QString currentSongCover;
     QWidget* mainWidget = nullptr;

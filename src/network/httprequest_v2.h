@@ -147,8 +147,6 @@ class HttpRequestV2 : public QObject {
      * @brief 获取歌单详情
      */
     void getPlaylistDetail(const QString& userAccount, qint64 playlistId, bool useCache = false);
-    void getPlaylistDetailForCover(const QString& userAccount, qint64 playlistId,
-                                   bool useCache = true);
 
     /**
      * @brief 删除歌单
@@ -258,7 +256,6 @@ class HttpRequestV2 : public QObject {
     void signalRemoveHistoryResult(bool success);
     void signalPlaylistsList(const QVariantList& playlists, int page, int pageSize, int total);
     void signalPlaylistDetail(const QVariantMap& detail);
-    void signalPlaylistCoverDetail(const QVariantMap& detail);
     void signalCreatePlaylistResult(bool success, qint64 playlistId, const QString& message);
     void signalDeletePlaylistResult(bool success, qint64 playlistId, const QString& message);
     void signalUpdatePlaylistResult(bool success, qint64 playlistId, const QString& message);
@@ -281,7 +278,6 @@ class HttpRequestV2 : public QObject {
     void signalStreamurl(bool flag, QString url); // 音乐流 URL 信号
 
   private:
-    QVariantMap parsePlaylistDetailPayload(const Network::NetworkResponse& response);
     Network::NetworkService& m_networkService;
     QString m_baseUrl;
 };

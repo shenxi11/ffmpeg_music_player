@@ -66,16 +66,6 @@ Rectangle {
         if (text.toLowerCase().indexOf("uploads/uploads/") === 0) {
             text = "uploads/" + text.substring("uploads/uploads/".length)
         }
-        text = text.replace(/\\/g, "/")
-        if (/^https?:\/\/[^/]+\/uploads\/[A-Za-z]:\//i.test(text)) {
-            text = text.replace(/^https?:\/\/[^/]+\/uploads\//i, "")
-        }
-        if (/^\/?uploads\/[A-Za-z]:\//i.test(text)) {
-            text = text.replace(/^\/?uploads\//i, "")
-        }
-        if (/^[A-Za-z]:\//.test(text)) {
-            return "file:///" + text
-        }
         return text
     }
 
@@ -241,32 +231,7 @@ Rectangle {
                                  is_local: !!item.is_local,
                                  added_at: normalizeText(item.added_at, ""),
                                  cover_art_url: normalizeText(item.cover_art_url, "")
-            })
-        }
-    }
-
-    function updatePlaylistCover(playlistId, coverUrl) {
-        var idValue = Number(playlistId)
-        if (isNaN(idValue) || idValue <= 0)
-            return
-
-        function patchModel(modelRef) {
-            for (var i = 0; i < modelRef.count; ++i) {
-                if (Number(modelRef.get(i).id) !== idValue)
-                    continue
-                modelRef.setProperty(i, "cover_url", normalizeText(coverUrl, ""))
-                break
-            }
-        }
-
-        patchModel(playlistModel)
-        patchModel(ownedPlaylistModel)
-        patchModel(subscribedPlaylistModel)
-
-        if (Number(currentPlaylistDetail.id || 0) === idValue) {
-            var nextDetail = currentPlaylistDetail
-            nextDetail.cover_url = normalizeText(coverUrl, "")
-            currentPlaylistDetail = nextDetail
+                             })
         }
     }
 
@@ -613,7 +578,7 @@ Rectangle {
 
                 Column {
                     Layout.fillWidth: true
-                    Layout.alignment: Qt.AlignVCenter
+                    anchors.verticalCenter: parent.verticalCenter
                     spacing: 2
 
                     Text {

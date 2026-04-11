@@ -29,7 +29,6 @@ public:
     
     // 清空喜欢列表
     void clearFavorites();
-    QVariantList favoriteItemsSnapshot(int limit = -1) const;
 
 signals:
     void playMusic(const QString& filePath);
@@ -40,9 +39,6 @@ signals:
 private slots:
     void handleRemoveFavorite(const QVariant& selectedPaths);
     void handleSongActionRequested(const QString& action, const QVariant& payload);
-
-private:
-    QVariantList m_lastFavoriteItems;
 };
 
 #endif // FAVORITE_MUSIC_WIDGET_H

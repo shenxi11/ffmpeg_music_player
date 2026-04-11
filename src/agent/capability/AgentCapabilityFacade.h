@@ -6,6 +6,7 @@
 
 class AgentToolExecutor;
 class HostStateProvider;
+class MainShellViewModel;
 class ToolRegistry;
 
 /*
@@ -25,7 +26,7 @@ public:
     explicit AgentCapabilityFacade(HostStateProvider* hostStateProvider, QObject* parent = nullptr);
     ~AgentCapabilityFacade() override;
 
-    void setHostContext(QObject* hostContext);
+    void setMainShellViewModel(MainShellViewModel* shellViewModel);
     bool executeCapability(const QString& requestId,
                            const QString& capabilityName,
                            const QVariantMap& args);

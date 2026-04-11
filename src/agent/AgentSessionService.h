@@ -3,10 +3,18 @@
 
 #include <QObject>
 #include <QDateTime>
+#include <QJsonObject>
+#include <QMap>
+#include <QNetworkAccessManager>
+#include <QNetworkRequest>
+#include <QPointer>
+#include <QUrl>
 #include <QVector>
 
 #include "ChatMessageItem.h"
 #include "ChatSessionItem.h"
+
+class QNetworkReply;
 
 class AgentSessionService : public QObject
 {
@@ -15,23 +23,12 @@ class AgentSessionService : public QObject
 public:
     explicit AgentSessionService(QObject* parent = nullptr);
 
-    struct SessionRecord
-    {
-        ChatSessionItem session;
-        QVector<ChatMessageItem> messages;
-    };
-
     void fetchSessions(const QString& query = QString(), int limit = 100);
     void createSession(const QString& title = QString());
     void fetchSession(const QString& sessionId);
     void fetchSessionMessages(const QString& sessionId);
     void renameSession(const QString& sessionId, const QString& title);
     void deleteSession(const QString& sessionId);
-    bool saveSessionMessages(const QString& sessionId, const QVector<ChatMessageItem>& messages);
-    static QString normalizeTitle(const QString& title);
-    static QString normalizePreview(const QString& preview);
-    static QString buildPreviewFromMessages(const QVector<ChatMessageItem>& messages);
-    static void refreshSessionMeta(SessionRecord* record);
 
 signals:
     void sessionsLoaded(const QVector<ChatSessionItem>& sessions);
@@ -44,10 +41,19 @@ signals:
     void requestFailed(const QString& operation, const QString& errorMessage);
 
 private:
-    QString storeFilePath() const;
-    QVector<SessionRecord> loadRecords() const;
-    bool saveRecords(const QVector<SessionRecord>& records) const;
-    int indexOfSession(const QVector<SessionRecord>& records, const QString& sessionId) const;
+    static QDateTime parseIsoDateTime(const QString& value);
+    static ChatSessionItem parseSessionItem(const QJsonObject& obj);
+    static ChatMessageItem parseMessageItem(const QJsonObject& obj);
+    static QString buildReplyError(const QString& fallbackOperation,
+                                   QNetworkReply* reply,
+                                   const QByteArray& body);
+    QUrl buildUrl(const QString& path, const QMap<QString, QString>& queryItems = {}) const;
+    QNetworkRequest buildJsonRequest(const QUrl& url) const;
+
+private:
+    QNetworkAccessManager m_networkManager;
+    quint64 m_fetchSessionsToken = 0;
+    quint64 m_fetchMessagesToken = 0;
 };
 
 #endif // AGENT_SESSION_SERVICE_H
