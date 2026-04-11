@@ -5,17 +5,159 @@
 #include "plugin_host_window.h"
 #include "plugin_manager.h"
 #include "searchbox_qml.h"
+#include "settings_manager.h"
 
 #include <QApplication>
 #include <QCoreApplication>
+#include <QCryptographicHash>
+#include <QDateTime>
+#include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QHBoxLayout>
 #include <QIcon>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QLabel>
 #include <QMessageBox>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
+#include <QPixmap>
+#include <QSaveFile>
 #include <QScrollArea>
+#include <QStandardPaths>
 #include <QTimer>
+#include <QUrl>
 #include <QVBoxLayout>
+
+namespace {
+
+QIcon defaultSidebarPlaylistCoverIcon() {
+    return QIcon(QStringLiteral(":/qml/assets/ai/icons/default-music-cover.svg"));
+}
+
+bool isRemoteCoverSource(const QString& source) {
+    return source.startsWith(QStringLiteral("http://"), Qt::CaseInsensitive) ||
+           source.startsWith(QStringLiteral("https://"), Qt::CaseInsensitive);
+}
+
+bool isWindowsDrivePath(const QString& path) {
+    return path.size() >= 3 && path.at(1) == QLatin1Char(':') && path.at(0).isLetter() &&
+           (path.at(2) == QLatin1Char('/') || path.at(2) == QLatin1Char('\\'));
+}
+
+QString collapseDuplicateUploads(QString text) {
+    text = QDir::fromNativeSeparators(text.trimmed());
+    while (text.contains(QStringLiteral("/uploads/uploads/"), Qt::CaseInsensitive)) {
+        text.replace(QStringLiteral("/uploads/uploads/"), QStringLiteral("/uploads/"),
+                     Qt::CaseInsensitive);
+    }
+    while (text.startsWith(QStringLiteral("uploads/uploads/"), Qt::CaseInsensitive)) {
+        text = QStringLiteral("uploads/") + text.mid(QStringLiteral("uploads/uploads/").size());
+    }
+    return text;
+}
+
+QString stripUploadsPrefix(QString path) {
+    path = collapseDuplicateUploads(path);
+    while (path.startsWith(QLatin1Char('/'))) {
+        path.remove(0, 1);
+    }
+    while (path.startsWith(QStringLiteral("uploads/"), Qt::CaseInsensitive)) {
+        path = path.mid(QStringLiteral("uploads/").size());
+    }
+    return path;
+}
+
+QString normalizeSidebarPlaylistCoverSource(const QString& rawCover) {
+    QString cover = collapseDuplicateUploads(rawCover);
+    if (cover.isEmpty()) {
+        return QString();
+    }
+
+    if (cover.startsWith(QStringLiteral("qrc:/"), Qt::CaseInsensitive)) {
+        return QStringLiteral(":") + cover.mid(4);
+    }
+
+    if (cover.startsWith(QStringLiteral("file://"), Qt::CaseInsensitive)) {
+        const QUrl localUrl(cover);
+        return localUrl.isLocalFile() ? QDir::fromNativeSeparators(localUrl.toLocalFile())
+                                      : QString();
+    }
+
+    if (isRemoteCoverSource(cover)) {
+        const QUrl url(cover);
+        if (!url.isValid()) {
+            return QString();
+        }
+        const QString localCandidate =
+            stripUploadsPrefix(QUrl::fromPercentEncoding(url.path().toUtf8()));
+        if (isWindowsDrivePath(localCandidate) || QFileInfo(localCandidate).isAbsolute()) {
+            return localCandidate;
+        }
+        return cover;
+    }
+
+    cover = stripUploadsPrefix(cover);
+    return cover;
+}
+
+QString playlistCoverCacheDirectory() {
+    const QString base = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+    return QDir(base.isEmpty() ? QDir::currentPath() : base)
+        .absoluteFilePath(QStringLiteral("playlist_cover_cache"));
+}
+
+QString playlistCoverCacheIndexPath() {
+    return QDir(playlistCoverCacheDirectory()).absoluteFilePath(QStringLiteral("index.json"));
+}
+
+QString playlistCoverCacheKey(const QString& account, qint64 playlistId, const QString& updatedAt) {
+    const QString rawKey =
+        QStringLiteral("%1|%2|%3").arg(account, QString::number(playlistId), updatedAt);
+    const QByteArray digest =
+        QCryptographicHash::hash(rawKey.toUtf8(), QCryptographicHash::Sha256).toHex();
+    return QString::fromLatin1(digest.constData(), digest.size());
+}
+
+QString playlistCoverSourceHash(const QString& source) {
+    const QByteArray digest =
+        QCryptographicHash::hash(source.toUtf8(), QCryptographicHash::Sha256).toHex();
+    return QString::fromLatin1(digest.constData(), digest.size());
+}
+
+QString cachedCoverFilePathForSource(const QString& source) {
+    if (!isRemoteCoverSource(source)) {
+        return QString();
+    }
+    return QDir(playlistCoverCacheDirectory())
+        .absoluteFilePath(playlistCoverSourceHash(source) + QStringLiteral(".img"));
+}
+
+QJsonObject loadPlaylistCoverCacheIndex() {
+    QFile file(playlistCoverCacheIndexPath());
+    if (!file.open(QIODevice::ReadOnly)) {
+        return {};
+    }
+    const QJsonDocument document = QJsonDocument::fromJson(file.readAll());
+    return document.isObject() ? document.object() : QJsonObject{};
+}
+
+void savePlaylistCoverCacheIndex(const QJsonObject& index) {
+    QDir().mkpath(playlistCoverCacheDirectory());
+    QSaveFile file(playlistCoverCacheIndexPath());
+    if (!file.open(QIODevice::WriteOnly)) {
+        qWarning() << "[PlaylistCoverCache] Cannot write index:" << playlistCoverCacheIndexPath();
+        return;
+    }
+    file.write(QJsonDocument(index).toJson(QJsonDocument::Compact));
+    if (!file.commit()) {
+        qWarning() << "[PlaylistCoverCache] Commit index failed:" << playlistCoverCacheIndexPath();
+    }
+}
+
+} // namespace
 
 MainWidget::MainWidget(bool localOnlyMode, QWidget* parent)
     : QWidget(parent), w(nullptr), list(nullptr), videoPlayerWindow(nullptr),
@@ -536,10 +678,9 @@ void MainWidget::updateSearchBoxForMode() {
     }
 
     if (QQuickItem* rootItem = searchBox->rootObject()) {
-        rootItem->setProperty(
-            "placeholderText",
-            m_localOnlyMode ? QStringLiteral(" 离线模式仅支持本地内容")
-                            : QStringLiteral(" 搜索想听的歌曲吧..."));
+        rootItem->setProperty("placeholderText", m_localOnlyMode
+                                                     ? QStringLiteral(" 离线模式仅支持本地内容")
+                                                     : QStringLiteral(" 搜索想听的歌曲吧..."));
     }
     searchBox->setEnabled(!m_localOnlyMode);
     if (m_localOnlyMode) {
@@ -574,8 +715,9 @@ void MainWidget::applyLocalOnlyModeUi() {
     if (userWidgetQml) {
         userWidgetQml->setPopupBlocked(true);
         userWidgetQml->setLoginState(false);
-        userWidgetQml->setUserInfo(QStringLiteral("本地模式"),
-                                   QStringLiteral("qrc:/qml/assets/ai/icons/default-user-avatar.svg"));
+        userWidgetQml->setUserInfo(
+            QStringLiteral("本地模式"),
+            QStringLiteral("qrc:/qml/assets/ai/icons/default-user-avatar.svg"));
     }
     if (localButton) {
         localButton->show();
@@ -1101,6 +1243,217 @@ void MainWidget::clearSidebarPlaylistButtons() {
     m_sidebarPlaylistButtons.clear();
 }
 
+QString MainWidget::lookupPlaylistCoverCache(const QString& account, qint64 playlistId,
+                                             const QString& updatedAt, bool* found) const {
+    if (found) {
+        *found = false;
+    }
+    const QString normalizedAccount = account.trimmed();
+    const QString normalizedUpdatedAt = updatedAt.trimmed();
+    if (normalizedAccount.isEmpty() || playlistId <= 0 || normalizedUpdatedAt.isEmpty()) {
+        return QString();
+    }
+
+    const QJsonObject index = loadPlaylistCoverCacheIndex();
+    const QString key = playlistCoverCacheKey(normalizedAccount, playlistId, normalizedUpdatedAt);
+    const QJsonObject entry = index.value(key).toObject();
+    if (entry.isEmpty()) {
+        return QString();
+    }
+    if (found) {
+        *found = true;
+    }
+
+    const QString normalizedSource = normalizeSidebarPlaylistCoverSource(
+        entry.value(QStringLiteral("normalizedSource")).toString());
+    const QString localFilePath =
+        QDir::fromNativeSeparators(entry.value(QStringLiteral("localFilePath")).toString());
+    if (!localFilePath.isEmpty() && QFileInfo::exists(localFilePath)) {
+        return localFilePath;
+    }
+
+    const QString remoteCachePath = cachedCoverFilePathForSource(normalizedSource);
+    if (!remoteCachePath.isEmpty() && QFileInfo::exists(remoteCachePath)) {
+        return remoteCachePath;
+    }
+
+    return collapseDuplicateUploads(entry.value(QStringLiteral("coverUrl")).toString());
+}
+
+void MainWidget::storePlaylistCoverCache(qint64 playlistId, const QString& updatedAt,
+                                         const QString& coverUrl) {
+    const QString account = m_viewModel ? m_viewModel->currentUserAccount().trimmed() : QString();
+    const QString normalizedUpdatedAt = updatedAt.trimmed();
+    if (account.isEmpty() || playlistId <= 0 || normalizedUpdatedAt.isEmpty()) {
+        return;
+    }
+
+    const QString normalizedCoverUrl = collapseDuplicateUploads(coverUrl);
+    const QString normalizedSource = normalizeSidebarPlaylistCoverSource(normalizedCoverUrl);
+    QString localFilePath;
+    if (!normalizedSource.isEmpty() && !normalizedSource.startsWith(QStringLiteral(":/")) &&
+        !isRemoteCoverSource(normalizedSource) && QFileInfo::exists(normalizedSource)) {
+        localFilePath = normalizedSource;
+    } else {
+        const QString remoteCachePath = cachedCoverFilePathForSource(normalizedSource);
+        if (!remoteCachePath.isEmpty() && QFileInfo::exists(remoteCachePath)) {
+            localFilePath = remoteCachePath;
+        }
+    }
+
+    QJsonObject index = loadPlaylistCoverCacheIndex();
+    QJsonObject entry;
+    entry.insert(QStringLiteral("account"), account);
+    entry.insert(QStringLiteral("playlistId"), QString::number(playlistId));
+    entry.insert(QStringLiteral("updatedAt"), normalizedUpdatedAt);
+    entry.insert(QStringLiteral("coverUrl"), normalizedCoverUrl);
+    entry.insert(QStringLiteral("normalizedSource"), normalizedSource);
+    entry.insert(QStringLiteral("localFilePath"), localFilePath);
+    entry.insert(QStringLiteral("cachedAt"),
+                 QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs));
+    index.insert(playlistCoverCacheKey(account, playlistId, normalizedUpdatedAt), entry);
+    savePlaylistCoverCacheIndex(index);
+}
+
+void MainWidget::clearPlaylistCoverCacheForPlaylist(qint64 playlistId) {
+    const QString account = m_viewModel ? m_viewModel->currentUserAccount().trimmed() : QString();
+    if (account.isEmpty() || playlistId <= 0) {
+        return;
+    }
+
+    QJsonObject index = loadPlaylistCoverCacheIndex();
+    bool changed = false;
+    const QStringList keys = index.keys();
+    for (const QString& key : keys) {
+        const QJsonObject entry = index.value(key).toObject();
+        if (entry.value(QStringLiteral("account")).toString() != account ||
+            entry.value(QStringLiteral("playlistId")).toString().toLongLong() != playlistId) {
+            continue;
+        }
+        index.remove(key);
+        changed = true;
+    }
+    if (changed) {
+        savePlaylistCoverCacheIndex(index);
+    }
+}
+
+QIcon MainWidget::sidebarPlaylistCoverIcon(const QString& coverUrl) {
+    const QString source = normalizeSidebarPlaylistCoverSource(coverUrl);
+    if (source.isEmpty()) {
+        return defaultSidebarPlaylistCoverIcon();
+    }
+
+    if (m_sidebarCoverIconCache.contains(source)) {
+        return m_sidebarCoverIconCache.value(source);
+    }
+
+    if (source.startsWith(QStringLiteral(":/"))) {
+        const QIcon icon(source);
+        if (!icon.isNull()) {
+            m_sidebarCoverIconCache.insert(source, icon);
+            return icon;
+        }
+        return defaultSidebarPlaylistCoverIcon();
+    }
+
+    if (isRemoteCoverSource(source)) {
+        const QString cachedFilePath = cachedCoverFilePathForSource(source);
+        if (!cachedFilePath.isEmpty() && QFileInfo::exists(cachedFilePath)) {
+            const QIcon icon(cachedFilePath);
+            if (!icon.isNull()) {
+                m_sidebarCoverIconCache.insert(source, icon);
+                return icon;
+            }
+        }
+        requestSidebarPlaylistCoverIcon(source);
+        return defaultSidebarPlaylistCoverIcon();
+    }
+
+    if (QFileInfo::exists(source)) {
+        const QIcon icon(source);
+        if (!icon.isNull()) {
+            m_sidebarCoverIconCache.insert(source, icon);
+            return icon;
+        }
+    }
+
+    return defaultSidebarPlaylistCoverIcon();
+}
+
+QString MainWidget::normalizePlaylistCoverUrl(const QString& coverUrl) const {
+    return collapseDuplicateUploads(coverUrl);
+}
+
+void MainWidget::applySidebarPlaylistButtonIcon(QPushButton* button, const QString& coverUrl) {
+    if (!button) {
+        return;
+    }
+
+    const QString source = normalizeSidebarPlaylistCoverSource(coverUrl);
+    button->setProperty("coverUrl", coverUrl);
+    button->setProperty("sidebarCoverSource", source);
+    button->setIcon(sidebarPlaylistCoverIcon(coverUrl));
+    button->setIconSize(QSize(18, 18));
+}
+
+void MainWidget::requestSidebarPlaylistCoverIcon(const QString& coverUrl) {
+    const QString source = normalizeSidebarPlaylistCoverSource(coverUrl);
+    if (!isRemoteCoverSource(source) || m_sidebarCoverIconCache.contains(source) ||
+        m_sidebarCoverRequestsInFlight.contains(source)) {
+        return;
+    }
+
+    if (!m_sidebarCoverNetworkManager) {
+        m_sidebarCoverNetworkManager = new QNetworkAccessManager(this);
+    }
+
+    m_sidebarCoverRequestsInFlight.insert(source);
+    QNetworkRequest request{QUrl(source)};
+    QNetworkReply* reply = m_sidebarCoverNetworkManager->get(request);
+    connect(reply, &QNetworkReply::finished, this, [this, reply, source]() {
+        m_sidebarCoverRequestsInFlight.remove(source);
+
+        const QByteArray payload = reply->readAll();
+        QPixmap pixmap;
+        const bool loaded =
+            reply->error() == QNetworkReply::NoError && pixmap.loadFromData(payload);
+        if (loaded) {
+            m_sidebarCoverIconCache.insert(source, QIcon(pixmap));
+            const QString cacheFilePath = cachedCoverFilePathForSource(source);
+            if (!cacheFilePath.isEmpty()) {
+                QDir().mkpath(QFileInfo(cacheFilePath).absolutePath());
+                QSaveFile file(cacheFilePath);
+                if (file.open(QIODevice::WriteOnly)) {
+                    file.write(payload);
+                    if (!file.commit()) {
+                        qWarning() << "[PlaylistCoverCache] Commit image failed:" << cacheFilePath;
+                    }
+                }
+            }
+            for (QPushButton* button : m_sidebarPlaylistButtons) {
+                if (!button || button->property("sidebarCoverSource").toString() != source) {
+                    continue;
+                }
+                button->setIcon(m_sidebarCoverIconCache.value(source));
+                button->update();
+            }
+        }
+
+        reply->deleteLater();
+    });
+}
+
+void MainWidget::refreshSidebarPlaylistCoverIcon(qint64 playlistId, const QString& coverUrl) {
+    for (QPushButton* button : m_sidebarPlaylistButtons) {
+        if (!button || button->property("playlistId").toLongLong() != playlistId) {
+            continue;
+        }
+        applySidebarPlaylistButtonIcon(button, coverUrl);
+        button->update();
+    }
+}
+
 void MainWidget::rebuildSidebarPlaylistButtons() {
     if (!sidebarPlaylistListLayout || !sidebarPlaylistEmptyLabel) {
         return;
@@ -1134,8 +1487,8 @@ void MainWidget::rebuildSidebarPlaylistButtons() {
         button->setProperty("selectedPlaylist", playlistId == m_sidebarSelectedPlaylistId);
         button->setProperty("playlistId", playlistId);
         button->setProperty("trackCount", playlist.value(QStringLiteral("track_count")).toInt());
-        button->setIcon(QIcon(":/qml/assets/ai/icons/default-music-cover.svg"));
-        button->setIconSize(QSize(18, 18));
+        applySidebarPlaylistButtonIcon(
+            button, playlist.value(QStringLiteral("cover_url")).toString().trimmed());
         button->setToolTip(QStringLiteral("%1\n%2 首")
                                .arg(button->text())
                                .arg(playlist.value(QStringLiteral("track_count")).toInt()));

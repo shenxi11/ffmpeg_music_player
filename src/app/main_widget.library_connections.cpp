@@ -167,6 +167,24 @@ QString playlistNameById(const QVariantList& playlists, qint64 playlistId) {
     }
     return QString();
 }
+
+QString derivePlaylistCoverFromDetailMap(const QVariantMap& detail) {
+    const QVariantList items = detail.value(QStringLiteral("items")).toList();
+    if (items.isEmpty()) {
+        return QString();
+    }
+
+    const QVariantMap firstItem = items.constFirst().toMap();
+    const QStringList candidateKeys = {QStringLiteral("cover_art_url"), QStringLiteral("cover_url"),
+                                       QStringLiteral("cover_art_path")};
+    for (const QString& key : candidateKeys) {
+        const QString cover = firstItem.value(key).toString().trimmed();
+        if (!cover.isEmpty()) {
+            return cover;
+        }
+    }
+    return QString();
+}
 } // namespace
 
 /*
@@ -261,6 +279,8 @@ void MainWidget::setupLibraryConnections() {
             &MainWidget::handlePlaylistsListReady);
     connect(m_viewModel, &MainShellViewModel::playlistDetailReady, this,
             &MainWidget::handlePlaylistDetailReady);
+    connect(m_viewModel, &MainShellViewModel::playlistCoverDetailReady, this,
+            &MainWidget::handlePlaylistCoverDetailReady);
     connect(m_viewModel, &MainShellViewModel::createPlaylistResultReady, this,
             &MainWidget::handleCreatePlaylistResultReady);
     connect(m_viewModel, &MainShellViewModel::updatePlaylistResultReady, this,
@@ -497,6 +517,11 @@ void MainWidget::handleUserLoginStateChanged(bool loggedIn) {
         m_profileFavoritesPreview.clear();
         m_profileHistoryPreview.clear();
         m_profileOwnedPlaylistsPreview.clear();
+        m_playlistDerivedCoverUrls.clear();
+        m_playlistCoverPrefetchInFlight.clear();
+        m_playlistCoverPrefetchResolved.clear();
+        m_sidebarCoverIconCache.clear();
+        m_sidebarCoverRequestsInFlight.clear();
         rebuildSidebarPlaylistButtons();
     } else if (recommendButton && recommendButton->isChecked()) {
         if (m_viewModel) {
@@ -699,14 +724,29 @@ void MainWidget::handlePlaylistAddCurrentSongRequested(qint64 playlistId) {
 
 void MainWidget::handlePlaylistsListReady(const QVariantList& playlists, int page, int pageSize,
                                           int total) {
-    if (playlistWidget) {
-        playlistWidget->loadPlaylists(playlists, page, pageSize, total);
-    }
-
+    const QString account = m_viewModel ? m_viewModel->currentUserAccount().trimmed() : QString();
+    QVariantList normalizedPlaylists;
+    normalizedPlaylists.reserve(playlists.size());
     m_ownedSidebarPlaylists.clear();
     m_subscribedSidebarPlaylists.clear();
     for (const QVariant& item : playlists) {
-        const QVariantMap playlist = item.toMap();
+        QVariantMap playlist = item.toMap();
+        const qint64 playlistId = playlist.value(QStringLiteral("id")).toLongLong();
+        if (playlistId > 0 && m_playlistDerivedCoverUrls.contains(playlistId)) {
+            playlist.insert(QStringLiteral("cover_url"),
+                            m_playlistDerivedCoverUrls.value(playlistId));
+        } else if (playlistId > 0) {
+            bool cacheFound = false;
+            const QString cachedCover = lookupPlaylistCoverCache(
+                account, playlistId, playlist.value(QStringLiteral("updated_at")).toString(),
+                &cacheFound);
+            if (cacheFound) {
+                playlist.insert(QStringLiteral("cover_url"), cachedCover);
+                m_playlistDerivedCoverUrls.insert(playlistId, cachedCover);
+                m_playlistCoverPrefetchResolved.insert(playlistId);
+            }
+        }
+        normalizedPlaylists.append(playlist);
         const QString ownership =
             playlist.value(QStringLiteral("ownership")).toString().trimmed().toLower();
         if (ownership == QStringLiteral("subscribed")) {
@@ -714,6 +754,9 @@ void MainWidget::handlePlaylistsListReady(const QVariantList& playlists, int pag
         } else {
             m_ownedSidebarPlaylists.append(playlist);
         }
+    }
+    if (playlistWidget) {
+        playlistWidget->loadPlaylists(normalizedPlaylists, page, pageSize, total);
     }
     m_profileOwnedPlaylistsCount = m_ownedSidebarPlaylists.size();
     m_profileOwnedPlaylistsPreview = m_ownedSidebarPlaylists;
@@ -724,13 +767,40 @@ void MainWidget::handlePlaylistsListReady(const QVariantList& playlists, int pag
     net_list->setAvailablePlaylists(m_ownedSidebarPlaylists);
     recommendMusicWidget->setAvailablePlaylists(m_ownedSidebarPlaylists);
     rebuildSidebarPlaylistButtons();
+    prefetchPlaylistCoverDetails(normalizedPlaylists);
 }
 
 void MainWidget::handlePlaylistDetailReady(const QVariantMap& detail) {
     if (playlistWidget) {
         playlistWidget->loadPlaylistDetail(detail);
+        playlistWidget->updatePlaylistCoverFromDetail(detail);
     }
-    syncSidebarPlaylistSelection(detail.value(QStringLiteral("id")).toLongLong());
+    const qint64 playlistId = detail.value(QStringLiteral("id")).toLongLong();
+    m_playlistCoverPrefetchInFlight.remove(playlistId);
+    if (playlistId > 0) {
+        m_playlistCoverPrefetchResolved.insert(playlistId);
+    }
+    applyPlaylistCoverToUiCaches(playlistId, derivePlaylistCoverFromDetailMap(detail),
+                                 detail.value(QStringLiteral("updated_at")).toString());
+    syncSidebarPlaylistSelection(playlistId);
+}
+
+void MainWidget::handlePlaylistCoverDetailReady(const QVariantMap& detail) {
+    const qint64 playlistId = detail.value(QStringLiteral("id")).toLongLong();
+    if (playlistId <= 0) {
+        return;
+    }
+
+    m_playlistCoverPrefetchInFlight.remove(playlistId);
+    if (detail.value(QStringLiteral("_prefetch_failed")).toBool()) {
+        return;
+    }
+    m_playlistCoverPrefetchResolved.insert(playlistId);
+    if (playlistWidget) {
+        playlistWidget->updatePlaylistCoverFromDetail(detail);
+    }
+    applyPlaylistCoverToUiCaches(playlistId, derivePlaylistCoverFromDetailMap(detail),
+                                 detail.value(QStringLiteral("updated_at")).toString());
 }
 
 void MainWidget::handleCreatePlaylistResultReady(bool success, qint64 playlistId,
@@ -776,12 +846,18 @@ void MainWidget::handleUpdatePlaylistResultReady(bool success, qint64 playlistId
 
 void MainWidget::handleDeletePlaylistResultReady(bool success, qint64 playlistId,
                                                  const QString& message) {
-    Q_UNUSED(playlistId);
     if (!success) {
         QMessageBox::warning(this, QStringLiteral("删除歌单失败"),
                              message.trimmed().isEmpty() ? QStringLiteral("请稍后重试。")
                                                          : message);
         return;
+    }
+
+    if (playlistId > 0) {
+        m_playlistDerivedCoverUrls.remove(playlistId);
+        m_playlistCoverPrefetchInFlight.remove(playlistId);
+        m_playlistCoverPrefetchResolved.remove(playlistId);
+        clearPlaylistCoverCacheForPlaylist(playlistId);
     }
 
     if (m_viewModel && isUserLoggedIn()) {
@@ -855,12 +931,10 @@ void MainWidget::handleSongActionRequested(const QString& action, const QVariant
             (action == QStringLiteral("add_to_playlist") ||
              action == QStringLiteral("create_playlist_and_add") ||
              action == QStringLiteral("add_favorite") ||
-             action == QStringLiteral("remove_favorite") ||
-             action == QStringLiteral("download"));
-        const bool remotePlaybackAction =
-            !isLocal &&
-            (action == QStringLiteral("play") || action == QStringLiteral("play_next") ||
-             action == QStringLiteral("queue_append"));
+             action == QStringLiteral("remove_favorite") || action == QStringLiteral("download"));
+        const bool remotePlaybackAction = !isLocal && (action == QStringLiteral("play") ||
+                                                       action == QStringLiteral("play_next") ||
+                                                       action == QStringLiteral("queue_append"));
         if (serverOnlyAction || remotePlaybackAction) {
             showLocalOnlyUnavailableMessage();
             return;
@@ -923,6 +997,102 @@ void MainWidget::handleSongActionRequested(const QString& action, const QVariant
     if (action == QStringLiteral("remove_or_delete")) {
         removeOrDeleteSongByAction(songData);
     }
+}
+
+void MainWidget::prefetchPlaylistCoverDetails(const QVariantList& playlists) {
+    if (!m_viewModel || !isUserLoggedIn()) {
+        return;
+    }
+
+    QSet<qint64> currentIds;
+    for (const QVariant& value : playlists) {
+        const qint64 playlistId = value.toMap().value(QStringLiteral("id")).toLongLong();
+        if (playlistId > 0) {
+            currentIds.insert(playlistId);
+        }
+    }
+
+    for (auto it = m_playlistCoverPrefetchResolved.begin();
+         it != m_playlistCoverPrefetchResolved.end();) {
+        if (currentIds.contains(*it)) {
+            ++it;
+        } else {
+            it = m_playlistCoverPrefetchResolved.erase(it);
+        }
+    }
+    for (auto it = m_playlistCoverPrefetchInFlight.begin();
+         it != m_playlistCoverPrefetchInFlight.end();) {
+        if (currentIds.contains(*it)) {
+            ++it;
+        } else {
+            it = m_playlistCoverPrefetchInFlight.erase(it);
+        }
+    }
+
+    const QString account = m_viewModel->currentUserAccount();
+    for (const qint64 playlistId : currentIds) {
+        if (m_playlistCoverPrefetchResolved.contains(playlistId) ||
+            m_playlistCoverPrefetchInFlight.contains(playlistId)) {
+            continue;
+        }
+        m_playlistCoverPrefetchInFlight.insert(playlistId);
+        m_viewModel->prefetchPlaylistCoverDetail(account, playlistId, true);
+    }
+}
+
+void MainWidget::applyPlaylistCoverToUiCaches(qint64 playlistId, const QString& coverUrl,
+                                              const QString& updatedAt) {
+    if (playlistId <= 0) {
+        return;
+    }
+
+    const QString normalizedCoverUrl = normalizePlaylistCoverUrl(coverUrl);
+    QString normalizedUpdatedAt = updatedAt.trimmed();
+    if (normalizedUpdatedAt.isEmpty()) {
+        const auto findUpdatedAt = [playlistId](const QVariantList& playlists) {
+            for (const QVariant& value : playlists) {
+                const QVariantMap item = value.toMap();
+                if (item.value(QStringLiteral("id")).toLongLong() == playlistId) {
+                    return item.value(QStringLiteral("updated_at")).toString();
+                }
+            }
+            return QString();
+        };
+        normalizedUpdatedAt = findUpdatedAt(m_ownedSidebarPlaylists);
+        if (normalizedUpdatedAt.isEmpty()) {
+            normalizedUpdatedAt = findUpdatedAt(m_subscribedSidebarPlaylists);
+        }
+    }
+
+    m_playlistDerivedCoverUrls.insert(playlistId, normalizedCoverUrl);
+    storePlaylistCoverCache(playlistId, normalizedUpdatedAt, normalizedCoverUrl);
+
+    auto patchCollection = [playlistId, &normalizedCoverUrl,
+                            &normalizedUpdatedAt](QVariantList& playlists) {
+        for (QVariant& value : playlists) {
+            QVariantMap item = value.toMap();
+            if (item.value(QStringLiteral("id")).toLongLong() != playlistId) {
+                continue;
+            }
+            item.insert(QStringLiteral("cover_url"), normalizedCoverUrl);
+            if (!normalizedUpdatedAt.isEmpty()) {
+                item.insert(QStringLiteral("updated_at"), normalizedUpdatedAt);
+            }
+            value = item;
+            break;
+        }
+    };
+
+    patchCollection(m_ownedSidebarPlaylists);
+    patchCollection(m_subscribedSidebarPlaylists);
+    patchCollection(m_profileOwnedPlaylistsPreview);
+
+    favoriteMusicWidget->setAvailablePlaylists(m_ownedSidebarPlaylists);
+    localAndDownloadWidget->setAvailablePlaylists(m_ownedSidebarPlaylists);
+    net_list->setAvailablePlaylists(m_ownedSidebarPlaylists);
+    recommendMusicWidget->setAvailablePlaylists(m_ownedSidebarPlaylists);
+    refreshSidebarPlaylistCoverIcon(playlistId, normalizedCoverUrl);
+    syncUserProfilePreviewToPage();
 }
 
 void MainWidget::queueSongAsNext(const QVariantMap& songData) {
@@ -1021,6 +1191,12 @@ void MainWidget::removeOrDeleteSongByAction(const QVariantMap& songData) {
         songData.value(QStringLiteral("sourceType")).toString().trimmed().toLower();
     const QString path = songData.value(QStringLiteral("path")).toString().trimmed();
 
+    if (sourceType == QStringLiteral("history")) {
+        if (!path.isEmpty()) {
+            handleHistoryDeleteRequested(QStringList{path});
+        }
+        return;
+    }
     if (sourceType == QStringLiteral("favorite")) {
         handleFavoriteRemoveRequested(QStringList{path});
         return;

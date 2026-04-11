@@ -318,10 +318,11 @@ Item {
             Repeater {
                 model: root.availablePlaylists
                 delegate: Loader {
+                    property var playlistData: modelData
                     width: parent ? parent.width : addPopup.width
                     sourceComponent: popupActionDelegate
                     onLoaded: {
-                        var playlist = modelData
+                        var playlist = playlistData || {}
                         item.text = playlist.name || "未命名歌单"
                         item.triggerAction = function() {
                             root.emitAction("add_to_playlist", {
