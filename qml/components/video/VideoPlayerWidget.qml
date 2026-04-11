@@ -6,16 +6,19 @@ import "../../theme/Theme.js" as Theme
 
 Rectangle {
     id: root
-    color: "#0F1115"
-    property string playerIconPrefix: "qrc:/design/design_exports/netease_ui_pack_20260309/icon/ui/player/"
+    color: "#0B0D11"
+    property string videoIconPrefix: "qrc:/qml/assets/ai/icons/"
 
-    property int pagePadding: width >= 1400 ? 28 : (width >= 1000 ? 22 : 16)
-    property int actionButtonWidth: width >= 1200 ? 116 : 98
-    property int actionButtonHeight: width >= 1200 ? 38 : 34
-    property int controlButtonSize: width >= 1200 ? 52 : 46
-    property int controlPanelHeight: width >= 1200 ? 104 : 96
+    property bool compactLayout: width < 960
+    property bool denseLayout: width < 760
+    property bool iconOnlyActions: width < 860
 
-    // 视频状态属性
+    property int pagePadding: width >= 1360 ? 22 : (width >= 960 ? 16 : 12)
+    property int titleBarHeight: denseLayout ? 52 : 58
+    property int bottomBarHeight: denseLayout ? 88 : 98
+    property int primaryButtonSize: denseLayout ? 42 : 46
+    property int secondaryButtonSize: denseLayout ? 34 : 36
+
     property int videoWidth: 0
     property int videoHeight: 0
     property double videoFPS: 0
@@ -28,14 +31,32 @@ Rectangle {
     signal seekRequested(int positionMs)
     signal openVideoClicked()
 
+    function iconSource(name) {
+        return videoIconPrefix + name + ".svg"
+    }
+
+    function currentMetaText() {
+        if (videoWidth <= 0 || videoHeight <= 0) {
+            return "?????????"
+        }
+        var fpsText = videoFPS > 0 ? (videoFPS.toFixed(1) + " FPS") : ""
+        var durationText = videoDuration > 0 ? formatTime(videoDuration) : ""
+        var parts = [videoWidth + " ? " + videoHeight]
+        if (fpsText.length > 0)
+            parts.push(fpsText)
+        if (durationText.length > 0)
+            parts.push(durationText)
+        return parts.join("  ?  ")
+    }
+
     function updateProgress(progress) {
         var clamped = Math.max(0, Math.min(1.0, Number(progress)))
         progressBar.value = isNaN(clamped) ? 0 : clamped
     }
 
     function showError(errorMsg) {
-        errorText.text = errorMsg || "播放失败"
-        errorText.visible = true
+        errorText.text = errorMsg || "????"
+        errorToast.visible = true
         errorHideTimer.restart()
     }
 
@@ -45,48 +66,65 @@ Rectangle {
 
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 62
-            color: "#171A20"
+            Layout.preferredHeight: root.titleBarHeight
+            color: "#11151B"
             border.width: 1
-            border.color: "#262A33"
+            border.color: "#202631"
 
             RowLayout {
                 anchors.fill: parent
                 anchors.leftMargin: root.pagePadding
                 anchors.rightMargin: root.pagePadding
-                spacing: 12
+                spacing: 10
 
-                Text {
-                    text: "视频播放"
-                    font.pixelSize: 18
-                    font.weight: Font.DemiBold
-                    color: "#F2F5FB"
-                }
-
-                Text {
-                    text: videoWidth > 0
-                          ? (videoWidth + " x " + videoHeight + "  ·  " + videoFPS.toFixed(1) + " FPS")
-                          : "未加载视频"
-                    font.pixelSize: 12
-                    color: "#A4ACB9"
-                }
-
-                Item { Layout.fillWidth: true }
-
-                Rectangle {
-                    width: root.actionButtonWidth
-                    height: root.actionButtonHeight
-                    radius: height / 2
-                    color: openVideoArea.containsMouse ? Theme.accent : "transparent"
-                    border.width: 1
-                    border.color: Theme.accent
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 1
 
                     Text {
+                        text: videoWidth > 0 ? "????" : "?????"
+                        font.pixelSize: root.denseLayout ? 14 : 15
+                        font.weight: Font.DemiBold
+                        color: "#F4F7FB"
+                        elide: Text.ElideRight
+                    }
+
+                    Text {
+                        visible: !root.denseLayout || videoWidth > 0
+                        text: root.currentMetaText()
+                        font.pixelSize: 11
+                        color: "#7E8796"
+                        elide: Text.ElideRight
+                    }
+                }
+
+                Rectangle {
+                    width: root.iconOnlyActions ? root.secondaryButtonSize : (root.compactLayout ? 92 : 106)
+                    height: root.secondaryButtonSize
+                    radius: height / 2
+                    color: openVideoArea.pressed ? "#161B22" : (openVideoArea.containsMouse ? "#202733" : "#171C23")
+                    border.width: 1
+                    border.color: openVideoArea.containsMouse ? "#505C6F" : "#2D3440"
+
+                    Row {
                         anchors.centerIn: parent
-                        text: "选择视频"
-                        font.pixelSize: 13
-                        font.weight: Font.Medium
-                        color: openVideoArea.containsMouse ? "#FFFFFF" : Theme.accent
+                        spacing: root.iconOnlyActions ? 0 : 8
+
+                        Image {
+                            width: 16
+                            height: 16
+                            source: root.iconSource("video-open")
+                            fillMode: Image.PreserveAspectFit
+                        }
+
+                        Text {
+                            visible: !root.iconOnlyActions
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "????"
+                            font.pixelSize: 12
+                            font.weight: Font.Medium
+                            color: "#EAF0F8"
+                        }
                     }
 
                     MouseArea {
@@ -111,32 +149,55 @@ Rectangle {
                 anchors.fill: parent
             }
 
-            Text {
+            Column {
                 anchors.centerIn: parent
+                spacing: 6
                 visible: videoWidth === 0
-                text: "请选择视频文件"
-                font.pixelSize: 24
-                color: "#566075"
+
+                Image {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    width: root.denseLayout ? 28 : 32
+                    height: root.denseLayout ? 28 : 32
+                    source: root.iconSource("video-play")
+                    fillMode: Image.PreserveAspectFit
+                    opacity: 0.9
+                }
+
+                Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: "?????????"
+                    font.pixelSize: root.denseLayout ? 16 : 18
+                    font.weight: Font.Medium
+                    color: "#EEF2F7"
+                }
+
+                Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: "????????????"
+                    font.pixelSize: 12
+                    color: "#6F7786"
+                }
             }
 
             Rectangle {
+                id: errorToast
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.top: parent.top
-                anchors.topMargin: 18
-                visible: errorText.visible
+                anchors.topMargin: 16
+                visible: false
                 radius: 10
-                color: "#CC8B1F1F"
+                color: "#DB2F353D"
                 border.width: 1
-                border.color: "#E05555"
-                width: Math.min(parent.width - 40, errorText.implicitWidth + 24)
+                border.color: "#F46A6A"
+                width: Math.min(parent.width - 32, errorText.implicitWidth + 24)
                 height: 38
 
                 Text {
                     id: errorText
                     anchors.centerIn: parent
-                    font.pixelSize: 13
+                    font.pixelSize: 12
+                    font.weight: Font.Medium
                     color: "#FFFFFF"
-                    visible: false
                     text: ""
                     elide: Text.ElideRight
                 }
@@ -151,18 +212,18 @@ Rectangle {
 
             Timer {
                 id: errorHideTimer
-                interval: 3500
+                interval: 3200
                 repeat: false
-                onTriggered: errorText.visible = false
+                onTriggered: errorToast.visible = false
             }
         }
 
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: root.controlPanelHeight
-            color: "#171A20"
+            Layout.preferredHeight: root.bottomBarHeight
+            color: "#12161D"
             border.width: 1
-            border.color: "#262A33"
+            border.color: "#202631"
 
             ColumnLayout {
                 anchors.fill: parent
@@ -170,17 +231,11 @@ Rectangle {
                 anchors.rightMargin: root.pagePadding
                 anchors.topMargin: 10
                 anchors.bottomMargin: 10
-                spacing: 10
+                spacing: 8
 
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 10
-
-                    Text {
-                        text: formatTime(currentPosition)
-                        font.pixelSize: 12
-                        color: "#A4ACB9"
-                    }
+                    spacing: 8
 
                     Slider {
                         id: progressBar
@@ -201,13 +256,13 @@ Rectangle {
                             width: progressBar.availableWidth
                             height: 4
                             radius: 2
-                            color: "#3A414E"
+                            color: "#313948"
 
                             Rectangle {
                                 width: progressBar.visualPosition * parent.width
                                 height: parent.height
                                 radius: 2
-                                color: Theme.accent
+                                color: "#D94747"
                             }
                         }
 
@@ -217,87 +272,89 @@ Rectangle {
                             width: 14
                             height: 14
                             radius: 7
-                            color: progressBar.pressed ? "#FFFFFF" : Theme.accent
+                            color: progressBar.pressed ? "#FFFFFF" : "#F6F8FB"
                             border.width: 1
-                            border.color: "#FFFFFF"
+                            border.color: "#D94747"
                         }
                     }
 
                     Text {
-                        text: formatTime(videoDuration)
+                        text: formatTime(currentPosition) + " / " + formatTime(videoDuration)
                         font.pixelSize: 12
-                        color: "#A4ACB9"
+                        color: "#E6EBF3"
                     }
                 }
 
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 14
+                    spacing: 10
 
-                    Item { Layout.fillWidth: true }
+                    RowLayout {
+                        spacing: 8
 
-                    Rectangle {
-                        width: root.controlButtonSize
-                        height: root.controlButtonSize
-                        radius: width / 2
-                        color: playPauseArea.containsMouse ? "#FDECEC" : "transparent"
-                        border.width: 1
-                        border.color: Theme.accent
+                        Rectangle {
+                            width: root.primaryButtonSize
+                            height: root.primaryButtonSize
+                            radius: width / 2
+                            color: playPauseArea.pressed ? "#C64040"
+                                                          : (playPauseArea.containsMouse ? "#E25555" : "#D94747")
+                            border.width: 1
+                            border.color: playPauseArea.containsMouse ? "#F28E8E" : "#D84A4A"
 
-                        Image {
-                            anchors.centerIn: parent
-                            width: 22
-                            height: 22
-                            source: {
-                                if (root.isPlaying) {
-                                    return playPauseArea.containsMouse
-                                            ? root.playerIconPrefix + "player_btn_pause_hover.svg"
-                                            : root.playerIconPrefix + "player_btn_pause_default.svg"
-                                }
-                                return playPauseArea.containsMouse
-                                        ? root.playerIconPrefix + "player_btn_play_hover.svg"
-                                        : root.playerIconPrefix + "player_btn_play_default.svg"
+                            Image {
+                                anchors.centerIn: parent
+                                width: root.denseLayout ? 18 : 20
+                                height: root.denseLayout ? 18 : 20
+                                source: root.isPlaying ? root.iconSource("video-pause") : root.iconSource("video-play")
+                                fillMode: Image.PreserveAspectFit
                             }
-                            fillMode: Image.PreserveAspectFit
+
+                            MouseArea {
+                                id: playPauseArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.playPauseClicked()
+                            }
                         }
 
-                        MouseArea {
-                            id: playPauseArea
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.playPauseClicked()
-                        }
-                    }
+                        Rectangle {
+                            width: root.secondaryButtonSize
+                            height: root.secondaryButtonSize
+                            radius: width / 2
+                            color: stopArea.pressed ? "#161B22" : (stopArea.containsMouse ? "#202733" : "#191E26")
+                            border.width: 1
+                            border.color: stopArea.containsMouse ? "#505C6F" : "#2D3440"
 
-                    Rectangle {
-                        width: root.controlButtonSize
-                        height: root.controlButtonSize
-                        radius: width / 2
-                        color: stopArea.containsMouse ? "#FDECEC" : "transparent"
-                        border.width: 1
-                        border.color: stopArea.containsMouse ? Theme.accent : "#556070"
+                            Image {
+                                anchors.centerIn: parent
+                                width: 14
+                                height: 14
+                                source: root.iconSource("video-stop")
+                                fillMode: Image.PreserveAspectFit
+                            }
 
-                        Image {
-                            anchors.centerIn: parent
-                            width: 20
-                            height: 20
-                            source: stopArea.containsMouse
-                                    ? root.playerIconPrefix + "player_btn_stop_hover.svg"
-                                    : root.playerIconPrefix + "player_btn_stop_default.svg"
-                            fillMode: Image.PreserveAspectFit
-                        }
-
-                        MouseArea {
-                            id: stopArea
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.stopClicked()
+                            MouseArea {
+                                id: stopArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.stopClicked()
+                            }
                         }
                     }
 
-                    Item { Layout.fillWidth: true }
+                    Item {
+                        Layout.fillWidth: true
+                    }
+
+                    Text {
+                        text: root.currentMetaText()
+                        visible: !root.compactLayout && videoWidth > 0
+                        font.pixelSize: 11
+                        color: "#7E8796"
+                        elide: Text.ElideRight
+                    }
                 }
             }
         }
