@@ -43,6 +43,7 @@ class QNetworkAccessManager;
 class QScrollArea;
 class QVBoxLayout;
 class QLabel;
+class SearchHistoryPopup;
 
 class MainWidget : public QWidget {
     Q_OBJECT
@@ -99,6 +100,7 @@ class MainWidget : public QWidget {
     UserWidget* userWidget;
     UserWidgetQml* userWidgetQml;
     SearchBoxQml* searchBox = nullptr;
+    SearchHistoryPopup* m_searchHistoryPopup = nullptr;
     QWidget* topWidget;
     QWidget* leftWidget = nullptr;
     QWidget* brandWidget = nullptr;
@@ -224,6 +226,10 @@ class MainWidget : public QWidget {
     void applyLocalOnlyModeUi();
     void showLocalOnlyUnavailableMessage();
     void updateSearchBoxForMode();
+    void ensureSearchHistoryPopup();
+    void repositionSearchHistoryPopup();
+    void showSearchHistoryPopup(const QString& filterText = QString());
+    void hideSearchHistoryPopup();
     void enqueuePluginLoadError(const QString& pluginFilePath, const QString& reason);
     void showPluginDiagnosticsDialog();
 
@@ -353,6 +359,11 @@ class MainWidget : public QWidget {
     void handlePlayStateChanged(ProcessSliderQml::State state);
     void handleVideoPlayerWindowReady(VideoPlayerWindow* window);
     void handleVideoPlaybackStateChanged(bool isPlaying);
+    void handleSearchBoxActivated();
+    void handleSearchBoxTextEdited(const QString& text);
+    void handleSearchHistoryActivated(const QString& keyword);
+    void handleSearchHistoryDeleteRequested(const QString& keyword);
+    void handleClearSearchHistoryRequested();
     void handleSearchRequested(const QString& keyword);
     void handleSearchResultsReady();
     void handleSimilarRecommendationListReady(const QVariantMap& meta, const QVariantList& items,

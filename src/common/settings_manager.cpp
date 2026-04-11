@@ -53,11 +53,16 @@ QString normalizedPluginKey(const QString& pluginId) {
     return key;
 }
 
+QString normalizeSearchKeyword(const QString& keyword) {
+    return keyword.trimmed();
+}
+
 } // namespace
 
 SettingsManager::SettingsManager() : m_settings("FFmpegMusicPlayer", "Settings") {
     static constexpr int kDefaultPlayerPageStyle = 0;
     static constexpr int kMaxPlayerPageStyle = 4;
+    static constexpr int kMaxSearchHistoryItems = 10;
     const QString preferredPath = inferPreferredLogPath();
     const QString defaultCachePath = defaultAudioCachePath();
 
@@ -102,6 +107,18 @@ SettingsManager::SettingsManager() : m_settings("FFmpegMusicPlayer", "Settings")
         m_settings.value("server/host", QStringLiteral("192.168.1.208")).toString().trimmed();
     m_serverPort = m_settings.value("server/port", 8080).toInt();
     m_playerPageStyle = m_settings.value("player/page_style", kDefaultPlayerPageStyle).toInt();
+    QStringList storedSearchHistory = m_settings.value("search/history/keywords").toStringList();
+    for (const QString& keyword : storedSearchHistory) {
+        const QString normalized = normalizeSearchKeyword(keyword);
+        if (normalized.isEmpty() || m_searchHistoryKeywords.contains(normalized)) {
+            continue;
+        }
+        m_searchHistoryKeywords.append(normalized);
+    }
+    if (m_searchHistoryKeywords.size() > kMaxSearchHistoryItems) {
+        m_searchHistoryKeywords = m_searchHistoryKeywords.mid(0, kMaxSearchHistoryItems);
+    }
+    m_settings.setValue("search/history/keywords", m_searchHistoryKeywords);
     if (m_serverHost.isEmpty()) {
         m_serverHost = QStringLiteral("192.168.1.208");
         m_settings.setValue("server/host", m_serverHost);
@@ -408,4 +425,57 @@ void SettingsManager::setPluginWindowGeometry(const QString& pluginId, const QBy
 void SettingsManager::clearPluginWindowGeometry(const QString& pluginId) {
     const QString key = QStringLiteral("ui/plugins/%1/geometry").arg(normalizedPluginKey(pluginId));
     m_settings.remove(key);
+}
+
+QStringList SettingsManager::searchHistoryKeywords() const {
+    return m_searchHistoryKeywords;
+}
+
+void SettingsManager::addSearchHistoryKeyword(const QString& keyword) {
+    static constexpr int kMaxSearchHistoryItems = 10;
+    const QString normalized = normalizeSearchKeyword(keyword);
+    if (normalized.isEmpty()) {
+        return;
+    }
+
+    QStringList updated = m_searchHistoryKeywords;
+    updated.removeAll(normalized);
+    updated.prepend(normalized);
+    while (updated.size() > kMaxSearchHistoryItems) {
+        updated.removeLast();
+    }
+
+    if (updated == m_searchHistoryKeywords) {
+        return;
+    }
+
+    m_searchHistoryKeywords = updated;
+    m_settings.setValue("search/history/keywords", m_searchHistoryKeywords);
+    emit searchHistoryChanged();
+}
+
+void SettingsManager::removeSearchHistoryKeyword(const QString& keyword) {
+    const QString normalized = normalizeSearchKeyword(keyword);
+    if (normalized.isEmpty()) {
+        return;
+    }
+
+    QStringList updated = m_searchHistoryKeywords;
+    if (!updated.removeAll(normalized)) {
+        return;
+    }
+
+    m_searchHistoryKeywords = updated;
+    m_settings.setValue("search/history/keywords", m_searchHistoryKeywords);
+    emit searchHistoryChanged();
+}
+
+void SettingsManager::clearSearchHistoryKeywords() {
+    if (m_searchHistoryKeywords.isEmpty()) {
+        return;
+    }
+
+    m_searchHistoryKeywords.clear();
+    m_settings.setValue("search/history/keywords", m_searchHistoryKeywords);
+    emit searchHistoryChanged();
 }

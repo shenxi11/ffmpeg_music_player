@@ -9,6 +9,7 @@
 #include <QSettings>
 #include <QStandardPaths>
 #include <QString>
+#include <QStringList>
 
 /**
  * @brief Global settings manager (singleton)
@@ -126,6 +127,10 @@ class SettingsManager : public QObject {
     QByteArray pluginWindowGeometry(const QString& pluginId) const;
     void setPluginWindowGeometry(const QString& pluginId, const QByteArray& geometry);
     void clearPluginWindowGeometry(const QString& pluginId);
+    QStringList searchHistoryKeywords() const;
+    void addSearchHistoryKeyword(const QString& keyword);
+    void removeSearchHistoryKeyword(const QString& keyword);
+    void clearSearchHistoryKeywords();
 
   signals:
     void downloadPathChanged();
@@ -137,6 +142,7 @@ class SettingsManager : public QObject {
     void playerPageStyleChanged();
     void accountCacheChanged();
     void autoLoginChanged();
+    void searchHistoryChanged();
 
   private:
     SettingsManager();
@@ -163,6 +169,7 @@ class SettingsManager : public QObject {
     QString m_cachedProfileUpdatedAt;
     bool m_autoLoginEnabled = false;
     bool m_manualLogoutMarked = false;
+    QStringList m_searchHistoryKeywords;
     bool m_hasServerWelcomeWindowPos = false;
     QPoint m_serverWelcomeWindowPos;
 };

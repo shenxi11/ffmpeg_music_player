@@ -3,6 +3,7 @@
 #include "VideoPlayerWindow.h"
 #include "playback_state_manager.h"
 #include "plugin_host_window.h"
+#include "search_history_popup.h"
 #include "plugin_manager.h"
 #include "searchbox_qml.h"
 #include "settings_manager.h"
@@ -488,6 +489,8 @@ MainWidget::MainWidget(bool localOnlyMode, QWidget* parent)
     }
 
     connect(searchBox, &SearchBoxQml::search, this, &MainWidget::handleSearchRequested);
+    connect(searchBox, &SearchBoxQml::inputActivated, this, &MainWidget::handleSearchBoxActivated);
+    connect(searchBox, &SearchBoxQml::textEdited, this, &MainWidget::handleSearchBoxTextEdited);
 
     connect(m_viewModel, &MainShellViewModel::searchResultsReady, net_list,
             &MusicListWidgetNet::signalAddSonglist);
@@ -685,6 +688,63 @@ void MainWidget::updateSearchBoxForMode() {
     searchBox->setEnabled(!m_localOnlyMode);
     if (m_localOnlyMode) {
         searchBox->clear();
+        hideSearchHistoryPopup();
+    }
+}
+
+void MainWidget::ensureSearchHistoryPopup() {
+    if (m_searchHistoryPopup) {
+        return;
+    }
+
+    m_searchHistoryPopup = new SearchHistoryPopup(this);
+    m_searchHistoryPopup->setAnchorWidget(searchBox);
+    connect(m_searchHistoryPopup, &SearchHistoryPopup::historyActivated, this,
+            &MainWidget::handleSearchHistoryActivated);
+    connect(m_searchHistoryPopup, &SearchHistoryPopup::historyDeleteRequested, this,
+            &MainWidget::handleSearchHistoryDeleteRequested);
+    connect(m_searchHistoryPopup, &SearchHistoryPopup::clearAllRequested, this,
+            &MainWidget::handleClearSearchHistoryRequested);
+}
+
+void MainWidget::repositionSearchHistoryPopup() {
+    if (!m_searchHistoryPopup || !m_searchHistoryPopup->isVisible() || !searchBox) {
+        return;
+    }
+
+    const int popupWidth = qMax(300, searchBox->width());
+    m_searchHistoryPopup->setFixedWidth(popupWidth);
+    m_searchHistoryPopup->adjustSize();
+
+    QPoint anchorPoint = searchBox->mapTo(this, QPoint(0, searchBox->height() + 6));
+    int x = anchorPoint.x();
+    int y = anchorPoint.y();
+    if (x + popupWidth > width() - 12) {
+        x = qMax(12, width() - popupWidth - 12);
+    }
+
+    const int maxHeight = qMax(120, height() - y - 24);
+    const int popupHeight = qMin(m_searchHistoryPopup->sizeHint().height(), maxHeight);
+    m_searchHistoryPopup->setGeometry(x, y, popupWidth, popupHeight);
+    m_searchHistoryPopup->raise();
+}
+
+void MainWidget::showSearchHistoryPopup(const QString& filterText) {
+    if (m_localOnlyMode || !searchBox || !searchBox->isEnabled()) {
+        return;
+    }
+
+    ensureSearchHistoryPopup();
+    m_searchHistoryPopup->setHistoryItems(SettingsManager::instance().searchHistoryKeywords());
+    m_searchHistoryPopup->setFilterText(filterText);
+    repositionSearchHistoryPopup();
+    m_searchHistoryPopup->show();
+    m_searchHistoryPopup->raise();
+}
+
+void MainWidget::hideSearchHistoryPopup() {
+    if (m_searchHistoryPopup) {
+        m_searchHistoryPopup->hide();
     }
 }
 
@@ -882,7 +942,42 @@ void MainWidget::handleVideoPlaybackStateChanged(bool isPlaying) {
     }
 }
 
+void MainWidget::handleSearchBoxActivated() {
+    showSearchHistoryPopup(searchBox ? searchBox->text() : QString());
+}
+
+void MainWidget::handleSearchBoxTextEdited(const QString& text) {
+    if (m_localOnlyMode) {
+        return;
+    }
+    showSearchHistoryPopup(text);
+}
+
+void MainWidget::handleSearchHistoryActivated(const QString& keyword) {
+    const QString trimmedKeyword = keyword.trimmed();
+    if (trimmedKeyword.isEmpty()) {
+        return;
+    }
+
+    if (searchBox) {
+        searchBox->setText(trimmedKeyword);
+    }
+    hideSearchHistoryPopup();
+    handleSearchRequested(trimmedKeyword);
+}
+
+void MainWidget::handleSearchHistoryDeleteRequested(const QString& keyword) {
+    SettingsManager::instance().removeSearchHistoryKeyword(keyword);
+    showSearchHistoryPopup(searchBox ? searchBox->text() : QString());
+}
+
+void MainWidget::handleClearSearchHistoryRequested() {
+    SettingsManager::instance().clearSearchHistoryKeywords();
+    showSearchHistoryPopup(searchBox ? searchBox->text() : QString());
+}
+
 void MainWidget::handleSearchRequested(const QString& keyword) {
+    hideSearchHistoryPopup();
     if (m_localOnlyMode) {
         showLocalOnlyUnavailableMessage();
         return;
@@ -895,6 +990,7 @@ void MainWidget::handleSearchRequested(const QString& keyword) {
         return;
     }
 
+    SettingsManager::instance().addSearchHistoryKeyword(trimmedKeyword);
     qDebug() << "[MainWidget] Search keyword:" << trimmedKeyword;
     net_list->clearList();
     if (m_viewModel) {
@@ -1619,6 +1715,7 @@ void MainWidget::mouseReleaseEvent(QMouseEvent* event) {
 void MainWidget::resizeEvent(QResizeEvent* event) {
     QWidget::resizeEvent(event);
     updateAdaptiveLayout();
+    repositionSearchHistoryPopup();
 }
 
 void MainWidget::closeEvent(QCloseEvent* event) {
@@ -1630,6 +1727,7 @@ void MainWidget::closeEvent(QCloseEvent* event) {
     if (mainMenu) {
         mainMenu->close();
     }
+    hideSearchHistoryPopup();
     if (settingsWidget) {
         settingsWidget->close();
         settingsWidget->deleteLater();
