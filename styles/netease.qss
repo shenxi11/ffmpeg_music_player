@@ -515,110 +515,239 @@ QLabel#BrandTitleLabel {
 }
 
 QWidget#VideoPlayerWindow {
-    background: #0F1115;
+    background: #0B0D11;
+}
+
+QWidget#VideoPlayerWindow QWidget {
+    background-color: transparent;
+    color: #EAF0F8;
+}
+
+QWidget#VideoPlayerWindow QLabel {
+    background-color: transparent;
+    color: #EAF0F8;
+}
+
+QWidget#VideoPlayerWindow QPushButton {
+    background-color: #181D25;
+    color: #EAF0F8;
+    border: 1px solid #2D3440;
+}
+
+QWidget#VideoPlayerWindow QComboBox {
+    background-color: #181D25;
+    color: #EAF0F8;
+    border: 1px solid #2D3440;
+}
+
+QWidget#VideoPlayerWindow QComboBox QAbstractItemView {
+    background-color: #181D25;
+    color: #EAF0F8;
+    border: 1px solid #2D3440;
+}
+
+QWidget#VideoPlayerWindow QSlider {
+    background-color: transparent;
 }
 
 QWidget#VideoTitleBar {
-    background: #171A20;
-    border-bottom: 1px solid #262A33;
+    background: #11151B;
+    border-bottom: 1px solid #202631;
+}
+
+QWidget#VideoTitleInfoWidget {
+    background-color: transparent;
+    border: none;
+}
+
+QWidget#VideoTransportControls,
+QWidget#VideoTrailingControls {
+    background-color: transparent;
+    border: none;
 }
 
 QWidget#VideoControlBar {
-    background: #171A20;
-    border-top: 1px solid #262A33;
+    background: #12161D;
+    border-top: 1px solid #202631;
 }
 
 QLabel#VideoFileNameLabel {
-    color: #F4F6FA;
-    font-size: 14px;
+    color: #F4F7FB;
+    font-size: 15px;
     font-weight: 600;
 }
 
-QWidget#VideoControlBar QLabel {
-    color: #B8BEC9;
+QLabel#VideoMetaInfoLabel {
+    color: #7E8796;
+    font-size: 11px;
+}
+
+QWidget#VideoControlBar QLabel,
+QLabel#VideoInlineLabel {
+    color: #AAB4C3;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+QLabel#VideoTimeLabel {
+    color: #E6EBF3;
+    font-size: 12px;
+    font-weight: 500;
 }
 
 QPushButton#VideoTitleCloseButton {
-    min-height: 24px;
-    min-width: 24px;
-    border-radius: 12px;
+    min-height: 34px;
+    min-width: 34px;
+    border-radius: 17px;
     border: none;
-    color: #F4F6FA;
+    color: #DDE3EC;
     background: transparent;
-    font-size: 16px;
+    padding: 0;
 }
 
 QPushButton#VideoTitleCloseButton:hover {
-    background: rgba(255, 76, 76, 0.85);
+    background: rgba(255, 92, 92, 0.18);
     color: #FFFFFF;
 }
 
+QPushButton#VideoTitleCloseButton:pressed {
+    background: rgba(255, 92, 92, 0.28);
+}
+
 QPushButton#VideoPlayPauseButton {
-    min-height: 50px;
-    min-width: 50px;
-    max-height: 50px;
-    max-width: 50px;
-    border-radius: 25px;
-    font-size: 18px;
-    font-weight: 700;
+    min-height: 44px;
+    min-width: 44px;
+    border-radius: 22px;
+    border: 1px solid #D84A4A;
+    background: #D94747;
+    color: #FFFFFF;
+    padding: 0;
+}
+
+QPushButton#VideoPlayPauseButton:hover {
+    background: #E25555;
+    border-color: #F28E8E;
+}
+
+QPushButton#VideoPlayPauseButton:pressed {
+    background: #C64040;
+    border-color: #D07070;
+}
+
+QPushButton#VideoPlayPauseButton:disabled {
+    background: #553333;
+    border-color: #553333;
+}
+
+QPushButton#VideoRoundButton {
+    min-height: 34px;
+    min-width: 34px;
+    border-radius: 17px;
+    border: 1px solid #2D3440;
+    background: #191E26;
+    color: #EAF0F8;
+    padding: 0;
+}
+
+QPushButton#VideoRoundButton:hover {
+    border-color: #505C6F;
+    background: #202733;
+}
+
+QPushButton#VideoRoundButton:pressed {
+    background: #161B22;
+    border-color: #3D4655;
+}
+
+QPushButton#VideoRoundButton:disabled {
+    color: #7F8897;
+    background: #14181F;
+    border-color: #232A35;
 }
 
 QPushButton#VideoActionButton {
-    min-height: 36px;
+    min-height: 38px;
     border-radius: 8px;
-    border: 1px solid #3A414E;
-    background: #262B33;
-    color: #EDF1F7;
-    padding: 0 14px;
+    border: 1px solid #2D3440;
+    background: #181D25;
+    color: #EAF0F8;
+    padding: 0 12px;
+    text-align: center;
 }
 
 QPushButton#VideoActionButton:hover {
-    border-color: #EC4141;
-    background: #2D3440;
+    border-color: #505C6F;
+    background: #202733;
 }
 
 QPushButton#VideoActionButton:pressed {
-    background: #232830;
+    border-color: #3D4655;
+    background: #161B22;
+}
+
+QPushButton#VideoActionButton[compact="true"] {
+    min-height: 34px;
+    padding: 0 14px;
+    border-radius: 17px;
+    background: #171C23;
+}
+
+QPushButton#VideoActionButton[iconOnly="true"] {
+    min-width: 42px;
+    max-width: 42px;
+    padding: 0;
+    border-radius: 12px;
+}
+
+QPushButton#VideoActionButton[compact="true"][iconOnly="true"] {
+    min-width: 34px;
+    max-width: 34px;
+    border-radius: 17px;
 }
 
 QComboBox#VideoControlCombo {
-    min-height: 34px;
+    min-height: 36px;
     border-radius: 8px;
-    border: 1px solid #3A414E;
-    background: #262B33;
-    color: #EDF1F7;
+    border: 1px solid #2D3440;
+    background: #181D25;
+    color: #EAF0F8;
     padding: 0 28px 0 10px;
 }
 
 QComboBox#VideoControlCombo:hover {
-    border-color: #EC4141;
+    border-color: #505C6F;
 }
 
 QComboBox#VideoControlCombo QAbstractItemView {
-    border: 1px solid #3A414E;
+    border: 1px solid #2D3440;
     border-radius: 8px;
-    background: #262B33;
-    color: #EDF1F7;
-    selection-background-color: #EC4141;
+    background: #181D25;
+    color: #EAF0F8;
+    selection-background-color: #D94747;
     selection-color: #FFFFFF;
 }
 
 QSlider#VideoProgressSlider::groove:horizontal {
     height: 4px;
-    border-radius: 2px;
-    background: #3A414E;
+    border-radius: 3px;
+    background: #313948;
 }
 
 QSlider#VideoProgressSlider::sub-page:horizontal {
-    border-radius: 2px;
-    background: #EC4141;
+    border-radius: 3px;
+    background: #D94747;
 }
 
 QSlider#VideoProgressSlider::handle:horizontal {
-    width: 12px;
-    height: 12px;
-    margin: -4px 0;
-    border-radius: 6px;
-    border: 1px solid #EC4141;
+    width: 14px;
+    height: 14px;
+    margin: -5px 0;
+    border-radius: 7px;
+    border: 1px solid #D94747;
+    background: #F6F8FB;
+}
+
+QSlider#VideoProgressSlider::handle:horizontal:hover {
+    border-color: #F28E8E;
     background: #FFFFFF;
 }

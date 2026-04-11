@@ -38,6 +38,7 @@ public slots:
     void setPixelAspectRatio(int num, int den);
     void setDisplayMode(int mode);     // 0: Fit, 1: Fill
     void setQualityPreset(int preset); // 0: 标准(1080P), 1: 增强(2K)
+    void setFullscreenTransitionActive(bool active);
 
     qint64 lastPTS() const { return m_lastPTS; }
 
@@ -109,6 +110,8 @@ private:
     int m_renderMaxHeight;
     float m_sharpenStrength;
     bool m_enableHighQualityScaling;
+    bool m_fullscreenTransitionActive;
+    QSize m_pendingRenderTargetSize;
 };
 
 #endif // VIDEORENDERERGL_H

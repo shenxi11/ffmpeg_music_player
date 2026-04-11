@@ -24,6 +24,23 @@ void VideoPlayerWindow::connectUiSignals(QPushButton* closeBtn)
         connect(m_playPauseBtn, &QPushButton::clicked,
                 this, &VideoPlayerWindow::onPlayPauseClicked);
     }
+    if (m_stopBtn) {
+        connect(m_stopBtn, &QPushButton::clicked, this, [this]() {
+            if (!m_mediaSession) {
+                return;
+            }
+            m_mediaSession->stop();
+            m_isPlaying = false;
+            m_replayPendingSeek = false;
+            m_currentPosition = 0;
+            if (m_progressSlider) {
+                m_progressSlider->setValue(0);
+            }
+            updateTimeLabel(0, m_duration);
+            emit playStateChanged(false);
+            updateButtonStates();
+        });
+    }
     if (m_openFileBtn) {
         connect(m_openFileBtn, &QPushButton::clicked,
                 this, &VideoPlayerWindow::onOpenFileClicked);

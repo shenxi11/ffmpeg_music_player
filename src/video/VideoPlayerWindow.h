@@ -6,14 +6,20 @@
 #include <QSlider>
 #include <QLabel>
 #include <QComboBox>
+#include <QWidget>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
+#include <QGridLayout>
 #include <QFileDialog>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QTime>
 #include <QTimer>
 #include <QKeyEvent>
+#include <QSize>
+#include <QEvent>
+#include <QRect>
+#include <QScreen>
 #include "MediaService.h"
 #include "MediaSession.h"
 #include "VideoRendererGL.h"
@@ -75,9 +81,20 @@ private:
     void connectUiSignals(QPushButton* closeBtn);
     void connectMediaSessionSignals();
     void updateTimeLabel(qint64 currentMs, qint64 totalMs);
+    void updateMetaInfo();
+    void updateButtonStates();
+    void updateResponsiveUi();
+    void requestFullScreenChange(bool enabled, const char* source);
+    void applyImmersiveMaximize();
+    void restoreFromImmersiveMaximize();
+    void scheduleFullScreenTransitionSettle();
+    void finalizeFullScreenTransition();
+    void performCloseCleanup();
+    bool isImmersiveMaximizeActive() const;
     QString formatTime(qint64 ms);
 
 protected:
+    void changeEvent(QEvent* event) override;
     void resizeEvent(QResizeEvent *event) override;
     void closeEvent(QCloseEvent *event) override;
     void keyPressEvent(QKeyEvent *event) override;
@@ -85,6 +102,7 @@ protected:
 private:
     VideoRendererGL* m_renderWidget;
     QPushButton* m_playPauseBtn;
+    QPushButton* m_stopBtn;
     QPushButton* m_openFileBtn;
     QPushButton* m_displayModeBtn;
     QPushButton* m_fullScreenBtn;
@@ -93,6 +111,14 @@ private:
     QSlider* m_progressSlider;
     QLabel* m_timeLabel;
     QLabel* m_fileNameLabel;
+    QLabel* m_metaInfoLabel;
+    QLabel* m_qualityLabel;
+    QLabel* m_rateLabel;
+    QLabel* m_qualityIconLabel;
+    QLabel* m_rateIconLabel;
+    QWidget* m_titleBar;
+    QWidget* m_controlBar;
+    QWidget* m_trailingControls;
 
     MediaSession* m_mediaSession;
 
@@ -104,6 +130,15 @@ private:
     bool m_replayPendingSeek;
     bool m_fillDisplayMode;
     qint64 m_pendingStoppedSeekPosition;
+    QSize m_videoFrameSize;
+    QTimer* m_fullScreenTransitionTimer;
+    bool m_fullScreenTransitionInProgress;
+    bool m_targetFullScreenState;
+    bool m_immersiveMaximizeActive;
+    bool m_closePending;
+    bool m_cleanupDone;
+    QRect m_savedWindowGeometry;
+    bool m_savedWasMaximized;
 };
 
 #endif // VIDEOPLAYERWINDOW_H

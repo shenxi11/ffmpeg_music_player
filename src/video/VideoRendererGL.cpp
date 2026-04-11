@@ -154,6 +154,8 @@ VideoRendererGL::VideoRendererGL(QWidget* parent)
     , m_renderMaxHeight(1080)
     , m_sharpenStrength(0.08f)
     , m_enableHighQualityScaling(false)
+    , m_fullscreenTransitionActive(false)
+    , m_pendingRenderTargetSize()
 {
     QSurfaceFormat format;
     format.setVersion(3, 3);
@@ -302,7 +304,22 @@ void VideoRendererGL::paintGL()
     const int screenW = qMax(1, static_cast<int>(width() * dpr));
     const int screenH = qMax(1, static_cast<int>(height() * dpr));
     const QSize internalSize = calculateInternalRenderSize(screenW, screenH);
-    ensureRenderTarget(internalSize.width(), internalSize.height());
+
+    if (m_fullscreenTransitionActive) {
+        if (m_pendingRenderTargetSize != internalSize) {
+            m_pendingRenderTargetSize = internalSize;
+            qDebug() << "[VideoRendererGL] Deferring render target resize during fullscreen transition to"
+                     << internalSize.width() << "x" << internalSize.height();
+        }
+        if (m_rgbFbo == 0 || m_rgbTexture == 0) {
+            ensureRenderTarget(internalSize.width(), internalSize.height());
+            m_pendingRenderTargetSize = QSize();
+        }
+    } else {
+        const QSize targetSize = m_pendingRenderTargetSize.isValid() ? m_pendingRenderTargetSize : internalSize;
+        ensureRenderTarget(targetSize.width(), targetSize.height());
+        m_pendingRenderTargetSize = QSize();
+    }
 
     if (m_rgbFbo == 0 || m_rgbTexture == 0) {
         return;
@@ -607,6 +624,8 @@ void VideoRendererGL::stop()
     }
     m_frameUpdated = false;
     m_videoSize = QSize(-1, -1);
+    m_fullscreenTransitionActive = false;
+    m_pendingRenderTargetSize = QSize();
     qDebug() << "[VideoRendererGL] Stop";
 }
 
@@ -674,6 +693,20 @@ void VideoRendererGL::setDisplayMode(int mode)
         updateVertexBuffer(this->width(), this->height());
         update();
     }
+}
+
+void VideoRendererGL::setFullscreenTransitionActive(bool active)
+{
+    if (m_fullscreenTransitionActive == active) {
+        return;
+    }
+
+    m_fullscreenTransitionActive = active;
+    if (!m_fullscreenTransitionActive && m_pendingRenderTargetSize.isValid()) {
+        qDebug() << "[VideoRendererGL] Fullscreen transition settled, applying deferred render target"
+                 << m_pendingRenderTargetSize.width() << "x" << m_pendingRenderTargetSize.height();
+    }
+    update();
 }
 
 void VideoRendererGL::setQualityPreset(int preset)
