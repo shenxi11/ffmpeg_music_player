@@ -1,10 +1,10 @@
 #include "download_task_model.h"
+
+#include "cover_cache_manager.h"
 #include "local_music_cache.h"
 
-DownloadTaskModel::DownloadTaskModel(QObject *parent)
-    : QAbstractListModel(parent)
-    , m_showCompleted(false)
-{
+DownloadTaskModel::DownloadTaskModel(QObject* parent)
+    : QAbstractListModel(parent), m_showCompleted(false) {
     rebuildLocalMetadataCache();
     connect(&LocalMusicCache::instance(), &LocalMusicCache::musicListChanged, this, [this]() {
         rebuildLocalMetadataCache();
@@ -13,72 +13,94 @@ DownloadTaskModel::DownloadTaskModel(QObject *parent)
                              {CoverUrlRole, ArtistRole, DurationRole});
         }
     });
+    connect(&CoverCacheManager::instance(), &CoverCacheManager::coverCached, this,
+            [this](const QString& normalizedSource, const QString& localFilePath) {
+                if (normalizedSource.isEmpty() || localFilePath.isEmpty()) {
+                    return;
+                }
+
+                QStringList affectedPaths;
+                for (const DownloadTask& task : m_tasks) {
+                    if (CoverCacheManager::instance().normalizeCoverSource(task.coverUrl) ==
+                        normalizedSource) {
+                        affectedPaths.append(task.savePath);
+                    }
+                }
+                for (auto it = m_localMetadataCache.constBegin();
+                     it != m_localMetadataCache.constEnd(); ++it) {
+                    if (CoverCacheManager::instance().normalizeCoverSource(it.value().coverUrl) ==
+                        normalizedSource) {
+                        affectedPaths.append(it.key());
+                    }
+                }
+                affectedPaths.removeDuplicates();
+                for (const QString& path : affectedPaths) {
+                    updateSongMetadata(path, localFilePath, QString(), QString());
+                }
+            });
     setupConnections();
 }
 
-int DownloadTaskModel::rowCount(const QModelIndex &parent) const
-{
+int DownloadTaskModel::rowCount(const QModelIndex& parent) const {
     if (parent.isValid())
         return 0;
     return m_tasks.count();
 }
 
-QVariant DownloadTaskModel::data(const QModelIndex &index, int role) const
-{
+QVariant DownloadTaskModel::data(const QModelIndex& index, int role) const {
     if (!index.isValid() || index.row() >= m_tasks.count())
         return QVariant();
 
     const DownloadTask& task = m_tasks[index.row()];
 
     switch (role) {
-    case TaskIdRole:
-        return task.taskId;
-    case FilenameRole:
-        return task.filename;
-    case SavePathRole:
-        return task.savePath;
-    case TotalSizeRole:
-        return task.totalSize;
-    case DownloadedSizeRole:
-        return task.downloadedSize;
-    case ProgressRole:
-        return task.progress();
-    case StateRole:
-        return static_cast<int>(task.state);
-    case StateTextRole:
-        switch (task.state) {
-        case DownloadState::Waiting:
-            return "等待中";
-        case DownloadState::Downloading:
-            return "下载中";
-        case DownloadState::Paused:
-            return "已暂停";
-        case DownloadState::Completed:
-            return "已完成";
-        case DownloadState::Failed:
-            return "失败";
-        case DownloadState::Cancelled:
-            return "已取消";
+        case TaskIdRole:
+            return task.taskId;
+        case FilenameRole:
+            return task.filename;
+        case SavePathRole:
+            return task.savePath;
+        case TotalSizeRole:
+            return task.totalSize;
+        case DownloadedSizeRole:
+            return task.downloadedSize;
+        case ProgressRole:
+            return task.progress();
+        case StateRole:
+            return static_cast<int>(task.state);
+        case StateTextRole:
+            switch (task.state) {
+                case DownloadState::Waiting:
+                    return "等待中";
+                case DownloadState::Downloading:
+                    return "下载中";
+                case DownloadState::Paused:
+                    return "已暂停";
+                case DownloadState::Completed:
+                    return "已完成";
+                case DownloadState::Failed:
+                    return "失败";
+                case DownloadState::Cancelled:
+                    return "已取消";
+                default:
+                    return "未知";
+            }
+        case ErrorMsgRole:
+            return task.errorMsg;
+        case IsPlayingRole:
+            return task.savePath == m_currentPlayingPath;
+        case CoverUrlRole:
+            return resolveCoverUrl(task);
+        case ArtistRole:
+            return resolveArtist(task);
+        case DurationRole:
+            return resolveDuration(task);
         default:
-            return "未知";
-        }
-    case ErrorMsgRole:
-        return task.errorMsg;
-    case IsPlayingRole:
-        return task.savePath == m_currentPlayingPath;
-    case CoverUrlRole:
-        return resolveCoverUrl(task);
-    case ArtistRole:
-        return resolveArtist(task);
-    case DurationRole:
-        return resolveDuration(task);
-    default:
-        return QVariant();
+            return QVariant();
     }
 }
 
-QHash<int, QByteArray> DownloadTaskModel::roleNames() const
-{
+QHash<int, QByteArray> DownloadTaskModel::roleNames() const {
     QHash<int, QByteArray> roles;
     roles[TaskIdRole] = "taskId";
     roles[FilenameRole] = "filename";
@@ -96,26 +118,24 @@ QHash<int, QByteArray> DownloadTaskModel::roleNames() const
     return roles;
 }
 
-void DownloadTaskModel::refresh(bool showCompleted)
-{
+void DownloadTaskModel::refresh(bool showCompleted) {
     beginResetModel();
     m_showCompleted = showCompleted;
     rebuildLocalMetadataCache();
-    
+
     if (showCompleted) {
         m_tasks = DownloadManager::instance().getCompletedTasks();
     } else {
         m_tasks = DownloadManager::instance().getActiveTasks();
     }
-    
+
     endResetModel();
 }
 
 void DownloadTaskModel::updateSongMetadata(const QString& savePath, const QString& coverUrl,
-                                           const QString& duration, const QString& artist)
-{
+                                           const QString& duration, const QString& artist) {
     const QString normalizedPath = savePath.trimmed();
-    const QString normalizedCover = coverUrl.trimmed();
+    const QString normalizedCover = CoverCacheManager::instance().cachedOrOriginalCover(coverUrl);
     const QString normalizedDuration = duration.trimmed();
     const QString normalizedArtist = artist.trimmed();
     if (normalizedPath.isEmpty()) {
@@ -155,23 +175,19 @@ void DownloadTaskModel::updateSongMetadata(const QString& savePath, const QStrin
     }
 }
 
-void DownloadTaskModel::pauseTask(const QString& taskId)
-{
+void DownloadTaskModel::pauseTask(const QString& taskId) {
     DownloadManager::instance().pauseDownload(taskId);
 }
 
-void DownloadTaskModel::resumeTask(const QString& taskId)
-{
+void DownloadTaskModel::resumeTask(const QString& taskId) {
     DownloadManager::instance().resumeDownload(taskId);
 }
 
-void DownloadTaskModel::cancelTask(const QString& taskId)
-{
+void DownloadTaskModel::cancelTask(const QString& taskId) {
     DownloadManager::instance().cancelDownload(taskId);
 }
 
-void DownloadTaskModel::setCurrentPlayingPath(const QString& path)
-{
+void DownloadTaskModel::setCurrentPlayingPath(const QString& path) {
     if (m_currentPlayingPath != path) {
         m_currentPlayingPath = path;
         emit currentPlayingPathChanged();
@@ -182,10 +198,9 @@ void DownloadTaskModel::setCurrentPlayingPath(const QString& path)
     }
 }
 
-void DownloadTaskModel::removeTask(const QString& taskId)
-{
+void DownloadTaskModel::removeTask(const QString& taskId) {
     qDebug() << "[DownloadTaskModel] Removing task:" << taskId;
-    
+
     // 从模型中移除
     for (int i = 0; i < m_tasks.count(); ++i) {
         if (m_tasks[i].taskId == taskId) {
@@ -195,16 +210,15 @@ void DownloadTaskModel::removeTask(const QString& taskId)
             break;
         }
     }
-    
+
     // 从下载管理器中删除
     DownloadManager::instance().removeTask(taskId);
 }
 
-QString DownloadTaskModel::resolveCoverUrl(const DownloadTask& task) const
-{
+QString DownloadTaskModel::resolveCoverUrl(const DownloadTask& task) const {
     const QString taskCover = task.coverUrl.trimmed();
     if (!taskCover.isEmpty()) {
-        return taskCover;
+        return CoverCacheManager::instance().imageSourceForCover(taskCover);
     }
 
     const QString targetPath = task.savePath.trimmed();
@@ -214,14 +228,13 @@ QString DownloadTaskModel::resolveCoverUrl(const DownloadTask& task) const
 
     auto it = m_localMetadataCache.constFind(targetPath);
     if (it != m_localMetadataCache.constEnd() && !it.value().coverUrl.trimmed().isEmpty()) {
-        return it.value().coverUrl.trimmed();
+        return CoverCacheManager::instance().imageSourceForCover(it.value().coverUrl);
     }
 
     return QString();
 }
 
-QString DownloadTaskModel::resolveArtist(const DownloadTask& task) const
-{
+QString DownloadTaskModel::resolveArtist(const DownloadTask& task) const {
     const QString taskArtist = task.artist.trimmed();
     if (!taskArtist.isEmpty()) {
         return taskArtist;
@@ -240,8 +253,7 @@ QString DownloadTaskModel::resolveArtist(const DownloadTask& task) const
     return QString();
 }
 
-QString DownloadTaskModel::resolveDuration(const DownloadTask& task) const
-{
+QString DownloadTaskModel::resolveDuration(const DownloadTask& task) const {
     const QString taskDuration = task.duration.trimmed();
     if (!taskDuration.isEmpty()) {
         return taskDuration;
@@ -260,8 +272,7 @@ QString DownloadTaskModel::resolveDuration(const DownloadTask& task) const
     return QString();
 }
 
-void DownloadTaskModel::rebuildLocalMetadataCache()
-{
+void DownloadTaskModel::rebuildLocalMetadataCache() {
     m_localMetadataCache.clear();
     const QList<LocalMusicInfo> musicList = LocalMusicCache::instance().getMusicList();
     for (const LocalMusicInfo& info : musicList) {
@@ -276,8 +287,7 @@ void DownloadTaskModel::rebuildLocalMetadataCache()
 void DownloadTaskModel::updateLocalMetadataCacheEntry(const QString& savePath,
                                                       const QString& coverUrl,
                                                       const QString& duration,
-                                                      const QString& artist)
-{
+                                                      const QString& artist) {
     const QString key = savePath.trimmed();
     if (key.isEmpty()) {
         return;
@@ -297,11 +307,10 @@ void DownloadTaskModel::updateLocalMetadataCacheEntry(const QString& savePath,
     m_localMetadataCache.insert(key, info);
 }
 
-void DownloadTaskModel::onDownloadAdded(const QString& taskId, const QString& filename)
-{
+void DownloadTaskModel::onDownloadAdded(const QString& taskId, const QString& filename) {
     Q_UNUSED(filename)
     qDebug() << "[DownloadTaskModel] Download added signal received:" << taskId;
-    
+
     // 任务添加时立即插入到模型中
     if (!m_showCompleted) {
         DownloadTask newTask = DownloadManager::instance().getTask(taskId);
@@ -309,7 +318,7 @@ void DownloadTaskModel::onDownloadAdded(const QString& taskId, const QString& fi
             qWarning() << "[DownloadTaskModel] Failed to get task:" << taskId;
             return;
         }
-        
+
         // 检查是否已存在
         for (int i = 0; i < m_tasks.count(); ++i) {
             if (m_tasks[i].taskId == taskId) {
@@ -317,20 +326,19 @@ void DownloadTaskModel::onDownloadAdded(const QString& taskId, const QString& fi
                 return;
             }
         }
-        
+
         // 插入到列表开头
         beginInsertRows(QModelIndex(), 0, 0);
         m_tasks.prepend(newTask);
         endInsertRows();
-        
+
         qDebug() << "[DownloadTaskModel] Task added to model, total tasks:" << m_tasks.count();
     }
 }
 
-void DownloadTaskModel::onDownloadStarted(const QString& taskId, const QString& filename)
-{
+void DownloadTaskModel::onDownloadStarted(const QString& taskId, const QString& filename) {
     Q_UNUSED(filename)
-    
+
     // 如果是活跃任务列表，更新任务状态
     if (!m_showCompleted) {
         for (int i = 0; i < m_tasks.count(); ++i) {
@@ -347,18 +355,17 @@ void DownloadTaskModel::onDownloadStarted(const QString& taskId, const QString& 
     }
 }
 
-void DownloadTaskModel::onDownloadProgress(const QString& taskId, const QString& filename, 
-                                            qint64 bytesReceived, qint64 bytesTotal)
-{
+void DownloadTaskModel::onDownloadProgress(const QString& taskId, const QString& filename,
+                                           qint64 bytesReceived, qint64 bytesTotal) {
     Q_UNUSED(filename)
-    
+
     // 查找对应的任务并更新
     for (int i = 0; i < m_tasks.count(); ++i) {
         if (m_tasks[i].taskId == taskId) {
             // 从管理器获取最新数据
             DownloadTask updatedTask = DownloadManager::instance().getTask(taskId);
             m_tasks[i] = updatedTask;
-            
+
             // 只通知相关字段变化
             QModelIndex idx = index(i);
             emit dataChanged(idx, idx, {ProgressRole, DownloadedSizeRole, TotalSizeRole});
@@ -367,11 +374,11 @@ void DownloadTaskModel::onDownloadProgress(const QString& taskId, const QString&
     }
 }
 
-void DownloadTaskModel::onDownloadFinished(const QString& taskId, const QString& filename, const QString& savePath)
-{
+void DownloadTaskModel::onDownloadFinished(const QString& taskId, const QString& filename,
+                                           const QString& savePath) {
     Q_UNUSED(filename)
     Q_UNUSED(savePath)
-    
+
     // 如果是活跃任务列表，需要移除已完成的任务
     if (!m_showCompleted) {
         for (int i = 0; i < m_tasks.count(); ++i) {
@@ -388,11 +395,11 @@ void DownloadTaskModel::onDownloadFinished(const QString& taskId, const QString&
     }
 }
 
-void DownloadTaskModel::onDownloadFailed(const QString& taskId, const QString& filename, const QString& error)
-{
+void DownloadTaskModel::onDownloadFailed(const QString& taskId, const QString& filename,
+                                         const QString& error) {
     Q_UNUSED(filename)
     Q_UNUSED(error)
-    
+
     // 更新任务状态显示
     if (!m_showCompleted) {
         for (int i = 0; i < m_tasks.count(); ++i) {
@@ -407,10 +414,9 @@ void DownloadTaskModel::onDownloadFailed(const QString& taskId, const QString& f
     }
 }
 
-void DownloadTaskModel::onDownloadPaused(const QString& taskId, const QString& filename)
-{
+void DownloadTaskModel::onDownloadPaused(const QString& taskId, const QString& filename) {
     Q_UNUSED(filename)
-    
+
     // 更新任务状态
     if (!m_showCompleted) {
         for (int i = 0; i < m_tasks.count(); ++i) {
@@ -425,10 +431,9 @@ void DownloadTaskModel::onDownloadPaused(const QString& taskId, const QString& f
     }
 }
 
-void DownloadTaskModel::onDownloadCancelled(const QString& taskId, const QString& filename)
-{
+void DownloadTaskModel::onDownloadCancelled(const QString& taskId, const QString& filename) {
     Q_UNUSED(filename)
-    
+
     // 从活跃列表移除已取消的任务
     if (!m_showCompleted) {
         for (int i = 0; i < m_tasks.count(); ++i) {
@@ -442,11 +447,10 @@ void DownloadTaskModel::onDownloadCancelled(const QString& taskId, const QString
     }
 }
 
-void DownloadTaskModel::onTaskRemoved(const QString& taskId, const QString& filename)
-{
+void DownloadTaskModel::onTaskRemoved(const QString& taskId, const QString& filename) {
     Q_UNUSED(filename)
     qDebug() << "[DownloadTaskModel] Task removed signal received:" << taskId;
-    
+
     // 无论哪个列表，都移除该任务
     for (int i = 0; i < m_tasks.count(); ++i) {
         if (m_tasks[i].taskId == taskId) {

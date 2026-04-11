@@ -22,11 +22,14 @@
 
 #include <QButtonGroup>
 #include <QGuiApplication>
+#include <QHash>
+#include <QIcon>
 #include <QLinearGradient>
 #include <QList>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QScreen>
+#include <QSet>
 #include <QStringList>
 #include <QVariantList>
 #include <QVariantMap>
@@ -36,6 +39,7 @@ class PlaybackStateManager;
 class QCloseEvent;
 class QTimer;
 class QUrl;
+class QNetworkAccessManager;
 class QScrollArea;
 class QVBoxLayout;
 class QLabel;
@@ -147,6 +151,12 @@ class MainWidget : public QWidget {
     QVariantList m_profileFavoritesPreview;
     QVariantList m_profileHistoryPreview;
     QVariantList m_profileOwnedPlaylistsPreview;
+    QHash<qint64, QString> m_playlistDerivedCoverUrls;
+    QSet<qint64> m_playlistCoverPrefetchInFlight;
+    QSet<qint64> m_playlistCoverPrefetchResolved;
+    QNetworkAccessManager* m_sidebarCoverNetworkManager = nullptr;
+    QHash<QString, QIcon> m_sidebarCoverIconCache;
+    QSet<QString> m_sidebarCoverRequestsInFlight;
     bool m_localOnlyMode = false;
 
     QPoint pos_ = QPoint(0, 0);
@@ -192,13 +202,25 @@ class MainWidget : public QWidget {
     void rebuildSidebarPlaylistButtons();
     void clearSidebarPlaylistButtons();
     void syncSidebarPlaylistSelection(qint64 playlistId);
+    QIcon sidebarPlaylistCoverIcon(const QString& coverUrl);
+    QString normalizePlaylistCoverUrl(const QString& coverUrl) const;
+    void applySidebarPlaylistButtonIcon(QPushButton* button, const QString& coverUrl);
+    void requestSidebarPlaylistCoverIcon(const QString& coverUrl);
+    void refreshSidebarPlaylistCoverIcon(qint64 playlistId, const QString& coverUrl);
+    QString lookupPlaylistCoverCache(const QString& account, qint64 playlistId,
+                                     const QString& updatedAt, bool* found) const;
+    void storePlaylistCoverCache(qint64 playlistId, const QString& updatedAt,
+                                 const QString& coverUrl);
+    void clearPlaylistCoverCacheForPlaylist(qint64 playlistId);
     QVariantMap cachedUserProfileSnapshot() const;
     void refreshUserProfileStats();
     void syncUserProfileStatsToPage();
     void syncUserProfilePreviewToPage();
     void applyUserIdentityToUi(const QString& username, const QString& avatarUrl, bool loggedIn,
                                bool forceAvatarRefresh = false);
-    bool isLocalOnlyMode() const { return m_localOnlyMode; }
+    bool isLocalOnlyMode() const {
+        return m_localOnlyMode;
+    }
     void applyLocalOnlyModeUi();
     void showLocalOnlyUnavailableMessage();
     void updateSearchBoxForMode();
@@ -290,6 +312,7 @@ class MainWidget : public QWidget {
     void handlePlaylistAddCurrentSongRequested(qint64 playlistId);
     void handlePlaylistsListReady(const QVariantList& playlists, int page, int pageSize, int total);
     void handlePlaylistDetailReady(const QVariantMap& detail);
+    void handlePlaylistCoverDetailReady(const QVariantMap& detail);
     void handleCreatePlaylistResultReady(bool success, qint64 playlistId, const QString& message);
     void handleUpdatePlaylistResultReady(bool success, qint64 playlistId, const QString& message);
     void handleDeletePlaylistResultReady(bool success, qint64 playlistId, const QString& message);
@@ -300,6 +323,9 @@ class MainWidget : public QWidget {
     void handleReorderPlaylistItemsResultReady(bool success, qint64 playlistId,
                                                const QString& message);
     void handleSongActionRequested(const QString& action, const QVariantMap& songData);
+    void prefetchPlaylistCoverDetails(const QVariantList& playlists);
+    void applyPlaylistCoverToUiCaches(qint64 playlistId, const QString& coverUrl,
+                                      const QString& updatedAt = QString());
     void queueSongAsNext(const QVariantMap& songData);
     void appendSongToPlaybackQueue(const QVariantMap& songData);
     void addSongToPlaylistByAction(const QVariantMap& songData);

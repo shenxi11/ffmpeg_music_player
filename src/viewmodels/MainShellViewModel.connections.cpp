@@ -38,6 +38,8 @@ void MainShellViewModel::setupConnections() {
             &MainShellViewModel::playlistsListReady);
     connect(&m_request, &HttpRequestV2::signalPlaylistDetail, this,
             &MainShellViewModel::playlistDetailReady);
+    connect(&m_request, &HttpRequestV2::signalPlaylistCoverDetail, this,
+            &MainShellViewModel::playlistCoverDetailReady);
     connect(&m_request, &HttpRequestV2::signalCreatePlaylistResult, this,
             &MainShellViewModel::createPlaylistResultReady);
     connect(&m_request, &HttpRequestV2::signalDeletePlaylistResult, this,
@@ -66,9 +68,9 @@ void MainShellViewModel::setupConnections() {
             const QString createdAt = profile.value(QStringLiteral("created_at")).toString();
             const QString updatedAt = profile.value(QStringLiteral("updated_at")).toString();
             const QString onlineToken = currentOnlineSessionToken();
-            const QString persistedUsername =
-                username.trimmed().isEmpty() ? SettingsManager::instance().cachedUsername()
-                                             : username;
+            const QString persistedUsername = username.trimmed().isEmpty()
+                                                  ? SettingsManager::instance().cachedUsername()
+                                                  : username;
 
             if (!username.trimmed().isEmpty()) {
                 User::getInstance()->setUsername(username);

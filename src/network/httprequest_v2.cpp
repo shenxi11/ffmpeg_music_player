@@ -2012,6 +2012,127 @@ void HttpRequestV2::createPlaylist(const QString& userAccount, const QString& na
         });
 }
 
+QVariantMap HttpRequestV2::parsePlaylistDetailPayload(const Network::NetworkResponse& response) {
+    if (!response.isSuccess()) {
+        return QVariantMap();
+    }
+
+    const QJsonObject root = Network::NetworkService::parseJsonObject(response);
+    const QJsonObject detailObj = unwrapDataObject(root);
+
+    QVariantMap detail;
+    detail.insert(QStringLiteral("id"),
+                  detailObj.value(QStringLiteral("id")).toVariant().toLongLong());
+    detail.insert(QStringLiteral("name"), detailObj.value(QStringLiteral("name")).toString());
+    detail.insert(QStringLiteral("description"),
+                  detailObj.value(QStringLiteral("description")).toString());
+    detail.insert(QStringLiteral("cover_url"),
+                  rewriteServiceUrlToBase(detailObj.value(QStringLiteral("cover_url")).toString(),
+                                          m_baseUrl));
+    detail.insert(QStringLiteral("created_at"),
+                  detailObj.value(QStringLiteral("created_at")).toString());
+    detail.insert(QStringLiteral("updated_at"),
+                  detailObj.value(QStringLiteral("updated_at")).toString());
+
+    QHash<QString, QString> localCoverByPath;
+    const QList<LocalMusicInfo> localMusicList = LocalMusicCache::instance().getMusicList();
+    for (const LocalMusicInfo& info : localMusicList) {
+        if (info.coverUrl.trimmed().isEmpty()) {
+            continue;
+        }
+        const QString key = normalizeMusicPathForLookup(info.filePath);
+        if (!key.isEmpty()) {
+            localCoverByPath.insert(key, info.coverUrl);
+        }
+    }
+
+    QVariantList items;
+    int totalDurationSec = 0;
+    const QJsonArray itemsArray = detailObj.value(QStringLiteral("items")).toArray();
+    items.reserve(itemsArray.size());
+    for (const QJsonValue& value : itemsArray) {
+        if (!value.isObject()) {
+            continue;
+        }
+
+        const QJsonObject obj = value.toObject();
+        QVariantMap item;
+
+        QString musicPath = obj.value(QStringLiteral("music_path")).toString();
+        if (musicPath.trimmed().isEmpty()) {
+            musicPath = obj.value(QStringLiteral("path")).toString();
+        }
+        const bool isLocal = obj.value(QStringLiteral("is_local")).toBool();
+        if (!isLocal) {
+            musicPath = normalizeOnlineMediaPath(musicPath, m_baseUrl);
+        }
+
+        QString durationText = readDurationFromObject(obj);
+        if (durationText.isEmpty()) {
+            durationText =
+                formatDurationFromSeconds(obj.value(QStringLiteral("duration_sec")).toInt());
+        }
+        totalDurationSec += obj.value(QStringLiteral("duration_sec")).toInt();
+
+        QString coverArtUrl = rewriteServiceUrlToBase(
+            obj.value(QStringLiteral("cover_art_url")).toString(), m_baseUrl);
+        if (coverArtUrl.trimmed().isEmpty()) {
+            coverArtUrl = rewriteServiceUrlToBase(obj.value(QStringLiteral("cover_url")).toString(),
+                                                  m_baseUrl);
+        }
+        if (coverArtUrl.trimmed().isEmpty()) {
+            coverArtUrl = rewriteServiceUrlToBase(
+                obj.value(QStringLiteral("cover_art_path")).toString(), m_baseUrl);
+        }
+        if (isLocal && coverArtUrl.trimmed().isEmpty()) {
+            const QString localKey = normalizeMusicPathForLookup(musicPath);
+            if (!localKey.isEmpty()) {
+                coverArtUrl = localCoverByPath.value(localKey);
+            }
+        }
+        if (coverArtUrl.trimmed().isEmpty()) {
+            coverArtUrl = queryCoverForMusicPath(musicPath);
+        }
+        if (coverArtUrl.trimmed().isEmpty()) {
+            const QString titleText = obj.value(QStringLiteral("music_title")).toString();
+            const QString artistText = readArtistFromObject(obj);
+            coverArtUrl = queryCoverForSongMeta(titleText, artistText);
+        }
+        rememberCoverForMusicPath(musicPath, coverArtUrl);
+        rememberCoverForSongMeta(obj.value(QStringLiteral("music_title")).toString(),
+                                 readArtistFromObject(obj), coverArtUrl);
+
+        item.insert(QStringLiteral("id"), obj.value(QStringLiteral("id")).toVariant().toLongLong());
+        item.insert(QStringLiteral("position"), obj.value(QStringLiteral("position")).toInt());
+        item.insert(QStringLiteral("path"), musicPath);
+        item.insert(QStringLiteral("music_path"), musicPath);
+        item.insert(QStringLiteral("title"),
+                    obj.value(QStringLiteral("music_title")).toString().trimmed().isEmpty()
+                        ? fileNameFromPath(musicPath)
+                        : obj.value(QStringLiteral("music_title")).toString());
+        item.insert(QStringLiteral("artist"), readArtistFromObject(obj));
+        item.insert(QStringLiteral("album"), obj.value(QStringLiteral("album")).toString());
+        item.insert(QStringLiteral("duration"), durationText);
+        item.insert(QStringLiteral("duration_sec"),
+                    obj.value(QStringLiteral("duration_sec")).toInt());
+        item.insert(QStringLiteral("is_local"), isLocal);
+        item.insert(QStringLiteral("added_at"), obj.value(QStringLiteral("added_at")).toString());
+        item.insert(QStringLiteral("cover_art_url"), coverArtUrl);
+
+        items.append(item);
+    }
+
+    const int trackCount = detailObj.value(QStringLiteral("track_count")).toInt(items.size());
+    const int serverDurationSec =
+        detailObj.value(QStringLiteral("total_duration_sec")).toInt(totalDurationSec);
+    detail.insert(QStringLiteral("track_count"), trackCount);
+    detail.insert(QStringLiteral("total_duration_sec"), serverDurationSec);
+    detail.insert(QStringLiteral("total_duration"), formatDurationFromSeconds(serverDurationSec));
+    detail.insert(QStringLiteral("items"), items);
+
+    return detail;
+}
+
 void HttpRequestV2::getPlaylistDetail(const QString& userAccount, qint64 playlistId,
                                       bool useCache) {
     const QString trimmedUser = userAccount.trimmed();
@@ -2038,125 +2159,49 @@ void HttpRequestV2::getPlaylistDetail(const QString& userAccount, qint64 playlis
             emit signalPlaylistDetail(QVariantMap());
             return;
         }
-
-        const QJsonObject root = Network::NetworkService::parseJsonObject(response);
-        const QJsonObject detailObj = unwrapDataObject(root);
-
-        QVariantMap detail;
-        detail.insert(QStringLiteral("id"),
-                      detailObj.value(QStringLiteral("id")).toVariant().toLongLong());
-        detail.insert(QStringLiteral("name"), detailObj.value(QStringLiteral("name")).toString());
-        detail.insert(QStringLiteral("description"),
-                      detailObj.value(QStringLiteral("description")).toString());
-        detail.insert(QStringLiteral("cover_url"),
-                      rewriteServiceUrlToBase(
-                          detailObj.value(QStringLiteral("cover_url")).toString(), m_baseUrl));
-        detail.insert(QStringLiteral("created_at"),
-                      detailObj.value(QStringLiteral("created_at")).toString());
-        detail.insert(QStringLiteral("updated_at"),
-                      detailObj.value(QStringLiteral("updated_at")).toString());
-
-        QHash<QString, QString> localCoverByPath;
-        const QList<LocalMusicInfo> localMusicList = LocalMusicCache::instance().getMusicList();
-        for (const LocalMusicInfo& info : localMusicList) {
-            if (info.coverUrl.trimmed().isEmpty()) {
-                continue;
-            }
-            const QString key = normalizeMusicPathForLookup(info.filePath);
-            if (!key.isEmpty()) {
-                localCoverByPath.insert(key, info.coverUrl);
-            }
-        }
-
-        QVariantList items;
-        int totalDurationSec = 0;
-        const QJsonArray itemsArray = detailObj.value(QStringLiteral("items")).toArray();
-        items.reserve(itemsArray.size());
-        for (const QJsonValue& value : itemsArray) {
-            if (!value.isObject()) {
-                continue;
-            }
-
-            const QJsonObject obj = value.toObject();
-            QVariantMap item;
-
-            QString musicPath = obj.value(QStringLiteral("music_path")).toString();
-            if (musicPath.trimmed().isEmpty()) {
-                musicPath = obj.value(QStringLiteral("path")).toString();
-            }
-            bool isLocal = obj.value(QStringLiteral("is_local")).toBool();
-            if (!isLocal) {
-                musicPath = normalizeOnlineMediaPath(musicPath, m_baseUrl);
-            }
-
-            QString durationText = readDurationFromObject(obj);
-            if (durationText.isEmpty()) {
-                durationText =
-                    formatDurationFromSeconds(obj.value(QStringLiteral("duration_sec")).toInt());
-            }
-            totalDurationSec += obj.value(QStringLiteral("duration_sec")).toInt();
-
-            QString coverArtUrl = rewriteServiceUrlToBase(
-                obj.value(QStringLiteral("cover_art_url")).toString(), m_baseUrl);
-            if (coverArtUrl.trimmed().isEmpty()) {
-                coverArtUrl = rewriteServiceUrlToBase(
-                    obj.value(QStringLiteral("cover_url")).toString(), m_baseUrl);
-            }
-            if (coverArtUrl.trimmed().isEmpty()) {
-                coverArtUrl = rewriteServiceUrlToBase(
-                    obj.value(QStringLiteral("cover_art_path")).toString(), m_baseUrl);
-            }
-            if (isLocal && coverArtUrl.trimmed().isEmpty()) {
-                const QString localKey = normalizeMusicPathForLookup(musicPath);
-                if (!localKey.isEmpty()) {
-                    coverArtUrl = localCoverByPath.value(localKey);
-                }
-            }
-            if (coverArtUrl.trimmed().isEmpty()) {
-                coverArtUrl = queryCoverForMusicPath(musicPath);
-            }
-            if (coverArtUrl.trimmed().isEmpty()) {
-                const QString titleText = obj.value(QStringLiteral("music_title")).toString();
-                const QString artistText = readArtistFromObject(obj);
-                coverArtUrl = queryCoverForSongMeta(titleText, artistText);
-            }
-            rememberCoverForMusicPath(musicPath, coverArtUrl);
-            rememberCoverForSongMeta(obj.value(QStringLiteral("music_title")).toString(),
-                                     readArtistFromObject(obj), coverArtUrl);
-
-            item.insert(QStringLiteral("id"),
-                        obj.value(QStringLiteral("id")).toVariant().toLongLong());
-            item.insert(QStringLiteral("position"), obj.value(QStringLiteral("position")).toInt());
-            item.insert(QStringLiteral("path"), musicPath);
-            item.insert(QStringLiteral("music_path"), musicPath);
-            item.insert(QStringLiteral("title"),
-                        obj.value(QStringLiteral("music_title")).toString().trimmed().isEmpty()
-                            ? fileNameFromPath(musicPath)
-                            : obj.value(QStringLiteral("music_title")).toString());
-            item.insert(QStringLiteral("artist"), readArtistFromObject(obj));
-            item.insert(QStringLiteral("album"), obj.value(QStringLiteral("album")).toString());
-            item.insert(QStringLiteral("duration"), durationText);
-            item.insert(QStringLiteral("duration_sec"),
-                        obj.value(QStringLiteral("duration_sec")).toInt());
-            item.insert(QStringLiteral("is_local"), isLocal);
-            item.insert(QStringLiteral("added_at"),
-                        obj.value(QStringLiteral("added_at")).toString());
-            item.insert(QStringLiteral("cover_art_url"), coverArtUrl);
-
-            items.append(item);
-        }
-
-        const int trackCount = detailObj.value(QStringLiteral("track_count")).toInt(items.size());
-        const int serverDurationSec =
-            detailObj.value(QStringLiteral("total_duration_sec")).toInt(totalDurationSec);
-        detail.insert(QStringLiteral("track_count"), trackCount);
-        detail.insert(QStringLiteral("total_duration_sec"), serverDurationSec);
-        detail.insert(QStringLiteral("total_duration"),
-                      formatDurationFromSeconds(serverDurationSec));
-        detail.insert(QStringLiteral("items"), items);
-
+        const QVariantMap detail = parsePlaylistDetailPayload(response);
         emit signalPlaylistDetail(detail);
     });
+}
+
+void HttpRequestV2::requestPlaylistDetailForCover(const QString& userAccount, qint64 playlistId,
+                                                  bool useCache) {
+    const QString trimmedUser = userAccount.trimmed();
+    if (trimmedUser.isEmpty() || playlistId <= 0) {
+        QVariantMap failedDetail;
+        failedDetail.insert(QStringLiteral("id"), playlistId);
+        failedDetail.insert(QStringLiteral("_prefetch_failed"), true);
+        emit signalPlaylistCoverDetail(failedDetail);
+        return;
+    }
+
+    const QString url = QString("user/playlists/%1?user_account=%2")
+                            .arg(playlistId)
+                            .arg(QString(QUrl::toPercentEncoding(trimmedUser)));
+
+    Network::RequestOptions options;
+    if (useCache) {
+        options = Network::RequestOptions::withCache(15);
+    } else {
+        options = Network::RequestOptions::withPriority(Network::RequestPriority::High);
+        options.useCache = false;
+    }
+
+    m_networkService.get(url, options,
+                         [this, playlistId](const Network::NetworkResponse& response) {
+                             if (!response.isSuccess()) {
+                                 qWarning() << "[HttpRequestV2] Get playlist cover detail error:"
+                                            << response.errorString;
+                                 QVariantMap failedDetail;
+                                 failedDetail.insert(QStringLiteral("id"), playlistId);
+                                 failedDetail.insert(QStringLiteral("_prefetch_failed"), true);
+                                 emit signalPlaylistCoverDetail(failedDetail);
+                                 return;
+                             }
+
+                             const QVariantMap detail = parsePlaylistDetailPayload(response);
+                             emit signalPlaylistCoverDetail(detail);
+                         });
 }
 
 void HttpRequestV2::deletePlaylist(const QString& userAccount, qint64 playlistId) {
