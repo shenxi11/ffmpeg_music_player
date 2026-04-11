@@ -1,48 +1,46 @@
 #ifndef VIDEOPLAYERWINDOW_H
 #define VIDEOPLAYERWINDOW_H
 
-#include <QWidget>
-#include <QPushButton>
-#include <QSlider>
-#include <QLabel>
-#include <QComboBox>
-#include <QWidget>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QGridLayout>
-#include <QFileDialog>
-#include <QMouseEvent>
-#include <QPainter>
-#include <QTime>
-#include <QTimer>
-#include <QKeyEvent>
-#include <QSize>
-#include <QEvent>
-#include <QRect>
-#include <QScreen>
 #include "MediaService.h"
 #include "MediaSession.h"
 #include "VideoRendererGL.h"
 
-class VideoRenderWidget : public QWidget
-{
+#include <QComboBox>
+#include <QEvent>
+#include <QFileDialog>
+#include <QGridLayout>
+#include <QHBoxLayout>
+#include <QKeyEvent>
+#include <QLabel>
+#include <QMouseEvent>
+#include <QPainter>
+#include <QPushButton>
+#include <QRect>
+#include <QScreen>
+#include <QSize>
+#include <QSlider>
+#include <QTime>
+#include <QTimer>
+#include <QVBoxLayout>
+#include <QWidget>
+
+class VideoRenderWidget : public QWidget {
     Q_OBJECT
-public:
-    explicit VideoRenderWidget(QWidget *parent = nullptr);
+  public:
+    explicit VideoRenderWidget(QWidget* parent = nullptr);
 
-protected:
-    void paintEvent(QPaintEvent *event) override;
+  protected:
+    void paintEvent(QPaintEvent* event) override;
 
-private:
+  private:
     QString m_placeholderText;
 };
 
-class VideoPlayerWindow : public QWidget
-{
+class VideoPlayerWindow : public QWidget {
     Q_OBJECT
 
-public:
-    explicit VideoPlayerWindow(QWidget *parent = nullptr);
+  public:
+    explicit VideoPlayerWindow(QWidget* parent = nullptr);
     ~VideoPlayerWindow();
 
     void loadVideo(const QString& filePath);
@@ -54,12 +52,12 @@ public:
     bool setQualityPresetValue(const QString& preset);
     QVariantMap snapshot() const;
 
-signals:
+  signals:
     void playStateChanged(bool isPlaying);
     void progressChanged(qint64 position);
     void videoLoaded(const QString& filePath);
 
-public slots:
+  public slots:
     void onPlayPauseClicked();
     void onOpenFileClicked();
     void onSliderPressed();
@@ -76,7 +74,7 @@ public slots:
     void onMediaSessionStateChanged(MediaSession::PlaybackState state);
     void onDeferredSeekAfterStopped();
 
-private:
+  private:
     void setupUI();
     void connectUiSignals(QPushButton* closeBtn);
     void connectMediaSessionSignals();
@@ -93,13 +91,13 @@ private:
     bool isImmersiveMaximizeActive() const;
     QString formatTime(qint64 ms);
 
-protected:
+  protected:
     void changeEvent(QEvent* event) override;
-    void resizeEvent(QResizeEvent *event) override;
-    void closeEvent(QCloseEvent *event) override;
-    void keyPressEvent(QKeyEvent *event) override;
+    void resizeEvent(QResizeEvent* event) override;
+    void closeEvent(QCloseEvent* event) override;
+    void keyPressEvent(QKeyEvent* event) override;
 
-private:
+  private:
     VideoRendererGL* m_renderWidget;
     QPushButton* m_playPauseBtn;
     QPushButton* m_stopBtn;

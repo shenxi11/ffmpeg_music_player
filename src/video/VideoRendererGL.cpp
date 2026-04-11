@@ -116,47 +116,17 @@ void main()
 } // namespace
 
 VideoRendererGL::VideoRendererGL(QWidget* parent)
-    : QOpenGLWidget(parent)
-    , m_playing(false)
-    , m_buffering(false)
-    , m_bufferingThreshold(8)
-    , m_bufferingTimeoutMs(450)
-    , m_bufferingTimeoutLogged(false)
-    , m_earlyWaitPts(-1)
-    , m_earlyWaitLogged(false)
-    , m_videoSize(-1, -1)
-    , m_pixelAspectRatio(1.0f)
-    , m_displayMode(0)
-    , m_lastPTS(0)
-    , m_shaderProgram(nullptr)
-    , m_presentShaderProgram(nullptr)
-    , m_textureY(0)
-    , m_textureU(0)
-    , m_textureV(0)
-    , m_vao(0)
-    , m_vbo(0)
-    , m_fullscreenVao(0)
-    , m_fullscreenVbo(0)
-    , m_rgbFbo(0)
-    , m_rgbTexture(0)
-    , m_rgbFboWidth(0)
-    , m_rgbFboHeight(0)
-    , m_currentFrame(nullptr)
-    , m_frameUpdated(false)
-    , m_vertexBufferDirty(true)
-    , m_renderTimer(new QTimer(this))
-    , m_targetFPS(30)
-    , m_frameInterval(33)
-    , m_buffer(nullptr)
-    , m_glInitialized(false)
-    , m_qualityPreset(Standard1080P)
-    , m_renderMaxWidth(1920)
-    , m_renderMaxHeight(1080)
-    , m_sharpenStrength(0.08f)
-    , m_enableHighQualityScaling(false)
-    , m_fullscreenTransitionActive(false)
-    , m_pendingRenderTargetSize()
-{
+    : QOpenGLWidget(parent), m_playing(false), m_buffering(false), m_bufferingThreshold(8),
+      m_bufferingTimeoutMs(450), m_bufferingTimeoutLogged(false), m_earlyWaitPts(-1),
+      m_earlyWaitLogged(false), m_videoSize(-1, -1), m_pixelAspectRatio(1.0f), m_displayMode(0),
+      m_lastPTS(0), m_shaderProgram(nullptr), m_presentShaderProgram(nullptr), m_textureY(0),
+      m_textureU(0), m_textureV(0), m_vao(0), m_vbo(0), m_fullscreenVao(0), m_fullscreenVbo(0),
+      m_rgbFbo(0), m_rgbTexture(0), m_rgbFboWidth(0), m_rgbFboHeight(0), m_currentFrame(nullptr),
+      m_frameUpdated(false), m_vertexBufferDirty(true), m_renderTimer(new QTimer(this)),
+      m_targetFPS(30), m_frameInterval(33), m_buffer(nullptr), m_glInitialized(false),
+      m_qualityPreset(Standard1080P), m_renderMaxWidth(1920), m_renderMaxHeight(1080),
+      m_sharpenStrength(0.08f), m_enableHighQualityScaling(false),
+      m_fullscreenTransitionActive(false), m_pendingRenderTargetSize() {
     QSurfaceFormat format;
     format.setVersion(3, 3);
     format.setProfile(QSurfaceFormat::CoreProfile);
@@ -166,8 +136,7 @@ VideoRendererGL::VideoRendererGL(QWidget* parent)
     qDebug() << "[VideoRendererGL] Created";
 }
 
-VideoRendererGL::~VideoRendererGL()
-{
+VideoRendererGL::~VideoRendererGL() {
     makeCurrent();
     cleanupGL();
     doneCurrent();
@@ -180,13 +149,13 @@ VideoRendererGL::~VideoRendererGL()
     qDebug() << "[VideoRendererGL] Destroyed";
 }
 
-void VideoRendererGL::initializeGL()
-{
+void VideoRendererGL::initializeGL() {
     initializeOpenGLFunctions();
 
     qDebug() << "[VideoRendererGL] Initializing OpenGL";
     qDebug() << "  OpenGL Version:" << reinterpret_cast<const char*>(glGetString(GL_VERSION));
-    qDebug() << "  GLSL Version:" << reinterpret_cast<const char*>(glGetString(GL_SHADING_LANGUAGE_VERSION));
+    qDebug() << "  GLSL Version:"
+             << reinterpret_cast<const char*>(glGetString(GL_SHADING_LANGUAGE_VERSION));
     qDebug() << "  Renderer:" << reinterpret_cast<const char*>(glGetString(GL_RENDERER));
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -196,14 +165,10 @@ void VideoRendererGL::initializeGL()
         return;
     }
 
-    const float fullscreenVertices[] = {
-        -1.0f,  1.0f, 0.0f,  0.0f, 0.0f,
-        -1.0f, -1.0f, 0.0f,  0.0f, 1.0f,
-         1.0f, -1.0f, 0.0f,  1.0f, 1.0f,
-        -1.0f,  1.0f, 0.0f,  0.0f, 0.0f,
-         1.0f, -1.0f, 0.0f,  1.0f, 1.0f,
-         1.0f,  1.0f, 0.0f,  1.0f, 0.0f
-    };
+    const float fullscreenVertices[] = {-1.0f, 1.0f, 0.0f, 0.0f,  0.0f, -1.0f, -1.0f, 0.0f,
+                                        0.0f,  1.0f, 1.0f, -1.0f, 0.0f, 1.0f,  1.0f,  -1.0f,
+                                        1.0f,  0.0f, 0.0f, 0.0f,  1.0f, -1.0f, 0.0f,  1.0f,
+                                        1.0f,  1.0f, 1.0f, 0.0f,  1.0f, 0.0f};
 
     // Display quad (fit/fill)
     glGenVertexArrays(1, &m_vao);
@@ -213,7 +178,8 @@ void VideoRendererGL::initializeGL()
     glBufferData(GL_ARRAY_BUFFER, sizeof(fullscreenVertices), fullscreenVertices, GL_DYNAMIC_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), reinterpret_cast<void*>(0));
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), reinterpret_cast<void*>(3 * sizeof(float)));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float),
+                          reinterpret_cast<void*>(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
 
     // Fullscreen quad for offscreen conversion
@@ -224,7 +190,8 @@ void VideoRendererGL::initializeGL()
     glBufferData(GL_ARRAY_BUFFER, sizeof(fullscreenVertices), fullscreenVertices, GL_STATIC_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), reinterpret_cast<void*>(0));
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), reinterpret_cast<void*>(3 * sizeof(float)));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float),
+                          reinterpret_cast<void*>(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -238,15 +205,16 @@ void VideoRendererGL::initializeGL()
     qDebug() << "[VideoRendererGL] OpenGL initialized";
 }
 
-bool VideoRendererGL::initShaders()
-{
+bool VideoRendererGL::initShaders() {
     m_shaderProgram = new QOpenGLShaderProgram(this);
     if (!m_shaderProgram->addShaderFromSourceCode(QOpenGLShader::Vertex, kVertexShaderSource)) {
         qWarning() << "[VideoRendererGL] Vertex shader compile failed:" << m_shaderProgram->log();
         return false;
     }
-    if (!m_shaderProgram->addShaderFromSourceCode(QOpenGLShader::Fragment, kYuvFragmentShaderSource)) {
-        qWarning() << "[VideoRendererGL] YUV fragment shader compile failed:" << m_shaderProgram->log();
+    if (!m_shaderProgram->addShaderFromSourceCode(QOpenGLShader::Fragment,
+                                                  kYuvFragmentShaderSource)) {
+        qWarning() << "[VideoRendererGL] YUV fragment shader compile failed:"
+                   << m_shaderProgram->log();
         return false;
     }
     if (!m_shaderProgram->link()) {
@@ -263,19 +231,23 @@ bool VideoRendererGL::initShaders()
     return true;
 }
 
-bool VideoRendererGL::initPresentShaders()
-{
+bool VideoRendererGL::initPresentShaders() {
     m_presentShaderProgram = new QOpenGLShaderProgram(this);
-    if (!m_presentShaderProgram->addShaderFromSourceCode(QOpenGLShader::Vertex, kVertexShaderSource)) {
-        qWarning() << "[VideoRendererGL] Present vertex shader compile failed:" << m_presentShaderProgram->log();
+    if (!m_presentShaderProgram->addShaderFromSourceCode(QOpenGLShader::Vertex,
+                                                         kVertexShaderSource)) {
+        qWarning() << "[VideoRendererGL] Present vertex shader compile failed:"
+                   << m_presentShaderProgram->log();
         return false;
     }
-    if (!m_presentShaderProgram->addShaderFromSourceCode(QOpenGLShader::Fragment, kPresentFragmentShaderSource)) {
-        qWarning() << "[VideoRendererGL] Present fragment shader compile failed:" << m_presentShaderProgram->log();
+    if (!m_presentShaderProgram->addShaderFromSourceCode(QOpenGLShader::Fragment,
+                                                         kPresentFragmentShaderSource)) {
+        qWarning() << "[VideoRendererGL] Present fragment shader compile failed:"
+                   << m_presentShaderProgram->log();
         return false;
     }
     if (!m_presentShaderProgram->link()) {
-        qWarning() << "[VideoRendererGL] Present shader link failed:" << m_presentShaderProgram->log();
+        qWarning() << "[VideoRendererGL] Present shader link failed:"
+                   << m_presentShaderProgram->log();
         return false;
     }
 
@@ -286,8 +258,7 @@ bool VideoRendererGL::initPresentShaders()
     return true;
 }
 
-void VideoRendererGL::paintGL()
-{
+void VideoRendererGL::paintGL() {
     glClear(GL_COLOR_BUFFER_BIT);
     ensureVertexBufferUpdated();
 
@@ -308,7 +279,8 @@ void VideoRendererGL::paintGL()
     if (m_fullscreenTransitionActive) {
         if (m_pendingRenderTargetSize != internalSize) {
             m_pendingRenderTargetSize = internalSize;
-            qDebug() << "[VideoRendererGL] Deferring render target resize during fullscreen transition to"
+            qDebug() << "[VideoRendererGL] Deferring render target resize during fullscreen "
+                        "transition to"
                      << internalSize.width() << "x" << internalSize.height();
         }
         if (m_rgbFbo == 0 || m_rgbTexture == 0) {
@@ -316,7 +288,8 @@ void VideoRendererGL::paintGL()
             m_pendingRenderTargetSize = QSize();
         }
     } else {
-        const QSize targetSize = m_pendingRenderTargetSize.isValid() ? m_pendingRenderTargetSize : internalSize;
+        const QSize targetSize =
+            m_pendingRenderTargetSize.isValid() ? m_pendingRenderTargetSize : internalSize;
         ensureRenderTarget(targetSize.width(), targetSize.height());
         m_pendingRenderTargetSize = QSize();
     }
@@ -347,9 +320,11 @@ void VideoRendererGL::paintGL()
     glViewport(0, 0, screenW, screenH);
 
     m_presentShaderProgram->bind();
-    m_presentShaderProgram->setUniformValue("texelSize", 1.0f / m_rgbFboWidth, 1.0f / m_rgbFboHeight);
+    m_presentShaderProgram->setUniformValue("texelSize", 1.0f / m_rgbFboWidth,
+                                            1.0f / m_rgbFboHeight);
     m_presentShaderProgram->setUniformValue("sharpenStrength", m_sharpenStrength);
-    m_presentShaderProgram->setUniformValue("highQualityScaling", m_enableHighQualityScaling ? 1 : 0);
+    m_presentShaderProgram->setUniformValue("highQualityScaling",
+                                            m_enableHighQualityScaling ? 1 : 0);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, m_rgbTexture);
@@ -360,8 +335,7 @@ void VideoRendererGL::paintGL()
     m_presentShaderProgram->release();
 }
 
-void VideoRendererGL::updateTextures(VideoFrame* frame)
-{
+void VideoRendererGL::updateTextures(VideoFrame* frame) {
     if (!frame || !frame->data[0]) {
         return;
     }
@@ -378,7 +352,8 @@ void VideoRendererGL::updateTextures(VideoFrame* frame)
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, m_textureY);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, frame->data[0]);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, width, height, 0, GL_RED, GL_UNSIGNED_BYTE,
+                 frame->data[0]);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -386,7 +361,8 @@ void VideoRendererGL::updateTextures(VideoFrame* frame)
 
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, m_textureU);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, width / 2, height / 2, 0, GL_RED, GL_UNSIGNED_BYTE, frame->data[1]);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, width / 2, height / 2, 0, GL_RED, GL_UNSIGNED_BYTE,
+                 frame->data[1]);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -394,16 +370,17 @@ void VideoRendererGL::updateTextures(VideoFrame* frame)
 
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_2D, m_textureV);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, width / 2, height / 2, 0, GL_RED, GL_UNSIGNED_BYTE, frame->data[2]);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, width / 2, height / 2, 0, GL_RED, GL_UNSIGNED_BYTE,
+                 frame->data[2]);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 }
 
-void VideoRendererGL::updateVertexBuffer(int windowWidth, int windowHeight)
-{
-    if (windowWidth <= 0 || windowHeight <= 0 || m_videoSize.width() <= 0 || m_videoSize.height() <= 0) {
+void VideoRendererGL::updateVertexBuffer(int windowWidth, int windowHeight) {
+    if (windowWidth <= 0 || windowHeight <= 0 || m_videoSize.width() <= 0 ||
+        m_videoSize.height() <= 0) {
         return;
     }
 
@@ -434,14 +411,10 @@ void VideoRendererGL::updateVertexBuffer(int windowWidth, int windowHeight)
         }
     }
 
-    const float vertices[] = {
-        -scaleX,  scaleY, 0.0f,  0.0f, 0.0f,
-        -scaleX, -scaleY, 0.0f,  0.0f, 1.0f,
-         scaleX, -scaleY, 0.0f,  1.0f, 1.0f,
-        -scaleX,  scaleY, 0.0f,  0.0f, 0.0f,
-         scaleX, -scaleY, 0.0f,  1.0f, 1.0f,
-         scaleX,  scaleY, 0.0f,  1.0f, 0.0f
-    };
+    const float vertices[] = {-scaleX, scaleY, 0.0f,   0.0f,    0.0f,   -scaleX, -scaleY, 0.0f,
+                              0.0f,    1.0f,   scaleX, -scaleY, 0.0f,   1.0f,    1.0f,    -scaleX,
+                              scaleY,  0.0f,   0.0f,   0.0f,    scaleX, -scaleY, 0.0f,    1.0f,
+                              1.0f,    scaleX, scaleY, 0.0f,    1.0f,   0.0f};
 
     glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
@@ -449,16 +422,14 @@ void VideoRendererGL::updateVertexBuffer(int windowWidth, int windowHeight)
     m_vertexBufferDirty = false;
 }
 
-void VideoRendererGL::resizeGL(int w, int h)
-{
+void VideoRendererGL::resizeGL(int w, int h) {
     glViewport(0, 0, w, h);
     if (m_videoSize.width() > 0 && m_videoSize.height() > 0) {
         updateVertexBuffer(w, h);
     }
 }
 
-void VideoRendererGL::ensureVertexBufferUpdated()
-{
+void VideoRendererGL::ensureVertexBufferUpdated() {
     if (!m_vertexBufferDirty) {
         return;
     }
@@ -468,8 +439,7 @@ void VideoRendererGL::ensureVertexBufferUpdated()
     updateVertexBuffer(this->width(), this->height());
 }
 
-QSize VideoRendererGL::calculateInternalRenderSize(int screenWidth, int screenHeight) const
-{
+QSize VideoRendererGL::calculateInternalRenderSize(int screenWidth, int screenHeight) const {
     const int safeScreenW = qMax(1, screenWidth);
     const int safeScreenH = qMax(1, screenHeight);
 
@@ -480,17 +450,17 @@ QSize VideoRendererGL::calculateInternalRenderSize(int screenWidth, int screenHe
         return QSize(safeScreenW, safeScreenH);
     }
 
-    const double scale = qMin(static_cast<double>(maxW) / safeScreenW,
-                              static_cast<double>(maxH) / safeScreenH);
+    const double scale =
+        qMin(static_cast<double>(maxW) / safeScreenW, static_cast<double>(maxH) / safeScreenH);
     return QSize(qMax(1, static_cast<int>(safeScreenW * scale)),
                  qMax(1, static_cast<int>(safeScreenH * scale)));
 }
 
-void VideoRendererGL::ensureRenderTarget(int width, int height)
-{
+void VideoRendererGL::ensureRenderTarget(int width, int height) {
     const int targetW = qMax(1, width);
     const int targetH = qMax(1, height);
-    if (m_rgbFbo != 0 && m_rgbTexture != 0 && m_rgbFboWidth == targetW && m_rgbFboHeight == targetH) {
+    if (m_rgbFbo != 0 && m_rgbTexture != 0 && m_rgbFboWidth == targetW &&
+        m_rgbFboHeight == targetH) {
         return;
     }
 
@@ -517,7 +487,8 @@ void VideoRendererGL::ensureRenderTarget(int width, int height)
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_rgbTexture, 0);
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        qWarning() << "[VideoRendererGL] Failed to create render target" << targetW << "x" << targetH;
+        qWarning() << "[VideoRendererGL] Failed to create render target" << targetW << "x"
+                   << targetH;
         glDeleteFramebuffers(1, &m_rgbFbo);
         glDeleteTextures(1, &m_rgbTexture);
         m_rgbFbo = 0;
@@ -536,8 +507,7 @@ void VideoRendererGL::ensureRenderTarget(int width, int height)
              << "preset:" << (m_qualityPreset == Enhanced2K ? "2K" : "1080P");
 }
 
-void VideoRendererGL::cleanupGL()
-{
+void VideoRendererGL::cleanupGL() {
     if (m_shaderProgram) {
         delete m_shaderProgram;
         m_shaderProgram = nullptr;
@@ -590,15 +560,13 @@ void VideoRendererGL::cleanupGL()
     m_glInitialized = false;
 }
 
-void VideoRendererGL::start()
-{
+void VideoRendererGL::start() {
     m_playing = true;
     m_renderTimer->start(m_frameInterval);
     qDebug() << "[VideoRendererGL] Start";
 }
 
-void VideoRendererGL::pause()
-{
+void VideoRendererGL::pause() {
     m_playing = false;
     m_buffering = false;
     m_earlyWaitPts = -1;
@@ -608,8 +576,7 @@ void VideoRendererGL::pause()
     qDebug() << "[VideoRendererGL] Pause";
 }
 
-void VideoRendererGL::stop()
-{
+void VideoRendererGL::stop() {
     m_playing = false;
     m_buffering = false;
     m_earlyWaitPts = -1;
@@ -629,8 +596,7 @@ void VideoRendererGL::stop()
     qDebug() << "[VideoRendererGL] Stop";
 }
 
-void VideoRendererGL::startBuffering()
-{
+void VideoRendererGL::startBuffering() {
     const int dynamicThreshold = qBound(3, m_targetFPS / 6, 8);
     m_bufferingThreshold = dynamicThreshold;
     m_buffering = true;
@@ -640,13 +606,11 @@ void VideoRendererGL::startBuffering()
              << "timeout:" << m_bufferingTimeoutMs << "ms";
 }
 
-void VideoRendererGL::setVideoBuffer(VideoBuffer* buffer)
-{
+void VideoRendererGL::setVideoBuffer(VideoBuffer* buffer) {
     m_buffer = buffer;
 }
 
-void VideoRendererGL::setTargetFPS(int fps)
-{
+void VideoRendererGL::setTargetFPS(int fps) {
     if (fps <= 0) {
         return;
     }
@@ -661,8 +625,7 @@ void VideoRendererGL::setTargetFPS(int fps)
     qDebug() << "[VideoRendererGL] Target FPS:" << fps;
 }
 
-void VideoRendererGL::setPixelAspectRatio(int num, int den)
-{
+void VideoRendererGL::setPixelAspectRatio(int num, int den) {
     float newPar = 1.0f;
     if (num > 0 && den > 0) {
         newPar = static_cast<float>(num) / static_cast<float>(den);
@@ -680,8 +643,7 @@ void VideoRendererGL::setPixelAspectRatio(int num, int den)
     }
 }
 
-void VideoRendererGL::setDisplayMode(int mode)
-{
+void VideoRendererGL::setDisplayMode(int mode) {
     const int normalized = (mode == 1) ? 1 : 0;
     const bool changed = (m_displayMode != normalized);
 
@@ -695,23 +657,23 @@ void VideoRendererGL::setDisplayMode(int mode)
     }
 }
 
-void VideoRendererGL::setFullscreenTransitionActive(bool active)
-{
+void VideoRendererGL::setFullscreenTransitionActive(bool active) {
     if (m_fullscreenTransitionActive == active) {
         return;
     }
 
     m_fullscreenTransitionActive = active;
     if (!m_fullscreenTransitionActive && m_pendingRenderTargetSize.isValid()) {
-        qDebug() << "[VideoRendererGL] Fullscreen transition settled, applying deferred render target"
-                 << m_pendingRenderTargetSize.width() << "x" << m_pendingRenderTargetSize.height();
+        qDebug()
+            << "[VideoRendererGL] Fullscreen transition settled, applying deferred render target"
+            << m_pendingRenderTargetSize.width() << "x" << m_pendingRenderTargetSize.height();
     }
     update();
 }
 
-void VideoRendererGL::setQualityPreset(int preset)
-{
-    QualityPreset normalized = (preset == static_cast<int>(Enhanced2K)) ? Enhanced2K : Standard1080P;
+void VideoRendererGL::setQualityPreset(int preset) {
+    QualityPreset normalized =
+        (preset == static_cast<int>(Enhanced2K)) ? Enhanced2K : Standard1080P;
     if (m_qualityPreset == normalized) {
         return;
     }
@@ -747,14 +709,12 @@ void VideoRendererGL::setQualityPreset(int preset)
     qDebug() << "[VideoRendererGL] Quality preset set to"
              << (m_qualityPreset == Enhanced2K ? "Enhanced2K" : "Standard1080P")
              << "max:" << m_renderMaxWidth << "x" << m_renderMaxHeight
-             << "hqScaling:" << m_enableHighQualityScaling
-             << "sharpen:" << m_sharpenStrength;
+             << "hqScaling:" << m_enableHighQualityScaling << "sharpen:" << m_sharpenStrength;
 
     update();
 }
 
-void VideoRendererGL::renderNextFrame()
-{
+void VideoRendererGL::renderNextFrame() {
     static constexpr qint64 kRenderAheadBaseMs = 120;
     static constexpr qint64 kDropLateThresholdBaseMs = 350;
 
@@ -765,12 +725,14 @@ void VideoRendererGL::renderNextFrame()
     if (m_buffering) {
         const int bufferSize = m_buffer->size();
         const bool enoughFrames = bufferSize >= m_bufferingThreshold;
-        const bool timeoutReached = m_bufferingTimer.isValid() && m_bufferingTimer.elapsed() >= m_bufferingTimeoutMs;
+        const bool timeoutReached =
+            m_bufferingTimer.isValid() && m_bufferingTimer.elapsed() >= m_bufferingTimeoutMs;
 
         if (enoughFrames || (timeoutReached && bufferSize > 0)) {
             m_buffering = false;
             qDebug() << "[VideoRendererGL] Buffering complete, size:" << bufferSize
-                     << "elapsed:" << (m_bufferingTimer.isValid() ? m_bufferingTimer.elapsed() : 0) << "ms";
+                     << "elapsed:" << (m_bufferingTimer.isValid() ? m_bufferingTimer.elapsed() : 0)
+                     << "ms";
         } else {
             if (timeoutReached && bufferSize == 0 && !m_bufferingTimeoutLogged) {
                 m_bufferingTimeoutLogged = true;
@@ -826,7 +788,8 @@ void VideoRendererGL::renderNextFrame()
         }
 
         const int earlyWaitTimeoutMs = (playbackRate > 1.01) ? 90 : 260;
-        const bool waitTooLong = m_earlyWaitTimer.isValid() && m_earlyWaitTimer.elapsed() >= earlyWaitTimeoutMs;
+        const bool waitTooLong =
+            m_earlyWaitTimer.isValid() && m_earlyWaitTimer.elapsed() >= earlyWaitTimeoutMs;
         if (!waitTooLong) {
             return;
         }
@@ -834,12 +797,10 @@ void VideoRendererGL::renderNextFrame()
         if (!m_earlyWaitLogged) {
             m_earlyWaitLogged = true;
             qWarning() << "[VideoRendererGL] Force render after early-frame stall"
-                       << "firstFramePts:" << m_earlyWaitPts
-                       << "currentFramePts:" << frame->pts
-                       << "audioClock:" << audioClock
-                       << "aheadThreshold:" << renderAheadMs
-                       << "rate:" << playbackRate
-                       << "waited:" << m_earlyWaitTimer.elapsed() << "ms";
+                       << "firstFramePts:" << m_earlyWaitPts << "currentFramePts:" << frame->pts
+                       << "audioClock:" << audioClock << "aheadThreshold:" << renderAheadMs
+                       << "rate:" << playbackRate << "waited:" << m_earlyWaitTimer.elapsed()
+                       << "ms";
         }
     }
     m_earlyWaitPts = -1;

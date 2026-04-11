@@ -1,33 +1,34 @@
 ﻿#ifndef VIDEORENDERERGL_H
 #define VIDEORENDERERGL_H
 
-#include <QMutex>
+#include "VideoDecoder.h"
+
 #include <QElapsedTimer>
+#include <QMutex>
 #include <QOpenGLFunctions_3_3_Core>
 #include <QOpenGLShaderProgram>
 #include <QOpenGLWidget>
 #include <QTimer>
-#include "VideoDecoder.h"
 
 class VideoBuffer;
 
-class VideoRendererGL : public QOpenGLWidget, protected QOpenGLFunctions_3_3_Core
-{
+class VideoRendererGL : public QOpenGLWidget, protected QOpenGLFunctions_3_3_Core {
     Q_OBJECT
 
-public:
-    enum QualityPreset {
-        Standard1080P = 0,
-        Enhanced2K = 1
-    };
+  public:
+    enum QualityPreset { Standard1080P = 0, Enhanced2K = 1 };
 
     explicit VideoRendererGL(QWidget* parent = nullptr);
     ~VideoRendererGL() override;
 
-    bool isPlaying() const { return m_playing; }
-    QSize videoSize() const { return m_videoSize; }
+    bool isPlaying() const {
+        return m_playing;
+    }
+    QSize videoSize() const {
+        return m_videoSize;
+    }
 
-public slots:
+  public slots:
     void start();
     void pause();
     void stop();
@@ -40,21 +41,23 @@ public slots:
     void setQualityPreset(int preset); // 0: 标准(1080P), 1: 增强(2K)
     void setFullscreenTransitionActive(bool active);
 
-    qint64 lastPTS() const { return m_lastPTS; }
+    qint64 lastPTS() const {
+        return m_lastPTS;
+    }
 
-signals:
+  signals:
     void frameRendered(qint64 pts);
     void videoSizeChanged(QSize size);
 
-protected:
+  protected:
     void initializeGL() override;
     void paintGL() override;
     void resizeGL(int w, int h) override;
 
-private slots:
+  private slots:
     void renderNextFrame();
 
-private:
+  private:
     bool initShaders();
     bool initPresentShaders();
     void ensureVertexBufferUpdated();
@@ -64,7 +67,7 @@ private:
     QSize calculateInternalRenderSize(int screenWidth, int screenHeight) const;
     void cleanupGL();
 
-private:
+  private:
     bool m_playing;
     bool m_buffering;
     int m_bufferingThreshold;

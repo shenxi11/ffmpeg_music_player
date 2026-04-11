@@ -1,25 +1,26 @@
 ﻿#include "VideoPlayerWindow.h"
-#include "VideoSession.h"
+
 #include "VideoRendererGL.h"
-#include <QDebug>
-#include <QPainterPath>
-#include <QFileInfo>
+#include "VideoSession.h"
+
 #include <QApplication>
-#include <QTimer>
-#include <QStyle>
+#include <QDebug>
+#include <QFileInfo>
 #include <QFontMetrics>
-#include <QIcon>
 #include <QFrame>
+#include <QIcon>
+#include <QPainterPath>
+#include <QStyle>
+#include <QTimer>
 
 namespace {
 
-QIcon videoWindowIcon(const QString& name)
-{
+QIcon videoWindowIcon(const QString& name) {
     return QIcon(QStringLiteral(":/qml/assets/ai/icons/%1.svg").arg(name));
 }
 
-QLabel* createIconLabel(const QString& iconName, QWidget* parent, const QSize& size = QSize(16, 16))
-{
+QLabel* createIconLabel(const QString& iconName, QWidget* parent,
+                        const QSize& size = QSize(16, 16)) {
     auto* label = new QLabel(parent);
     label->setObjectName("VideoInlineIconLabel");
     label->setFixedSize(size);
@@ -27,69 +28,41 @@ QLabel* createIconLabel(const QString& iconName, QWidget* parent, const QSize& s
     return label;
 }
 
-}
+} // namespace
 
-
-VideoPlayerWindow::VideoPlayerWindow(QWidget *parent)
-    : QWidget(parent)
-    , m_renderWidget(nullptr)
-    , m_playPauseBtn(nullptr)
-    , m_stopBtn(nullptr)
-    , m_openFileBtn(nullptr)
-    , m_displayModeBtn(nullptr)
-    , m_fullScreenBtn(nullptr)
-    , m_qualityPresetBox(nullptr)
-    , m_playbackRateBox(nullptr)
-    , m_progressSlider(nullptr)
-    , m_timeLabel(nullptr)
-    , m_fileNameLabel(nullptr)
-    , m_metaInfoLabel(nullptr)
-    , m_qualityLabel(nullptr)
-    , m_rateLabel(nullptr)
-    , m_qualityIconLabel(nullptr)
-    , m_rateIconLabel(nullptr)
-    , m_titleBar(nullptr)
-    , m_controlBar(nullptr)
-    , m_trailingControls(nullptr)
-    , m_mediaSession(nullptr)
-    , m_isPlaying(false)
-    , m_sliderPressed(false)
-    , m_duration(0)
-    , m_currentPosition(0)
-    , m_replayPendingSeek(false)
-    , m_fillDisplayMode(false)
-    , m_pendingStoppedSeekPosition(0)
-    , m_videoFrameSize()
-    , m_fullScreenTransitionTimer(new QTimer(this))
-    , m_fullScreenTransitionInProgress(false)
-    , m_targetFullScreenState(false)
-    , m_immersiveMaximizeActive(false)
-    , m_closePending(false)
-    , m_cleanupDone(false)
-    , m_savedWindowGeometry()
-    , m_savedWasMaximized(false)
-{
+VideoPlayerWindow::VideoPlayerWindow(QWidget* parent)
+    : QWidget(parent), m_renderWidget(nullptr), m_playPauseBtn(nullptr), m_stopBtn(nullptr),
+      m_openFileBtn(nullptr), m_displayModeBtn(nullptr), m_fullScreenBtn(nullptr),
+      m_qualityPresetBox(nullptr), m_playbackRateBox(nullptr), m_progressSlider(nullptr),
+      m_timeLabel(nullptr), m_fileNameLabel(nullptr), m_metaInfoLabel(nullptr),
+      m_qualityLabel(nullptr), m_rateLabel(nullptr), m_qualityIconLabel(nullptr),
+      m_rateIconLabel(nullptr), m_titleBar(nullptr), m_controlBar(nullptr),
+      m_trailingControls(nullptr), m_mediaSession(nullptr), m_isPlaying(false),
+      m_sliderPressed(false), m_duration(0), m_currentPosition(0), m_replayPendingSeek(false),
+      m_fillDisplayMode(false), m_pendingStoppedSeekPosition(0), m_videoFrameSize(),
+      m_fullScreenTransitionTimer(new QTimer(this)), m_fullScreenTransitionInProgress(false),
+      m_targetFullScreenState(false), m_immersiveMaximizeActive(false), m_closePending(false),
+      m_cleanupDone(false), m_savedWindowGeometry(), m_savedWasMaximized(false) {
     setupUI();
-    
+
     setWindowTitle(QStringLiteral(u"\u89c6\u9891\u64ad\u653e\u5668"));
     setMinimumSize(720, 480);
     resize(1080, 700);
     setFocusPolicy(Qt::StrongFocus);
-    
-    setWindowFlags(Qt::Window | Qt::WindowCloseButtonHint | Qt::WindowMinimizeButtonHint | Qt::WindowMaximizeButtonHint);
+
+    setWindowFlags(Qt::Window | Qt::WindowCloseButtonHint | Qt::WindowMinimizeButtonHint |
+                   Qt::WindowMaximizeButtonHint);
 
     m_fullScreenTransitionTimer->setSingleShot(true);
-    connect(m_fullScreenTransitionTimer, &QTimer::timeout,
-            this, &VideoPlayerWindow::finalizeFullScreenTransition);
+    connect(m_fullScreenTransitionTimer, &QTimer::timeout, this,
+            &VideoPlayerWindow::finalizeFullScreenTransition);
 }
 
-VideoPlayerWindow::~VideoPlayerWindow()
-{
+VideoPlayerWindow::~VideoPlayerWindow() {
     qDebug() << "[VideoPlayerWindow] Destructor";
 }
 
-void VideoPlayerWindow::setupUI()
-{
+void VideoPlayerWindow::setupUI() {
     QVBoxLayout* mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->setSpacing(0);
@@ -110,12 +83,15 @@ void VideoPlayerWindow::setupUI()
     titleInfoLayout->setContentsMargins(0, 0, 0, 0);
     titleInfoLayout->setSpacing(1);
 
-    m_fileNameLabel = new QLabel(QStringLiteral(u"\u672a\u52a0\u8f7d\u89c6\u9891"), titleInfoWidget);
+    m_fileNameLabel =
+        new QLabel(QStringLiteral(u"\u672a\u52a0\u8f7d\u89c6\u9891"), titleInfoWidget);
     m_fileNameLabel->setObjectName("VideoFileNameLabel");
     m_fileNameLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     m_fileNameLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
 
-    m_metaInfoLabel = new QLabel(QStringLiteral(u"\u5f71\u9662\u6697\u573a\u00b7\u9009\u62e9\u89c6\u9891\u540e\u5f00\u59cb\u64ad\u653e"), titleInfoWidget);
+    m_metaInfoLabel = new QLabel(QStringLiteral(u"\u5f71\u9662\u6697\u573a\u00b7\u9009\u62e9\u89c6"
+                                                u"\u9891\u540e\u5f00\u59cb\u64ad\u653e"),
+                                 titleInfoWidget);
     m_metaInfoLabel->setObjectName("VideoMetaInfoLabel");
 
     titleInfoLayout->addWidget(m_fileNameLabel);
@@ -202,13 +178,16 @@ void VideoPlayerWindow::setupUI()
     m_qualityLabel->setObjectName("VideoInlineLabel");
 
     m_qualityPresetBox = new QComboBox(m_controlBar);
-    m_qualityPresetBox->addItem(QStringLiteral(u"\u6807\u51c6 1080P"), static_cast<int>(VideoRendererGL::Standard1080P));
-    m_qualityPresetBox->addItem(QStringLiteral(u"\u589e\u5f3a 2K"), static_cast<int>(VideoRendererGL::Enhanced2K));
+    m_qualityPresetBox->addItem(QStringLiteral(u"\u6807\u51c6 1080P"),
+                                static_cast<int>(VideoRendererGL::Standard1080P));
+    m_qualityPresetBox->addItem(QStringLiteral(u"\u589e\u5f3a 2K"),
+                                static_cast<int>(VideoRendererGL::Enhanced2K));
     m_qualityPresetBox->setCurrentIndex(0);
     m_qualityPresetBox->setEnabled(false);
     m_qualityPresetBox->setFixedHeight(36);
     m_qualityPresetBox->setSizeAdjustPolicy(QComboBox::AdjustToContents);
-    const int qualityTextWidth = QFontMetrics(m_qualityPresetBox->font()).horizontalAdvance(QStringLiteral(u"\u6807\u51c6 1080P"));
+    const int qualityTextWidth = QFontMetrics(m_qualityPresetBox->font())
+                                     .horizontalAdvance(QStringLiteral(u"\u6807\u51c6 1080P"));
     m_qualityPresetBox->setMinimumWidth(qualityTextWidth + 56);
     m_qualityPresetBox->setObjectName("VideoControlCombo");
 
@@ -278,7 +257,8 @@ void VideoPlayerWindow::setupUI()
     updateResponsiveUi();
 
     auto repolishWidget = [](QWidget* w) {
-        if (!w || !w->style()) return;
+        if (!w || !w->style())
+            return;
         w->style()->unpolish(w);
         w->style()->polish(w);
         w->update();
@@ -297,20 +277,19 @@ void VideoPlayerWindow::setupUI()
     repolishWidget(m_progressSlider);
 }
 
-void VideoPlayerWindow::loadVideo(const QString& filePath)
-{
+void VideoPlayerWindow::loadVideo(const QString& filePath) {
     if (filePath.isEmpty()) {
         return;
     }
-    
+
     qDebug() << "[VideoPlayerWindow] Loading video:" << filePath;
-    
+
     if (m_mediaSession) {
         m_mediaSession->stop();
         delete m_mediaSession;
         m_mediaSession = nullptr;
     }
-    
+
     m_isPlaying = false;
     m_currentPosition = 0;
     m_duration = 0;
@@ -318,7 +297,7 @@ void VideoPlayerWindow::loadVideo(const QString& filePath)
     m_replayPendingSeek = false;
     m_fillDisplayMode = false;
     m_videoFrameSize = QSize();
-    
+
     if (m_playPauseBtn) {
         m_playPauseBtn->setEnabled(false);
     }
@@ -342,7 +321,7 @@ void VideoPlayerWindow::loadVideo(const QString& filePath)
         m_renderWidget->setDisplayMode(0);
         m_renderWidget->setQualityPreset(static_cast<int>(VideoRendererGL::Standard1080P));
     }
-    
+
     m_currentFilePath = filePath;
     QFileInfo fileInfo(filePath);
     const QString fileName = fileInfo.fileName();
@@ -351,10 +330,10 @@ void VideoPlayerWindow::loadVideo(const QString& filePath)
     }
     updateMetaInfo();
     updateButtonStates();
-    
+
     m_mediaSession = new MediaSession(this);
     connectMediaSessionSignals();
-    
+
     QUrl url(filePath);
     if (!url.isValid() || url.scheme().isEmpty()) {
         url = QUrl::fromLocalFile(filePath);
@@ -363,7 +342,7 @@ void VideoPlayerWindow::loadVideo(const QString& filePath)
         qWarning() << "[VideoPlayerWindow] Failed to load video";
         return;
     }
-    
+
     if (m_mediaSession->hasVideo()) {
         VideoSession* videoSession = m_mediaSession->videoSession();
         if (videoSession && m_renderWidget) {
@@ -371,7 +350,7 @@ void VideoPlayerWindow::loadVideo(const QString& filePath)
             qDebug() << "[VideoPlayerWindow] VideoRenderer connected to VideoSession";
         }
     }
-    
+
     m_playPauseBtn->setEnabled(true);
     if (m_stopBtn) {
         m_stopBtn->setEnabled(true);
@@ -387,12 +366,11 @@ void VideoPlayerWindow::loadVideo(const QString& filePath)
 
     updateMetaInfo();
     updateButtonStates();
-    
+
     emit videoLoaded(filePath);
 }
 
-void VideoPlayerWindow::onPlayPauseClicked()
-{
+void VideoPlayerWindow::onPlayPauseClicked() {
     if (!m_mediaSession) {
         qWarning() << "[VideoPlayerWindow] No media session";
         return;
@@ -427,22 +405,20 @@ void VideoPlayerWindow::onPlayPauseClicked()
     updateButtonStates();
 }
 
-void VideoPlayerWindow::pausePlayback()
-{
+void VideoPlayerWindow::pausePlayback() {
     if (!m_mediaSession || !m_isPlaying) {
         return;
     }
-    
+
     m_isPlaying = false;
     qDebug() << "[VideoPlayerWindow] Pause (external)";
     m_mediaSession->pause();
-    
+
     emit playStateChanged(m_isPlaying);
     updateButtonStates();
 }
 
-bool VideoPlayerWindow::resumePlayback()
-{
+bool VideoPlayerWindow::resumePlayback() {
     if (!m_mediaSession) {
         return false;
     }
@@ -453,8 +429,7 @@ bool VideoPlayerWindow::resumePlayback()
     return m_isPlaying;
 }
 
-bool VideoPlayerWindow::seekToPosition(qint64 positionMs)
-{
+bool VideoPlayerWindow::seekToPosition(qint64 positionMs) {
     if (!m_mediaSession || m_duration <= 0) {
         return false;
     }
@@ -489,8 +464,7 @@ bool VideoPlayerWindow::seekToPosition(qint64 positionMs)
     return true;
 }
 
-bool VideoPlayerWindow::setFullScreenEnabled(bool enabled)
-{
+bool VideoPlayerWindow::setFullScreenEnabled(bool enabled) {
     if (enabled == isImmersiveMaximizeActive()) {
         return true;
     }
@@ -498,8 +472,7 @@ bool VideoPlayerWindow::setFullScreenEnabled(bool enabled)
     return enabled == isImmersiveMaximizeActive();
 }
 
-bool VideoPlayerWindow::setPlaybackRateValue(double rate)
-{
+bool VideoPlayerWindow::setPlaybackRateValue(double rate) {
     if (!m_playbackRateBox) {
         return false;
     }
@@ -516,8 +489,7 @@ bool VideoPlayerWindow::setPlaybackRateValue(double rate)
     return false;
 }
 
-bool VideoPlayerWindow::setQualityPresetValue(const QString& preset)
-{
+bool VideoPlayerWindow::setQualityPresetValue(const QString& preset) {
     if (!m_qualityPresetBox) {
         return false;
     }
@@ -527,10 +499,11 @@ bool VideoPlayerWindow::setQualityPresetValue(const QString& preset)
         const QString text = m_qualityPresetBox->itemText(index).trimmed().toLower();
         bool ok = false;
         const int value = m_qualityPresetBox->itemData(index).toInt(&ok);
-        if (text == normalized ||
-            (ok && QString::number(value) == normalized) ||
-            (normalized == QStringLiteral("1080p") && ok && value == static_cast<int>(VideoRendererGL::Standard1080P)) ||
-            (normalized == QStringLiteral("2k") && ok && value == static_cast<int>(VideoRendererGL::Enhanced2K))) {
+        if (text == normalized || (ok && QString::number(value) == normalized) ||
+            (normalized == QStringLiteral("1080p") && ok &&
+             value == static_cast<int>(VideoRendererGL::Standard1080P)) ||
+            (normalized == QStringLiteral("2k") && ok &&
+             value == static_cast<int>(VideoRendererGL::Enhanced2K))) {
             m_qualityPresetBox->setCurrentIndex(index);
             onQualityPresetChanged(index);
             return true;
@@ -539,8 +512,7 @@ bool VideoPlayerWindow::setQualityPresetValue(const QString& preset)
     return false;
 }
 
-QVariantMap VideoPlayerWindow::snapshot() const
-{
+QVariantMap VideoPlayerWindow::snapshot() const {
     QString qualityText;
     int qualityValue = -1;
     if (m_qualityPresetBox && m_qualityPresetBox->currentIndex() >= 0) {
@@ -553,42 +525,36 @@ QVariantMap VideoPlayerWindow::snapshot() const
         rate = m_playbackRateBox->currentData().toDouble();
     }
 
-    return {
-        {QStringLiteral("visible"), isVisible()},
-        {QStringLiteral("fullScreen"), isImmersiveMaximizeActive()},
-        {QStringLiteral("playing"), m_isPlaying},
-        {QStringLiteral("filePath"), m_currentFilePath},
-        {QStringLiteral("durationMs"), m_duration},
-        {QStringLiteral("positionMs"), m_currentPosition},
-        {QStringLiteral("playbackRate"), rate},
-        {QStringLiteral("qualityPreset"), qualityText},
-        {QStringLiteral("qualityValue"), qualityValue},
-        {QStringLiteral("displayMode"), m_fillDisplayMode ? QStringLiteral("fill") : QStringLiteral("fit")}
-    };
+    return {{QStringLiteral("visible"), isVisible()},
+            {QStringLiteral("fullScreen"), isImmersiveMaximizeActive()},
+            {QStringLiteral("playing"), m_isPlaying},
+            {QStringLiteral("filePath"), m_currentFilePath},
+            {QStringLiteral("durationMs"), m_duration},
+            {QStringLiteral("positionMs"), m_currentPosition},
+            {QStringLiteral("playbackRate"), rate},
+            {QStringLiteral("qualityPreset"), qualityText},
+            {QStringLiteral("qualityValue"), qualityValue},
+            {QStringLiteral("displayMode"),
+             m_fillDisplayMode ? QStringLiteral("fill") : QStringLiteral("fit")}};
 }
 
-void VideoPlayerWindow::onOpenFileClicked()
-{
+void VideoPlayerWindow::onOpenFileClicked() {
     QString filePath = QFileDialog::getOpenFileName(
-        this,
-        QStringLiteral(u"\u9009\u62e9\u89c6\u9891\u6587\u4ef6"),
-        QDir::homePath(),
-        QStringLiteral(u"\u89c6\u9891\u6587\u4ef6 (*.mp4 *.avi *.mkv *.mov *.flv *.wmv);;\u6240\u6709\u6587\u4ef6 (*.*)")
-    );
-    
+        this, QStringLiteral(u"\u9009\u62e9\u89c6\u9891\u6587\u4ef6"), QDir::homePath(),
+        QStringLiteral(u"\u89c6\u9891\u6587\u4ef6 (*.mp4 *.avi *.mkv *.mov *.flv "
+                       u"*.wmv);;\u6240\u6709\u6587\u4ef6 (*.*)"));
+
     if (!filePath.isEmpty()) {
         loadVideo(filePath);
     }
 }
 
-void VideoPlayerWindow::onSliderPressed()
-{
+void VideoPlayerWindow::onSliderPressed() {
     m_sliderPressed = true;
     qDebug() << "[VideoPlayerWindow] Slider pressed";
 }
 
-void VideoPlayerWindow::onDisplayModeClicked()
-{
+void VideoPlayerWindow::onDisplayModeClicked() {
     m_fillDisplayMode = !m_fillDisplayMode;
     const int mode = m_fillDisplayMode ? 1 : 0;
 
@@ -605,14 +571,12 @@ void VideoPlayerWindow::onDisplayModeClicked()
              << (m_fillDisplayMode ? "Fill" : "Fit");
 }
 
-void VideoPlayerWindow::onFullScreenClicked()
-{
+void VideoPlayerWindow::onFullScreenClicked() {
     qDebug() << "[VideoPlayerWindow] Fullscreen button clicked";
     requestFullScreenChange(!isImmersiveMaximizeActive(), "button");
 }
 
-void VideoPlayerWindow::requestFullScreenChange(bool enabled, const char* source)
-{
+void VideoPlayerWindow::requestFullScreenChange(bool enabled, const char* source) {
     if (!source) {
         source = "unknown";
     }
@@ -639,8 +603,7 @@ void VideoPlayerWindow::requestFullScreenChange(bool enabled, const char* source
         m_fullScreenBtn->setEnabled(false);
     }
 
-    qDebug() << "[VideoPlayerWindow] Fullscreen request from" << source
-             << "target:" << enabled
+    qDebug() << "[VideoPlayerWindow] Fullscreen request from" << source << "target:" << enabled
              << "current:" << isImmersiveMaximizeActive();
 
     if (enabled) {
@@ -652,8 +615,7 @@ void VideoPlayerWindow::requestFullScreenChange(bool enabled, const char* source
     scheduleFullScreenTransitionSettle();
 }
 
-void VideoPlayerWindow::applyImmersiveMaximize()
-{
+void VideoPlayerWindow::applyImmersiveMaximize() {
     if (m_immersiveMaximizeActive) {
         return;
     }
@@ -677,12 +639,10 @@ void VideoPlayerWindow::applyImmersiveMaximize()
     }
 
     qDebug() << "[VideoPlayerWindow] Immersive maximize applied"
-             << "geometry:" << geometry()
-             << "maximized:" << isMaximized();
+             << "geometry:" << geometry() << "maximized:" << isMaximized();
 }
 
-void VideoPlayerWindow::restoreFromImmersiveMaximize()
-{
+void VideoPlayerWindow::restoreFromImmersiveMaximize() {
     if (!m_immersiveMaximizeActive) {
         return;
     }
@@ -706,20 +666,17 @@ void VideoPlayerWindow::restoreFromImmersiveMaximize()
     updateResponsiveUi();
 
     qDebug() << "[VideoPlayerWindow] Immersive maximize restored"
-             << "geometry:" << geometry()
-             << "maximized:" << isMaximized();
+             << "geometry:" << geometry() << "maximized:" << isMaximized();
 }
 
-void VideoPlayerWindow::scheduleFullScreenTransitionSettle()
-{
+void VideoPlayerWindow::scheduleFullScreenTransitionSettle() {
     if (!m_fullScreenTransitionTimer) {
         return;
     }
     m_fullScreenTransitionTimer->start(140);
 }
 
-void VideoPlayerWindow::finalizeFullScreenTransition()
-{
+void VideoPlayerWindow::finalizeFullScreenTransition() {
     if (!m_fullScreenTransitionInProgress) {
         return;
     }
@@ -741,12 +698,13 @@ void VideoPlayerWindow::finalizeFullScreenTransition()
 
     if (m_closePending && !isImmersiveMaximizeActive()) {
         qDebug() << "[VideoPlayerWindow] closePending satisfied after fullscreen exit";
-        QTimer::singleShot(0, this, [this]() { close(); });
+        QTimer::singleShot(0, this, [this]() {
+            close();
+        });
     }
 }
 
-void VideoPlayerWindow::performCloseCleanup()
-{
+void VideoPlayerWindow::performCloseCleanup() {
     if (m_cleanupDone) {
         return;
     }
@@ -805,8 +763,7 @@ void VideoPlayerWindow::performCloseCleanup()
     qDebug() << "[VideoPlayerWindow] Cleanup finished";
 }
 
-void VideoPlayerWindow::onPlaybackRateChanged(int index)
-{
+void VideoPlayerWindow::onPlaybackRateChanged(int index) {
     if (!m_playbackRateBox || index < 0) {
         return;
     }
@@ -824,8 +781,7 @@ void VideoPlayerWindow::onPlaybackRateChanged(int index)
     qDebug() << "[VideoPlayerWindow] Playback rate selected:" << rate << "x";
 }
 
-void VideoPlayerWindow::onQualityPresetChanged(int index)
-{
+void VideoPlayerWindow::onQualityPresetChanged(int index) {
     if (!m_qualityPresetBox || index < 0 || !m_renderWidget) {
         return;
     }
@@ -839,22 +795,22 @@ void VideoPlayerWindow::onQualityPresetChanged(int index)
     m_renderWidget->setQualityPreset(preset);
 
     qDebug() << "[VideoPlayerWindow] Quality preset selected:"
-             << (preset == static_cast<int>(VideoRendererGL::Enhanced2K) ? "Enhanced2K" : "Standard1080P");
+             << (preset == static_cast<int>(VideoRendererGL::Enhanced2K) ? "Enhanced2K"
+                                                                         : "Standard1080P");
 }
 
-void VideoPlayerWindow::onPlaybackFinished()
-{
+void VideoPlayerWindow::onPlaybackFinished() {
     qDebug() << "[VideoPlayerWindow] Playback finished";
-    
+
     if (m_mediaSession) {
         m_mediaSession->stop();
     }
     m_replayPendingSeek = true;
-    
+
     m_isPlaying = false;
     emit playStateChanged(false);
     updateButtonStates();
-    
+
     m_currentPosition = 0;
     if (m_progressSlider && !m_sliderPressed) {
         m_progressSlider->setValue(0);
@@ -862,8 +818,7 @@ void VideoPlayerWindow::onPlaybackFinished()
     updateTimeLabel(0, m_duration);
 }
 
-void VideoPlayerWindow::onSliderReleased()
-{
+void VideoPlayerWindow::onSliderReleased() {
     m_sliderPressed = false;
 
     if (!m_mediaSession || !m_progressSlider) {
@@ -911,8 +866,7 @@ void VideoPlayerWindow::onSliderReleased()
     emit progressChanged(targetPosition);
 }
 
-void VideoPlayerWindow::onVideoSizeChanged(const QSize& size)
-{
+void VideoPlayerWindow::onVideoSizeChanged(const QSize& size) {
     m_videoFrameSize = size;
     if (m_renderWidget) {
         m_renderWidget->setDisplayMode(m_fillDisplayMode ? 1 : 0);
@@ -920,61 +874,53 @@ void VideoPlayerWindow::onVideoSizeChanged(const QSize& size)
     updateMetaInfo();
 }
 
-void VideoPlayerWindow::onMediaSessionStateChanged(MediaSession::PlaybackState state)
-{
+void VideoPlayerWindow::onMediaSessionStateChanged(MediaSession::PlaybackState state) {
     qDebug() << "[VideoPlayerWindow] State changed:" << static_cast<int>(state);
 }
 
-void VideoPlayerWindow::onDeferredSeekAfterStopped()
-{
+void VideoPlayerWindow::onDeferredSeekAfterStopped() {
     if (m_mediaSession) {
         m_mediaSession->seekTo(m_pendingStoppedSeekPosition);
     }
 }
 
-void VideoPlayerWindow::onSliderValueChanged(int value)
-{
+void VideoPlayerWindow::onSliderValueChanged(int value) {
     if (m_sliderPressed) {
         qint64 position = (m_duration * value) / 1000;
         updateTimeLabel(position, m_duration);
     }
 }
 
-void VideoPlayerWindow::updateTimeLabel(qint64 currentMs, qint64 totalMs)
-{
+void VideoPlayerWindow::updateTimeLabel(qint64 currentMs, qint64 totalMs) {
     QString current = formatTime(currentMs);
     QString total = formatTime(totalMs);
     m_timeLabel->setText(QString("%1 / %2").arg(current).arg(total));
 }
 
-QString VideoPlayerWindow::formatTime(qint64 ms)
-{
+QString VideoPlayerWindow::formatTime(qint64 ms) {
     int seconds = static_cast<int>((ms / 1000) % 60);
     int minutes = static_cast<int>((ms / (1000 * 60)) % 60);
     int hours = static_cast<int>(ms / (1000 * 60 * 60));
-    
+
     if (hours > 0) {
         return QString("%1:%2:%3")
             .arg(hours, 2, 10, QChar('0'))
             .arg(minutes, 2, 10, QChar('0'))
             .arg(seconds, 2, 10, QChar('0'));
     } else {
-        return QString("%1:%2")
-            .arg(minutes, 2, 10, QChar('0'))
-            .arg(seconds, 2, 10, QChar('0'));
+        return QString("%1:%2").arg(minutes, 2, 10, QChar('0')).arg(seconds, 2, 10, QChar('0'));
     }
 }
 
-void VideoPlayerWindow::changeEvent(QEvent *event)
-{
+void VideoPlayerWindow::changeEvent(QEvent* event) {
     QWidget::changeEvent(event);
 
     if (!event || event->type() != QEvent::WindowStateChange) {
         return;
     }
 
-    qDebug() << "[VideoPlayerWindow] Window state changed. fullscreen:" << isImmersiveMaximizeActive()
-             << "transition:" << m_fullScreenTransitionInProgress
+    qDebug() << "[VideoPlayerWindow] Window state changed. fullscreen:"
+             << isImmersiveMaximizeActive() << "transition:" << m_fullScreenTransitionInProgress
              << "target:" << m_targetFullScreenState;
 
     if (m_fullScreenTransitionInProgress) {
@@ -982,8 +928,7 @@ void VideoPlayerWindow::changeEvent(QEvent *event)
     }
 }
 
-void VideoPlayerWindow::resizeEvent(QResizeEvent *event)
-{
+void VideoPlayerWindow::resizeEvent(QResizeEvent* event) {
     QWidget::resizeEvent(event);
     if (m_fullScreenTransitionInProgress) {
         scheduleFullScreenTransitionSettle();
@@ -992,8 +937,7 @@ void VideoPlayerWindow::resizeEvent(QResizeEvent *event)
     updateResponsiveUi();
 }
 
-void VideoPlayerWindow::closeEvent(QCloseEvent *event)
-{
+void VideoPlayerWindow::closeEvent(QCloseEvent* event) {
     qDebug() << "[VideoPlayerWindow] Close requested"
              << "fullscreen:" << isImmersiveMaximizeActive()
              << "transition:" << m_fullScreenTransitionInProgress
@@ -1006,7 +950,8 @@ void VideoPlayerWindow::closeEvent(QCloseEvent *event)
 
     if (m_fullScreenTransitionInProgress) {
         m_closePending = true;
-        qDebug() << "[VideoPlayerWindow] Close requested while immersive transition active, deferring";
+        qDebug()
+            << "[VideoPlayerWindow] Close requested while immersive transition active, deferring";
         event->ignore();
         return;
     }
@@ -1015,8 +960,7 @@ void VideoPlayerWindow::closeEvent(QCloseEvent *event)
     QWidget::closeEvent(event);
 }
 
-void VideoPlayerWindow::keyPressEvent(QKeyEvent *event)
-{
+void VideoPlayerWindow::keyPressEvent(QKeyEvent* event) {
     if (!event) {
         QWidget::keyPressEvent(event);
         return;
@@ -1037,58 +981,60 @@ void VideoPlayerWindow::keyPressEvent(QKeyEvent *event)
     QWidget::keyPressEvent(event);
 }
 
-void VideoPlayerWindow::onPositionChanged(qint64 positionMs)
-{
+void VideoPlayerWindow::onPositionChanged(qint64 positionMs) {
     m_currentPosition = positionMs;
-    
+
     if (!m_sliderPressed && m_duration > 0) {
         int sliderValue = (positionMs * 1000) / m_duration;
         m_progressSlider->setValue(sliderValue);
     }
-    
+
     updateTimeLabel(positionMs, m_duration);
 }
 
-void VideoPlayerWindow::onDurationChanged(qint64 durationMs)
-{
+void VideoPlayerWindow::onDurationChanged(qint64 durationMs) {
     m_duration = durationMs;
     updateTimeLabel(m_currentPosition, m_duration);
     updateMetaInfo();
-    
+
     qDebug() << "[VideoPlayerWindow] Duration:" << durationMs << "ms";
 }
 
-void VideoPlayerWindow::updateMetaInfo()
-{
+void VideoPlayerWindow::updateMetaInfo() {
     if (!m_metaInfoLabel) {
         return;
     }
 
     if (m_currentFilePath.isEmpty()) {
-        m_metaInfoLabel->setText(QStringLiteral(u"\u9009\u62e9\u89c6\u9891\u540e\u5f00\u59cb\u64ad\u653e"));
+        m_metaInfoLabel->setText(
+            QStringLiteral(u"\u9009\u62e9\u89c6\u9891\u540e\u5f00\u59cb\u64ad\u653e"));
         return;
     }
 
     QStringList parts;
     if (m_videoFrameSize.isValid() && !m_videoFrameSize.isEmpty()) {
-        parts << QStringLiteral("%1 × %2").arg(m_videoFrameSize.width()).arg(m_videoFrameSize.height());
+        parts << QStringLiteral("%1 × %2")
+                     .arg(m_videoFrameSize.width())
+                     .arg(m_videoFrameSize.height());
     }
     if (m_duration > 0) {
         parts << formatTime(m_duration);
     }
-    parts << (m_fillDisplayMode ? QStringLiteral(u"\u586b\u5145") : QStringLiteral(u"\u9002\u5e94"));
+    parts << (m_fillDisplayMode ? QStringLiteral(u"\u586b\u5145")
+                                : QStringLiteral(u"\u9002\u5e94"));
 
     m_metaInfoLabel->setText(parts.join(QStringLiteral("  ·  ")));
 }
 
-void VideoPlayerWindow::updateButtonStates()
-{
+void VideoPlayerWindow::updateButtonStates() {
     if (m_playPauseBtn) {
-        const QString playPauseIcon = m_isPlaying ? QStringLiteral("video-pause") : QStringLiteral("video-play");
+        const QString playPauseIcon =
+            m_isPlaying ? QStringLiteral("video-pause") : QStringLiteral("video-play");
         m_playPauseBtn->setIcon(videoWindowIcon(playPauseIcon));
         m_playPauseBtn->setIconSize(QSize(20, 20));
         m_playPauseBtn->setText(QString());
-        m_playPauseBtn->setToolTip(m_isPlaying ? QStringLiteral(u"\u6682\u505c") : QStringLiteral(u"\u64ad\u653e"));
+        m_playPauseBtn->setToolTip(m_isPlaying ? QStringLiteral(u"\u6682\u505c")
+                                               : QStringLiteral(u"\u64ad\u653e"));
     }
 
     if (m_stopBtn) {
@@ -1100,15 +1046,18 @@ void VideoPlayerWindow::updateButtonStates()
 
     if (m_displayModeBtn) {
         const bool fillMode = m_fillDisplayMode;
-        m_displayModeBtn->setIcon(videoWindowIcon(fillMode ? QStringLiteral("video-fill") : QStringLiteral("video-fit")));
+        m_displayModeBtn->setIcon(
+            videoWindowIcon(fillMode ? QStringLiteral("video-fill") : QStringLiteral("video-fit")));
         m_displayModeBtn->setIconSize(QSize(18, 18));
-        m_displayModeBtn->setText(fillMode ? QStringLiteral(u"\u586b\u5145") : QStringLiteral(u"\u9002\u5e94"));
+        m_displayModeBtn->setText(fillMode ? QStringLiteral(u"\u586b\u5145")
+                                           : QStringLiteral(u"\u9002\u5e94"));
     }
 
     if (m_fullScreenBtn) {
         const bool fullScreen = isImmersiveMaximizeActive();
-        m_fullScreenBtn->setIcon(videoWindowIcon(fullScreen ? QStringLiteral("video-fullscreen-exit")
-                                                            : QStringLiteral("video-fullscreen-enter")));
+        m_fullScreenBtn->setIcon(videoWindowIcon(fullScreen
+                                                     ? QStringLiteral("video-fullscreen-exit")
+                                                     : QStringLiteral("video-fullscreen-enter")));
         m_fullScreenBtn->setIconSize(QSize(18, 18));
         m_fullScreenBtn->setText(fullScreen ? QStringLiteral(u"\u9000\u51fa")
                                             : QStringLiteral(u"\u5168\u5c4f"));
@@ -1120,8 +1069,7 @@ void VideoPlayerWindow::updateButtonStates()
     }
 }
 
-void VideoPlayerWindow::updateResponsiveUi()
-{
+void VideoPlayerWindow::updateResponsiveUi() {
     if (m_fullScreenTransitionInProgress) {
         return;
     }
@@ -1194,15 +1142,17 @@ void VideoPlayerWindow::updateResponsiveUi()
 
     if (m_displayModeBtn) {
         m_displayModeBtn->setProperty("iconOnly", dense);
-        m_displayModeBtn->setToolTip(m_fillDisplayMode ? QStringLiteral(u"\u586b\u5145\u663e\u793a")
-                                                       : QStringLiteral(u"\u9002\u5e94\u663e\u793a"));
+        m_displayModeBtn->setToolTip(m_fillDisplayMode
+                                         ? QStringLiteral(u"\u586b\u5145\u663e\u793a")
+                                         : QStringLiteral(u"\u9002\u5e94\u663e\u793a"));
         m_displayModeBtn->setFixedWidth(dense ? 38 : (compact ? 82 : 92));
     }
 
     if (m_fullScreenBtn) {
         m_fullScreenBtn->setProperty("iconOnly", dense);
-        m_fullScreenBtn->setToolTip(isImmersiveMaximizeActive() ? QStringLiteral(u"\u9000\u51fa\u6c89\u6d78\u6a21\u5f0f")
-                                                   : QStringLiteral(u"\u5168\u5c4f"));
+        m_fullScreenBtn->setToolTip(isImmersiveMaximizeActive()
+                                        ? QStringLiteral(u"\u9000\u51fa\u6c89\u6d78\u6a21\u5f0f")
+                                        : QStringLiteral(u"\u5168\u5c4f"));
         m_fullScreenBtn->setFixedWidth(dense ? 38 : (compact ? 72 : 82));
     }
 
@@ -1223,8 +1173,6 @@ void VideoPlayerWindow::updateResponsiveUi()
     repolish(m_playbackRateBox);
 }
 
-bool VideoPlayerWindow::isImmersiveMaximizeActive() const
-{
+bool VideoPlayerWindow::isImmersiveMaximizeActive() const {
     return m_immersiveMaximizeActive;
 }
-
