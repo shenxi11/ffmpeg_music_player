@@ -30,6 +30,15 @@ Rectangle {
     property bool downloadLyrics: true
     property bool downloadCover: false
     property int playerPageStyle: 0
+    property string agentMode: "control"
+    property string agentLocalModelPath: ""
+    property string agentLocalModelBaseUrl: ""
+    property string agentLocalModelName: ""
+    property int agentLocalContextSize: 16384
+    property int agentLocalThreadCount: 4
+    property bool agentRemoteFallbackEnabled: false
+    property string agentRemoteBaseUrl: ""
+    property string agentRemoteModelName: ""
     property string serverHost: ""
     property int serverPort: 0
     property string presenceAccount: ""
@@ -237,6 +246,225 @@ Rectangle {
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: root.chooseAudioCachePath()
                             }
+                        }
+                    }
+                }
+            }
+
+            Rectangle {
+                width: parent.width
+                radius: 12
+                color: Theme.bgCard
+                border.width: 1
+                border.color: Theme.glassBorder
+                visible: false
+                height: 0
+
+                Column {
+                    anchors.fill: parent
+                    anchors.margins: root.sectionPadding
+                    spacing: 10
+
+                    Text {
+                        text: "Agent 控制设置"
+                        color: Theme.textPrimary
+                        font.pixelSize: 14
+                        font.weight: Font.DemiBold
+                    }
+
+                    Text {
+                        width: parent.width
+                        wrapMode: Text.WordWrap
+                        text: "control 为默认本地控制模式。assistant 只用于解释，不直接执行写操作。"
+                        color: Theme.textSecondary
+                        font.pixelSize: 12
+                    }
+
+                    Row {
+                        spacing: 10
+
+                        Rectangle {
+                            width: 108
+                            height: 34
+                            radius: 17
+                            color: root.agentMode === "control" ? Theme.accent : "#F6F8FC"
+                            border.width: 1
+                            border.color: root.agentMode === "control" ? Theme.accent : "#D8DFEB"
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "控制模式"
+                                color: root.agentMode === "control" ? "#FFFFFF" : Theme.textSecondary
+                                font.pixelSize: 12
+                                font.weight: Font.Medium
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.agentMode = "control"
+                            }
+                        }
+
+                        Rectangle {
+                            width: 108
+                            height: 34
+                            radius: 17
+                            color: root.agentMode === "assistant" ? Theme.accent : "#F6F8FC"
+                            border.width: 1
+                            border.color: root.agentMode === "assistant" ? Theme.accent : "#D8DFEB"
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "助手模式"
+                                color: root.agentMode === "assistant" ? "#FFFFFF" : Theme.textSecondary
+                                font.pixelSize: 12
+                                font.weight: Font.Medium
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.agentMode = "assistant"
+                            }
+                        }
+                    }
+
+                    Text {
+                        text: "本地模型文件路径"
+                        color: Theme.textSecondary
+                        font.pixelSize: 12
+                    }
+
+                    TextField {
+                        width: parent.width
+                        height: 36
+                        text: root.agentLocalModelPath
+                        placeholderText: "E:/models/llm/Qwen2.5-3B-Instruct/qwen2.5-3b-instruct-q4_k_m.gguf"
+                        onEditingFinished: root.agentLocalModelPath = text.trim()
+                    }
+
+                    Text {
+                        text: "本地模型名称"
+                        color: Theme.textSecondary
+                        font.pixelSize: 12
+                    }
+
+                    TextField {
+                        width: parent.width
+                        height: 36
+                        text: root.agentLocalModelName
+                        placeholderText: "Qwen2.5-3B-Instruct"
+                        onEditingFinished: root.agentLocalModelName = text.trim()
+                    }
+
+                    Text {
+                        text: "上下文大小"
+                        color: Theme.textSecondary
+                        font.pixelSize: 12
+                    }
+
+                    TextField {
+                        width: parent.width
+                        height: 36
+                        text: String(root.agentLocalContextSize)
+                        placeholderText: "16384"
+                        inputMethodHints: Qt.ImhDigitsOnly
+                        validator: IntValidator { bottom: 2048; top: 131072 }
+                        onEditingFinished: {
+                            var parsed = parseInt(text)
+                            if (isNaN(parsed)) {
+                                parsed = 16384
+                            }
+                            root.agentLocalContextSize = parsed
+                            text = String(root.agentLocalContextSize)
+                        }
+                    }
+
+                    Text {
+                        text: "推理线程数"
+                        color: Theme.textSecondary
+                        font.pixelSize: 12
+                    }
+
+                    TextField {
+                        width: parent.width
+                        height: 36
+                        text: String(root.agentLocalThreadCount)
+                        placeholderText: "4"
+                        inputMethodHints: Qt.ImhDigitsOnly
+                        validator: IntValidator { bottom: 1; top: 128 }
+                        onEditingFinished: {
+                            var parsed = parseInt(text)
+                            if (isNaN(parsed)) {
+                                parsed = 4
+                            }
+                            root.agentLocalThreadCount = parsed
+                            text = String(root.agentLocalThreadCount)
+                        }
+                    }
+
+                    Text {
+                        text: "兼容 HTTP Base URL（仅过渡期保留）"
+                        color: Theme.textSecondary
+                        font.pixelSize: 12
+                    }
+
+                    TextField {
+                        width: parent.width
+                        height: 36
+                        text: root.agentLocalModelBaseUrl
+                        placeholderText: "http://127.0.0.1:8081/v1"
+                        onEditingFinished: root.agentLocalModelBaseUrl = text.trim()
+                    }
+
+                    Row {
+                        spacing: 8
+
+                        CheckBox {
+                            checked: root.agentRemoteFallbackEnabled
+                            onCheckedChanged: root.agentRemoteFallbackEnabled = checked
+                        }
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "启用远程兜底（高级）"
+                            color: Theme.textSecondary
+                            font.pixelSize: 12
+                        }
+                    }
+
+                    Column {
+                        width: parent.width
+                        spacing: 8
+                        visible: root.agentRemoteFallbackEnabled
+
+                        Text {
+                            text: "远程 Base URL"
+                            color: Theme.textSecondary
+                            font.pixelSize: 12
+                        }
+
+                        TextField {
+                            width: parent.width
+                            height: 36
+                            text: root.agentRemoteBaseUrl
+                            placeholderText: "https://your-remote-openai-compatible-endpoint/v1"
+                            onEditingFinished: root.agentRemoteBaseUrl = text.trim()
+                        }
+
+                        Text {
+                            text: "远程模型名称"
+                            color: Theme.textSecondary
+                            font.pixelSize: 12
+                        }
+
+                        TextField {
+                            width: parent.width
+                            height: 36
+                            text: root.agentRemoteModelName
+                            placeholderText: "gpt-4.1-mini"
+                            onEditingFinished: root.agentRemoteModelName = text.trim()
                         }
                     }
                 }
@@ -834,6 +1062,42 @@ Rectangle {
 
     function setPlayerPageStyle(styleId) {
         root.playerPageStyle = styleId
+    }
+
+    function setAgentMode(mode) {
+        root.agentMode = mode || "control"
+    }
+
+    function setAgentLocalModelPath(modelPath) {
+        root.agentLocalModelPath = modelPath || ""
+    }
+
+    function setAgentLocalModelBaseUrl(baseUrl) {
+        root.agentLocalModelBaseUrl = baseUrl || ""
+    }
+
+    function setAgentLocalModelName(modelName) {
+        root.agentLocalModelName = modelName || ""
+    }
+
+    function setAgentLocalContextSize(contextSize) {
+        root.agentLocalContextSize = contextSize || 16384
+    }
+
+    function setAgentLocalThreadCount(threadCount) {
+        root.agentLocalThreadCount = threadCount || 4
+    }
+
+    function setAgentRemoteFallbackEnabled(enabled) {
+        root.agentRemoteFallbackEnabled = !!enabled
+    }
+
+    function setAgentRemoteBaseUrl(baseUrl) {
+        root.agentRemoteBaseUrl = baseUrl || ""
+    }
+
+    function setAgentRemoteModelName(modelName) {
+        root.agentRemoteModelName = modelName || ""
     }
 
     function setPresenceSnapshot(account, token, online, heartbeatIntervalSec, onlineTtlSec, ttlRemainingSec, statusMessage, lastSeenText) {

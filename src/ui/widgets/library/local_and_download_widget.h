@@ -30,6 +30,10 @@ public:
     void setFavoritePaths(const QStringList& favoritePaths);
     void updateDownloadedSongMetadata(const QString& filePath, const QString& coverUrl,
                                       const QString& duration, const QString& artist);
+    QString currentSubTabKey() const;
+    QVariantList localMusicItemsSnapshot(int limit = -1) const;
+    QVariantList downloadedMusicItemsSnapshot(int limit = -1) const;
+    QVariantList downloadingTaskItemsSnapshot(int limit = -1) const;
     
 signals:
     void playMusic(const QString& filename);

@@ -40,6 +40,8 @@ void RecommendMusicWidget::setLoggedIn(bool loggedIn, const QString& userAccount
 
 void RecommendMusicWidget::loadRecommendations(const QVariantMap& meta, const QVariantList& recommendationData)
 {
+    m_lastRecommendationMeta = meta;
+    m_lastRecommendationItems = recommendationData;
     QQuickItem* root = rootObject();
     if (!root) {
         return;
@@ -93,6 +95,8 @@ void RecommendMusicWidget::setPlayingState(const QString& filePath, bool playing
 
 void RecommendMusicWidget::clearRecommendations()
 {
+    m_lastRecommendationMeta.clear();
+    m_lastRecommendationItems.clear();
     QQuickItem* root = rootObject();
     if (!root) {
         return;
@@ -103,4 +107,23 @@ void RecommendMusicWidget::clearRecommendations()
 void RecommendMusicWidget::onSongActionRequested(const QString& action, const QVariant& payload)
 {
     emit songActionRequested(action, payload.toMap());
+}
+
+QVariantMap RecommendMusicWidget::recommendationMetaSnapshot() const
+{
+    return m_lastRecommendationMeta;
+}
+
+QVariantList RecommendMusicWidget::recommendationItemsSnapshot(int limit) const
+{
+    if (limit <= 0 || limit >= m_lastRecommendationItems.size()) {
+        return m_lastRecommendationItems;
+    }
+
+    QVariantList items;
+    items.reserve(limit);
+    for (int i = 0; i < limit; ++i) {
+        items.push_back(m_lastRecommendationItems.at(i));
+    }
+    return items;
 }

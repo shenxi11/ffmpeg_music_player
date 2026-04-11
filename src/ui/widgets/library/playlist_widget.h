@@ -3,6 +3,7 @@
 
 #include <QQuickWidget>
 #include <QQuickItem>
+#include <QHash>
 #include <QVariantList>
 #include <QVariantMap>
 
@@ -25,11 +26,17 @@ public:
     void setLoggedIn(bool loggedIn, const QString& userAccount = QString());
     void loadPlaylists(const QVariantList& playlists, int page, int pageSize, int total);
     void loadPlaylistDetail(const QVariantMap& detail);
+    void updatePlaylistCoverFromDetail(const QVariantMap& detail);
     void setFavoritePaths(const QStringList& favoritePaths);
     void setCurrentPlayingPath(const QString& filePath);
     void setPlayingState(const QString& filePath, bool playing);
     void clearData();
     void openCreatePlaylistDialog();
+    qint64 selectedPlaylistIdValue() const;
+    QVariantMap currentPlaylistDetailSnapshot() const;
+    QVariantList currentPlaylistTrackIds() const;
+    QVariantList ownedPlaylistsSnapshot() const;
+    QVariantList subscribedPlaylistsSnapshot() const;
 
 signals:
     void loginRequested();
@@ -57,6 +64,13 @@ private slots:
     void handleReorderPlaylistItemsRequested(const QVariant& playlistIdValue, const QVariant& orderedItemsValue);
     void handleAddCurrentSongRequested(const QVariant& playlistIdValue);
     void handleSongActionRequested(const QString& action, const QVariant& payload);
+
+private:
+    QVariantMap normalizePlaylistDetailForCover(const QVariantMap& detail);
+    void updateCachedPlaylistCover(qint64 playlistId, const QString& coverUrl);
+    QVariantList m_lastPlaylists;
+    QVariantMap m_lastPlaylistDetail;
+    QHash<qint64, QString> m_cachedPlaylistCoverUrls;
 };
 
 #endif // PLAYLIST_WIDGET_H

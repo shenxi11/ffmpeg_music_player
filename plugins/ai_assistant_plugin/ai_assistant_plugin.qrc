@@ -1,0 +1,12 @@
+﻿<RCC>
+    <qresource prefix="/">
+        <file>../../qml/components/agent/AgentChatWindow.qml</file>
+        <file>../../qml/components/agent/MarkdownCodeBlock.qml</file>
+        <file>../../qml/theme/AiChatTheme.js</file>
+        <file>../../qml/assets/ai/icons/search.svg</file>
+        <file>../../qml/assets/ai/icons/plus.svg</file>
+        <file>../../qml/assets/ai/icons/sync.svg</file>
+        <file>../../qml/assets/ai/icons/download.svg</file>
+        <file>../../qml/assets/ai/icons/run.svg</file>
+    </qresource>
+</RCC>

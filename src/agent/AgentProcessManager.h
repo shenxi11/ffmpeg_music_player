@@ -52,6 +52,9 @@ private slots:
 private:
     bool resolveAgentDirectory(QString* outDir) const;
     bool resolveStartCommand(const QString& agentDir, QString* outProgram, QStringList* outArguments) const;
+    QStringList queryListeningPids(quint16 port) const;
+    QStringList queryAgentBackendPids() const;
+    bool waitForPortRelease(quint16 port, int timeoutMs) const;
     bool probeHealthReadySync(int timeoutMs) const;
     bool terminateExistingAgentBackend();
     void beginHealthCheck();

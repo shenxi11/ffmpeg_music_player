@@ -38,6 +38,7 @@ void FavoriteMusicWidget::setUserAccount(const QString& userAccount)
 
 void FavoriteMusicWidget::loadFavorites(const QVariantList& favoritesData)
 {
+    m_lastFavoriteItems = favoritesData;
     QQuickItem* root = rootObject();
     if (root) {
         QMetaObject::invokeMethod(root, "loadFavorites",
@@ -90,6 +91,7 @@ void FavoriteMusicWidget::setPlayingState(const QString& filePath, bool playing)
 
 void FavoriteMusicWidget::clearFavorites()
 {
+    m_lastFavoriteItems.clear();
     QQuickItem* root = rootObject();
     if (root) {
         QMetaObject::invokeMethod(root, "clearFavorites");
@@ -109,5 +111,19 @@ void FavoriteMusicWidget::handleRemoveFavorite(const QVariant& selectedPaths)
 void FavoriteMusicWidget::handleSongActionRequested(const QString& action, const QVariant& payload)
 {
     emit songActionRequested(action, payload.toMap());
+}
+
+QVariantList FavoriteMusicWidget::favoriteItemsSnapshot(int limit) const
+{
+    if (limit <= 0 || limit >= m_lastFavoriteItems.size()) {
+        return m_lastFavoriteItems;
+    }
+
+    QVariantList items;
+    items.reserve(limit);
+    for (int i = 0; i < limit; ++i) {
+        items.push_back(m_lastFavoriteItems.at(i));
+    }
+    return items;
 }
 

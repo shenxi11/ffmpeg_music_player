@@ -28,8 +28,6 @@
         <file>qml/components/playback/PlayerStylePopup.qml</file>
         <file>qml/components/playback/RotatingCircle.qml</file>
         <file>qml/components/video/VideoListWidget.qml</file>
-        <file>qml/components/agent/AgentChatWindow.qml</file>
-        <file>qml/components/agent/MarkdownCodeBlock.qml</file>
         <file>qml/components/settings/Settings.qml</file>
         <file>qml/components/library/LocalAndDownloadWidget.qml</file>
         <file>qml/components/library/LocalMusicList.qml</file>
@@ -46,7 +44,6 @@
         <file>qml/assets/ai/icons/run.svg</file>
         <file>qml/assets/ai/icons/chevron_down.svg</file>
         <file>qml/theme/Theme.js</file>
-        <file>qml/theme/AiChatTheme.js</file>
         <file>qml/theme/PlayerStyle.js</file>
         <file>styles/netease.qss</file>
         <file>qml/assets/ai/icons/song-action-favorite-default.svg</file>

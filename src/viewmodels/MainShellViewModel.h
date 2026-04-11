@@ -64,6 +64,8 @@ class MainShellViewModel : public BaseViewModel {
                         const QString& coverPath = QString());
     void requestPlaylistDetail(const QString& userAccount, qint64 playlistId,
                                bool useCache = false);
+    void prefetchPlaylistCoverDetail(const QString& userAccount, qint64 playlistId,
+                                     bool useCache = true);
     void deletePlaylist(const QString& userAccount, qint64 playlistId);
     void updatePlaylist(const QString& userAccount, qint64 playlistId, const QString& name,
                         const QString& description = QString(),
@@ -120,6 +122,7 @@ class MainShellViewModel : public BaseViewModel {
     void removeHistoryResultReady(bool success);
     void playlistsListReady(const QVariantList& playlists, int page, int pageSize, int total);
     void playlistDetailReady(const QVariantMap& detail);
+    void playlistCoverDetailReady(const QVariantMap& detail);
     void createPlaylistResultReady(bool success, qint64 playlistId, const QString& message);
     void deletePlaylistResultReady(bool success, qint64 playlistId, const QString& message);
     void updatePlaylistResultReady(bool success, qint64 playlistId, const QString& message);

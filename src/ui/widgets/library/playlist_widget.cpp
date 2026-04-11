@@ -3,6 +3,62 @@
 #include <QMetaObject>
 #include <QDebug>
 
+namespace {
+
+qint64 parseTrackIdValue(const QVariantMap& rawItem)
+{
+    qint64 trackId = rawItem.value(QStringLiteral("track_id")).toLongLong();
+    if (trackId > 0) {
+        return trackId;
+    }
+
+    trackId = rawItem.value(QStringLiteral("music_id")).toLongLong();
+    if (trackId > 0) {
+        return trackId;
+    }
+
+    trackId = rawItem.value(QStringLiteral("id")).toLongLong();
+    if (trackId > 0) {
+        return trackId;
+    }
+
+    return rawItem.value(QStringLiteral("trackId")).toLongLong();
+}
+
+QString normalizeCoverValue(const QVariant& value)
+{
+    const QString cover = value.toString().trimmed();
+    if (cover.compare(QStringLiteral("null"), Qt::CaseInsensitive) == 0 ||
+        cover.compare(QStringLiteral("undefined"), Qt::CaseInsensitive) == 0 ||
+        cover.compare(QStringLiteral("none"), Qt::CaseInsensitive) == 0) {
+        return QString();
+    }
+    return cover;
+}
+
+QString derivePlaylistCoverFromItems(const QVariantList& items)
+{
+    if (items.isEmpty()) {
+        return QString();
+    }
+
+    const QVariantMap firstItem = items.constFirst().toMap();
+    const QStringList candidateKeys = {
+        QStringLiteral("cover_art_url"),
+        QStringLiteral("cover_url"),
+        QStringLiteral("cover_art_path")
+    };
+    for (const QString& key : candidateKeys) {
+        const QString cover = normalizeCoverValue(firstItem.value(key));
+        if (!cover.isEmpty()) {
+            return cover;
+        }
+    }
+    return QString();
+}
+
+}
+
 /*
 模块名: PlaylistWidget 桥接实现
 功能概述: 统一连接 QML 歌单页信号，并向 C++ 业务层转发。
@@ -62,12 +118,24 @@ void PlaylistWidget::setLoggedIn(bool loggedIn, const QString& userAccount)
 
 void PlaylistWidget::loadPlaylists(const QVariantList& playlists, int page, int pageSize, int total)
 {
+    QVariantList normalizedPlaylists;
+    normalizedPlaylists.reserve(playlists.size());
+    for (const QVariant& value : playlists) {
+        QVariantMap item = value.toMap();
+        const qint64 playlistId = item.value(QStringLiteral("id")).toLongLong();
+        if (playlistId > 0 && m_cachedPlaylistCoverUrls.contains(playlistId)) {
+            item.insert(QStringLiteral("cover_url"), m_cachedPlaylistCoverUrls.value(playlistId));
+        }
+        normalizedPlaylists.push_back(item);
+    }
+
+    m_lastPlaylists = normalizedPlaylists;
     QQuickItem* root = rootObject();
     if (!root) {
         return;
     }
     QMetaObject::invokeMethod(root, "loadPlaylists",
-                              Q_ARG(QVariant, QVariant::fromValue(playlists)),
+                              Q_ARG(QVariant, QVariant::fromValue(normalizedPlaylists)),
                               Q_ARG(QVariant, page),
                               Q_ARG(QVariant, pageSize),
                               Q_ARG(QVariant, total));
@@ -75,12 +143,39 @@ void PlaylistWidget::loadPlaylists(const QVariantList& playlists, int page, int 
 
 void PlaylistWidget::loadPlaylistDetail(const QVariantMap& detail)
 {
+    const QVariantMap normalizedDetail = normalizePlaylistDetailForCover(detail);
+    m_lastPlaylistDetail = normalizedDetail;
     QQuickItem* root = rootObject();
     if (!root) {
         return;
     }
     QMetaObject::invokeMethod(root, "loadPlaylistDetail",
-                              Q_ARG(QVariant, QVariant::fromValue(detail)));
+                              Q_ARG(QVariant, QVariant::fromValue(normalizedDetail)));
+}
+
+void PlaylistWidget::updatePlaylistCoverFromDetail(const QVariantMap& detail)
+{
+    const QVariantMap normalizedDetail = normalizePlaylistDetailForCover(detail);
+    const qint64 playlistId = normalizedDetail.value(QStringLiteral("id")).toLongLong();
+    if (playlistId <= 0) {
+        return;
+    }
+
+    const QString coverUrl = normalizedDetail.value(QStringLiteral("cover_url")).toString().trimmed();
+    updateCachedPlaylistCover(playlistId, coverUrl);
+
+    if (!m_lastPlaylistDetail.isEmpty() &&
+        m_lastPlaylistDetail.value(QStringLiteral("id")).toLongLong() == playlistId) {
+        m_lastPlaylistDetail = normalizedDetail;
+    }
+
+    QQuickItem* root = rootObject();
+    if (!root) {
+        return;
+    }
+    QMetaObject::invokeMethod(root, "updatePlaylistCover",
+                              Q_ARG(QVariant, playlistId),
+                              Q_ARG(QVariant, coverUrl));
 }
 
 void PlaylistWidget::setFavoritePaths(const QStringList& favoritePaths)
@@ -114,6 +209,9 @@ void PlaylistWidget::setPlayingState(const QString& filePath, bool playing)
 
 void PlaylistWidget::clearData()
 {
+    m_lastPlaylists.clear();
+    m_lastPlaylistDetail.clear();
+    m_cachedPlaylistCoverUrls.clear();
     QQuickItem* root = rootObject();
     if (!root) {
         return;
@@ -128,6 +226,101 @@ void PlaylistWidget::openCreatePlaylistDialog()
         return;
     }
     QMetaObject::invokeMethod(root, "openCreatePlaylistDialog");
+}
+
+qint64 PlaylistWidget::selectedPlaylistIdValue() const
+{
+    QQuickItem* root = rootObject();
+    if (!root) {
+        return -1;
+    }
+    return root->property("selectedPlaylistId").toLongLong();
+}
+
+QVariantMap PlaylistWidget::currentPlaylistDetailSnapshot() const
+{
+    if (!m_lastPlaylistDetail.isEmpty()) {
+        return m_lastPlaylistDetail;
+    }
+    QQuickItem* root = rootObject();
+    if (!root) {
+        return {};
+    }
+    return root->property("currentPlaylistDetail").toMap();
+}
+
+QVariantList PlaylistWidget::currentPlaylistTrackIds() const
+{
+    const QVariantMap detail = currentPlaylistDetailSnapshot();
+    const QVariantList items = detail.value(QStringLiteral("items")).toList();
+
+    QVariantList trackIds;
+    trackIds.reserve(items.size());
+    for (const QVariant& value : items) {
+        const qint64 trackId = parseTrackIdValue(value.toMap());
+        if (trackId > 0) {
+            trackIds.push_back(trackId);
+        }
+    }
+    return trackIds;
+}
+
+QVariantList PlaylistWidget::ownedPlaylistsSnapshot() const
+{
+    QVariantList items;
+    for (const QVariant& value : m_lastPlaylists) {
+        const QVariantMap item = value.toMap();
+        if (item.value(QStringLiteral("ownership")).toString().trimmed().compare(
+                QStringLiteral("subscribed"), Qt::CaseInsensitive) == 0) {
+            continue;
+        }
+        items.push_back(item);
+    }
+    return items;
+}
+
+QVariantList PlaylistWidget::subscribedPlaylistsSnapshot() const
+{
+    QVariantList items;
+    for (const QVariant& value : m_lastPlaylists) {
+        const QVariantMap item = value.toMap();
+        if (item.value(QStringLiteral("ownership")).toString().trimmed().compare(
+                QStringLiteral("subscribed"), Qt::CaseInsensitive) == 0) {
+            items.push_back(item);
+        }
+    }
+    return items;
+}
+
+QVariantMap PlaylistWidget::normalizePlaylistDetailForCover(const QVariantMap& detail)
+{
+    QVariantMap normalizedDetail = detail;
+    const qint64 playlistId = normalizedDetail.value(QStringLiteral("id")).toLongLong();
+    const QString derivedCover = derivePlaylistCoverFromItems(
+        normalizedDetail.value(QStringLiteral("items")).toList());
+    normalizedDetail.insert(QStringLiteral("cover_url"), derivedCover);
+    if (playlistId > 0) {
+        updateCachedPlaylistCover(playlistId, derivedCover);
+    }
+    return normalizedDetail;
+}
+
+void PlaylistWidget::updateCachedPlaylistCover(qint64 playlistId, const QString& coverUrl)
+{
+    if (playlistId <= 0) {
+        return;
+    }
+
+    m_cachedPlaylistCoverUrls.insert(playlistId, coverUrl);
+    for (QVariant& value : m_lastPlaylists) {
+        QVariantMap item = value.toMap();
+        if (item.value(QStringLiteral("id")).toLongLong() != playlistId) {
+            continue;
+        }
+        item.insert(QStringLiteral("cover_url"), coverUrl);
+        value = item;
+        break;
+    }
 }
 
 void PlaylistWidget::handleOpenPlaylistRequested(const QVariant& playlistIdValue)

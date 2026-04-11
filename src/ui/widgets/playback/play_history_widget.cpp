@@ -45,6 +45,7 @@ void PlayHistoryWidget::setLoggedIn(bool loggedIn, const QString& userAccount)
 
 void PlayHistoryWidget::loadHistory(const QVariantList& historyData)
 {
+    m_lastHistoryItems = historyData;
     QQuickItem* root = rootObject();
     if (root) {
         QMetaObject::invokeMethod(root, "loadHistory",
@@ -81,6 +82,7 @@ void PlayHistoryWidget::setPlayingState(const QString& filePath, bool playing)
 
 void PlayHistoryWidget::clearHistory()
 {
+    m_lastHistoryItems.clear();
     QQuickItem* root = rootObject();
     if (root) {
         QMetaObject::invokeMethod(root, "clearHistory");
@@ -100,5 +102,19 @@ void PlayHistoryWidget::handleDeleteHistory(const QVariant& selectedPaths)
 void PlayHistoryWidget::handleSongActionRequested(const QString& action, const QVariant& payload)
 {
     emit songActionRequested(action, payload.toMap());
+}
+
+QVariantList PlayHistoryWidget::historyItemsSnapshot(int limit) const
+{
+    if (limit <= 0 || limit >= m_lastHistoryItems.size()) {
+        return m_lastHistoryItems;
+    }
+
+    QVariantList items;
+    items.reserve(limit);
+    for (int i = 0; i < limit; ++i) {
+        items.push_back(m_lastHistoryItems.at(i));
+    }
+    return items;
 }
 
