@@ -95,6 +95,8 @@
         <file>qml/assets/ai/icons/video-fill.svg</file>
         <file>qml/assets/ai/icons/video-speed.svg</file>
         <file>qml/assets/ai/icons/video-quality.svg</file>
+        <file>qml/assets/ai/icons/welcome-server.svg</file>
+        <file>qml/assets/ai/icons/welcome-offline.svg</file>
     </qresource>
 </RCC>
 
