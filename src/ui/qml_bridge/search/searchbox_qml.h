@@ -61,6 +61,12 @@ public:
             // 转发“全局搜索”信号。
             connect(rootItem, SIGNAL(searchAll()), 
                     this, SIGNAL(searchAll()));
+
+            connect(rootItem, SIGNAL(inputActivated()),
+                    this, SIGNAL(inputActivated()));
+
+            connect(rootItem, SIGNAL(textEdited(QString)),
+                    this, SIGNAL(textEdited(QString)));
             
             qDebug() << "SearchBoxQml: QML signals connected successfully";
         } else {
@@ -81,6 +87,8 @@ signals:
     // 与原搜索框保持一致的接口
     void search(const QString &text);
     void searchAll();
+    void inputActivated();
+    void textEdited(const QString& text);
 
 public slots:
     /**
@@ -110,7 +118,14 @@ public slots:
     void setText(const QString &text) {
         QQuickItem *rootItem = rootObject();
         if (rootItem) {
-            rootItem->setProperty("text", text);
+            QMetaObject::invokeMethod(rootItem, "setTextFromHost", Q_ARG(QString, text));
+        }
+    }
+
+    void focusInput() {
+        QQuickItem *rootItem = rootObject();
+        if (rootItem) {
+            QMetaObject::invokeMethod(rootItem, "focusInput");
         }
     }
 };

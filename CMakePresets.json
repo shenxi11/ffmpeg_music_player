@@ -50,14 +50,11 @@
             "name": "vs2022-x64-debug",
             "displayName": "VS2022 x64 Debug",
             "generator": "Visual Studio 17 2022",
-            "binaryDir": "${sourceDir}/build/vs2022-x64-debug",
-            "installDir": "${sourceDir}/install/vs2022-x64-debug",
+            "binaryDir": "E:/FFmpeg_whisper/ffmpeg_music_player_build",
+            "installDir": "${sourceDir}/install/vs2022-x64",
             "architecture": {
                 "value": "x64",
                 "strategy": "set"
-            },
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug"
             },
             "condition": {
                 "type": "equals",
@@ -69,14 +66,11 @@
             "name": "vs2022-x64-release",
             "displayName": "VS2022 x64 Release",
             "generator": "Visual Studio 17 2022",
-            "binaryDir": "${sourceDir}/build/vs2022-x64-release",
-            "installDir": "${sourceDir}/install/vs2022-x64-release",
+            "binaryDir": "E:/FFmpeg_whisper/ffmpeg_music_player_build",
+            "installDir": "${sourceDir}/install/vs2022-x64",
             "architecture": {
                 "value": "x64",
                 "strategy": "set"
-            },
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release"
             },
             "condition": {
                 "type": "equals",
@@ -96,11 +90,13 @@
         },
         {
             "name": "vs2022-x64-debug",
-            "configurePreset": "vs2022-x64-debug"
+            "configurePreset": "vs2022-x64-debug",
+            "configuration": "Debug"
         },
         {
             "name": "vs2022-x64-release",
-            "configurePreset": "vs2022-x64-release"
+            "configurePreset": "vs2022-x64-release",
+            "configuration": "Release"
         }
     ],
     "testPresets": [
@@ -114,11 +110,13 @@
         },
         {
             "name": "vs2022-x64-debug",
-            "configurePreset": "vs2022-x64-debug"
+            "configurePreset": "vs2022-x64-debug",
+            "configuration": "Debug"
         },
         {
             "name": "vs2022-x64-release",
-            "configurePreset": "vs2022-x64-release"
+            "configurePreset": "vs2022-x64-release",
+            "configuration": "Release"
         }
     ]
 }

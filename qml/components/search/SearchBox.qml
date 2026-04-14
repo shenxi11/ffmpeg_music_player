@@ -11,9 +11,12 @@ Rectangle {
     property string placeholderText: " 搜索想听的歌曲吧..."
     property alias text: searchInput.text
     property string baseIconPrefix: "qrc:/design/design_exports/netease_ui_pack_20260309/icon/ui/base/"
+    property bool suppressTextEdited: false
 
     signal search(string text)
     signal searchAll()
+    signal inputActivated()
+    signal textEdited(string text)
 
     Rectangle {
         anchors.fill: parent
@@ -50,8 +53,25 @@ Rectangle {
                     visible: !searchInput.text && !searchInput.activeFocus
                 }
 
+                onActiveFocusChanged: {
+                    if (activeFocus) {
+                        root.inputActivated()
+                    }
+                }
+
+                onTextChanged: {
+                    if (!root.suppressTextEdited) {
+                        root.textEdited(searchInput.text)
+                    }
+                }
+
                 Keys.onReturnPressed: { onSearchTriggered() }
                 Keys.onEnterPressed: { onSearchTriggered() }
+
+                TapHandler {
+                    acceptedButtons: Qt.LeftButton
+                    onTapped: root.inputActivated()
+                }
             }
 
             Rectangle {
@@ -94,6 +114,16 @@ Rectangle {
     }
 
     function clear() {
-        searchInput.text = ""
+        setTextFromHost("")
+    }
+
+    function setTextFromHost(value) {
+        root.suppressTextEdited = true
+        searchInput.text = value || ""
+        root.suppressTextEdited = false
+    }
+
+    function focusInput() {
+        searchInput.forceActiveFocus()
     }
 }
