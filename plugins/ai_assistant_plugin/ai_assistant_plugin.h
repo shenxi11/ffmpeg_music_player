@@ -3,10 +3,15 @@
 
 #include <QObject>
 #include <QtPlugin>
+#include <QStringList>
 
 #include "plugin_interface.h"
 
-class AiAssistantPlugin : public QObject, public PluginInterface {
+class AiAssistantPluginPage;
+
+// AI 助手插件入口，负责把宿主上下文注入到插件页，不在主程序内持有运行时。
+class AiAssistantPlugin : public QObject, public PluginInterface
+{
     Q_OBJECT
     Q_PLUGIN_METADATA(IID PluginInterface_iid FILE "ai_assistant_plugin.json")
     Q_INTERFACES(PluginInterface)
@@ -29,9 +34,13 @@ public:
     QString pluginAuthor() const override;
     QStringList pluginDependencies() const override;
     QStringList pluginPermissions() const override;
+    void setHostContext(QObject* hostContext) override;
+    void setGrantedPermissions(const QStringList& permissions) override;
 
 private:
     bool m_initialized = false;
+    QObject* m_hostContext = nullptr;
+    QStringList m_grantedPermissions;
 };
 
 #endif // AI_ASSISTANT_PLUGIN_H

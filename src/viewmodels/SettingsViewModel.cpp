@@ -80,6 +80,51 @@ int SettingsViewModel::playerPageStyle() const
     return SettingsManager::instance().playerPageStyle();
 }
 
+QString SettingsViewModel::agentMode() const
+{
+    return SettingsManager::instance().agentMode();
+}
+
+QString SettingsViewModel::agentLocalModelPath() const
+{
+    return SettingsManager::instance().agentLocalModelPath();
+}
+
+QString SettingsViewModel::agentLocalModelBaseUrl() const
+{
+    return SettingsManager::instance().agentLocalModelBaseUrl();
+}
+
+QString SettingsViewModel::agentLocalModelName() const
+{
+    return SettingsManager::instance().agentLocalModelName();
+}
+
+int SettingsViewModel::agentLocalContextSize() const
+{
+    return SettingsManager::instance().agentLocalContextSize();
+}
+
+int SettingsViewModel::agentLocalThreadCount() const
+{
+    return SettingsManager::instance().agentLocalThreadCount();
+}
+
+bool SettingsViewModel::agentRemoteFallbackEnabled() const
+{
+    return SettingsManager::instance().agentRemoteFallbackEnabled();
+}
+
+QString SettingsViewModel::agentRemoteBaseUrl() const
+{
+    return SettingsManager::instance().agentRemoteBaseUrl();
+}
+
+QString SettingsViewModel::agentRemoteModelName() const
+{
+    return SettingsManager::instance().agentRemoteModelName();
+}
+
 QString SettingsViewModel::serverHost() const
 {
     return SettingsManager::instance().serverHost();
@@ -248,6 +293,93 @@ void SettingsViewModel::setPlayerPageStyle(int styleId)
     emit playerPageStyleChanged();
 }
 
+void SettingsViewModel::setAgentMode(const QString& mode)
+{
+    const QString trimmed = mode.trimmed();
+    if (trimmed.isEmpty() || agentMode() == trimmed) {
+        return;
+    }
+    SettingsManager::instance().setAgentMode(trimmed);
+    emit agentSettingsChanged();
+}
+
+void SettingsViewModel::setAgentLocalModelPath(const QString& modelPath)
+{
+    const QString trimmed = modelPath.trimmed();
+    if (trimmed.isEmpty() || agentLocalModelPath() == trimmed) {
+        return;
+    }
+    SettingsManager::instance().setAgentLocalModelPath(trimmed);
+    emit agentSettingsChanged();
+}
+
+void SettingsViewModel::setAgentLocalModelBaseUrl(const QString& baseUrl)
+{
+    const QString trimmed = baseUrl.trimmed();
+    if (trimmed.isEmpty() || agentLocalModelBaseUrl() == trimmed) {
+        return;
+    }
+    SettingsManager::instance().setAgentLocalModelBaseUrl(trimmed);
+    emit agentSettingsChanged();
+}
+
+void SettingsViewModel::setAgentLocalModelName(const QString& modelName)
+{
+    const QString trimmed = modelName.trimmed();
+    if (trimmed.isEmpty() || agentLocalModelName() == trimmed) {
+        return;
+    }
+    SettingsManager::instance().setAgentLocalModelName(trimmed);
+    emit agentSettingsChanged();
+}
+
+void SettingsViewModel::setAgentLocalContextSize(int contextSize)
+{
+    if (agentLocalContextSize() == contextSize) {
+        return;
+    }
+    SettingsManager::instance().setAgentLocalContextSize(contextSize);
+    emit agentSettingsChanged();
+}
+
+void SettingsViewModel::setAgentLocalThreadCount(int threadCount)
+{
+    if (agentLocalThreadCount() == threadCount) {
+        return;
+    }
+    SettingsManager::instance().setAgentLocalThreadCount(threadCount);
+    emit agentSettingsChanged();
+}
+
+void SettingsViewModel::setAgentRemoteFallbackEnabled(bool enabled)
+{
+    if (agentRemoteFallbackEnabled() == enabled) {
+        return;
+    }
+    SettingsManager::instance().setAgentRemoteFallbackEnabled(enabled);
+    emit agentSettingsChanged();
+}
+
+void SettingsViewModel::setAgentRemoteBaseUrl(const QString& baseUrl)
+{
+    const QString trimmed = baseUrl.trimmed();
+    if (trimmed.isEmpty() || agentRemoteBaseUrl() == trimmed) {
+        return;
+    }
+    SettingsManager::instance().setAgentRemoteBaseUrl(trimmed);
+    emit agentSettingsChanged();
+}
+
+void SettingsViewModel::setAgentRemoteModelName(const QString& modelName)
+{
+    const QString trimmed = modelName.trimmed();
+    if (trimmed.isEmpty() || agentRemoteModelName() == trimmed) {
+        return;
+    }
+    SettingsManager::instance().setAgentRemoteModelName(trimmed);
+    emit agentSettingsChanged();
+}
+
 void SettingsViewModel::refreshPresence()
 {
     OnlinePresenceManager::instance().requestStatusRefresh();
@@ -261,6 +393,7 @@ void SettingsViewModel::syncFromSettings()
     emit downloadLyricsChanged();
     emit downloadCoverChanged();
     emit playerPageStyleChanged();
+    emit agentSettingsChanged();
 }
 
 void SettingsViewModel::onPresenceSnapshotChanged(const QString& account,

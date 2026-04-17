@@ -33,6 +33,15 @@ private slots:
     void onAudioCachePathChanged();
     void onLogPathChanged();
     void onPlayerPageStyleChanged();
+    void onAgentModeChanged();
+    void onAgentLocalModelPathChanged();
+    void onAgentLocalModelBaseUrlChanged();
+    void onAgentLocalModelNameChanged();
+    void onAgentLocalContextSizeChanged();
+    void onAgentLocalThreadCountChanged();
+    void onAgentRemoteFallbackEnabledChanged();
+    void onAgentRemoteBaseUrlChanged();
+    void onAgentRemoteModelNameChanged();
     void onRefreshPresenceRequested();
     void onReturnToWelcomeRequested();
     void syncViewModelToRoot();

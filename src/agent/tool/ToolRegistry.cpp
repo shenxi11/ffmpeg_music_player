@@ -1,4 +1,4 @@
-﻿#include "ToolRegistry.h"
+#include "ToolRegistry.h"
 
 ToolRegistry::ToolRegistry()
 {
@@ -30,6 +30,141 @@ AgentToolDefinition ToolRegistry::definition(const QString& toolName) const
 QVector<AgentToolDefinition> ToolRegistry::allTools() const
 {
     return m_tools;
+}
+
+QVariantList ToolRegistry::allToolsAsVariantList() const
+{
+    QVariantList items;
+    items.reserve(m_tools.size());
+    for (const AgentToolDefinition& def : m_tools) {
+        items.push_back(def.toVariantMap());
+    }
+    return items;
+}
+
+QVariantMap AgentToolDefinition::toVariantMap() const
+{
+    const auto derivedRiskLevel = [this]() -> QString {
+        if (!riskLevel.trimmed().isEmpty()) {
+            return riskLevel.trimmed();
+        }
+        return requireApproval ? QStringLiteral("medium") : QStringLiteral("low");
+    };
+    const auto derivedConfirmPolicy = [this]() -> QString {
+        if (!confirmPolicy.trimmed().isEmpty()) {
+            return confirmPolicy.trimmed();
+        }
+        return requireApproval ? QStringLiteral("chat_approval") : QStringLiteral("none");
+    };
+    const auto derivedAvailabilityPolicy = [this]() -> QString {
+        if (!availabilityPolicy.trimmed().isEmpty()) {
+            return availabilityPolicy.trimmed();
+        }
+
+        static const QStringList loginRequiredTools = {
+            QStringLiteral("getRecentTracks"),
+            QStringLiteral("addRecentTrack"),
+            QStringLiteral("removeRecentTracks"),
+            QStringLiteral("getFavorites"),
+            QStringLiteral("addFavorite"),
+            QStringLiteral("removeFavorites"),
+            QStringLiteral("getPlaylists"),
+            QStringLiteral("getPlaylistTracks"),
+            QStringLiteral("createPlaylist"),
+            QStringLiteral("updatePlaylist"),
+            QStringLiteral("deletePlaylist"),
+            QStringLiteral("addPlaylistItems"),
+            QStringLiteral("addTracksToPlaylist"),
+            QStringLiteral("removePlaylistItems"),
+            QStringLiteral("reorderPlaylistItems"),
+            QStringLiteral("getRecommendations"),
+            QStringLiteral("getSimilarRecommendations"),
+            QStringLiteral("submitRecommendationFeedback"),
+            QStringLiteral("getUserProfile"),
+            QStringLiteral("refreshUserProfile"),
+            QStringLiteral("updateUsername"),
+            QStringLiteral("uploadAvatar"),
+            QStringLiteral("logoutUser"),
+        };
+        if (loginRequiredTools.contains(name)) {
+            return QStringLiteral("login_required");
+        }
+
+        static const QStringList onlineRequiredTools = {
+            QStringLiteral("searchTracks"),
+            QStringLiteral("getLyrics"),
+            QStringLiteral("getVideoList"),
+            QStringLiteral("getVideoStream"),
+            QStringLiteral("searchArtist"),
+            QStringLiteral("getTracksByArtist"),
+        };
+        if (onlineRequiredTools.contains(name)) {
+            return QStringLiteral("online_required");
+        }
+
+        return QStringLiteral("always");
+    };
+    const auto derivedDomain = [this]() -> QString {
+        if (!domain.trimmed().isEmpty()) {
+            return domain.trimmed();
+        }
+        if (name.contains(QStringLiteral("Playback"), Qt::CaseInsensitive)
+            || name.startsWith(QStringLiteral("play"), Qt::CaseInsensitive)
+            || name.startsWith(QStringLiteral("setVolume"), Qt::CaseInsensitive)
+            || name.startsWith(QStringLiteral("getCurrentTrack"), Qt::CaseInsensitive)
+            || name.startsWith(QStringLiteral("getPlaybackQueue"), Qt::CaseInsensitive)) {
+            return QStringLiteral("playback");
+        }
+        if (name.contains(QStringLiteral("Playlist"), Qt::CaseInsensitive)) {
+            return QStringLiteral("playlist");
+        }
+        if (name.contains(QStringLiteral("Favorite"), Qt::CaseInsensitive)
+            || name.contains(QStringLiteral("Recent"), Qt::CaseInsensitive)
+            || name.contains(QStringLiteral("Local"), Qt::CaseInsensitive)
+            || name.contains(QStringLiteral("Lyrics"), Qt::CaseInsensitive)
+            || name.contains(QStringLiteral("Artist"), Qt::CaseInsensitive)
+            || name.contains(QStringLiteral("Track"), Qt::CaseInsensitive)) {
+            return QStringLiteral("library");
+        }
+        if (name.contains(QStringLiteral("Video"), Qt::CaseInsensitive)) {
+            return QStringLiteral("video");
+        }
+        if (name.contains(QStringLiteral("Download"), Qt::CaseInsensitive)) {
+            return QStringLiteral("download");
+        }
+        if (name.contains(QStringLiteral("Plugin"), Qt::CaseInsensitive)) {
+            return QStringLiteral("plugin");
+        }
+        if (name.contains(QStringLiteral("Setting"), Qt::CaseInsensitive)) {
+            return QStringLiteral("settings");
+        }
+        if (name.contains(QStringLiteral("User"), Qt::CaseInsensitive)
+            || name.contains(QStringLiteral("Profile"), Qt::CaseInsensitive)) {
+            return QStringLiteral("account");
+        }
+        if (name.contains(QStringLiteral("Host"), Qt::CaseInsensitive)
+            || name.contains(QStringLiteral("VisiblePage"), Qt::CaseInsensitive)
+            || name.contains(QStringLiteral("SelectedTrack"), Qt::CaseInsensitive)) {
+            return QStringLiteral("host");
+        }
+        return QStringLiteral("general");
+    };
+
+    QVariantMap payload;
+    payload.insert(QStringLiteral("name"), name);
+    payload.insert(QStringLiteral("description"), description);
+    payload.insert(QStringLiteral("requiredArgs"), requiredArgs);
+    payload.insert(QStringLiteral("optionalArgs"), optionalArgs);
+    payload.insert(QStringLiteral("readOnly"), readOnly);
+    payload.insert(QStringLiteral("requireApproval"), requireApproval);
+    payload.insert(QStringLiteral("riskLevel"), derivedRiskLevel());
+    payload.insert(QStringLiteral("confirmPolicy"), derivedConfirmPolicy());
+    payload.insert(QStringLiteral("availabilityPolicy"), derivedAvailabilityPolicy());
+    payload.insert(QStringLiteral("domain"), derivedDomain());
+    payload.insert(QStringLiteral("userVisibleName"),
+                   userVisibleName.trimmed().isEmpty() ? (description.trimmed().isEmpty() ? name : description.trimmed())
+                                                      : userVisibleName.trimmed());
+    return payload;
 }
 
 bool ToolRegistry::validateArgs(const QString& toolName,
@@ -393,6 +528,18 @@ void ToolRegistry::registerDefaultTools()
                   true,
                   false});
 
+    registerTool({QStringLiteral("downloadTrack"),
+                  QStringLiteral("发起在线歌曲下载"),
+                  {QStringLiteral("relativePath")},
+                  {QStringLiteral("coverUrl")},
+                  false,
+                  false,
+                  QStringLiteral("low"),
+                  QStringLiteral("none"),
+                  QStringLiteral("login_required"),
+                  QStringLiteral("download"),
+                  QStringLiteral("发起在线歌曲下载")});
+
     registerTool({QStringLiteral("pauseDownloadTask"),
                   QStringLiteral("暂停下载任务"),
                   {QStringLiteral("taskId")},
@@ -546,6 +693,202 @@ void ToolRegistry::registerDefaultTools()
                   {},
                   false,
                   true});
+
+    registerTool({QStringLiteral("getHostContext"),
+                  QStringLiteral("获取宿主界面上下文快照"),
+                  {},
+                  {},
+                  true,
+                  false,
+                  QStringLiteral("low"),
+                  QStringLiteral("none"),
+                  QStringLiteral("always"),
+                  QStringLiteral("host"),
+                  QStringLiteral("宿主上下文")});
+
+    registerTool({QStringLiteral("getVisiblePage"),
+                  QStringLiteral("获取当前可见主页面"),
+                  {},
+                  {},
+                  true,
+                  false,
+                  QStringLiteral("low"),
+                  QStringLiteral("none"),
+                  QStringLiteral("always"),
+                  QStringLiteral("host"),
+                  QStringLiteral("当前页面")});
+
+    registerTool({QStringLiteral("getSelectedPlaylist"),
+                  QStringLiteral("获取当前选中歌单摘要"),
+                  {},
+                  {},
+                  true,
+                  false,
+                  QStringLiteral("low"),
+                  QStringLiteral("none"),
+                  QStringLiteral("always"),
+                  QStringLiteral("playlist"),
+                  QStringLiteral("当前歌单")});
+
+    registerTool({QStringLiteral("getSelectedTrackIds"),
+                  QStringLiteral("获取当前页面选中的歌曲 ID 列表"),
+                  {},
+                  {},
+                  true,
+                  false,
+                  QStringLiteral("low"),
+                  QStringLiteral("none"),
+                  QStringLiteral("always"),
+                  QStringLiteral("host"),
+                  QStringLiteral("当前选中歌曲")});
+
+    registerTool({QStringLiteral("getUiOverview"),
+                  QStringLiteral("获取主窗口 UI 总览"),
+                  {},
+                  {},
+                  true,
+                  false,
+                  QStringLiteral("low"),
+                  QStringLiteral("none"),
+                  QStringLiteral("always"),
+                  QStringLiteral("host"),
+                  QStringLiteral("UI 总览")});
+
+    registerTool({QStringLiteral("getUiPageState"),
+                  QStringLiteral("获取指定主页面的 UI 状态摘要"),
+                  {QStringLiteral("page")},
+                  {},
+                  true,
+                  false,
+                  QStringLiteral("low"),
+                  QStringLiteral("none"),
+                  QStringLiteral("always"),
+                  QStringLiteral("host"),
+                  QStringLiteral("页面状态")});
+
+    registerTool({QStringLiteral("getMusicTabItems"),
+                  QStringLiteral("获取指定音乐 tab 当前可见的数据条目"),
+                  {QStringLiteral("tab")},
+                  {QStringLiteral("limit"), QStringLiteral("playlistId"),
+                   QStringLiteral("playlistName")},
+                  true,
+                  false,
+                  QStringLiteral("low"),
+                  QStringLiteral("none"),
+                  QStringLiteral("always"),
+                  QStringLiteral("host"),
+                  QStringLiteral("音乐 tab 列表")});
+
+    registerTool({QStringLiteral("getMusicTabItem"),
+                  QStringLiteral("按业务标识读取音乐 tab 内单条对象"),
+                  {QStringLiteral("tab")},
+                  {QStringLiteral("trackId"), QStringLiteral("musicPath"),
+                   QStringLiteral("playlistId"), QStringLiteral("playlistName")},
+                  true,
+                  false,
+                  QStringLiteral("low"),
+                  QStringLiteral("none"),
+                  QStringLiteral("always"),
+                  QStringLiteral("host"),
+                  QStringLiteral("音乐 tab 条目")});
+
+    registerTool({QStringLiteral("playMusicTabTrack"),
+                  QStringLiteral("按 tab 和业务标识播放指定歌曲"),
+                  {QStringLiteral("tab")},
+                  {QStringLiteral("trackId"), QStringLiteral("musicPath"),
+                   QStringLiteral("playlistId"), QStringLiteral("playlistName")},
+                  false,
+                  false,
+                  QStringLiteral("low"),
+                  QStringLiteral("none"),
+                  QStringLiteral("always"),
+                  QStringLiteral("playback"),
+                  QStringLiteral("播放 tab 歌曲")});
+
+    registerTool({QStringLiteral("invokeMusicTabAction"),
+                  QStringLiteral("对音乐 tab 中的歌曲执行统一业务动作"),
+                  {QStringLiteral("tab"), QStringLiteral("action")},
+                  {QStringLiteral("trackId"), QStringLiteral("musicPath"),
+                   QStringLiteral("playlistId"), QStringLiteral("playlistName")},
+                  false,
+                  true,
+                  QStringLiteral("medium"),
+                  QStringLiteral("none"),
+                  QStringLiteral("always"),
+                  QStringLiteral("host"),
+                  QStringLiteral("执行 tab 动作")});
+
+    registerTool({QStringLiteral("getUserProfile"),
+                  QStringLiteral("获取当前用户资料快照"),
+                  {},
+                  {},
+                  true,
+                  false,
+                  QStringLiteral("low"),
+                  QStringLiteral("none"),
+                  QStringLiteral("login_required"),
+                  QStringLiteral("account"),
+                  QStringLiteral("用户资料")});
+
+    registerTool({QStringLiteral("refreshUserProfile"),
+                  QStringLiteral("刷新当前用户资料"),
+                  {},
+                  {},
+                  false,
+                  false,
+                  QStringLiteral("low"),
+                  QStringLiteral("none"),
+                  QStringLiteral("login_required"),
+                  QStringLiteral("account"),
+                  QStringLiteral("刷新资料")});
+
+    registerTool({QStringLiteral("updateUsername"),
+                  QStringLiteral("修改当前用户名"),
+                  {QStringLiteral("username")},
+                  {},
+                  false,
+                  true,
+                  QStringLiteral("medium"),
+                  QStringLiteral("chat_approval"),
+                  QStringLiteral("login_required"),
+                  QStringLiteral("account"),
+                  QStringLiteral("修改用户名")});
+
+    registerTool({QStringLiteral("uploadAvatar"),
+                  QStringLiteral("上传新的用户头像"),
+                  {QStringLiteral("filePath")},
+                  {},
+                  false,
+                  true,
+                  QStringLiteral("medium"),
+                  QStringLiteral("chat_approval"),
+                  QStringLiteral("login_required"),
+                  QStringLiteral("account"),
+                  QStringLiteral("上传头像")});
+
+    registerTool({QStringLiteral("logoutUser"),
+                  QStringLiteral("退出当前登录用户"),
+                  {},
+                  {},
+                  false,
+                  true,
+                  QStringLiteral("high"),
+                  QStringLiteral("chat_approval"),
+                  QStringLiteral("login_required"),
+                  QStringLiteral("account"),
+                  QStringLiteral("退出登录")});
+
+    registerTool({QStringLiteral("returnToWelcome"),
+                  QStringLiteral("返回欢迎页并结束当前客户端会话"),
+                  {},
+                  {},
+                  false,
+                  true,
+                  QStringLiteral("high"),
+                  QStringLiteral("chat_approval"),
+                  QStringLiteral("always"),
+                  QStringLiteral("general"),
+                  QStringLiteral("返回欢迎页")});
 
     registerTool({QStringLiteral("getSettingsSnapshot"),
                   QStringLiteral("获取客户端设置快照"),

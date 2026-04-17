@@ -3,6 +3,7 @@
 
 #include <QString>
 #include <QStringList>
+#include <QVariantList>
 #include <QVariantMap>
 #include <QVector>
 
@@ -17,6 +18,13 @@ struct AgentToolDefinition
     QStringList optionalArgs;
     bool readOnly = true;
     bool requireApproval = false;
+    QString riskLevel;
+    QString confirmPolicy;
+    QString availabilityPolicy;
+    QString domain;
+    QString userVisibleName;
+
+    QVariantMap toVariantMap() const;
 };
 
 /**
@@ -30,6 +38,7 @@ public:
     bool contains(const QString& toolName) const;
     AgentToolDefinition definition(const QString& toolName) const;
     QVector<AgentToolDefinition> allTools() const;
+    QVariantList allToolsAsVariantList() const;
 
     bool validateArgs(const QString& toolName,
                       const QVariantMap& args,

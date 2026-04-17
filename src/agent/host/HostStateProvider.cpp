@@ -1,18 +1,26 @@
 #include "HostStateProvider.h"
 
 #include <QCryptographicHash>
-#include <QDateTime>
-#include <QFileInfo>
+#include <QMetaObject>
 #include <QStringList>
-#include <QUrl>
-
-#include "MainShellViewModel.h"
-#include "AudioService.h"
-#include "AudioSession.h"
-#include "local_music_cache.h"
-#include "music.h"
 
 namespace {
+
+template <typename Return, typename... Args>
+Return invokeValue(QObject* obj, const char* method, const Return& fallback, Args&&... args)
+{
+    if (!obj) {
+        return fallback;
+    }
+
+    Return result = fallback;
+    const bool ok = QMetaObject::invokeMethod(obj,
+                                              method,
+                                              Qt::DirectConnection,
+                                              Q_RETURN_ARG(Return, result),
+                                              Q_ARG(std::decay_t<Args>, std::forward<Args>(args))...);
+    return ok ? result : fallback;
+}
 
 qint64 parseDurationSeconds(const QString& durationText)
 {
@@ -21,8 +29,8 @@ qint64 parseDurationSeconds(const QString& durationText)
         return 0;
     }
 
-    if (trimmed.contains(':')) {
-        const QStringList parts = trimmed.split(':');
+    if (trimmed.contains(QLatin1Char(':'))) {
+        const QStringList parts = trimmed.split(QLatin1Char(':'));
         if (parts.size() >= 2) {
             bool okMin = false;
             bool okSec = false;
@@ -52,68 +60,77 @@ qint64 parsePlaylistIdValue(const QVariantMap& raw)
     return raw.value(QStringLiteral("playlistId")).toLongLong();
 }
 
+QVariantList normalizeStringVariantList(const QVariantList& rawItems)
+{
+    QVariantList normalized;
+    normalized.reserve(rawItems.size());
+    for (const QVariant& raw : rawItems) {
+        const QString text = raw.toString().trimmed();
+        if (!text.isEmpty()) {
+            normalized.push_back(text);
+        }
+    }
+    return normalized;
 }
+
+} // namespace
 
 HostStateProvider::HostStateProvider(QObject* parent)
     : QObject(parent)
 {
 }
 
-void HostStateProvider::setMainShellViewModel(MainShellViewModel* shellViewModel)
+void HostStateProvider::setHostContext(QObject* hostContext)
 {
-    m_shellViewModel = shellViewModel;
+    m_hostContext = hostContext;
+}
+
+QObject* HostStateProvider::hostService() const
+{
+    if (!m_hostContext) {
+        return nullptr;
+    }
+
+    QObject* rawService = nullptr;
+    QMetaObject::invokeMethod(m_hostContext,
+                              "service",
+                              Qt::DirectConnection,
+                              Q_RETURN_ARG(QObject*, rawService),
+                              Q_ARG(QString, QStringLiteral("clientAutomationHost")));
+    return rawService;
 }
 
 QString HostStateProvider::currentUserAccount() const
 {
-    if (!m_shellViewModel) {
-        return QString();
-    }
-    return m_shellViewModel->currentUserAccount().trimmed();
+    return invokeValue<QString>(hostService(), "currentUserAccount", QString()).trimmed();
 }
 
 QVariantMap HostStateProvider::currentTrackSnapshot() const
 {
-    QVariantMap result;
-
-    AudioSession* session = AudioService::instance().currentSession();
-    const QUrl currentUrl = AudioService::instance().currentUrl();
-    if (!session || currentUrl.isEmpty()) {
-        result.insert(QStringLiteral("playing"), false);
-        return result;
+    QVariantMap result = invokeValue<QVariantMap>(hostService(),
+                                                  "currentTrackSnapshot",
+                                                  QVariantMap());
+    if (result.isEmpty()) {
+        return {{QStringLiteral("playing"), false}};
     }
 
-    const QString path = currentUrl.toString();
-    const QString title = session->title().trimmed().isEmpty()
-        ? QFileInfo(currentUrl.path()).completeBaseName()
-        : session->title().trimmed();
-    const QString artist = session->artist().trimmed().isEmpty()
-        ? QStringLiteral("未知艺术家")
-        : session->artist().trimmed();
-    const qint64 durationMs = qMax<qint64>(0, session->duration());
-    const qint64 positionMs = qMax<qint64>(0, session->position());
-
+    const QString path = result.value(QStringLiteral("musicPath")).toString();
+    const QString title = result.value(QStringLiteral("title")).toString();
+    const QString artist = result.value(QStringLiteral("artist")).toString();
     result.insert(QStringLiteral("trackId"), fallbackTrackId(path, title, artist));
-    result.insert(QStringLiteral("musicPath"), path);
-    result.insert(QStringLiteral("title"), title);
-    result.insert(QStringLiteral("artist"), artist);
-    result.insert(QStringLiteral("album"), QString());
-    result.insert(QStringLiteral("playlistId"), QString());
-    result.insert(QStringLiteral("durationMs"), durationMs);
-    result.insert(QStringLiteral("positionMs"), positionMs);
-    result.insert(QStringLiteral("playing"), AudioService::instance().isPlaying());
-    result.insert(QStringLiteral("coverUrl"), session->albumArt());
+    result.insert(QStringLiteral("album"), result.value(QStringLiteral("album")).toString());
+    result.insert(QStringLiteral("playlistId"), result.value(QStringLiteral("playlistId")).toString());
     return result;
 }
 
-QVariantList HostStateProvider::convertMusicList(const QList<Music>& musics, int limit) const
+QVariantMap HostStateProvider::hostContextSnapshot() const
 {
-    QVariantList items;
-    const int bounded = (limit <= 0) ? musics.size() : qMin(limit, musics.size());
-    for (int i = 0; i < bounded; ++i) {
-        items.append(convertMusicItem(musics.at(i)));
-    }
-    return items;
+    QVariantMap payload = invokeValue<QVariantMap>(hostService(),
+                                                   "hostContextSnapshot",
+                                                   QVariantMap());
+    payload.insert(QStringLiteral("selectedTrackIds"),
+                   normalizeStringVariantList(payload.value(QStringLiteral("selectedTrackIds")).toList()));
+    return payload;
 }
 
 QVariantList HostStateProvider::convertHistoryList(const QVariantList& history, int limit) const
@@ -162,11 +179,9 @@ QVariantMap HostStateProvider::convertPlaylistDetail(const QVariantMap& detail) 
         ? detail.value(QStringLiteral("track_count")).toInt()
         : rawItems.size();
     result.insert(QStringLiteral("playlist"),
-                  QVariantMap{
-                      {QStringLiteral("playlistId"), playlistId},
-                      {QStringLiteral("name"), detail.value(QStringLiteral("name")).toString()},
-                      {QStringLiteral("trackCount"), trackCount}
-                  });
+                  QVariantMap{{QStringLiteral("playlistId"), playlistId},
+                              {QStringLiteral("name"), detail.value(QStringLiteral("name")).toString()},
+                              {QStringLiteral("trackCount"), trackCount}});
 
     QVariantList items;
     for (const QVariant& value : rawItems) {
@@ -179,7 +194,7 @@ QVariantMap HostStateProvider::convertPlaylistDetail(const QVariantMap& detail) 
             ? raw.value(QStringLiteral("music_title")).toString()
             : raw.value(QStringLiteral("title")).toString();
         const QString artist = raw.value(QStringLiteral("artist")).toString().trimmed().isEmpty()
-            ? QStringLiteral("未知艺术家")
+            ? QStringLiteral("?????")
             : raw.value(QStringLiteral("artist")).toString().trimmed();
         qint64 durationMs = normalizeDurationMs(raw.value(QStringLiteral("duration_sec")).toLongLong());
         if (durationMs <= 0) {
@@ -206,58 +221,7 @@ QVariantMap HostStateProvider::convertPlaylistDetail(const QVariantMap& detail) 
 
 QVariantList HostStateProvider::convertLocalMusicList(int limit) const
 {
-    const QList<LocalMusicInfo> locals = LocalMusicCache::instance().getMusicList();
-    const int bounded = (limit <= 0) ? locals.size() : qMin(limit, locals.size());
-
-    QVariantList items;
-    items.reserve(bounded);
-    for (int i = 0; i < bounded; ++i) {
-        const LocalMusicInfo& local = locals.at(i);
-        QVariantMap item;
-        const QString path = local.filePath.trimmed();
-        const QString title = local.fileName.trimmed().isEmpty()
-            ? QFileInfo(path).completeBaseName()
-            : local.fileName.trimmed();
-        const QString artist = local.artist.trimmed().isEmpty()
-            ? QStringLiteral("未知艺术家")
-            : local.artist.trimmed();
-        const qint64 durationSec = parseDurationSeconds(local.duration);
-        item.insert(QStringLiteral("trackId"), fallbackTrackId(path, title, artist));
-        item.insert(QStringLiteral("musicPath"), path);
-        item.insert(QStringLiteral("title"), title);
-        item.insert(QStringLiteral("artist"), artist);
-        item.insert(QStringLiteral("album"), QString());
-        item.insert(QStringLiteral("durationMs"), durationSec * 1000);
-        item.insert(QStringLiteral("isFavorite"), false);
-        item.insert(QStringLiteral("coverUrl"), local.coverUrl);
-        item.insert(QStringLiteral("isLocal"), true);
-        items.push_back(item);
-    }
-
-    return items;
-}
-
-QVariantMap HostStateProvider::convertMusicItem(const Music& music) const
-{
-    QVariantMap item;
-    const QString path = music.getSongPath();
-    const QString title = music.getSongName().trimmed().isEmpty()
-        ? QFileInfo(path).completeBaseName()
-        : music.getSongName().trimmed();
-    const QString artist = music.getSinger().trimmed().isEmpty()
-        ? QStringLiteral("未知艺术家")
-        : music.getSinger().trimmed();
-    const qint64 durationMs = normalizeDurationMs(music.getDuration());
-
-    item.insert(QStringLiteral("trackId"), fallbackTrackId(path, title, artist));
-    item.insert(QStringLiteral("musicPath"), path);
-    item.insert(QStringLiteral("title"), title);
-    item.insert(QStringLiteral("artist"), artist);
-    item.insert(QStringLiteral("album"), QString());
-    item.insert(QStringLiteral("durationMs"), durationMs);
-    item.insert(QStringLiteral("isFavorite"), false);
-    item.insert(QStringLiteral("coverUrl"), music.getPicPath());
-    return item;
+    return invokeValue<QVariantList>(hostService(), "localMusicItems", QVariantList(), limit);
 }
 
 QVariantMap HostStateProvider::convertHistoryItem(const QVariantMap& raw) const
@@ -270,7 +234,7 @@ QVariantMap HostStateProvider::convertHistoryItem(const QVariantMap& raw) const
         ? raw.value(QStringLiteral("music_title")).toString()
         : raw.value(QStringLiteral("title")).toString();
     const QString artist = raw.value(QStringLiteral("artist")).toString().trimmed().isEmpty()
-        ? QStringLiteral("未知艺术家")
+        ? QStringLiteral("?????")
         : raw.value(QStringLiteral("artist")).toString().trimmed();
 
     item.insert(QStringLiteral("trackId"), fallbackTrackId(path, title, artist));

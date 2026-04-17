@@ -16,8 +16,7 @@ from .capability_catalog import (
     capability_catalog_summary,
 )
 from .config import Settings
-from .llm_client import OpenAIChatModelClient
-from .music_runtime import MusicAgentRuntime
+from .control_runtime import ControlRuntime
 from .runtime_actions import (
     AssistantTextRuntimeAction,
     ChatRuntimeAction,
@@ -32,7 +31,6 @@ from .runtime_actions import (
     ScriptValidationRuntimeAction,
     ToolCallRuntimeAction,
 )
-from .semantic_parser import SemanticParser
 from .schemas import (
     ApprovalRequestMessage,
     ApprovalResponseMessage,
@@ -47,6 +45,7 @@ from .schemas import (
     ExecuteScriptMessage,
     FinalResultMessage,
     HealthResponse,
+    HostSnapshotMessage,
     PlanPreviewMessage,
     PlanEventsResponse,
     ProgressMessage,
@@ -70,7 +69,6 @@ from .schemas import (
     ValidateScriptMessage,
 )
 from .session_store import SessionSummary, SQLiteSessionStore, StoredEvent
-from .tool_registry import DEFAULT_TOOL_REGISTRY
 from .workflow_memory import PendingScriptDryRun, PendingScriptExecution, PendingScriptValidation, WorkflowMemoryStore
 
 
@@ -86,28 +84,14 @@ def create_app(settings: Settings | None = None, chat_agent: ChatAgent | None = 
         max_history_messages=resolved_settings.agent_max_history_messages,
     )
     resolved_chat_agent = chat_agent
-    if resolved_chat_agent is None and resolved_settings.is_model_configured():
-        llm_client = OpenAIChatModelClient(resolved_settings)
-        resolved_chat_agent = ChatAgent(
-            llm_client=llm_client,
-            session_store=store,
-        )
-    elif resolved_chat_agent is not None:
+    if resolved_chat_agent is not None:
         store = resolved_chat_agent.session_store
 
-    music_runtime = None
-    if resolved_chat_agent is not None:
-        semantic_parser = SemanticParser(
-            llm_client=resolved_chat_agent.llm_client,
-            tool_registry=DEFAULT_TOOL_REGISTRY,
-        )
-        music_runtime = MusicAgentRuntime(
-            chat_agent=resolved_chat_agent,
-            tool_registry=DEFAULT_TOOL_REGISTRY,
-            semantic_parser=semantic_parser,
-            memory_store=WorkflowMemoryStore(),
-            allow_direct_write_actions=resolved_settings.agent_allow_direct_write_actions,
-        )
+    music_runtime = ControlRuntime(
+        settings=resolved_settings,
+        session_store=store,
+        memory_store=WorkflowMemoryStore(),
+    )
 
     app = FastAPI(title="Music Agent Backend", version="0.3.0")
     app.state.settings = resolved_settings
@@ -118,11 +102,17 @@ def create_app(settings: Settings | None = None, chat_agent: ChatAgent | None = 
     @app.get("/healthz")
     async def healthz() -> dict:
         payload = HealthResponse(
-            status="ok" if resolved_settings.is_model_configured() else "degraded",
-            modelConfigured=resolved_settings.is_model_configured(),
-            missingConfig=resolved_settings.missing_model_config(),
-            openaiBaseUrl=resolved_settings.openai_base_url,
-            openaiModel=resolved_settings.openai_model,
+            status="ok" if resolved_settings.is_local_model_configured() else "degraded",
+            modelConfigured=resolved_settings.is_local_model_configured(),
+            missingConfig=resolved_settings.missing_local_model_config(),
+            localModelBaseUrl=resolved_settings.local_model_base_url,
+            localModelName=resolved_settings.local_model_name,
+            remoteModelEnabled=resolved_settings.remote_model_enabled,
+            remoteModelBaseUrl=resolved_settings.effective_remote_base_url,
+            remoteModelName=resolved_settings.effective_remote_model,
+            defaultMode=resolved_settings.agent_default_mode,
+            openaiBaseUrl=resolved_settings.effective_remote_base_url,
+            openaiModel=resolved_settings.effective_remote_model,
             openaiWireApi=resolved_settings.openai_wire_api,
             sessionHistoryLimit=resolved_settings.agent_max_history_messages,
             storagePath=resolved_settings.agent_storage_path,
@@ -235,6 +225,9 @@ def create_app(settings: Settings | None = None, chat_agent: ChatAgent | None = 
             if message_type == "user_message":
                 await _handle_user_message(app, websocket, session_id, payload)
                 continue
+            if message_type == "host_snapshot":
+                await _handle_host_snapshot(app, websocket, session_id, payload)
+                continue
             if message_type == "tool_result":
                 await _handle_tool_result(app, websocket, session_id, payload)
                 continue
@@ -265,7 +258,7 @@ def create_app(settings: Settings | None = None, chat_agent: ChatAgent | None = 
                 session_id,
                 payload.get("requestId"),
                 "unsupported_message_type",
-                "supported message types are user_message, tool_result, approval_response, script_dry_run_result, script_validation_result, script_execution_started, script_step_event, script_execution_result, and script_cancellation_result",
+                "supported message types are user_message, host_snapshot, tool_result, approval_response, script_dry_run_result, script_validation_result, script_execution_started, script_step_event, script_execution_result, and script_cancellation_result",
             )
 
         with suppress(Exception):
@@ -277,7 +270,7 @@ def create_app(settings: Settings | None = None, chat_agent: ChatAgent | None = 
 async def _receive_ws_message(
     websocket: WebSocket,
     session_id: str,
-    music_runtime: MusicAgentRuntime | None,
+    music_runtime: object | None,
     settings: Settings,
 ) -> str | None:
     if music_runtime is None:
@@ -324,6 +317,18 @@ def _parse_json_object(raw_message: str) -> tuple[dict, dict | None]:
     return payload, None
 
 
+def _validation_error_summary(prefix: str, exc: ValidationError) -> str:
+    errors = exc.errors()
+    if not errors:
+        return prefix
+    first = errors[0]
+    location = ".".join(str(part) for part in first.get("loc") or [])
+    message = str(first.get("msg") or "校验失败").strip()
+    if location:
+        return f"{prefix}: {location} {message}"
+    return f"{prefix}: {message}"
+
+
 async def _handle_user_message(app: FastAPI, websocket: WebSocket, session_id: str, payload: dict) -> None:
     try:
         message = UserMessage.model_validate(payload)
@@ -345,6 +350,31 @@ async def _handle_user_message(app: FastAPI, websocket: WebSocket, session_id: s
         await _dispatch_runtime_action(app, websocket, session_id, message.content.strip(), action, message.request_id)
     except Exception as exc:
         await _send_error(websocket, session_id, message.request_id, "runtime_error", str(exc))
+
+
+async def _handle_host_snapshot(app: FastAPI, websocket: WebSocket, session_id: str, payload: dict) -> None:
+    runtime = app.state.music_runtime
+    if runtime is None:
+        return
+
+    try:
+        message = HostSnapshotMessage.model_validate(payload)
+    except ValidationError:
+        await _send_error(websocket, session_id, None, "invalid_message", "host_snapshot format is invalid")
+        return
+
+    try:
+        await runtime.handle_host_snapshot(session_id, message.model_dump(by_alias=True))
+    except ValidationError as exc:
+        await _send_error(
+            websocket,
+            session_id,
+            None,
+            "host_snapshot_validation_error",
+            _validation_error_summary("host_snapshot 校验失败", exc),
+        )
+    except Exception as exc:
+        await _send_error(websocket, session_id, None, "runtime_error", str(exc))
 
 
 async def _handle_tool_result(app: FastAPI, websocket: WebSocket, session_id: str, payload: dict) -> None:
@@ -718,7 +748,7 @@ async def _dispatch_runtime_action(
     action,
     request_id: str | None,
 ) -> None:
-    runtime: MusicAgentRuntime = app.state.music_runtime
+    runtime = app.state.music_runtime
 
     if isinstance(action, RuntimeActionBatch):
         for child_action in action.actions:
@@ -934,7 +964,7 @@ async def _send_error(
     await websocket.send_json(error_payload.model_dump(by_alias=True))
 
 
-def _capabilities_for_runtime(music_runtime: MusicAgentRuntime | None) -> list[str]:
+def _capabilities_for_runtime(music_runtime: object | None) -> list[str]:
     capabilities = list(BASE_CAPABILITIES)
     if music_runtime is not None:
         capabilities.extend(OPTIONAL_CAPABILITIES)
@@ -956,7 +986,7 @@ def _append_audit_event(
     )
 
 
-def _current_plan_id(music_runtime: MusicAgentRuntime | None, session_id: str) -> str | None:
+def _current_plan_id(music_runtime: object | None, session_id: str) -> str | None:
     if music_runtime is None:
         return None
     state = music_runtime.memory_store.get(session_id)
@@ -965,11 +995,11 @@ def _current_plan_id(music_runtime: MusicAgentRuntime | None, session_id: str) -
     return state.active_plan.plan_id
 
 
-def _append_active_candidate_event(app: FastAPI, session_id: str, music_runtime: MusicAgentRuntime | None) -> None:
+def _append_active_candidate_event(app: FastAPI, session_id: str, music_runtime: object | None) -> None:
     if music_runtime is None:
         return
     state = music_runtime.memory_store.get(session_id)
-    candidate = state.active_action_candidate
+    candidate = getattr(state, "active_action_candidate", None)
     if candidate is None:
         return
     payload = dict(candidate)
@@ -980,15 +1010,15 @@ def _append_active_candidate_event(app: FastAPI, session_id: str, music_runtime:
 def _append_candidate_observation_events(
     app: FastAPI,
     session_id: str,
-    music_runtime: MusicAgentRuntime | None,
+    music_runtime: object | None,
     observation_count_before: int,
     completed_before: set[str],
 ) -> None:
     if music_runtime is None:
         return
     state = music_runtime.memory_store.get(session_id)
-    new_observations = state.action_observation_history[observation_count_before:]
-    completed_after = set(state.completed_action_candidate_ids)
+    new_observations = getattr(state, "action_observation_history", [])[observation_count_before:]
+    completed_after = set(getattr(state, "completed_action_candidate_ids", []))
     new_completed = completed_after - completed_before
     for observation in new_observations:
         payload = dict(observation)
@@ -1003,7 +1033,7 @@ def _append_candidate_observation_events(
         )
 
 
-def _integrate_script_report(music_runtime: MusicAgentRuntime, session_id: str, report: dict) -> None:
+def _integrate_script_report(music_runtime, session_id: str, report: dict) -> None:
     state = music_runtime.memory_store.get(session_id)
     for step in report.get("steps", []):
         if not isinstance(step, dict):
@@ -1014,10 +1044,11 @@ def _integrate_script_report(music_runtime: MusicAgentRuntime, session_id: str, 
         result = step.get("result")
         if not action or not isinstance(result, dict):
             continue
-        MusicAgentRuntime._integrate_tool_result(state, action, {"ok": True, "result": result})
+        if hasattr(music_runtime, "_integrate_tool_result"):
+            music_runtime._integrate_tool_result(state, action, {"ok": True, "result": result})
 
 
-def _summarize_script_report(music_runtime: MusicAgentRuntime, report: dict) -> str:
+def _summarize_script_report(music_runtime, report: dict) -> str:
     steps = report.get("steps", [])
     if isinstance(steps, list):
         for step in reversed(steps):
@@ -1027,18 +1058,27 @@ def _summarize_script_report(music_runtime: MusicAgentRuntime, report: dict) -> 
             result = step.get("result")
             if not isinstance(result, dict):
                 continue
-            if action == "playTrack":
-                return music_runtime._summarize_play_track(result.get("track") or {})
-            if action == "playPlaylist":
-                return music_runtime._summarize_play_playlist(result.get("playlist") or {})
-            if action == "getPlaylistTracks":
-                return music_runtime._summarize_playlist_tracks(result.get("playlist") or {}, list(result.get("items", [])))
-            if action == "getCurrentTrack":
-                return music_runtime._summarize_current_track(result)
-            if action == "getRecentTracks":
-                return music_runtime._summarize_recent_tracks(list(result.get("items", [])))
             if action == "stopPlayback":
                 return "已停止播放。"
+            if action == "playTrack":
+                title = str((result.get("track") or {}).get("title") or result.get("title") or "目标歌曲").strip()
+                return f"已开始播放《{title}》。"
+            if action == "playPlaylist":
+                name = str((result.get("playlist") or {}).get("name") or result.get("name") or "目标歌单").strip()
+                return f"已开始播放歌单“{name}”。"
+            if action == "getPlaylistTracks":
+                playlist = result.get("playlist") or {}
+                name = str(playlist.get("name") or "目标歌单").strip()
+                count = len(list(result.get("items", [])))
+                return f"已读取歌单“{name}”，共 {count} 首歌曲。"
+            if action == "getCurrentTrack":
+                title = str(result.get("title") or "当前歌曲").strip()
+                if result.get("playing", False):
+                    return f"当前正在播放《{title}》。"
+                return "当前没有正在播放的歌曲。"
+            if action == "getRecentTracks":
+                count = len(list(result.get("items", [])))
+                return f"已读取最近播放，共 {count} 首。"
     title = str(report.get("title") or "").strip()
     if title:
         return f"脚本执行完成：{title}"
