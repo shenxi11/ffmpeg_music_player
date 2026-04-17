@@ -14,6 +14,7 @@ void OnlineMusicListViewModel::resolveStreamUrl(const QString& relativePath,
                                                 const QString& artist,
                                                 const QString& cover)
 {
+    m_currentRelativePath = relativePath.trimmed();
     m_currentArtist = artist;
     m_currentCover = cover;
     m_request.getMusicData(relativePath);
@@ -34,5 +35,5 @@ void OnlineMusicListViewModel::onStreamUrlReady(bool success, const QString& url
         emit streamResolveFailed();
         return;
     }
-    emit streamReady(url, m_currentArtist, m_currentCover);
+    emit streamReady(url, m_currentArtist, m_currentCover, m_currentRelativePath);
 }

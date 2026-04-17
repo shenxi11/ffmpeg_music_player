@@ -86,10 +86,13 @@ void MusicListWidgetNet::setupConnections() {
             });
 
     connect(m_viewModel, &OnlineMusicListViewModel::streamReady, this,
-            [this](const QString& file, const QString& artist, const QString& cover) {
+            [this](const QString& file, const QString& artist, const QString& cover,
+                   const QString& originalMusicPath) {
+                m_currentResolvedOriginalPath = originalMusicPath.trimmed();
                 if (hasPendingResolvedAction()) {
                     QVariantMap payload = m_pendingResolvedSongData;
                     payload.insert(QStringLiteral("playPath"), file);
+                    payload.insert(QStringLiteral("comment_music_path"), m_currentResolvedOriginalPath);
                     payload.insert(QStringLiteral("path"), file);
                     payload.insert(QStringLiteral("artist"), artist);
                     payload.insert(QStringLiteral("cover"), cover);
@@ -98,7 +101,7 @@ void MusicListWidgetNet::setupConnections() {
                     emit songActionRequested(action, payload);
                     return;
                 }
-                emit signalPlayClick(file, artist, cover, true);
+                emit signalPlayClick(file, artist, cover, true, m_currentResolvedOriginalPath);
             });
     connect(m_viewModel, &OnlineMusicListViewModel::streamResolveFailed, this, [this]() {
         clearPendingResolvedAction();

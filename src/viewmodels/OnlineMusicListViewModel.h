@@ -28,7 +28,8 @@ public:
 signals:
     void streamReady(const QString& streamUrl,
                      const QString& artist,
-                     const QString& cover);
+                     const QString& cover,
+                     const QString& originalMusicPath);
     void streamResolveFailed();
     void downloadStarted(const QString& taskId, const QString& filename);
     void downloadProgress(const QString& taskId,
@@ -52,6 +53,7 @@ private:
     HttpRequestV2 m_request;
     QString m_currentArtist;
     QString m_currentCover;
+    QString m_currentRelativePath;
 };
 
 #endif // ONLINEMUSICLISTVIEWMODEL_H

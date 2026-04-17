@@ -645,6 +645,11 @@ void MainWidget::handlePlaylistPlayMusicWithMetadata(const QString& filePath, co
     const QString normalizedArtist = normalizeArtistForHistory(artist);
     rememberPlaybackQueueMetadata(filePath, title, normalizedArtist, cover);
     w->setNetworkMetadata(title, normalizedArtist, cover);
+    if (isLocal) {
+        clearCommentTrackContext();
+    } else {
+        applyCommentTrackContext(filePath, title, normalizedArtist, cover);
+    }
     if (!isLocal && !cover.trimmed().isEmpty()) {
         m_networkMusicArtist = normalizedArtist;
         m_networkMusicCover = cover.trimmed();

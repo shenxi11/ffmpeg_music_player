@@ -161,16 +161,18 @@ void MainWidget::handleMainMenuPluginRequested(const QString& pluginId) {
 void MainWidget::handleMainMenuSettingsRequested() {
     qDebug() << "Settings requested";
     if (!settingsWidget) {
-        settingsWidget = new SettingsWidget(nullptr);
+        settingsWidget = new SettingsWidget(this);
+        settingsWidget->hide();
+        settingsWidget->setObjectName("settingsPanel");
+        settingsWidget->setGeometry(computeContentRect());
         connect(settingsWidget, &QObject::destroyed, this, [this]() {
             settingsWidget = nullptr;
         });
         connect(settingsWidget, &SettingsWidget::returnToWelcomeRequested, this,
                 &MainWidget::handleSettingsReturnToWelcomeRequested);
     }
-    settingsWidget->show();
-    settingsWidget->raise();
-    settingsWidget->activateWindow();
+    showContentPanel(settingsWidget);
+    settingsWidget->setFocus(Qt::OtherFocusReason);
 }
 
 void MainWidget::handleMainMenuPluginDiagnosticsRequested() {

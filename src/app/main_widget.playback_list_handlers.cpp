@@ -65,6 +65,57 @@ void MainWidget::handlePlayWidgetMetadataUpdated(const QString& filePath, const 
     }
 }
 
+void MainWidget::applyCommentTrackContext(const QString& musicPath, const QString& title,
+                                          const QString& artist, const QString& cover) {
+    if (!w) {
+        return;
+    }
+
+    QVariantMap context;
+    context.insert(QStringLiteral("music_path"), musicPath.trimmed());
+    context.insert(QStringLiteral("title"), title.trimmed());
+    context.insert(QStringLiteral("artist"), artist.trimmed());
+    context.insert(QStringLiteral("cover"), cover.trimmed());
+    w->setCommentTrackContext(context);
+}
+
+void MainWidget::clearCommentTrackContext() {
+    if (w) {
+        w->clearCommentTrackContext();
+    }
+}
+
+void MainWidget::openCommentContentPage() {
+    if (!w || !commentPageWidget) {
+        return;
+    }
+
+    if (m_activeContentWidget != commentPageWidget) {
+        m_previousContentWidgetBeforeComment = m_activeContentWidget;
+    }
+
+    m_commentContentOpening = true;
+    showContentPanel(commentPageWidget);
+    m_commentContentOpening = false;
+    w->setMainContentCommentVisible(true);
+    commentPageWidget->raise();
+}
+
+void MainWidget::closeCommentContentPage(bool restorePrevious) {
+    if (!commentPageWidget || !w) {
+        return;
+    }
+
+    QWidget* target = restorePrevious ? m_previousContentWidgetBeforeComment : nullptr;
+    if (!target || target == commentPageWidget) {
+        target = localAndDownloadWidget;
+    }
+
+    w->setMainContentCommentVisible(false);
+    m_previousContentWidgetBeforeComment = nullptr;
+    showContentPanel(target);
+}
+
 void MainWidget::handleLocalListPlayClick(const QString& name, bool flag) {
     if (w->getNetFlag()) {
         qDebug() << "[Switch source] Network music -> local music, clear network playing state";
@@ -72,6 +123,7 @@ void MainWidget::handleLocalListPlayClick(const QString& name, bool flag) {
     }
     localAndDownloadWidget->setPlayingState("", false);
     w->setPlayNet(flag);
+    clearCommentTrackContext();
 
     m_networkMusicArtist.clear();
     m_networkMusicCover.clear();
@@ -86,6 +138,7 @@ void MainWidget::handleLocalAndDownloadPlayMusic(const QString& filename) {
     main_list->signalPlayButtonClick(false, "");
     localAndDownloadWidget->setPlayingState(filename, false);
     w->setPlayNet(false);
+    clearCommentTrackContext();
     w->playClick(filename);
 }
 
@@ -127,7 +180,8 @@ void MainWidget::handleLocalAndDownloadDeleteMusic(const QString& filename) {
 }
 
 void MainWidget::handleNetListPlayClick(const QString& name, const QString& artist,
-                                        const QString& cover, bool flag) {
+                                        const QString& cover, bool flag,
+                                        const QString& originalMusicPath) {
     qDebug() << "[MainWidget] ========== NET MUSIC PLAY SIGNAL ==========";
     qDebug() << "[MainWidget] name:" << name;
     qDebug() << "[MainWidget] artist:" << artist;
@@ -145,6 +199,7 @@ void MainWidget::handleNetListPlayClick(const QString& name, const QString& arti
     const QString normalizedArtist = normalizeArtistForHistory(artist);
     rememberPlaybackQueueMetadata(name, QString(), normalizedArtist, cover);
     w->setNetworkMetadata(normalizedArtist, cover);
+    applyCommentTrackContext(originalMusicPath, QString(), normalizedArtist, cover);
 
     m_networkMusicArtist = normalizedArtist;
     m_networkMusicCover = cover;
@@ -161,6 +216,11 @@ void MainWidget::handleHistoryPlayMusic(const QString& filePath) {
 
     bool isLocal = !filePath.startsWith("http");
     w->setPlayNet(!isLocal);
+    if (isLocal) {
+        clearCommentTrackContext();
+    } else {
+        applyCommentTrackContext(filePath, QString(), QString(), QString());
+    }
     w->playClick(filePath);
 }
 
@@ -180,6 +240,11 @@ void MainWidget::handleHistoryPlayMusicWithMetadata(const QString& filePath, con
     const QString normalizedArtist = normalizeArtistForHistory(artist);
     rememberPlaybackQueueMetadata(filePath, title, normalizedArtist, cover);
     w->setNetworkMetadata(title, normalizedArtist, cover);
+    if (isLocal) {
+        clearCommentTrackContext();
+    } else {
+        applyCommentTrackContext(filePath, title, normalizedArtist, cover);
+    }
     if (!isLocal) {
         m_networkMusicArtist = normalizedArtist;
         m_networkMusicCover = cover;

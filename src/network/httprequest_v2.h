@@ -221,6 +221,17 @@ class HttpRequestV2 : public QObject {
      */
     void getMusicData(const QString& fileName);
 
+    void getMusicComments(const QString& musicPath, int page = 1, int pageSize = 20);
+    void getMusicCommentReplies(qint64 rootCommentId, int page = 1, int pageSize = 50);
+    void createMusicComment(const QString& userAccount, const QString& sessionToken,
+                            const QString& musicPath, const QString& musicTitle,
+                            const QString& artist, const QString& content);
+    void createMusicCommentReply(qint64 rootCommentId, const QString& userAccount,
+                                 const QString& sessionToken, const QString& content,
+                                 qint64 targetCommentId = 0);
+    void deleteMusicComment(qint64 commentId, const QString& userAccount,
+                            const QString& sessionToken);
+
     /**
      * @brief 添加音乐到用户列表
      * @param musicPath 音乐路径
@@ -279,6 +290,23 @@ class HttpRequestV2 : public QObject {
     void signalRecommendationFeedbackResult(bool success, const QString& eventType,
                                             const QString& songId);
     void signalStreamurl(bool flag, QString url); // 音乐流 URL 信号
+    void signalMusicCommentsResult(bool success, const QVariantMap& threadMeta,
+                                   const QVariantList& items, const QString& message,
+                                   int statusCode, const QString& musicPath, int page,
+                                   int pageSize);
+    void signalMusicCommentRepliesResult(bool success, qint64 rootCommentId,
+                                         const QVariantList& items, int total,
+                                         const QString& message, int statusCode, int page,
+                                         int pageSize);
+    void signalCreateMusicCommentResult(bool success, const QVariantMap& comment,
+                                        const QString& message, int statusCode,
+                                        const QString& musicPath);
+    void signalCreateMusicCommentReplyResult(bool success, qint64 rootCommentId,
+                                             const QVariantMap& comment,
+                                             const QString& message, int statusCode,
+                                             qint64 targetCommentId);
+    void signalDeleteMusicCommentResult(bool success, qint64 commentId, const QString& message,
+                                        int statusCode);
 
   private:
     QVariantMap parsePlaylistDetailPayload(const Network::NetworkResponse& response);

@@ -75,6 +75,13 @@ class MainShellViewModel : public BaseViewModel {
                              const QStringList& musicPaths);
     void reorderPlaylistItems(const QString& userAccount, qint64 playlistId,
                               const QVariantList& orderedItems);
+    void requestMusicComments(const QString& musicPath, int page = 1, int pageSize = 20);
+    void requestMusicCommentReplies(qint64 rootCommentId, int page = 1, int pageSize = 50);
+    void createMusicComment(const QString& musicPath, const QString& musicTitle,
+                            const QString& artist, const QString& content);
+    void createMusicCommentReply(qint64 rootCommentId, const QString& content,
+                                 qint64 targetCommentId = 0);
+    void deleteMusicComment(qint64 commentId);
     void handleLoginSuccess(const QString& account, const QString& password,
                             const QString& username, const QString& avatarUrl = QString(),
                             const QString& onlineSessionToken = QString());
@@ -131,6 +138,23 @@ class MainShellViewModel : public BaseViewModel {
     void removePlaylistItemsResultReady(bool success, qint64 playlistId, int deletedCount,
                                         const QString& message);
     void reorderPlaylistItemsResultReady(bool success, qint64 playlistId, const QString& message);
+    void musicCommentsReady(const QVariantMap& threadMeta, const QVariantList& items,
+                            const QString& musicPath, int page, int pageSize);
+    void musicCommentsRequestFailed(const QString& message, int statusCode,
+                                    const QString& musicPath, int page, int pageSize);
+    void musicCommentRepliesReady(qint64 rootCommentId, const QVariantList& items, int total,
+                                  int page, int pageSize);
+    void musicCommentRepliesRequestFailed(qint64 rootCommentId, const QString& message,
+                                          int statusCode, int page, int pageSize);
+    void createMusicCommentResultReady(bool success, const QVariantMap& comment,
+                                       const QString& message, int statusCode,
+                                       const QString& musicPath);
+    void createMusicCommentReplyResultReady(bool success, qint64 rootCommentId,
+                                            const QVariantMap& comment,
+                                            const QString& message, int statusCode,
+                                            qint64 targetCommentId);
+    void deleteMusicCommentResultReady(bool success, qint64 commentId, const QString& message,
+                                       int statusCode);
     void userProfileReady(const QVariantMap& profile);
     void userProfileRequestFailed(const QString& message, int statusCode);
     void updateUsernameResultReady(bool success, const QString& username, const QString& message,

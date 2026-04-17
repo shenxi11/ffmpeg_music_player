@@ -62,6 +62,7 @@ public:
         QQuickItem* root = rootObject();
         if (root) {
             QMetaObject::invokeMethod(root, "loadPlaylist",
+                Qt::QueuedConnection,
                 Q_ARG(QVariant, QVariant::fromValue(items)));
         }
     }
@@ -71,7 +72,7 @@ public:
     {
         QQuickItem* root = rootObject();
         if (root) {
-            QMetaObject::invokeMethod(root, "clearAll");
+            QMetaObject::invokeMethod(root, "clearAll", Qt::QueuedConnection);
         }
     }
     

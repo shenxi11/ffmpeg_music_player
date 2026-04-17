@@ -456,11 +456,17 @@ MainWidget::MainWidget(bool localOnlyMode, QWidget* parent)
     qDebug() << "[MainWidget] Creating PlayWidget...";
 
     w = new PlayWidget(this, this);
+    w->setMainShellViewModel(m_viewModel);
     w->setGeometry(rect());
     w->setMask(QRegion(0, height() - w->collapsedPlaybackHeight(), qMax(1, width()),
                        w->collapsedPlaybackHeight()));
 
     qDebug() << "[MainWidget] PlayWidget created successfully";
+
+    commentPageWidget = new CommentPanelQml(this);
+    commentPageWidget->setDisplayMode(QStringLiteral("page"));
+    commentPageWidget->hide();
+    w->setEmbeddedCommentPanel(commentPageWidget);
 
     connect(w, &PlayWidget::signalPlayState, this, &MainWidget::handlePlayStateChanged);
 
@@ -633,8 +639,21 @@ void MainWidget::handleWindowToggleRequested() {
 }
 
 void MainWidget::showContentPanel(QWidget* activeWidget) {
-    if (m_localOnlyMode && activeWidget != localAndDownloadWidget) {
+    if (m_localOnlyMode && activeWidget != localAndDownloadWidget &&
+        activeWidget != settingsWidget) {
         activeWidget = localAndDownloadWidget;
+    }
+
+    const bool leavingCommentContent =
+        commentPageWidget && m_activeContentWidget == commentPageWidget &&
+        activeWidget != commentPageWidget;
+    if (leavingCommentContent) {
+        if (w) {
+            w->setMainContentCommentVisible(false);
+        }
+        if (!m_commentContentOpening) {
+            m_previousContentWidgetBeforeComment = nullptr;
+        }
     }
 
     if (recommendMusicWidget) {
@@ -661,6 +680,18 @@ void MainWidget::showContentPanel(QWidget* activeWidget) {
     if (userProfileWidget) {
         userProfileWidget->setVisible(activeWidget == userProfileWidget);
     }
+    if (settingsWidget) {
+        settingsWidget->setVisible(activeWidget == settingsWidget);
+        if (activeWidget == settingsWidget) {
+            settingsWidget->raise();
+        }
+    }
+    if (commentPageWidget) {
+        commentPageWidget->setVisible(activeWidget == commentPageWidget);
+        if (activeWidget == commentPageWidget) {
+            commentPageWidget->raise();
+        }
+    }
     if (videoListWidget) {
         const bool showVideo = (activeWidget == videoListWidget);
         videoListWidget->setVisible(showVideo);
@@ -668,6 +699,8 @@ void MainWidget::showContentPanel(QWidget* activeWidget) {
             videoListWidget->raise();
         }
     }
+
+    m_activeContentWidget = activeWidget;
 }
 
 void MainWidget::showLocalOnlyUnavailableMessage() {
@@ -1055,9 +1088,9 @@ void MainWidget::handleRecommendLoginRequested() {
 }
 
 void MainWidget::handleRecommendPlayMusicWithMetadata(
-    const QString& filePath, const QString& title, const QString& artist, const QString& cover,
-    const QString& duration, const QString& songId, const QString& requestId,
-    const QString& modelVersion, const QString& scene) {
+    const QString& filePath, const QString& musicPath, const QString& title, const QString& artist,
+    const QString& cover, const QString& duration, const QString& songId,
+    const QString& requestId, const QString& modelVersion, const QString& scene) {
     Q_UNUSED(duration);
     Q_UNUSED(requestId);
     Q_UNUSED(modelVersion);
@@ -1076,6 +1109,7 @@ void MainWidget::handleRecommendPlayMusicWithMetadata(
     rememberPlaybackQueueMetadata(filePath, title, normalizedArtist, cover);
     w->setPlayNet(true);
     w->setNetworkMetadata(title, normalizedArtist, cover);
+    applyCommentTrackContext(musicPath, title, normalizedArtist, cover);
     m_networkMusicArtist = normalizedArtist;
     m_networkMusicCover = cover;
     w->playClick(filePath);
@@ -1133,6 +1167,7 @@ void MainWidget::handlePendingSimilarSongPlayback() {
     const QString artist =
         normalizeArtistForHistory(item.value(QStringLiteral("artist")).toString());
     const QString cover = item.value(QStringLiteral("cover_art_url")).toString();
+    const QString originalMusicPath = item.value(QStringLiteral("path")).toString();
     const QString songId = item.value(QStringLiteral("song_id")).toString();
     const QString requestId = item.value(QStringLiteral("request_id")).toString();
     const QString modelVersion = item.value(QStringLiteral("model_version")).toString();
@@ -1151,6 +1186,7 @@ void MainWidget::handlePendingSimilarSongPlayback() {
     w->setPlayNet(true);
     rememberPlaybackQueueMetadata(filePath, title, artist, cover);
     w->setNetworkMetadata(title, artist, cover);
+    applyCommentTrackContext(originalMusicPath, title, artist, cover);
     m_networkMusicArtist = artist;
     m_networkMusicCover = cover;
     w->playClick(filePath);
@@ -1675,6 +1711,12 @@ void MainWidget::updateAdaptiveLayout() {
     if (recommendMusicWidget) {
         recommendMusicWidget->setGeometry(contentRect);
     }
+    if (settingsWidget) {
+        settingsWidget->setGeometry(contentRect);
+    }
+    if (commentPageWidget) {
+        commentPageWidget->setGeometry(contentRect);
+    }
     if (videoListWidget) {
         videoListWidget->setGeometry(contentRect);
     }
@@ -1686,6 +1728,15 @@ void MainWidget::updateAdaptiveLayout() {
     }
 
     updateSideNavLayout();
+    if (w) {
+        w->syncCommentOverlayGeometry();
+    }
+    if (topWidget) {
+        topWidget->raise();
+    }
+    if (userWidgetQml) {
+        userWidgetQml->raise();
+    }
 }
 
 void MainWidget::updatePaint() {

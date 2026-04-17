@@ -37,6 +37,8 @@ void PlayWidget::setupControlAndPlaylistConnections()
     connect(process_slider, &ProcessSliderQml::signalMlistToggled, this, &PlayWidget::signalListShow);
     connect(process_slider, &ProcessSliderQml::signalRePlay, this, &PlayWidget::handleReplayRequested);
     connect(process_slider, &ProcessSliderQml::signalDeskToggled, this, &PlayWidget::onDeskToggled);
+    connect(process_slider, &ProcessSliderQml::signalCommentToggled, this,
+            &PlayWidget::handleCommentToggled);
     connect(process_slider, &ProcessSliderQml::signalLoopChange, this, &PlayWidget::handleLoopChanged);
     connect(process_slider, &ProcessSliderQml::signalPlayerPageStyleRequested,
             this, &PlayWidget::handlePlayerPageStyleRequested);
@@ -49,6 +51,7 @@ void PlayWidget::setupControlAndPlaylistConnections()
     connect(playlistHistory, &PlaylistHistoryQml::removeRequested, this, &PlayWidget::handlePlaylistRemoveRequested);
     connect(playlistHistory, &PlaylistHistoryQml::clearAllRequested, this, &PlayWidget::handlePlaylistClearAllRequested);
     connect(playlistHistory, &PlaylistHistoryQml::pauseToggled, this, &PlayWidget::handlePlaylistPauseToggled);
+    connectCommentPanel(commentPanel);
 
     // 播放模式控制。
     connect(process_slider, &ProcessSliderQml::signalPlayModeChanged, this, &PlayWidget::handlePlayModeChanged);
@@ -165,30 +168,16 @@ void PlayWidget::handlePlaylistToggled(bool show)
 {
     qDebug() << "Playlist toggle:" << show;
     if (show) {
-        QWidget* mainWidget = playlistHistory->parentWidget();
-        if (mainWidget) {
-            const int listWidth = qBound(320, mainWidget->width() / 3, 460);
-            const int topBarHeight = 60;
-            const int bottomPadding = qMax(10, collapsedPlaybackHeight() + 8);
-            int windowX = mainWidget->width() - listWidth;
-            int windowY = topBarHeight;
-            int windowHeight = mainWidget->height() - topBarHeight - bottomPadding;
-            windowHeight = qMax(220, windowHeight);
-
-            qDebug() << "MainWidget size:" << mainWidget->size();
-            qDebug() << "PlaylistHistory position:" << windowX << windowY << "size:" << listWidth << windowHeight;
-
-            playlistHistory->setGeometry(windowX, windowY, listWidth, windowHeight);
-            playlistHistory->show();
-            playlistHistory->raise();
-
-            QWidget* topWidget = mainWidget->findChild<QWidget*>();
-            if (topWidget && topWidget->y() == 0 && topWidget->height() == 60) {
-                topWidget->raise();
-            }
+        if (m_mainContentCommentVisible) {
+            emit signalMainCommentPageRequested(false);
         }
+        showRightOverlayPage(RightOverlayPage::Playlist);
     } else {
-        playlistHistory->hide();
+        if (m_rightOverlayPage == RightOverlayPage::Playlist) {
+            closeRightOverlay();
+        } else {
+            syncPlaylistToggleState();
+        }
     }
 }
 

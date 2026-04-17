@@ -73,6 +73,7 @@ public:
             connect(root, SIGNAL(playClicked()), this, SIGNAL(signalPlayClicked()));
             connect(root, SIGNAL(rePlay()), this, SIGNAL(signalRePlay()));
             connect(root, SIGNAL(deskToggled(bool)), this, SIGNAL(signalDeskToggled(bool)));
+            connect(root, SIGNAL(commentToggled(bool)), this, SIGNAL(signalCommentToggled(bool)));
             connect(root, SIGNAL(loopToggled(bool)), this, SLOT(on_loop_state_changed(bool)));
             connect(root, SIGNAL(playerPageStyleRequested(int)), this, SIGNAL(signalPlayerPageStyleRequested(int)));
             
@@ -195,6 +196,27 @@ public:
             qDebug() << "ProcessSliderQml::setDeskChecked - root is NULL!";
         }
     }
+
+    void setCommentChecked(bool checked) {
+        QQuickItem* root = rootObject();
+        if (root) {
+            root->setProperty("commentChecked", checked);
+        }
+    }
+
+    void setCommentEnabled(bool enabled) {
+        QQuickItem* root = rootObject();
+        if (root) {
+            root->setProperty("commentEnabled", enabled);
+        }
+    }
+
+    void setPlaylistChecked(bool checked) {
+        QQuickItem* root = rootObject();
+        if (root) {
+            root->setProperty("mlistChecked", checked);
+        }
+    }
     
     bool getDeskChecked() {
         QQuickItem* root = rootObject();
@@ -250,6 +272,7 @@ signals:
     void signalPlayClicked();
     void signalRePlay();
     void signalDeskToggled(bool checked);
+    void signalCommentToggled(bool checked);
     void signalLoopChange(bool loop);
     void signalPlayModeChanged(int mode);  // 播放模式变更信号
     void signalPlayerPageStyleRequested(int styleId);
