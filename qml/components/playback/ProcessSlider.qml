@@ -47,23 +47,25 @@ Item {
     // 样式与自适应
     property bool compact: width < 980
     property bool narrow: width < 860
-    property int sidePadding: compact ? 10 : 14
-    property int songBlockWidth: narrow ? 200 : (compact ? 250 : 290)
+    property int sidePadding: compact ? 14 : 18
+    property int songBlockWidth: narrow ? 210 : (compact ? 250 : 290)
     property int controlGap: compact ? 12 : 16
     property int iconButtonSize: compact ? 32 : 34
     property int playButtonSize: compact ? 40 : 46
+    property int floatingBarMargin: root.isUp ? 0 : 16
+    property int floatingBarBottomMargin: root.isUp ? 0 : 10
 
-    property color barBackgroundColor: root.isUp ? styleSpec.controlBarColor : Theme.bgBase
-    property color barBorderColor: root.isUp ? styleSpec.controlBarBorderColor : "#DDE3ED"
-    property color secondaryTextColor: root.isUp ? styleSpec.controlSecondaryTextColor : Theme.textSecondary
-    property color sliderTrackColor: root.isUp ? styleSpec.sliderTrackColor : "#D8DEE8"
+    property color barBackgroundColor: root.isUp ? styleSpec.controlBarColor : "#FCFDFE"
+    property color barBorderColor: root.isUp ? styleSpec.controlBarBorderColor : "#E4E9F1"
+    property color secondaryTextColor: root.isUp ? styleSpec.controlSecondaryTextColor : "#7A7D85"
+    property color sliderTrackColor: root.isUp ? styleSpec.sliderTrackColor : "#D9E0EA"
     property color idleButtonFillColor: root.isUp
                                         ? (styleSpec.lightText ? "#18FFFFFF" : "#18FFFFFF")
-                                        : "transparent"
-    property color idleButtonBorderColor: root.isUp ? styleSpec.controlBarBorderColor : "#D6DCE8"
+                                        : "#F4F6FA"
+    property color idleButtonBorderColor: root.isUp ? styleSpec.controlBarBorderColor : "#E1E6EE"
     property color primaryPlayFillColor: {
         if (!root.isUp)
-            return "transparent"
+            return Theme.bgCard
         if (root.playerPageStyle === 2)
             return "#99FFFFFF"
         if (styleSpec.lightText)
@@ -243,9 +245,12 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        radius: root.isUp ? root.styleSpec.controlRadius : 0
+        anchors.leftMargin: root.floatingBarMargin
+        anchors.rightMargin: root.floatingBarMargin
+        anchors.bottomMargin: root.floatingBarBottomMargin
+        radius: root.isUp ? root.styleSpec.controlRadius : 24
         color: root.barBackgroundColor
-        border.width: root.isUp ? 1 : 1
+        border.width: 1
         border.color: root.barBorderColor
 
         Column {
@@ -363,7 +368,7 @@ Item {
                             Rectangle {
                                 width: 42
                                 height: 42
-                                radius: 6
+                                radius: 12
                                 border.width: 1
                                 border.color: root.isUp ? root.styleSpec.controlBarBorderColor : "#D7DCE8"
                                 color: "transparent"
@@ -392,7 +397,7 @@ Item {
                                 verticalAlignment: Text.AlignVCenter
                                 font.pixelSize: root.compact ? 13 : 14
                                 font.weight: Font.Medium
-                                color: root.isUp ? root.styleSpec.controlTitleColor : "#2F3440"
+                                color: root.isUp ? root.styleSpec.controlTitleColor : "#2A3040"
                                 elide: Text.ElideRight
                             }
                         }

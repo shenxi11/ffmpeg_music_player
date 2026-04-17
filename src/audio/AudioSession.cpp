@@ -1,4 +1,4 @@
-﻿#include "AudioSession.h"
+#include "AudioSession.h"
 #include <chrono>
 #include <QFileInfo>
 #include <QCoreApplication>
@@ -281,7 +281,7 @@ void AudioSession::seekTo(qint64 positionMs)
         warnLog("SEEK_EVT") << "seekTo ignored while session destroying";
         return;
     }
-    
+
     infoLog("SEEK_EVT") << "seek start target=" << positionMs << "ms source=" << m_sourceUrl.toString();
     beginSeekLatencyTracking(positionMs);
     applySeekClockBase(positionMs);
@@ -293,20 +293,20 @@ void AudioSession::seekTo(qint64 positionMs)
         deferSeekUntilOwnerTakeover(positionMs);
         return;
     }
-    
+
     // 杩涘叆 seek 鐘舵€侊紝鎶戝埗閮ㄥ垎鐬椂鍥炶皟
     setSeekPhase(SeekPhase::Seeking, "seekTo");
-    
+
     // 记录 seek 前是否在播放，seek 完成后按原状态恢复。
     const bool wasPlaying = isPlayerActivelyPlaying();
     pausePipelineForLocalSeek(wasPlaying);
     prepareOutputForLocalSeek(positionMs, wasPlaying);
-    
+
     // 启动 seek 宽限窗口，过滤 seek 后短暂抖动。
     enterSeekGraceWindow();
-    
+
     dispatchDecoderSeekForLocalSeek(positionMs);
-    
+
     // m_isSeeking 会在 seekGraceTimer 超时后复位。
     infoLog("SEEK_EVT") << "seek pipeline dispatched";
     finalizeControlPath("seekTo");
@@ -383,10 +383,10 @@ void AudioSession::onDecodedData(const QByteArray& data, qint64 timestampMs, int
     const bool isRemoteFlac = isRemoteFlacSource();
     const int fillLevelBeforeWrite = m_player->bufferFillLevel();
     applyDecoderFlowControlBeforeWrite(isRemoteFlac, fillLevelBeforeWrite);
-    
+
     // 写入解码数据，携带会话ID保证写入归属。
     m_player->writeAudioData(data, normalizedTimestampMs, m_sessionId);
-    
+
     // 基于写入后的最新水位与字节量判断是否可恢复播放。
     const int fillLevel = m_player->bufferFillLevel();
     const AudioBuffer* buffer = m_player->getBuffer();
@@ -466,7 +466,7 @@ void AudioSession::onPositionChanged(qint64 positionMs)
     }
 
     emit positionChanged(positionMs);
-    
+
     // 仅在解码完成后，才允许按时长阈值收敛到 finished。
     if (m_duration > 0 && positionMs >= m_duration - 100) {
         if (!isDecodeCompletedNow() && positionMs > m_duration + 500) {
@@ -516,7 +516,7 @@ void AudioSession::onBufferStatusChanged(int fillLevel)
 
     m_buffering.percent = fillLevel;
     const bool withinSeekGrace = isSeekGraceActive();
-    
+
     const AudioBuffer* buffer = m_player->getBuffer();
     const int bufferedBytes = buffer ? buffer->availableBytes() : 0;
     const bool isRemoteFlac = isRemoteFlacSource();
@@ -534,7 +534,7 @@ void AudioSession::onBufferStatusChanged(int fillLevel)
         m_buffering.decoderPausedByFlowControl = false;
         infoLog("BUFFER_EVT") << "Buffer low, resume decoder fill=" << fillLevel << "%";
     }
-    
+
     // 低水位进入 buffering，并暂停输出等待回填。
     // 仅当“百分比低 + 绝对字节也低”时才进入，避免大缓冲容量场景反复抖动。
     if (shouldDebounceBufferingEnter() && !m_buffering.active) {
@@ -575,7 +575,7 @@ void AudioSession::onBufferUnderrun()
     }
 
     warnLog("BUFFER_EVT") << "Buffer underrun detected";
-    
+
     // 仅在未处于 buffering 状态时进入，避免重复触发。
     if (!m_buffering.active) {
         m_buffering.active = true;
@@ -596,7 +596,7 @@ void AudioSession::onDecodeCompleted()
     }
     infoLog("SESSION_EVT") << "Decode completed";
     emit decodeFinished();
-    
+
     // 解码完成仅表示数据生产结束；会话结束仍以实际播放完成事件为准。
 }
 
@@ -688,11 +688,11 @@ void AudioSession::onPlaybackStopped()
 void AudioSession::onPlaybackFinished()
 {
     infoLog("SESSION_EVT") << "Playback finished";
-    
+
     // 完成时先停止解码与输出，确保状态收敛。
     m_decoder->stopDecode();
     m_player->stop();
-    
+
     m_active = false;
     m_playback.hasStarted = false;
     m_buffering.tailWaitLogActive = false;
@@ -1213,8 +1213,21 @@ bool AudioSession::shouldDebounceBufferingEnter() const
 
 bool AudioSession::handleTailLowBufferFallback(qint64 currentPos, int fillLevel, int bufferedBytes)
 {
-    const qint64 remainingToDuration = (m_duration > 0) ? (m_duration - currentPos) : -1;
-    if (remainingToDuration >= 0 && remainingToDuration <= 1500) {
+    constexpr qint64 kTailFinishRemainingMs = 180;
+    constexpr qint64 kTailFallbackWindowMs = 8000;
+    constexpr qint64 kTailDecodeLeadMs = 800;
+    constexpr int kTailFinishBufferedBytes = 8 * 1024;
+    constexpr int kTailFinishFillLevel = 1;
+
+    qint64 tailRef = m_duration;
+    if (m_clock.lastDecodedMs > tailRef) {
+        tailRef = m_clock.lastDecodedMs;
+    }
+    const qint64 remainingToTail = (tailRef > 0) ? (tailRef - currentPos) : -1;
+    const bool tailDrained = fillLevel <= kTailFinishFillLevel
+            && bufferedBytes <= kTailFinishBufferedBytes;
+
+    auto finishTailPlayback = [&](const char* reason, qint64 remainingMs) {
         qint64 finalDuration = m_duration;
         if (m_clock.lastDecodedMs > finalDuration) {
             finalDuration = m_clock.lastDecodedMs;
@@ -1226,45 +1239,42 @@ bool AudioSession::handleTailLowBufferFallback(qint64 currentPos, int fillLevel,
             m_duration = finalDuration;
             emit durationChanged(m_duration);
         }
-        infoLog("BUFFER_EVT") << "Tail low-buffer finish position=" << currentPos
+        infoLog("BUFFER_EVT") << "Tail finish reason=" << reason
+                              << " position=" << currentPos
                               << " duration=" << m_duration
-                              << " remaining=" << remainingToDuration
-                              << " bufferedBytes=" << bufferedBytes;
+                              << " lastDecoded=" << m_clock.lastDecodedMs
+                              << " remaining=" << remainingMs
+                              << " fill=" << fillLevel
+                              << "% bufferedBytes=" << bufferedBytes;
         onPlaybackFinished();
         return true;
-    }
+    };
 
     if (!isDecodeCompletedNow()
             && m_duration > 0
-            && currentPos >= m_duration - 8000
+            && currentPos >= m_duration - kTailFallbackWindowMs
             && m_clock.lastDecodedMs > 0
-            && currentPos >= m_clock.lastDecodedMs + 800
-            && bufferedBytes < 16 * 1024) {
+            && currentPos >= m_clock.lastDecodedMs + kTailDecodeLeadMs
+            && tailDrained) {
         warnLog("BUFFER_EVT") << "Tail fallback finish without decodeCompleted."
                               << " position=" << currentPos
                               << " duration=" << m_duration
                               << " lastDecoded=" << m_clock.lastDecodedMs
-                              << " bufferedBytes=" << bufferedBytes;
+                              << " fill=" << fillLevel
+                              << "% bufferedBytes=" << bufferedBytes;
         onPlaybackFinished();
         return true;
     }
 
     if (isDecodeCompletedNow()) {
-        qint64 tailRef = m_duration;
-        if (m_clock.lastDecodedMs > tailRef) {
-            tailRef = m_clock.lastDecodedMs;
-        }
-        const qint64 remainingMs = tailRef > 0 ? (tailRef - currentPos) : -1;
-
-        if (fillLevel <= 2 || (remainingMs >= 0 && remainingMs <= 1500)) {
-            infoLog("BUFFER_EVT") << "Tail drained after decode complete, finishing playback"
-                                  << " fill=" << fillLevel << "% remaining=" << remainingMs << "ms";
-            onPlaybackFinished();
-            return true;
+        if (tailDrained && (remainingToTail < 0 || remainingToTail <= kTailFinishRemainingMs)) {
+            return finishTailPlayback("decode_completed_drained", remainingToTail);
         }
 
-        infoLog("BUFFER_EVT") << "Decode complete, skip buffering pause at tail"
-                              << " fill=" << fillLevel << "% remaining=" << remainingMs << "ms";
+        infoLog("BUFFER_EVT") << "Decode complete, keep draining tail"
+                              << " fill=" << fillLevel
+                              << "% bufferedBytes=" << bufferedBytes
+                              << " remaining=" << remainingToTail << "ms";
         return true;
     }
 
