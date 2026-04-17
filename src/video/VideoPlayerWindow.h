@@ -1,46 +1,43 @@
 #ifndef VIDEOPLAYERWINDOW_H
 #define VIDEOPLAYERWINDOW_H
 
+#include <QWidget>
+#include <QPushButton>
+#include <QSlider>
+#include <QLabel>
+#include <QComboBox>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QFileDialog>
+#include <QMouseEvent>
+#include <QPainter>
+#include <QTime>
+#include <QTimer>
+#include <QKeyEvent>
+#include <QEvent>
 #include "MediaService.h"
 #include "MediaSession.h"
 #include "VideoRendererGL.h"
 
-#include <QComboBox>
-#include <QEvent>
-#include <QFileDialog>
-#include <QGridLayout>
-#include <QHBoxLayout>
-#include <QKeyEvent>
-#include <QLabel>
-#include <QMouseEvent>
-#include <QPainter>
-#include <QPushButton>
-#include <QRect>
-#include <QScreen>
-#include <QSize>
-#include <QSlider>
-#include <QTime>
-#include <QTimer>
-#include <QVBoxLayout>
-#include <QWidget>
-
-class VideoRenderWidget : public QWidget {
+class VideoRenderWidget : public QWidget
+{
     Q_OBJECT
-  public:
-    explicit VideoRenderWidget(QWidget* parent = nullptr);
+public:
+    explicit VideoRenderWidget(QWidget *parent = nullptr);
 
-  protected:
-    void paintEvent(QPaintEvent* event) override;
+protected:
+    void paintEvent(QPaintEvent *event) override;
 
-  private:
+private:
     QString m_placeholderText;
 };
 
-class VideoPlayerWindow : public QWidget {
+class VideoPlayerWindow : public QWidget
+{
     Q_OBJECT
 
-  public:
-    explicit VideoPlayerWindow(QWidget* parent = nullptr);
+public:
+    explicit VideoPlayerWindow(QWidget *parent = nullptr);
     ~VideoPlayerWindow();
 
     void loadVideo(const QString& filePath);
@@ -52,12 +49,12 @@ class VideoPlayerWindow : public QWidget {
     bool setQualityPresetValue(const QString& preset);
     QVariantMap snapshot() const;
 
-  signals:
+signals:
     void playStateChanged(bool isPlaying);
     void progressChanged(qint64 position);
     void videoLoaded(const QString& filePath);
 
-  public slots:
+public slots:
     void onPlayPauseClicked();
     void onOpenFileClicked();
     void onSliderPressed();
@@ -74,33 +71,26 @@ class VideoPlayerWindow : public QWidget {
     void onMediaSessionStateChanged(MediaSession::PlaybackState state);
     void onDeferredSeekAfterStopped();
 
-  private:
+private:
     void setupUI();
     void connectUiSignals(QPushButton* closeBtn);
     void connectMediaSessionSignals();
+    void applyFullscreenState(bool enabled);
+    void syncFullScreenButtonText();
+    void scheduleRendererRecovery();
+    void recoverRendererAfterWindowModeChange();
     void updateTimeLabel(qint64 currentMs, qint64 totalMs);
-    void updateMetaInfo();
-    void updateButtonStates();
-    void updateResponsiveUi();
-    void requestFullScreenChange(bool enabled, const char* source);
-    void applyImmersiveMaximize();
-    void restoreFromImmersiveMaximize();
-    void scheduleFullScreenTransitionSettle();
-    void finalizeFullScreenTransition();
-    void performCloseCleanup();
-    bool isImmersiveMaximizeActive() const;
     QString formatTime(qint64 ms);
 
-  protected:
+protected:
     void changeEvent(QEvent* event) override;
-    void resizeEvent(QResizeEvent* event) override;
-    void closeEvent(QCloseEvent* event) override;
-    void keyPressEvent(QKeyEvent* event) override;
+    void resizeEvent(QResizeEvent *event) override;
+    void closeEvent(QCloseEvent *event) override;
+    void keyPressEvent(QKeyEvent *event) override;
 
-  private:
+private:
     VideoRendererGL* m_renderWidget;
     QPushButton* m_playPauseBtn;
-    QPushButton* m_stopBtn;
     QPushButton* m_openFileBtn;
     QPushButton* m_displayModeBtn;
     QPushButton* m_fullScreenBtn;
@@ -109,14 +99,6 @@ class VideoPlayerWindow : public QWidget {
     QSlider* m_progressSlider;
     QLabel* m_timeLabel;
     QLabel* m_fileNameLabel;
-    QLabel* m_metaInfoLabel;
-    QLabel* m_qualityLabel;
-    QLabel* m_rateLabel;
-    QLabel* m_qualityIconLabel;
-    QLabel* m_rateIconLabel;
-    QWidget* m_titleBar;
-    QWidget* m_controlBar;
-    QWidget* m_trailingControls;
 
     MediaSession* m_mediaSession;
 
@@ -128,15 +110,6 @@ class VideoPlayerWindow : public QWidget {
     bool m_replayPendingSeek;
     bool m_fillDisplayMode;
     qint64 m_pendingStoppedSeekPosition;
-    QSize m_videoFrameSize;
-    QTimer* m_fullScreenTransitionTimer;
-    bool m_fullScreenTransitionInProgress;
-    bool m_targetFullScreenState;
-    bool m_immersiveMaximizeActive;
-    bool m_closePending;
-    bool m_cleanupDone;
-    QRect m_savedWindowGeometry;
-    bool m_savedWasMaximized;
 };
 
 #endif // VIDEOPLAYERWINDOW_H

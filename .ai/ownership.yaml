@@ -1,5 +1,5 @@
 version: 1
-updated_at: "2026-04-18 04:20"
+updated_at: "2026-04-18 04:37"
 ownership:
   - module: "shell-core"
     paths_owned:
@@ -166,5 +166,5 @@ ownership:
     owner_label: "codex-pr-split-submit"
     status: "handoff"
     claimed_at: "2026-04-18 03:40"
-    updated_at: "2026-04-18 04:20"
-    notes: "Claimed to split the mixed worktree into two PR tracks. Governance files are prepared on a dedicated branch with updated handoff coverage, while product code is isolated on a separate feature branch to avoid mixing .ai state, logs, or third_party payloads."
+    updated_at: "2026-04-18 04:37"
+    notes: "Claimed to split the mixed worktree into two PR tracks. Governance files were published on PR #17, while product code was isolated and published on PR #18 without mixing .ai state, logs, or third_party payloads."

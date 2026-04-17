@@ -1,4 +1,4 @@
-﻿#ifndef PLAYBACKVIEWMODEL_H
+#ifndef PLAYBACKVIEWMODEL_H
 #define PLAYBACKVIEWMODEL_H
 
 #include "AudioService.h"
@@ -79,6 +79,10 @@ class PlaybackViewModel : public BaseViewModel {
     QString durationText() const {
         return formatTime(m_duration);
     }
+    int currentIndex() const;
+    int playModeValue() const;
+    bool hasActiveTrack() const;
+    QVariantMap currentTrackSnapshot() const;
     QVariantList playlistSnapshot() const;
 
     Q_INVOKABLE void play(const QUrl& url);

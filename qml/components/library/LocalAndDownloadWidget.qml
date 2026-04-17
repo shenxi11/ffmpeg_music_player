@@ -10,6 +10,11 @@ Rectangle {
     property var favoritePaths: []
     property string currentPlayingPath: ""
     property bool isPlaying: false
+    readonly property string currentSubTabKey: tabBar.currentIndex === 0
+                                               ? "local_music"
+                                               : (tabBar.currentIndex === 1
+                                                      ? "downloaded_music"
+                                                      : "downloading_tasks")
 
     property int tabLeftMargin: 18
     property int tabSpacing: width >= 1280 ? 18 : 10

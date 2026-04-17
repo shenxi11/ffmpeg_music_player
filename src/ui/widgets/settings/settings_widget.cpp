@@ -94,6 +94,70 @@ void SettingsWidget::onRefreshPresenceRequested()
     m_viewModel->refreshPresence();
 }
 
+void SettingsWidget::onAgentModeChanged()
+{
+    if (QQuickItem* root = rootObject()) {
+        m_viewModel->setAgentMode(root->property("agentMode").toString());
+    }
+}
+
+void SettingsWidget::onAgentLocalModelPathChanged()
+{
+    if (QQuickItem* root = rootObject()) {
+        m_viewModel->setAgentLocalModelPath(root->property("agentLocalModelPath").toString());
+    }
+}
+
+void SettingsWidget::onAgentLocalModelBaseUrlChanged()
+{
+    if (QQuickItem* root = rootObject()) {
+        m_viewModel->setAgentLocalModelBaseUrl(root->property("agentLocalModelBaseUrl").toString());
+    }
+}
+
+void SettingsWidget::onAgentLocalModelNameChanged()
+{
+    if (QQuickItem* root = rootObject()) {
+        m_viewModel->setAgentLocalModelName(root->property("agentLocalModelName").toString());
+    }
+}
+
+void SettingsWidget::onAgentLocalContextSizeChanged()
+{
+    if (QQuickItem* root = rootObject()) {
+        m_viewModel->setAgentLocalContextSize(root->property("agentLocalContextSize").toInt());
+    }
+}
+
+void SettingsWidget::onAgentLocalThreadCountChanged()
+{
+    if (QQuickItem* root = rootObject()) {
+        m_viewModel->setAgentLocalThreadCount(root->property("agentLocalThreadCount").toInt());
+    }
+}
+
+void SettingsWidget::onAgentRemoteFallbackEnabledChanged()
+{
+    if (QQuickItem* root = rootObject()) {
+        m_viewModel->setAgentRemoteFallbackEnabled(
+            root->property("agentRemoteFallbackEnabled").toBool());
+    }
+}
+
+void SettingsWidget::onAgentRemoteBaseUrlChanged()
+{
+    if (QQuickItem* root = rootObject()) {
+        m_viewModel->setAgentRemoteBaseUrl(root->property("agentRemoteBaseUrl").toString());
+    }
+}
+
+void SettingsWidget::onAgentRemoteModelNameChanged()
+{
+    if (QQuickItem* root = rootObject()) {
+        m_viewModel->setAgentRemoteModelName(root->property("agentRemoteModelName").toString());
+    }
+}
+
 void SettingsWidget::onPlayerPageStyleChanged()
 {
     if (QQuickItem* root = rootObject()) {
@@ -119,6 +183,31 @@ void SettingsWidget::syncViewModelToRoot()
     QMetaObject::invokeMethod(root, "setAudioCachePath", Q_ARG(QVariant, m_viewModel->audioCachePath()));
     QMetaObject::invokeMethod(root, "setLogPath", Q_ARG(QVariant, m_viewModel->logPath()));
     QMetaObject::invokeMethod(root, "setPlayerPageStyle", Q_ARG(QVariant, m_viewModel->playerPageStyle()));
+    QMetaObject::invokeMethod(root, "setAgentMode", Q_ARG(QVariant, m_viewModel->agentMode()));
+    QMetaObject::invokeMethod(root,
+                              "setAgentLocalModelPath",
+                              Q_ARG(QVariant, m_viewModel->agentLocalModelPath()));
+    QMetaObject::invokeMethod(root,
+                              "setAgentLocalModelBaseUrl",
+                              Q_ARG(QVariant, m_viewModel->agentLocalModelBaseUrl()));
+    QMetaObject::invokeMethod(root,
+                              "setAgentLocalModelName",
+                              Q_ARG(QVariant, m_viewModel->agentLocalModelName()));
+    QMetaObject::invokeMethod(root,
+                              "setAgentLocalContextSize",
+                              Q_ARG(QVariant, m_viewModel->agentLocalContextSize()));
+    QMetaObject::invokeMethod(root,
+                              "setAgentLocalThreadCount",
+                              Q_ARG(QVariant, m_viewModel->agentLocalThreadCount()));
+    QMetaObject::invokeMethod(root,
+                              "setAgentRemoteFallbackEnabled",
+                              Q_ARG(QVariant, m_viewModel->agentRemoteFallbackEnabled()));
+    QMetaObject::invokeMethod(root,
+                              "setAgentRemoteBaseUrl",
+                              Q_ARG(QVariant, m_viewModel->agentRemoteBaseUrl()));
+    QMetaObject::invokeMethod(root,
+                              "setAgentRemoteModelName",
+                              Q_ARG(QVariant, m_viewModel->agentRemoteModelName()));
     QMetaObject::invokeMethod(root,
                               "setServerEndpoint",
                               Q_ARG(QVariant, m_viewModel->serverHost()),

@@ -1,4 +1,4 @@
-﻿#include "settings_widget.h"
+#include "settings_widget.h"
 
 /*
 模块名称: SettingsWidget 连接配置
@@ -26,6 +26,27 @@ void SettingsWidget::setupRootConnections(QQuickItem* root)
     connect(root, SIGNAL(audioCachePathChanged()), this, SLOT(onAudioCachePathChanged()));
     connect(root, SIGNAL(logPathChanged()), this, SLOT(onLogPathChanged()));
     connect(root, SIGNAL(playerPageStyleChanged()), this, SLOT(onPlayerPageStyleChanged()));
+    connect(root, SIGNAL(agentModeChanged()), this, SLOT(onAgentModeChanged()));
+    connect(root, SIGNAL(agentLocalModelPathChanged()),
+            this,
+            SLOT(onAgentLocalModelPathChanged()));
+    connect(root, SIGNAL(agentLocalModelBaseUrlChanged()),
+            this,
+            SLOT(onAgentLocalModelBaseUrlChanged()));
+    connect(root, SIGNAL(agentLocalModelNameChanged()), this, SLOT(onAgentLocalModelNameChanged()));
+    connect(root, SIGNAL(agentLocalContextSizeChanged()),
+            this,
+            SLOT(onAgentLocalContextSizeChanged()));
+    connect(root, SIGNAL(agentLocalThreadCountChanged()),
+            this,
+            SLOT(onAgentLocalThreadCountChanged()));
+    connect(root, SIGNAL(agentRemoteFallbackEnabledChanged()),
+            this,
+            SLOT(onAgentRemoteFallbackEnabledChanged()));
+    connect(root, SIGNAL(agentRemoteBaseUrlChanged()), this, SLOT(onAgentRemoteBaseUrlChanged()));
+    connect(root, SIGNAL(agentRemoteModelNameChanged()),
+            this,
+            SLOT(onAgentRemoteModelNameChanged()));
     connect(root, SIGNAL(refreshPresenceRequested()), this, SLOT(onRefreshPresenceRequested()));
 }
 
@@ -42,6 +63,8 @@ void SettingsWidget::setupViewModelConnections()
     connect(m_viewModel, &SettingsViewModel::downloadCoverChanged,
             this, &SettingsWidget::syncViewModelToRoot);
     connect(m_viewModel, &SettingsViewModel::playerPageStyleChanged,
+            this, &SettingsWidget::syncViewModelToRoot);
+    connect(m_viewModel, &SettingsViewModel::agentSettingsChanged,
             this, &SettingsWidget::syncViewModelToRoot);
     connect(m_viewModel, &SettingsViewModel::presenceChanged,
             this, &SettingsWidget::syncPresenceToRoot);

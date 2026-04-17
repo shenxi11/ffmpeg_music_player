@@ -1,4 +1,4 @@
-﻿#ifndef TEST_WIDGET_H
+#ifndef TEST_WIDGET_H
 #define TEST_WIDGET_H
 #include "VideoPlayerWindow.h"
 #include "favorite_music_widget.h"
@@ -22,13 +22,13 @@
 
 #include <QButtonGroup>
 #include <QGuiApplication>
-#include <QHash>
 #include <QIcon>
 #include <QLinearGradient>
 #include <QList>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QScreen>
+#include <QHash>
 #include <QSet>
 #include <QStringList>
 #include <QVariantList>
@@ -39,6 +39,7 @@ class PlaybackStateManager;
 class QCloseEvent;
 class QTimer;
 class QUrl;
+class ClientAutomationHostService;
 class QNetworkAccessManager;
 class QScrollArea;
 class QVBoxLayout;
@@ -68,6 +69,29 @@ class MainWidget : public QWidget {
     Q_INVOKABLE QVariantMap agentDesktopLyricsState() const;
     Q_INVOKABLE bool agentSetDesktopLyricsVisible(bool visible);
     Q_INVOKABLE bool agentSetDesktopLyricsStyle(const QVariantMap& style);
+    Q_INVOKABLE bool agentOfflineMode() const;
+    Q_INVOKABLE QString agentCurrentPageKey() const;
+    Q_INVOKABLE QString agentCurrentMusicTabKey() const;
+    Q_INVOKABLE QString agentLocalDownloadSubTabKey() const;
+    Q_INVOKABLE QString agentSidebarPlaylistTabKey() const;
+    Q_INVOKABLE QVariantMap agentSelectedPlaylistSnapshot() const;
+    Q_INVOKABLE QVariantList agentSelectedTrackIdsSnapshot() const;
+    Q_INVOKABLE QVariantMap agentCurrentTrackSnapshot() const;
+    Q_INVOKABLE QVariantMap agentQueueSnapshot() const;
+    Q_INVOKABLE QVariantMap agentUiOverviewSnapshot() const;
+    Q_INVOKABLE QVariantMap agentUiPageStateSnapshot(const QString& pageKey) const;
+    Q_INVOKABLE QVariantList agentMusicTabItemsSnapshot(const QString& tabKey,
+                                                        const QVariantMap& options = {}) const;
+    Q_INVOKABLE QVariantMap agentResolveMusicTabItem(const QString& tabKey,
+                                                     const QVariantMap& selector) const;
+    Q_INVOKABLE QVariantMap agentInvokeSongAction(const QString& action,
+                                                  const QVariantMap& songData);
+    Q_INVOKABLE QVariantMap agentUserProfileSnapshot() const;
+    Q_INVOKABLE bool agentRefreshUserProfile();
+    Q_INVOKABLE bool agentUpdateUsername(const QString& username);
+    Q_INVOKABLE bool agentUploadAvatar(const QString& filePath);
+    Q_INVOKABLE bool agentLogoutUser();
+    Q_INVOKABLE bool agentReturnToWelcome();
 
     // 显示登录窗口
     void showLoginWindow() {
@@ -128,6 +152,7 @@ class MainWidget : public QWidget {
 
     QPushButton* Login;
     MainShellViewModel* m_viewModel = nullptr;
+    ClientAutomationHostService* m_clientAutomationHostService = nullptr;
 
     // 在线音乐元数据缓存（用于追加最近播放记录）
     QString m_networkMusicArtist;
@@ -171,11 +196,11 @@ class MainWidget : public QWidget {
         QPainter painter(this);
         painter.setRenderHint(QPainter::Antialiasing);
 
-        // QQ 音乐风格：浅灰白色渐变背景
-        QLinearGradient gradient(0, 0, 0, height());
-        gradient.setColorAt(0, QColor("#F5F5F7"));   // 浅灰白色
-        gradient.setColorAt(0.5, QColor("#FAFAFA")); // 接近纯白
-        gradient.setColorAt(1, QColor("#F0F0F2"));   // 浅灰色
+        // 主框架背景采用柔和的红白浅色渐变，让侧边栏与内容区更接近设计稿层级。
+        QLinearGradient gradient(0, 0, width(), height());
+        gradient.setColorAt(0.0, QColor("#FCFBFC"));
+        gradient.setColorAt(0.45, QColor("#F6F7FB"));
+        gradient.setColorAt(1.0, QColor("#F3F1F6"));
         painter.fillRect(rect(), gradient);
     }
 
@@ -220,9 +245,7 @@ class MainWidget : public QWidget {
     void syncUserProfilePreviewToPage();
     void applyUserIdentityToUi(const QString& username, const QString& avatarUrl, bool loggedIn,
                                bool forceAvatarRefresh = false);
-    bool isLocalOnlyMode() const {
-        return m_localOnlyMode;
-    }
+    bool isLocalOnlyMode() const { return m_localOnlyMode; }
     void applyLocalOnlyModeUi();
     void showLocalOnlyUnavailableMessage();
     void updateSearchBoxForMode();
@@ -230,6 +253,7 @@ class MainWidget : public QWidget {
     void repositionSearchHistoryPopup();
     void showSearchHistoryPopup(const QString& filterText = QString());
     void hideSearchHistoryPopup();
+    void updateAiAssistantButtonState();
     void enqueuePluginLoadError(const QString& pluginFilePath, const QString& reason);
     void showPluginDiagnosticsDialog();
 
@@ -387,6 +411,8 @@ class MainWidget : public QWidget {
     void handlePlayHistoryRetryTimeout();
     int placeSideNavButton(int row, QPushButton* button, int navStartY, int itemHeight,
                            int panelWidth);
+    QVariantList agentOwnedPlaylistEntries() const;
+    QVariantList agentSubscribedPlaylistEntries() const;
 };
 
 #endif // TEST_WIDGET_H

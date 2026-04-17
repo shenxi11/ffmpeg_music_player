@@ -363,13 +363,70 @@ Rectangle {
                         anchors.margins: 10
                         spacing: 10
 
-                        ComboBox {
-                            Layout.preferredWidth: 180
-                            model: ["Hunyuan", "DeepSeek", "CloudMusic-AI"]
+                        Row {
+                            spacing: 8
+
+                            Rectangle {
+                                width: 84
+                                height: 32
+                                radius: 16
+                                color: agentChatVM && agentChatVM.agentMode === "control"
+                                       ? AiTheme.colors.accent
+                                       : "#F3F4F6"
+                                border.width: 1
+                                border.color: agentChatVM && agentChatVM.agentMode === "control"
+                                              ? AiTheme.colors.accent
+                                              : AiTheme.colors.border
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "控制模式"
+                                    color: agentChatVM && agentChatVM.agentMode === "control"
+                                           ? "#FFFFFF"
+                                           : AiTheme.colors.textSecondary
+                                    font.pixelSize: 12
+                                    font.weight: Font.Medium
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: if (agentChatVM) agentChatVM.setAgentMode("control")
+                                }
+                            }
+
+                            Rectangle {
+                                width: 84
+                                height: 32
+                                radius: 16
+                                color: agentChatVM && agentChatVM.agentMode === "assistant"
+                                       ? AiTheme.colors.accent
+                                       : "#F3F4F6"
+                                border.width: 1
+                                border.color: agentChatVM && agentChatVM.agentMode === "assistant"
+                                              ? AiTheme.colors.accent
+                                              : AiTheme.colors.border
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "助手模式"
+                                    color: agentChatVM && agentChatVM.agentMode === "assistant"
+                                           ? "#FFFFFF"
+                                           : AiTheme.colors.textSecondary
+                                    font.pixelSize: 12
+                                    font.weight: Font.Medium
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: if (agentChatVM) agentChatVM.setAgentMode("assistant")
+                                }
+                            }
                         }
 
                         Label {
-                            text: agentChatVM ? agentChatVM.connectionStateText : "未连接"
+                            text: agentChatVM ? agentChatVM.connectionStateText : "AI 助手未就绪"
                             color: "#166534"
                             font.bold: true
                             font.pixelSize: 12
@@ -383,6 +440,32 @@ Rectangle {
                             color: AiTheme.colors.textSecondary
                             font.pixelSize: 12
                             elide: Text.ElideMiddle
+                        }
+
+                        Column {
+                            spacing: 2
+
+                            Label {
+                                text: agentChatVM && agentChatVM.localModelName.length > 0
+                                      ? ("本地模型：" + agentChatVM.localModelName)
+                                      : "本地模型：未配置"
+                                color: AiTheme.colors.textSecondary
+                                font.pixelSize: 12
+                            }
+
+                            Label {
+                                text: agentChatVM && agentChatVM.agentMode === "assistant"
+                                      ? (agentChatVM.remoteFallbackEnabled
+                                         ? "助手模式：仅解释，不直接执行写操作"
+                                         : "助手模式：远程兜底未启用，仅可查看解释性说明")
+                                      : (agentChatVM && agentChatVM.remoteFallbackEnabled
+                                         ? "远程兜底：已启用"
+                                         : "远程兜底：未启用")
+                                color: agentChatVM && agentChatVM.agentMode === "assistant"
+                                       ? "#B45309"
+                                       : AiTheme.colors.textSecondary
+                                font.pixelSize: 11
+                            }
                         }
 
                         ToolButton {

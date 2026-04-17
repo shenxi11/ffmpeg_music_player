@@ -1,19 +1,19 @@
 .pragma library
 
-var accent = "#D33A31";
-var accentSoft = "#FCECEA";
+var accent = "#EC4141";
+var accentSoft = "#FFF0F0";
 var blueSoft = "#EAF2FF";
 
-var bgBase = "#F7F9FC";
-var bgSoft = "#EEF3F9";
-var bgCard = "#FCFDFE";
+var bgBase = "#F6F7FB";
+var bgSoft = "#F1F4F8";
+var bgCard = "#FFFFFF";
 
-var glassLight = "#F5FFFFFF";
-var glassStrong = "#EFFFFFFF";
-var glassHover = "#66FFFFFF";
-var glassBorder = "#1A20263A";
+var glassLight = "#FAFFFFFF";
+var glassStrong = "#F5FFFFFF";
+var glassHover = "#14EC4141";
+var glassBorder = "#1FE0E4EA";
 
-var textPrimary = "#1E2430";
-var textMuted = "#7A8499";
-var textSecondary = "#7A8499";
-var divider = "#1420263A";
+var textPrimary = "#1F2430";
+var textMuted = "#7A7D85";
+var textSecondary = "#7A7D85";
+var divider = "#14DCE2EC";

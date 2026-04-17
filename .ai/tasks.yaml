@@ -1,5 +1,5 @@
 version: 1
-updated_at: "2026-04-18 04:20"
+updated_at: "2026-04-18 04:37"
 tasks:
   - task_id: "workflow-split-submit-feature-and-governance-prs"
     title: "Split the mixed worktree into a product PR and a governance PR, then publish both"
@@ -18,8 +18,8 @@ tasks:
       - "Product code is isolated onto a dedicated branch without .ai files, logs, or third_party payloads."
       - "Governance files are isolated onto a dedicated branch with updated ownership, task, and handoff state."
       - "Both branches are validated, committed, pushed, and opened as separate draft PRs to main."
-    notes: "In progress on two dedicated worktrees rooted at the shared product baseline 73d7edf. This avoids contaminating the product PR with the governance bootstrap commit while still targeting main for review."
-    updated_at: "2026-04-18 04:20"
+    notes: "Completed and moved to review. The mixed worktree was split across dedicated worktrees rooted at the shared product baseline 73d7edf, the governance branch was published as draft PR #17, and the product branch was published as draft PR #18."
+    updated_at: "2026-04-18 04:37"
 
   - task_id: "bugfix-playlist-current-track-display-mismatch"
     title: "Fix playlist row display mismatch when switching to another queued song"
@@ -456,8 +456,8 @@ tasks:
     acceptance:
       - "An active session claims settings-and-theme before editing overlapping config or theme files."
       - "Shared configuration changes are paired with decision/task updates when other modules depend on them."
-      notes: "Final targeted overlap fix completed for review. The long single-track queue row now wraps instead of drawing through adjacent content, and the audio device area now uses content-driven row heights plus a wrapped memory-mode option block. Build verification passed; runtime visual confirmation is still recommended."
-      updated_at: "2026-04-17 23:28"
+    notes: "Final targeted overlap fix completed for review. The long single-track queue row now wraps instead of drawing through adjacent content, and the audio device area now uses content-driven row heights plus a wrapped memory-mode option block. Build verification passed; runtime visual confirmation is still recommended."
+    updated_at: "2026-04-17 23:28"
   - task_id: "feature-settings-main-content-host-migration"
     title: "Move settings from standalone window into main content panel"
     module: "shell-core"

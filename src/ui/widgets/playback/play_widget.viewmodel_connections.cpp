@@ -168,7 +168,6 @@ void PlayWidget::handleVmPlaybackStarted()
         emit signalPlayButtonClick(true, currentPath);
     }
 
-    currentSession = nullptr;
 }
 
 void PlayWidget::handleVmPlaybackStopped()
@@ -183,7 +182,6 @@ void PlayWidget::handleVmPlaybackStopped()
     }
     emit signalPlayButtonClick(false, currentPath);
 
-    currentSession = nullptr;
 }
 
 void PlayWidget::handleVmShouldStartRotation()

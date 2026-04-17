@@ -1,14 +1,14 @@
-﻿import QtQuick 2.14
+import QtQuick 2.14
 import QtQuick.Controls 2.14
 import "../../theme/Theme.js" as Theme
 
 Rectangle {
     id: root
-    implicitWidth: 250
-    implicitHeight: 60
+    implicitWidth: 280
+    implicitHeight: 56
     color: "transparent"
 
-    property string placeholderText: " 搜索想听的歌曲吧..."
+    property string placeholderText: "搜索歌曲 / 歌单 / 歌手..."
     property alias text: searchInput.text
     property string baseIconPrefix: "qrc:/design/design_exports/netease_ui_pack_20260309/icon/ui/base/"
     property bool suppressTextEdited: false
@@ -20,16 +20,16 @@ Rectangle {
 
     Rectangle {
         anchors.fill: parent
-        anchors.margins: 5
-        color: "#FFFFFF"
-        radius: 8
+        anchors.margins: 3
+        color: searchInput.activeFocus ? "#FFFFFF" : "#FCFDFE"
+        radius: height / 2
         border.width: 1
-        border.color: searchInput.activeFocus ? Theme.accent : "#E0E0E0"
+        border.color: searchInput.activeFocus ? Theme.accent : "#E5E8EF"
 
         Row {
             anchors.fill: parent
-            anchors.leftMargin: 15
-            anchors.rightMargin: 8
+            anchors.leftMargin: 18
+            anchors.rightMargin: 12
             spacing: 10
 
             TextInput {
@@ -37,18 +37,19 @@ Rectangle {
                 width: parent.width - searchButton.width - parent.spacing - 30
                 height: parent.height
                 verticalAlignment: TextInput.AlignVCenter
-                font.pixelSize: 14
-                color: "#333333"
+                font.family: "Microsoft YaHei UI"
+                font.pixelSize: 15
+                color: Theme.textPrimary
                 selectByMouse: true
-                selectionColor: Qt.rgba(0, 0.48, 0.8, 0.3)
+                selectionColor: Theme.accentSoft
                 clip: true
 
                 Text {
                     anchors.fill: parent
                     verticalAlignment: Text.AlignVCenter
                     text: root.placeholderText
-                    color: "#999999"
-                    font.italic: true
+                    color: "#9CA3AF"
+                    font.family: "Microsoft YaHei UI"
                     font.pixelSize: 14
                     visible: !searchInput.text && !searchInput.activeFocus
                 }
@@ -76,13 +77,13 @@ Rectangle {
 
             Rectangle {
                 id: searchButton
-                width: 32
-                height: 32
+                width: 34
+                height: 34
                 anchors.verticalCenter: parent.verticalCenter
                 color: searchButtonArea.pressed
-                       ? Qt.rgba(0, 0.48, 0.8, 0.2)
+                       ? "#F6D8D8"
                        : (searchButtonArea.containsMouse ? Theme.accentSoft : "transparent")
-                radius: 16
+                radius: 17
 
                 Image {
                     anchors.centerIn: parent
@@ -101,7 +102,10 @@ Rectangle {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: { onSearchTriggered() }
+                    onClicked: {
+                        searchInput.forceActiveFocus()
+                        onSearchTriggered()
+                    }
                 }
             }
         }

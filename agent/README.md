@@ -2,28 +2,87 @@
 
 Backend for the FFmpeg Music Player AI assistant.
 
-Current scope:
+## Current Positioning
 
-- multi-turn chat
-- streaming assistant output
-- LLM-first structured semantic parsing for each `user_message`
-- semantic refinement layer for goal understanding, reference resolution, and query normalization
-- multi-step LLM action candidates with server-side validation and step-by-step execution
-- candidate audit events for step selection and observation replay
-- SQLite session and message storage
-- SQLite event audit storage for plans and tool calls
-- direct Qt tool calls
-- script protocol bridge for client-side scripted execution
-- automatic playlist lookup, playlist track inspection, and recent-track lookup
-- phase-two skeleton for plans and approvals
-- multi-step plan for creating a playlist and adding top tracks
+The backend now defaults to a `control-first` architecture instead of a general-purpose chat agent.
+
+Primary goals:
+
+- control the music software
+- explain the current software state
+- translate natural language into deterministic Qt capability calls
+- prefer local `Qwen2.5-3B-Instruct` through an OpenAI-compatible `llama.cpp` server
+
+Out-of-scope for default `control` mode:
+
+- open-domain chat
+- world-knowledge Q&A
+- long-form copywriting
+- automatic free-form planning or script generation
+
+Those requests are restricted by default and can only use remote fallback when the user explicitly enters `/assistant` or `/remote`.
+
+## Runtime Architecture
+
+The Python mainline is now:
+
+- `ControlRuntime`
+- `LocalModelGateway`
+- deterministic execution templates
+- Qt-hosted capability snapshot as the source of truth
+
+Main execution flow:
+
+1. `user_message`
+2. fast-path routing for low-latency playback commands
+3. local model compiles a strict `ControlIntent` JSON
+4. deterministic template issues `tool_call`
+5. Qt returns `tool_result`
+6. backend emits `final_result`
+
+The old semantic parser, autonomous planner, action-candidate chain, and script-generation mainline are no longer wired into normal control execution. Legacy protocol handlers remain only for compatibility and debug scenarios.
+
+Qt now exposes the full client capability surface to the backend except for login and authentication handshakes. This includes playback, queue, playlists, local library, downloads, recommendations, desktop lyrics, video window controls, settings, host-context reads, user profile reads/writes, logout, and return-to-welcome actions.
+
+## Current Control Coverage
+
+Fast path, no model required:
+
+- pause playback
+- resume playback
+- stop playback
+- next track
+- previous track
+- volume change
+- play mode change
+- current playback / queue query
+
+Template-driven control:
+
+- `searchTracks -> playTrack`
+- `getPlaylists -> getPlaylistTracks -> playTrack`
+- `getCurrentTrack -> getPlaybackQueue`
+- `createPlaylist` with chat approval
+- `getPlaylists -> getRecentTracks/searchTracks/getPlaylistTracks -> addPlaylistItems` with chat approval
+
+Additional direct tool coverage:
+
+- host-context reads: `getHostContext`, `getVisiblePage`, `getSelectedPlaylist`, `getSelectedTrackIds`
+- user profile actions: `getUserProfile`, `refreshUserProfile`, `updateUsername`, `uploadAvatar`, `logoutUser`
+- session / environment actions: `returnToWelcome`, `getSettingsSnapshot`, `updateSetting`
+
+Mode constraints:
+
+- `control`: deterministic control execution is allowed
+- `assistant`: explanation only; write actions are rejected by the Qt executor
 
 ## Stack
 
-- `LangGraph`
 - `FastAPI`
 - `WebSocket`
+- `Pydantic`
 - `OpenAI-compatible API`
+- `llama.cpp` OpenAI server for local inference
 
 ## Setup
 
@@ -37,18 +96,67 @@ python -m pip install -e .[dev]
 
 ## Environment Variables
 
+Default local-control configuration:
+
 ```env
-OPENAI_API_KEY=sk-xxx
-OPENAI_BASE_URL=https://api.openai.com/v1
-OPENAI_MODEL=gpt-4o-mini
+LOCAL_MODEL_BASE_URL=http://127.0.0.1:8081/v1
+LOCAL_MODEL_NAME=Qwen2.5-3B-Instruct
+LOCAL_MODEL_TIMEOUT_SECONDS=20
+REMOTE_MODEL_ENABLED=false
+REMOTE_MODEL_BASE_URL=
+REMOTE_MODEL_NAME=
+OPENAI_API_KEY=
+OPENAI_BASE_URL=
+OPENAI_MODEL=
 OPENAI_WIRE_API=chat_completions
 OPENAI_TIMEOUT_SECONDS=30
+AGENT_DEFAULT_MODE=control
 AGENT_HOST=127.0.0.1
 AGENT_PORT=8765
 AGENT_MAX_HISTORY_MESSAGES=20
 AGENT_STORAGE_PATH=data/music_agent.db
 AGENT_TOOL_TIMEOUT_SECONDS=15
 AGENT_ALLOW_DIRECT_WRITE_ACTIONS=true
+```
+
+Notes:
+
+- `LOCAL_MODEL_BASE_URL` should point to a running `llama.cpp` OpenAI-compatible server.
+- `LOCAL_MODEL_NAME` is fixed to `Qwen2.5-3B-Instruct` for this rebuild.
+- the default local endpoint is now `127.0.0.1:8081/v1` to avoid conflicts with existing services on `8080`
+- `REMOTE_MODEL_ENABLED=false` means remote fallback is off unless you explicitly enable it.
+- remote fallback still uses `OPENAI_API_KEY` plus `REMOTE_MODEL_NAME` or `OPENAI_MODEL`.
+
+## Recommended Local Model Launch
+
+Install `llama.cpp` on Windows if `llama-server` is not available yet:
+
+```powershell
+winget install --id ggml.llamacpp --accept-package-agreements --accept-source-agreements
+```
+
+Example `llama-server` launch:
+
+```powershell
+llama-server ^
+  -m E:\models\llm\Qwen2.5-3B-Instruct\qwen2.5-3b-instruct-q4_k_m.gguf ^
+  --host 127.0.0.1 ^
+  --port 8081 ^
+  --ctx-size 8192
+```
+
+Or use the bundled helper scripts:
+
+```powershell
+cd e:\FFmpeg_whisper\ffmpeg_music_player\agent
+powershell -ExecutionPolicy Bypass -File .\scripts\start_local_model.ps1
+```
+
+Health check:
+
+```powershell
+cd e:\FFmpeg_whisper\ffmpeg_music_player\agent
+powershell -ExecutionPolicy Bypass -File .\scripts\check_local_model.ps1
 ```
 
 ## Run
@@ -62,6 +170,8 @@ music-agent-server
 Default address: `http://127.0.0.1:8765`
 
 ## CLI Chat
+
+`music-agent-chat` is now treated as a legacy terminal chat entry for remote chat-style debugging. It still requires remote chat model configuration and is not the main control workflow.
 
 ```powershell
 cd e:\FFmpeg_whisper\ffmpeg_music_player\agent
@@ -78,6 +188,7 @@ music-agent-chat --session-id demo-session
 ## REST APIs
 
 - `GET /healthz`
+- `GET /capabilities`
 - `GET /sessions?query=<optional>&limit=<optional>`
 - `POST /sessions`
 - `GET /sessions/{session_id}`
@@ -87,40 +198,14 @@ music-agent-chat --session-id demo-session
 - `GET /sessions/{session_id}/events`
 - `GET /plans/{plan_id}/events`
 
-`/healthz` returns:
+`/healthz` now reports both local-control and remote-fallback status, including:
 
-- `protocolVersion`
-- `capabilities`
-- `toolModeEnabled`
-- `auditEnabled`
-- `openaiWireApi`
-- `capabilityCatalogVersion`
-- `capabilityExecutionModel`
-
-Example:
-
-```json
-{
-  "status": "ok",
-  "modelConfigured": true,
-  "missingConfig": [],
-  "openaiBaseUrl": "https://open.bigmodel.cn/api/paas/v4",
-  "openaiModel": "glm-5",
-  "openaiWireApi": "chat_completions",
-  "sessionHistoryLimit": 20,
-  "storagePath": "data/music_agent.db",
-  "protocolVersion": "1.6",
-  "capabilities": ["chat", "streaming", "sessions", "storage", "tools", "plans", "approval", "audit", "scripts"],
-  "toolModeEnabled": true,
-  "auditEnabled": true,
-  "capabilityCatalogVersion": "2026-03-30-facade-aware",
-  "capabilityExecutionModel": {
-    "phase": 6,
-    "entryPoint": "AgentCapabilityFacade",
-    "backingExecutor": "AgentToolExecutor"
-  }
-}
-```
+- `localModelBaseUrl`
+- `localModelName`
+- `remoteModelEnabled`
+- `remoteModelBaseUrl`
+- `remoteModelName`
+- `defaultMode`
 
 ## WebSocket
 
@@ -130,385 +215,99 @@ Endpoint:
 ws://127.0.0.1:8765/ws/chat?session_id=<optional>
 ```
 
-### Session Ready
+Key client messages:
+
+- `user_message`
+- `host_snapshot`
+- `tool_result`
+- `approval_response`
+
+Key server messages:
+
+- `session_ready`
+- `tool_call`
+- `plan_preview`
+- `approval_request`
+- `clarification_request`
+- `final_result`
+- `assistant_start`
+- `assistant_chunk`
+- `assistant_final`
+
+### Host Snapshot
+
+Qt now pushes a capability snapshot and host-context snapshot before control turns:
 
 ```json
 {
-  "type": "session_ready",
-  "sessionId": "generated-or-existing-session-id",
-  "title": "新建会话",
-  "capabilities": ["chat", "streaming", "sessions", "storage", "tools", "plans", "approval", "audit", "scripts"]
+  "type": "host_snapshot",
+  "hostContext": {
+    "currentPage": "playlists",
+    "offlineMode": false,
+    "loggedIn": true,
+    "currentTrack": {
+      "title": "七里香",
+      "artist": "周杰伦",
+      "isLocal": false
+    },
+    "selectedPlaylist": {
+      "playlistId": 12,
+      "name": "默认歌单",
+      "trackCount": 24
+    },
+    "selectedTrackIds": ["101", "102", "103"],
+    "queueSummary": {
+      "count": 8,
+      "currentIndex": 2,
+      "playing": true
+    }
+  },
+  "capabilities": [
+    {
+      "name": "createPlaylist",
+      "riskLevel": "medium",
+      "confirmPolicy": "chat_approval",
+      "availabilityPolicy": "login_required",
+      "domain": "playlist",
+      "userVisibleName": "创建歌单"
+    },
+    {
+      "name": "getUserProfile",
+      "riskLevel": "low",
+      "confirmPolicy": "none",
+      "availabilityPolicy": "login_required",
+      "domain": "account",
+      "userVisibleName": "用户资料"
+    }
+  ],
+  "catalogVersion": "qt_tool_registry_v1"
 }
 ```
 
-### Chat Messages
+### Explicit Remote Fallback
 
-Client sends:
+Only explicit prefixes can enter remote mode:
 
 ```json
 {
   "type": "user_message",
   "requestId": "req-1",
-  "content": "你好"
+  "content": "/assistant 解释一下 AI 发展史"
 }
 ```
 
-Server may respond with:
+In `control` mode, the same request without `/assistant` will be restricted instead of routed to remote chat.
 
-- `assistant_start`
-- `assistant_chunk`
-- `assistant_final`
-
-### Semantic Parsing
-
-The backend now parses every `user_message` through a dedicated structured semantic layer before deciding whether to:
-
-- reply as plain chat
-- emit `tool_call`
-- emit `clarification_request`
-- enter `plan_preview / approval_request`
-
-The LLM only returns structured JSON for understanding and action suggestions. It does not directly execute Qt tools.
-The server then runs a semantic refinement and execution-control pass that combines:
-
-- user utterance cues
-- working memory and last resolved objects
-- query normalization such as `流行歌单 -> 流行`
-- automatic intent correction when the model returns an overly generic `chat` result
-- action candidate validation against the server-side tool registry
-
-The Qt client is now modeled as a unified capability entry:
-
-- `tool_call` enters through `AgentCapabilityFacade`
-- script steps also enter through `AgentCapabilityFacade`
-- `AgentToolExecutor` remains the backing executor behind the façade
-
-This means the backend should increasingly reason about "capabilities behind a façade" rather than treating every tool as an isolated transport-level primitive.
-
-Multi-step candidates can now cover chains such as:
-
-- `getPlaylists -> playPlaylist`
-- `getPlaylists -> getPlaylistTracks`
-- `getPlaylistTracks -> playTrack` with `selectionIndex`
-- `searchTracks -> playTrack`
-- `createPlaylist`
-- `createPlaylist -> getTopPlayedTracks -> addTracksToPlaylist`
-
-Current capability opening strategy follows the latest Qt-side guidance:
-
-- search capabilities are treated as base auto-execution abilities
-- single-track low-risk actions are treated as base auto-execution abilities when a structured `Track` object is already available
-- playlist structure mutations and collection-level actions remain on the more conservative `confirm / plan` path
-- `playPlaylist` is still treated as `partial` and must not be mistaken for a fully stable atomic ability
-
-Candidate selection and post-tool observations are also written into the audit stream as:
-
-- `action_candidate_selected`
-- `action_candidate_observed`
-
-`action_candidate_selected` now includes both the original candidate payload and the hydrated `resolvedArgs`, so you can see how the server filled IDs and other runtime parameters before issuing `tool_call`.
-
-### Script Messages
-
-The backend now supports the Qt client script protocol.
-
-### Wire API Compatibility
-
-The backend now supports two upstream response protocols:
-
-- `OPENAI_WIRE_API=chat_completions`
-- `OPENAI_WIRE_API=responses`
-
-Use `chat_completions` for standard OpenAI-compatible `/chat/completions` gateways.
-Use `responses` for gateways that expose the newer `/responses` wire format.
-
-Current note:
-
-- `responses` mode currently returns assistant text as a single chunk in streaming mode
-- this keeps the backend compatible with gateways that do not expose `choices[].delta`
-
-Current version:
-
-- `protocolVersion: 1.6`
-- session capabilities include `scripts`
-
-Current first live script scenario:
-
-- `searchTracks -> playTrack` for precise “搜索并播放” requests such as `播放周杰伦的晴天`
-
-Server script requests:
-
-```json
-{
-  "type": "dry_run_script",
-  "requestId": "req-1",
-  "script": {
-    "version": 1,
-    "timeoutMs": 30000,
-    "title": "搜索并播放周杰伦 - 晴天",
-    "steps": [
-      {
-        "id": "search",
-        "action": "searchTracks",
-        "args": {
-          "keyword": "晴天",
-          "artist": "周杰伦",
-          "limit": 5
-        },
-        "saveAs": "search"
-      },
-      {
-        "id": "play_first",
-        "action": "playTrack",
-        "args": {
-          "trackId": "$steps.search.items.0.trackId"
-        }
-      }
-    ]
-  }
-}
-```
-
-If dry-run passes, the backend continues with:
-
-```json
-{
-  "type": "validate_script",
-  "requestId": "req-1",
-  "script": {
-    "version": 1,
-    "timeoutMs": 30000,
-    "title": "搜索并播放周杰伦 - 晴天",
-    "steps": [
-      {
-        "id": "search",
-        "action": "searchTracks",
-        "args": {
-          "keyword": "晴天",
-          "artist": "周杰伦",
-          "limit": 5
-        },
-        "saveAs": "search"
-      },
-      {
-        "id": "play_first",
-        "action": "playTrack",
-        "args": {
-          "trackId": "$steps.search.items.0.trackId"
-        }
-      }
-    ]
-  }
-}
-```
-
-Qt returns:
-
-- `script_dry_run_result`
-- `script_validation_result`
-- `script_execution_started`
-- `script_step_event`
-- `script_execution_result`
-- `script_cancellation_result`
-
-The backend writes all script lifecycle events into the audit stream and folds the final script report back into working memory so later turns can continue to reference the resolved track or playlist objects.
-
-Current script runtime control:
-
-- generated scripts are first sent through `dry_run_script`
-- the backend reads `requiresApproval`, `riskLevel`, `domains`, `mutationKinds`, and `targetKinds` from `script_dry_run_result`
-- high-risk or approval-required scripts currently stop direct execution and stay available for future approval / replan integration
-- generated scripts now carry explicit `timeoutMs`
-- the backend waits according to the script timeout instead of a fixed short socket timeout
-- when the user asks to cancel a running script, the backend emits `cancel_script`
-- timing fields from `script_execution_started.summary` and `script_execution_result.report` such as `startedAt`, `finishedAt`, `durationMs`, and `status` are preserved in audit and observation flow
-- cancellation is execution-level only; completed steps are not rolled back
-
-Current limitation:
-
-- more complex playlist-content and filtered recent-track flows still fall back to the older tool-call path because the current Qt DSL only supports sequential steps and result references; it does not yet support filtering, branching, loops, or rollback
-
-If you need to disable direct write execution and force write actions back onto the existing `plan/approval` path, set:
-
-```env
-AGENT_ALLOW_DIRECT_WRITE_ACTIONS=false
-```
-
-### Tool Messages
-
-Server tool request:
-
-```json
-{
-  "type": "tool_call",
-  "toolCallId": "tool-123",
-  "sessionId": "session-1",
-  "tool": "searchTracks",
-  "args": {
-    "keyword": "晴天",
-    "artist": "周杰伦",
-    "limit": 5
-  }
-}
-```
-
-Qt client returns:
-
-```json
-{
-  "type": "tool_result",
-  "toolCallId": "tool-123",
-  "ok": true,
-  "result": {
-    "items": []
-  }
-}
-```
-
-### Clarification
-
-When multiple candidates exist, server sends:
-
-```json
-{
-  "type": "clarification_request",
-  "sessionId": "session-1",
-  "requestId": "req-1",
-  "question": "我找到了多个候选歌曲，请告诉我你想播放哪一个。",
-  "options": ["1. 周杰伦 - 晴天", "2. 五月天 - 晴天"]
-}
-```
-
-Qt can continue with a normal `user_message`, for example `第一个`。
-
-### Plan And Approval Skeleton
-
-Current phase-two skeleton supports `createPlaylist`.
-
-Server plan preview:
-
-```json
-{
-  "type": "plan_preview",
-  "planId": "plan-1",
-  "sessionId": "session-1",
-  "summary": "创建歌单“学习歌单”",
-  "riskLevel": "medium",
-  "steps": [
-    {
-      "stepId": "step-1",
-      "title": "创建歌单 学习歌单",
-      "status": "pending"
-    }
-  ]
-}
-```
-
-Server approval request:
-
-```json
-{
-  "type": "approval_request",
-  "planId": "plan-1",
-  "sessionId": "session-1",
-  "message": "即将创建歌单“学习歌单”，是否继续？",
-  "riskLevel": "medium"
-}
-```
-
-Qt approval response:
-
-```json
-{
-  "type": "approval_response",
-  "planId": "plan-1",
-  "approved": true
-}
-```
-
-Then the server may send:
-
-- `progress`
-- `tool_call(createPlaylist)`
-- `tool_call(getTopPlayedTracks)`
-- `tool_call(addTracksToPlaylist)`
-- `final_result`
-- `assistant_start/chunk/final`
-
-### Audit Events
-
-The backend now writes plan and tool execution events into SQLite and exposes them through:
-
-- `GET /sessions/{session_id}/events`
-- `GET /plans/{plan_id}/events`
-
-Sample event item:
-
-```json
-{
-  "eventId": "evt-1",
-  "sessionId": "session-1",
-  "planId": "plan-1",
-  "eventType": "tool_call",
-  "payload": {
-    "type": "tool_call",
-    "toolCallId": "tool-1",
-    "sessionId": "session-1",
-    "tool": "createPlaylist",
-    "args": {
-      "name": "学习歌单"
-    }
-  },
-  "createdAt": "2026-03-28T10:00:00+00:00"
-}
-```
-
-### Error
-
-```json
-{
-  "type": "error",
-  "sessionId": "session-1",
-  "requestId": "req-1",
-  "code": "invalid_message",
-  "message": "content must be a non-empty string"
-}
-```
-
-## Current Tool Scope
-
-Implemented direct tool mode:
-
-- `searchTracks`
-- `getCurrentTrack`
-- `getPlaylists`
-- `getPlaylistTracks`
-- `getRecentTracks`
-- `playTrack`
-- `playPlaylist`
-- `createPlaylist` through phase-two approval skeleton
-- `getTopPlayedTracks` through phase-two plan execution
-- `addTracksToPlaylist` through phase-two plan execution
-
-Implemented intent coverage:
-
-- play a track
-- inspect current playing track
-- list playlists
-- query a named playlist
-- inspect playlist tracks
-- inspect recent tracks
-- play a playlist
-- resolve playlist names with both raw and normalized queries, such as `流行歌单 -> 流行`
-- reuse `last_named_playlist` / `last_named_track` for phrases like `这个歌单`
-- clarify ambiguous candidates
-- create a playlist with approval
-- create a playlist and add recent top tracks with approval
-
-## Tests
+## Test
 
 ```powershell
 cd e:\FFmpeg_whisper\ffmpeg_music_player\agent
 .venv\Scripts\Activate.ps1
 pytest
+```
+
+If you only want a syntax check:
+
+```powershell
+python -m compileall src tests
 ```

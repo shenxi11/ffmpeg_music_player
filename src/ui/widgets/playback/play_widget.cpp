@@ -1,4 +1,4 @@
-﻿#include "play_widget.h"
+#include "play_widget.h"
 
 #include "settings_manager.h"
 
@@ -11,6 +11,9 @@
 #include <QUrl>
 
 namespace {
+
+constexpr int kLyricLeadTimeMs = 1000;
+constexpr int kLastLyricFallbackMs = 1800;
 
 QString decodedFileNameFromPath(const QString& songPath) {
     if (songPath.trimmed().isEmpty()) {
@@ -139,7 +142,7 @@ StageLayoutSpec stageLayoutSpecForStyle(int styleId) {
 PlayWidget::PlayWidget(QWidget* parent, QWidget* mainWidget)
     : QWidget(parent),
       m_playbackViewModel(new PlaybackViewModel(this)), // ViewModel是UI层的唆一接口
-      currentSession(nullptr), lastSeekPosition(0)
+      lastSeekPosition(0)
 
 {
     // qDebug() << __FUNCTION__ << QThread::currentThread()->currentThreadId;
@@ -196,15 +199,8 @@ PlayWidget::PlayWidget(QWidget* parent, QWidget* mainWidget)
     rotatingCircleHost->setAttribute(Qt::WA_TranslucentBackground, true);
     rotatingCircleHost->setAutoFillBackground(false);
     rotatingCircleHost->setStyleSheet("background: transparent;");
-    rotatingCircleShadow = new QGraphicsDropShadowEffect(rotatingCircleHost);
-    rotatingCircleShadow->setBlurRadius(42);
-    rotatingCircleShadow->setOffset(0, 18);
-    rotatingCircleShadow->setColor(QColor(16, 24, 38, 72));
-    rotatingCircleHost->setGraphicsEffect(rotatingCircleShadow);
-    rotatingCircle = new RotatingCircleImage(rotatingCircleHost);
-    rotatingCircle->setAttribute(Qt::WA_TranslucentBackground, true);
-    rotatingCircle->setAutoFillBackground(false);
-    rotatingCircle->setStyleSheet("background: transparent;");
+    rotatingCircleShadow = nullptr;
+    rotatingCircle = new TurntableGlWidget(rotatingCircleHost);
     rotatingCircle->resize(300, 300);
 
     squareCoverHost = new QWidget(this);
@@ -360,7 +356,7 @@ int PlayWidget::resolveTargetLyricLine(qint64 positionMs) const {
 
     // 歌词提前 1000ms 显示，让听感与视觉更同步。
     const qint64 safePositionMs = qMax<qint64>(0, positionMs);
-    const int timeInMs = static_cast<int>(safePositionMs) + 1000;
+    const int timeInMs = static_cast<int>(safePositionMs) + kLyricLeadTimeMs;
     const auto firstLyric = lyrics.begin();
 
     // 在第一句歌词到来前，固定高亮第一句歌词。
@@ -377,6 +373,33 @@ int PlayWidget::resolveTargetLyricLine(qint64 positionMs) const {
     return static_cast<int>(std::distance(lyrics.begin(), current)) + 5;
 }
 
+qreal PlayWidget::resolveCurrentLyricProgress(qint64 positionMs) const {
+    if (lyrics.empty()) {
+        return 0.0;
+    }
+
+    const qint64 safePositionMs = qMax<qint64>(0, positionMs);
+    const int timeInMs = static_cast<int>(safePositionMs) + kLyricLeadTimeMs;
+    const auto firstLyric = lyrics.begin();
+    if (timeInMs <= firstLyric->first) {
+        return 0.0;
+    }
+
+    const auto upper = lyrics.upper_bound(timeInMs);
+    if (upper == lyrics.begin()) {
+        return 0.0;
+    }
+
+    const auto current = (upper == lyrics.end()) ? std::prev(lyrics.end()) : std::prev(upper);
+    const int currentStartMs = current->first;
+    const int nextStartMs =
+        (upper == lyrics.end()) ? (currentStartMs + kLastLyricFallbackMs) : qMax(currentStartMs + 1, upper->first);
+    const int lineDurationMs = qMax(1, nextStartMs - currentStartMs);
+    const qreal progress =
+        static_cast<qreal>(qMax(0, timeInMs - currentStartMs)) / static_cast<qreal>(lineDurationMs);
+    return qBound<qreal>(0.0, progress, 1.0);
+}
+
 void PlayWidget::refreshCurrentLyricHighlight(bool forceRecenter) {
     if (!lyricDisplay) {
         return;
@@ -385,6 +408,7 @@ void PlayWidget::refreshCurrentLyricHighlight(bool forceRecenter) {
     const qint64 positionMs = m_playbackViewModel ? m_playbackViewModel->position() : 0;
     const int targetLine = resolveTargetLyricLine(positionMs);
     if (targetLine < 0) {
+        lyricDisplay->setCurrentLineProgress(0.0);
         return;
     }
 
@@ -393,6 +417,8 @@ void PlayWidget::refreshCurrentLyricHighlight(bool forceRecenter) {
         lyricDisplay->highlightLine(targetLine);
         lyricDisplay->currentLine = targetLine;
     }
+
+    lyricDisplay->setCurrentLineProgress(resolveCurrentLyricProgress(positionMs));
 
     if (changed || forceRecenter) {
         lyricDisplay->scrollToLine(targetLine);
@@ -531,6 +557,8 @@ void PlayWidget::setIsUp(bool flag) {
         sceneLabel->setVisible(false);
     }
 
+    applyPlayerPageStyle();
+
     // 触发重绘以更新背
     update();
 
@@ -604,52 +632,6 @@ void PlayWidget::rebuildStageBackgroundCache() {
             }
         }
 
-        if (m_playerPageStyle == 0 && rotatingCircleHost && rotatingCircleHost->isVisible()) {
-            const QRect turntableRect = rotatingCircleHost->geometry().adjusted(-28, -28, 28, 28);
-            painter.setPen(Qt::NoPen);
-            painter.setBrush(QColor(128, 154, 164, 24));
-            painter.drawRoundedRect(turntableRect.translated(0, 22), 34, 34);
-
-            painter.setBrush(QColor(248, 251, 252, 248));
-            painter.drawRoundedRect(turntableRect, 34, 34);
-
-            painter.setPen(QPen(QColor(255, 255, 255, 120), 2));
-            painter.drawRoundedRect(turntableRect.adjusted(8, 8, -8, -8), 28, 28);
-
-            const QPoint armPivot(turntableRect.right() - 40, turntableRect.top() + 54);
-            const QPoint armMid(turntableRect.right() - 42, turntableRect.bottom() - 120);
-            const QPoint armHead(turntableRect.right() - 82, turntableRect.bottom() - 54);
-
-            painter.setPen(
-                QPen(QColor(92, 98, 102, 210), 5, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
-            painter.drawLine(armPivot, armMid);
-            painter.setPen(
-                QPen(QColor(188, 190, 192, 224), 7, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
-            painter.drawLine(armMid, armHead);
-
-            painter.setBrush(QColor(240, 241, 243, 245));
-            painter.setPen(QPen(QColor(180, 186, 190, 160), 1));
-            painter.drawEllipse(armPivot, 18, 18);
-            painter.drawEllipse(armHead, 10, 10);
-
-            const QRect badgeRect(turntableRect.right() - 48, turntableRect.bottom() - 48, 28, 28);
-            painter.setPen(Qt::NoPen);
-            painter.setBrush(QColor(255, 255, 255, 238));
-            painter.drawEllipse(badgeRect);
-            painter.setPen(QPen(QColor("#24D05A"), 3));
-            painter.drawArc(badgeRect.adjusted(6, 6, -6, -6), 40 * 16, 250 * 16);
-        } else if (m_playerPageStyle == 2 && rotatingCircleHost &&
-                   rotatingCircleHost->isVisible()) {
-            const QRect glowRect = rotatingCircleHost->geometry().adjusted(-90, -90, 120, 120);
-            QRadialGradient glow(glowRect.center(), glowRect.width() / 2.0);
-            glow.setColorAt(0.0, QColor(255, 222, 123, 0));
-            glow.setColorAt(0.56, QColor(255, 215, 87, 36));
-            glow.setColorAt(0.82, QColor(247, 202, 61, 96));
-            glow.setColorAt(1.0, QColor(247, 202, 61, 0));
-            painter.setPen(Qt::NoPen);
-            painter.setBrush(glow);
-            painter.drawEllipse(glowRect);
-        }
     } else {
         QLinearGradient gradient(0, 0, targetSize.width(), targetSize.height());
         gradient.setColorAt(0, QColor("#F5F5F7"));
@@ -694,24 +676,24 @@ void PlayWidget::applyPlayerPageStyle() {
     const bool hideCover = (m_playerPageStyle == 3);
     const bool useSquareCover = !hideCover && (m_playerPageStyle == 1 || m_playerPageStyle == 4);
     if (rotatingCircleHost) {
-        rotatingCircleHost->setVisible(!hideCover && !useSquareCover);
+        rotatingCircleHost->setVisible(isUp && !hideCover && !useSquareCover);
     }
     if (rotatingCircle) {
-        RotatingCircleImage::DiscVisualStyle discStyle =
-            RotatingCircleImage::DiscVisualStyle::DarkVinyl;
+        TurntableGlWidget::DiscVisualStyle discStyle =
+            TurntableGlWidget::DiscVisualStyle::DarkVinyl;
         qreal coverScale = 0.70;
         if (m_playerPageStyle == 0) {
-            discStyle = RotatingCircleImage::DiscVisualStyle::SilverVinyl;
+            discStyle = TurntableGlWidget::DiscVisualStyle::SilverVinyl;
             coverScale = 0.56;
         } else if (m_playerPageStyle == 2) {
-            discStyle = RotatingCircleImage::DiscVisualStyle::GoldVinyl;
+            discStyle = TurntableGlWidget::DiscVisualStyle::GoldVinyl;
             coverScale = 0.52;
         }
         rotatingCircle->setDiscVisualStyle(discStyle);
         rotatingCircle->setCoverScale(coverScale);
     }
     if (squareCoverHost) {
-        squareCoverHost->setVisible(useSquareCover);
+        squareCoverHost->setVisible(isUp && useSquareCover);
         if (m_playerPageStyle == 1) {
             squareCoverHost->setStyleSheet("background: transparent;"
                                            "border: 0;"
@@ -1054,6 +1036,7 @@ void PlayWidget::onLrcSendLrc(const std::map<int, std::string> lyrics) {
 
     // 使用带时间的 std::map 格式设置歌词
     lyricDisplay->setLyrics(lyrics);
+    lyricDisplay->setCurrentLineProgress(0.0);
 
     // 歌词数据刚加载后，主动按当前播放时间刷新一次高亮行。
     // 这样即使 positionChanged 还没到来，展开歌词页也能拿到正确定位。
@@ -1292,13 +1275,6 @@ PlayWidget::~PlayWidget() {
     lrc.reset();
     take_pcm.reset();
     */
-
-    // ========== 新架构清==========
-    // 停止当前会话
-    if (currentSession) {
-        currentSession->stop();
-        currentSession = nullptr;
-    }
 
     // 先销毁 QQuickWidget 内容，避免退出阶段触发渲染上下文断言。
     shutdownQuickWidget(desk);
