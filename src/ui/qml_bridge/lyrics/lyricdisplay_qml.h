@@ -1,4 +1,4 @@
-﻿#ifndef LYRICDISPLAY_QML_H
+#ifndef LYRICDISPLAY_QML_H
 #define LYRICDISPLAY_QML_H
 
 #include <QDebug>
@@ -100,6 +100,13 @@ public:
     {
         if (rootObject()) {
             rootObject()->setProperty("playerPageStyle", styleId);
+        }
+    }
+
+    void setCurrentLineProgress(double progress)
+    {
+        if (rootObject()) {
+            rootObject()->setProperty("currentLineProgress", qBound(0.0, progress, 1.0));
         }
     }
 

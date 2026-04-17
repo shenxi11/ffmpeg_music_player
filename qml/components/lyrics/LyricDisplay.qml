@@ -1,4 +1,4 @@
-﻿import QtQuick 2.14
+import QtQuick 2.14
 import QtQuick.Controls 2.14
 import "../../theme/Theme.js" as Theme
 import "../../theme/PlayerStyle.js" as PlayerStyle
@@ -7,6 +7,7 @@ Item {
     id: root
 
     property int currentLine: -1
+    property real currentLineProgress: 0.0
     property bool isUp: false
     property bool showSongInfo: true
     property string songTitle: ""
@@ -335,6 +336,18 @@ Item {
                 height: Math.max(lyricText.height + linePadding, root.isUp ? 54 : 42)
 
                 property bool isCurrent: index === root.currentLine
+                property real highlightProgress: isCurrent
+                                                 ? Math.max(0, Math.min(1, root.currentLineProgress))
+                                                 : 0.0
+                property real highlightRevealWidth: {
+                    if (highlightProgress <= 0 || !lyricText.text || lyricText.text.trim().length === 0)
+                        return 0
+                    var paintedWidth = lyricText.paintedWidth > 0 ? lyricText.paintedWidth : lyricText.width
+                    var leftInset = lyricText.horizontalAlignment === Text.AlignHCenter
+                                    ? Math.max(0, (lyricText.width - paintedWidth) / 2)
+                                    : 0
+                    return Math.min(lyricText.width, leftInset + paintedWidth * highlightProgress)
+                }
 
                 TapHandler {
                     onTapped: {
@@ -367,33 +380,58 @@ Item {
                         }
                     }
 
-                    Text {
-                        id: lyricText
+                    Item {
                         width: parent.width - (timeText.visible ? timeText.width + parent.spacing : 0)
-                        text: model.text
-                        color: root.isUp ? root.styleSpec.lyricsLineColor : "#2A3242"
-                        font.pixelSize: Math.round(((lyricItem.isCurrent
-                                                        ? (root.styleSpec.currentLyricFontSize || 21)
-                                                        : (root.styleSpec.normalLyricFontSize || 16)))
-                                                    * root.lyricFontScale)
-                        font.bold: lyricItem.isCurrent
-                        horizontalAlignment: timeText.visible ? Text.AlignLeft : Text.AlignHCenter
-                        wrapMode: Text.WordWrap
+                        height: lyricText.height
 
-                        Behavior on font.pixelSize {
-                            NumberAnimation { duration: 180 }
+                        Text {
+                            id: lyricText
+                            width: parent.width
+                            text: model.text
+                            color: root.isUp ? root.styleSpec.lyricsLineColor : "#2A3242"
+                            font.pixelSize: Math.round(((lyricItem.isCurrent
+                                                            ? (root.styleSpec.currentLyricFontSize || 21)
+                                                            : (root.styleSpec.normalLyricFontSize || 16)))
+                                                        * root.lyricFontScale)
+                            font.bold: lyricItem.isCurrent
+                            horizontalAlignment: timeText.visible ? Text.AlignLeft : Text.AlignHCenter
+                            wrapMode: Text.WordWrap
+
+                            Behavior on font.pixelSize {
+                                NumberAnimation { duration: 180 }
+                            }
+
+                            Behavior on opacity {
+                                NumberAnimation { duration: 180 }
+                            }
+
+                            opacity: {
+                                if (lyricItem.isCurrent) return 1.0
+                                var distance = Math.abs(index - root.currentLine)
+                                if (distance <= 1) return root.styleSpec.nearOpacity || 0.66
+                                if (distance <= 2) return root.styleSpec.midOpacity || 0.48
+                                return root.styleSpec.farOpacity || 0.34
+                            }
                         }
 
-                        Behavior on opacity {
-                            NumberAnimation { duration: 180 }
-                        }
+                        Item {
+                            x: lyricText.x
+                            y: lyricText.y
+                            width: lyricItem.highlightRevealWidth
+                            height: lyricText.height
+                            clip: true
+                            visible: lyricItem.isCurrent && width > 0
 
-                        opacity: {
-                            if (lyricItem.isCurrent) return 1.0
-                            var distance = Math.abs(index - root.currentLine)
-                            if (distance <= 1) return root.styleSpec.nearOpacity || 0.66
-                            if (distance <= 2) return root.styleSpec.midOpacity || 0.48
-                            return root.styleSpec.farOpacity || 0.34
+                            Text {
+                                width: lyricText.width
+                                height: lyricText.height
+                                text: lyricText.text
+                                color: Theme.accent
+                                font.pixelSize: lyricText.font.pixelSize
+                                font.bold: lyricText.font.bold
+                                horizontalAlignment: lyricText.horizontalAlignment
+                                wrapMode: lyricText.wrapMode
+                            }
                         }
                     }
                 }
@@ -705,6 +743,7 @@ Item {
         }
 
         root.draggingLyric = false
+        root.currentLineProgress = 0.0
         root.dragPreviewTimeMs = -1
         root._lastPreviewTimeMs = -1
         root.lyricDragEnded()
@@ -713,6 +752,7 @@ Item {
     function clearLyrics() {
         lyricModel.clear()
         root.currentLine = -1
+        root.currentLineProgress = 0.0
         root.draggingLyric = false
         root.dragPreviewTimeMs = -1
         root._lastPreviewTimeMs = -1
@@ -743,6 +783,7 @@ Item {
         }
 
         root.currentLine = 5
+        root.currentLineProgress = 0.0
         lyricView.currentIndex = 5
         lyricView.positionViewAtIndex(5, ListView.Center)
         scheduleCenterCurrentLine()
@@ -755,6 +796,9 @@ Item {
         if (root.draggingLyric)
             return
 
+        if (lineNumber !== root.currentLine) {
+            root.currentLineProgress = 0.0
+        }
         root.currentLine = lineNumber
         lyricView.currentIndex = lineNumber
 
