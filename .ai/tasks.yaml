@@ -1,0 +1,301 @@
+version: 1
+updated_at: "2026-04-17 13:46"
+tasks:
+  - task_id: "module-bootstrap-shell-core"
+    title: "Keep shell-core ownership map current"
+    module: "shell-core"
+    owner_session: ""
+    status: "todo"
+    depends_on: []
+    files_expected:
+      - "src/app/main.cpp"
+      - "src/app/main_widget*"
+      - "src/viewmodels/MainShellViewModel*"
+    acceptance:
+      - "shell-core boundaries stay aligned with main shell and cross-page orchestration code."
+      - "Cross-module shell changes are linked from tasks or decisions before editing shared surfaces."
+    notes: "Long-term maintenance task for ownership and dependency hygiene."
+    updated_at: "2026-04-17 13:46"
+  - task_id: "module-bootstrap-auth-and-user"
+    title: "Keep auth-and-user ownership map current"
+    module: "auth-and-user"
+    owner_session: ""
+    status: "todo"
+    depends_on: []
+    files_expected:
+      - "src/ui/widgets/auth/"
+      - "src/ui/widgets/user/"
+      - "qml/components/auth/"
+      - "qml/components/user/"
+    acceptance:
+      - "Auth and user surfaces remain grouped under one module definition."
+      - "Login and profile work can be claimed without redefining boundaries."
+    notes: "Long-term maintenance task for welcome flow and profile surfaces."
+    updated_at: "2026-04-17 13:46"
+  - task_id: "module-bootstrap-library-and-search"
+    title: "Keep library-and-search ownership map current"
+    module: "library-and-search"
+    owner_session: ""
+    status: "todo"
+    depends_on: []
+    files_expected:
+      - "src/ui/widgets/library/"
+      - "src/ui/widgets/search/"
+      - "src/download/"
+      - "qml/components/library/"
+      - "qml/components/search/"
+    acceptance:
+      - "Search, discovery, local list, and download flows remain claimable as one feature module."
+      - "List-item actions and search history changes stay visible in one task stream."
+    notes: "Long-term maintenance task for music browsing and download surfaces."
+    updated_at: "2026-04-17 13:46"
+  - task_id: "module-bootstrap-playback-and-audio"
+    title: "Keep playback-and-audio ownership map current"
+    module: "playback-and-audio"
+    owner_session: ""
+    status: "todo"
+    depends_on: []
+    files_expected:
+      - "src/audio/"
+      - "src/playback/"
+      - "src/ui/widgets/playback/"
+      - "qml/components/playback/"
+    acceptance:
+      - "Audio pipeline and playback UI stay coordinated under one module."
+      - "Queue, control bar, and player state changes can be tracked without splitting ownership ad hoc."
+    notes: "Long-term maintenance task for playback behavior and audio pipeline work."
+    updated_at: "2026-04-17 13:46"
+  - task_id: "module-bootstrap-lyrics"
+    title: "Keep lyrics ownership map current"
+    module: "lyrics"
+    owner_session: ""
+    status: "todo"
+    depends_on: []
+    files_expected:
+      - "src/lyrics/"
+      - "src/ui/widgets/lyrics/"
+      - "qml/components/lyrics/"
+    acceptance:
+      - "Playback and desktop lyrics continue to share one clear ownership boundary."
+      - "Lyric display changes do not require redefining playback ownership."
+    notes: "Long-term maintenance task for lyric rendering and desktop lyric behavior."
+    updated_at: "2026-04-17 13:46"
+  - task_id: "module-bootstrap-video"
+    title: "Keep video ownership map current"
+    module: "video"
+    owner_session: ""
+    status: "todo"
+    depends_on: []
+    files_expected:
+      - "src/video/"
+      - "src/ui/widgets/video/"
+      - "qml/components/video/"
+    acceptance:
+      - "Video page, renderer, and player window remain one module."
+      - "Fullscreen, renderer, and list work can be assigned without crossing into playback ownership by default."
+    notes: "Long-term maintenance task for video playback features."
+    updated_at: "2026-04-17 13:46"
+  - task_id: "module-bootstrap-settings-and-theme"
+    title: "Keep settings-and-theme ownership map current"
+    module: "settings-and-theme"
+    owner_session: ""
+    status: "todo"
+    depends_on: []
+    files_expected:
+      - "src/ui/widgets/settings/"
+      - "src/common/settings_manager*"
+      - "qml/theme/Theme.js"
+      - "styles/netease.qss"
+    acceptance:
+      - "Settings persistence and theme surfaces remain grouped and documented as shared."
+      - "Cross-module config changes are preceded by task or decision updates."
+    notes: "Long-term maintenance task for client configuration and shared theme assets."
+    updated_at: "2026-04-17 13:46"
+  - task_id: "module-bootstrap-agent-qt-host"
+    title: "Keep agent-qt-host ownership map current"
+    module: "agent-qt-host"
+    owner_session: ""
+    status: "todo"
+    depends_on: []
+    files_expected:
+      - "src/agent/"
+      - "qml/components/agent/"
+      - "src/app/client_automation_host_service*"
+    acceptance:
+      - "Qt-side agent UI and host bridge remain one module definition."
+      - "Host-side tool and protocol changes are visible before crossing into Python runtime."
+    notes: "Long-term maintenance task for the Qt-side agent host stack."
+    updated_at: "2026-04-17 13:46"
+  - task_id: "module-bootstrap-agent-python-runtime"
+    title: "Keep agent-python-runtime ownership map current"
+    module: "agent-python-runtime"
+    owner_session: ""
+    status: "todo"
+    depends_on: []
+    files_expected:
+      - "agent/src/music_agent/"
+      - "agent/tests/"
+      - "agent/scripts/"
+    acceptance:
+      - "Python runtime, planning stack, and tests remain grouped under one ownership boundary."
+      - "Schema or control-runtime changes are tracked before affecting the Qt host."
+    notes: "Long-term maintenance task for the Python-side agent runtime."
+    updated_at: "2026-04-17 13:46"
+  - task_id: "module-bootstrap-plugins-and-build"
+    title: "Keep plugins-and-build ownership map current"
+    module: "plugins-and-build"
+    owner_session: ""
+    status: "todo"
+    depends_on: []
+    files_expected:
+      - "plugins/"
+      - "CMakeLists.txt"
+      - "CMakePresets.json"
+      - "qml.qrc"
+    acceptance:
+      - "Build and packaging entrypoints remain explicit shared surfaces."
+      - "Plugin and build graph work is routed through one ownership boundary."
+    notes: "Long-term maintenance task for build files, plugins, and resource graph changes."
+    updated_at: "2026-04-17 13:46"
+  - task_id: "module-bootstrap-docs-and-governance"
+    title: "Keep docs-and-governance ownership map current"
+    module: "docs-and-governance"
+    owner_session: ""
+    status: "todo"
+    depends_on: []
+    files_expected:
+      - "README.md"
+      - ".ai/"
+      - ".codex/skills/"
+      - "说明文档/"
+    acceptance:
+      - "Repository workflow docs stay aligned with current module boundaries."
+      - "New sessions can bootstrap from docs without chat history."
+    notes: "Long-term maintenance task for governance files and shared documentation."
+    updated_at: "2026-04-17 13:46"
+  - task_id: "observed-worktree-agent-qt-host"
+    title: "Unsubmitted Qt agent host changes need ownership"
+    module: "agent-qt-host"
+    owner_session: ""
+    status: "todo"
+    depends_on: []
+    files_expected:
+      - "src/agent/"
+      - "qml/components/agent/"
+      - "src/app/client_automation_host_service*"
+    acceptance:
+      - "An active session claims agent-qt-host before editing overlapping host-side agent files."
+      - "Protocol and tool changes that affect Python runtime are logged as dependencies or decisions first."
+    notes: "Observed from current worktree; placeholder only until a real owner sets status to doing."
+    updated_at: "2026-04-17 13:46"
+  - task_id: "observed-worktree-agent-python-runtime"
+    title: "Unsubmitted Python agent runtime changes need ownership"
+    module: "agent-python-runtime"
+    owner_session: ""
+    status: "todo"
+    depends_on: []
+    files_expected:
+      - "agent/src/music_agent/"
+      - "agent/tests/"
+      - "agent/scripts/"
+    acceptance:
+      - "An active session claims agent-python-runtime before editing overlapping runtime files."
+      - "Schema and control-runtime changes stay synchronized with host-side decisions."
+    notes: "Observed from current worktree; placeholder only until a real owner sets status to doing."
+    updated_at: "2026-04-17 13:46"
+  - task_id: "observed-worktree-shell-core"
+    title: "Unsubmitted shell-core changes need ownership"
+    module: "shell-core"
+    owner_session: ""
+    status: "todo"
+    depends_on: []
+    files_expected:
+      - "src/app/main.cpp"
+      - "src/app/main_widget*"
+      - "src/viewmodels/MainShellViewModel*"
+    acceptance:
+      - "An active session claims shell-core before editing shared shell files."
+      - "Any change to shared shell entrypoints is reflected in tasks or decisions first."
+    notes: "Observed from current worktree; placeholder only until a real owner sets status to doing."
+    updated_at: "2026-04-17 13:46"
+  - task_id: "observed-worktree-library-and-search"
+    title: "Unsubmitted library-and-search changes need ownership"
+    module: "library-and-search"
+    owner_session: ""
+    status: "todo"
+    depends_on: []
+    files_expected:
+      - "src/ui/widgets/library/"
+      - "src/ui/widgets/search/"
+      - "src/download/"
+      - "qml/components/library/"
+      - "qml/components/search/"
+    acceptance:
+      - "An active session claims library-and-search before editing overlapping browse/search files."
+      - "List, search, and download changes are tracked without spilling into playback by default."
+    notes: "Observed from current worktree; placeholder only until a real owner sets status to doing."
+    updated_at: "2026-04-17 13:46"
+  - task_id: "observed-worktree-playback-and-audio"
+    title: "Unsubmitted playback-and-audio changes need ownership"
+    module: "playback-and-audio"
+    owner_session: ""
+    status: "todo"
+    depends_on: []
+    files_expected:
+      - "src/audio/"
+      - "src/ui/widgets/playback/"
+      - "src/viewmodels/PlaybackViewModel*"
+      - "qml/components/playback/"
+    acceptance:
+      - "An active session claims playback-and-audio before editing overlapping playback files."
+      - "Tail logic, player UI, and queue state changes stay visible as one ownership stream."
+    notes: "Observed from current worktree; placeholder only until a real owner sets status to doing."
+    updated_at: "2026-04-17 13:46"
+  - task_id: "observed-worktree-video"
+    title: "Unsubmitted video changes need ownership"
+    module: "video"
+    owner_session: ""
+    status: "todo"
+    depends_on: []
+    files_expected:
+      - "src/video/"
+      - "src/ui/widgets/video/"
+      - "qml/components/video/"
+    acceptance:
+      - "An active session claims video before editing overlapping renderer or video page files."
+      - "Video-specific work stays isolated from playback-and-audio unless a dependency is logged."
+    notes: "Observed from current worktree; placeholder only until a real owner sets status to doing."
+    updated_at: "2026-04-17 13:46"
+  - task_id: "observed-worktree-settings-and-theme"
+    title: "Unsubmitted settings-and-theme changes need ownership"
+    module: "settings-and-theme"
+    owner_session: ""
+    status: "todo"
+    depends_on: []
+    files_expected:
+      - "src/ui/widgets/settings/"
+      - "src/common/settings_manager*"
+      - "qml/components/settings/"
+      - "qml/theme/Theme.js"
+      - "styles/netease.qss"
+    acceptance:
+      - "An active session claims settings-and-theme before editing overlapping config or theme files."
+      - "Shared configuration changes are paired with decision/task updates when other modules depend on them."
+    notes: "Observed from current worktree; placeholder only until a real owner sets status to doing."
+    updated_at: "2026-04-17 13:46"
+  - task_id: "observed-worktree-docs-and-governance"
+    title: "Unsubmitted docs-and-governance changes need ownership"
+    module: "docs-and-governance"
+    owner_session: ""
+    status: "todo"
+    depends_on: []
+    files_expected:
+      - "README.md"
+      - ".ai/"
+      - ".codex/skills/"
+      - "说明文档/"
+    acceptance:
+      - "An active session claims docs-and-governance before editing workflow docs or shared governance files."
+      - "Documentation updates remain aligned with current module boundaries and decisions."
+    notes: "Observed from current worktree; placeholder only until a real owner sets status to doing."
+    updated_at: "2026-04-17 13:46"
