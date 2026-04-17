@@ -10,7 +10,7 @@
 void PlayWidget::setupCoreConnections()
 {
     connect(this, &PlayWidget::signalStopRotate,
-            rotatingCircle, &RotatingCircleImage::onStopRotate);
+            rotatingCircle, &TurntableGlWidget::onStopRotate);
 
     // 歌词更新逻辑（由 ViewModel 转发时间轴和缓冲状态）。
     connect(m_playbackViewModel, &PlaybackViewModel::bufferingStateChanged,

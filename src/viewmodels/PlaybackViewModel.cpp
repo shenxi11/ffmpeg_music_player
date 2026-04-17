@@ -54,6 +54,38 @@ PlaybackViewModel::PlaybackViewModel(QObject* parent)
 
 PlaybackViewModel::~PlaybackViewModel() {}
 
+int PlaybackViewModel::currentIndex() const {
+    return m_audioService ? m_audioService->currentIndex() : -1;
+}
+
+int PlaybackViewModel::playModeValue() const {
+    return m_audioService ? static_cast<int>(m_audioService->playMode()) : 0;
+}
+
+bool PlaybackViewModel::hasActiveTrack() const {
+    return m_audioService && m_audioService->currentIndex() >= 0 &&
+           m_audioService->playlistSize() > 0;
+}
+
+QVariantMap PlaybackViewModel::currentTrackSnapshot() const {
+    QVariantMap snapshot;
+
+    QString title = m_currentTitle.trimmed();
+    if (title.isEmpty()) {
+        title = titleFromUrl(m_currentUrl);
+    }
+
+    snapshot.insert(QStringLiteral("url"), m_currentUrl.toString());
+    snapshot.insert(QStringLiteral("filePath"), m_currentFilePath);
+    snapshot.insert(QStringLiteral("title"), title);
+    snapshot.insert(QStringLiteral("artist"), m_currentArtist.trimmed());
+    snapshot.insert(QStringLiteral("album"), m_currentAlbum.trimmed());
+    snapshot.insert(QStringLiteral("albumArt"), m_currentAlbumArt.trimmed());
+    snapshot.insert(QStringLiteral("durationMs"), qMax<qint64>(0, m_duration));
+    snapshot.insert(QStringLiteral("isLocal"), m_currentUrl.isLocalFile());
+    return snapshot;
+}
+
 void PlaybackViewModel::play(const QUrl& url) {
     setIsBusy(true);
     clearError();

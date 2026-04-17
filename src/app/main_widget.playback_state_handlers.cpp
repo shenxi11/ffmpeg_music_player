@@ -59,10 +59,12 @@ void MainWidget::handleAudioPlaybackPaused() {
         m_playbackStateManager->onAudioInactive();
     }
 
-    QUrl url = AudioService::instance().currentUrl();
-    QString filePath = url.toLocalFile();
-    if (filePath.isEmpty()) {
-        filePath = url.toString();
+    QString filePath;
+    if (w && w->playbackViewModel()) {
+        filePath = w->playbackViewModel()->currentFilePath().trimmed();
+        if (filePath.isEmpty()) {
+            filePath = w->playbackViewModel()->currentUrl().toString().trimmed();
+        }
     }
     localAndDownloadWidget->setPlayingState(filePath, false);
     net_list->setPlayingState(filePath, false);
@@ -77,10 +79,12 @@ void MainWidget::handleAudioPlaybackResumed() {
         m_playbackStateManager->onAudioPlayIntent();
     }
 
-    QUrl url = AudioService::instance().currentUrl();
-    QString filePath = url.toLocalFile();
-    if (filePath.isEmpty()) {
-        filePath = url.toString();
+    QString filePath;
+    if (w && w->playbackViewModel()) {
+        filePath = w->playbackViewModel()->currentFilePath().trimmed();
+        if (filePath.isEmpty()) {
+            filePath = w->playbackViewModel()->currentUrl().toString().trimmed();
+        }
     }
     localAndDownloadWidget->setPlayingState(filePath, true);
     net_list->setPlayingState(filePath, true);

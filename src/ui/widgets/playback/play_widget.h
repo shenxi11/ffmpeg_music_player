@@ -1,4 +1,4 @@
-﻿#ifndef PLAY_WIDGET_H
+#ifndef PLAY_WIDGET_H
 #define PLAY_WIDGET_H
 
 #include <QWidget>
@@ -8,12 +8,10 @@
 #include <QVariantMap>
 #include <QResizeEvent>
 #include "headers.h"
-// 音频播放核心服务（会话、解码、渲染由该服务统一调度）。
-#include "AudioService.h"
 #include "viewmodels/PlaybackViewModel.h"  // 播放页面 ViewModel（UI 层入口）
 #include "lrc_analyze.h"
 #include "lyricdisplay_qml.h"
-#include "rotatingcircleimage.h"
+#include "turntable_gl_widget.h"
 #include "process_slider_qml.h"
 #include "controlbar_qml.h"
 #include "desklrc_qml.h"
@@ -27,7 +25,7 @@ class MainShellViewModel;
 class PlayWidget : public QWidget
 {
     Q_OBJECT
-    
+
     // MVVM 架构说明
     Q_PROPERTY(PlaybackViewModel* playbackViewModel READ playbackViewModel CONSTANT)
 
@@ -168,6 +166,7 @@ private:
     void handleCoverExpandRequested();
     void handleLyricPositionChanged();
     int resolveTargetLyricLine(qint64 positionMs) const;
+    qreal resolveCurrentLyricProgress(qint64 positionMs) const;
     void refreshCurrentLyricHighlight(bool forceRecenter);
     void handleSimilarPlayRequested(const QVariantMap& item);
     void handlePlayerPageStyleRequested(int styleId);
@@ -224,16 +223,13 @@ private:
     void initLyricDisplay();
     void rePlay(QString path);
 
-    // 播放页内部遵循“会话驱动 + UI被动同步”模式：
-    // 1) AudioSession 提供时间轴与状态；2) PlayWidget 只负责展示与交互回传。
-    // 这样可以减少播放状态在多列表间分叉。
-    
+    // 播放页内部遵循“ViewModel 驱动 + UI 被动同步”模式：
+    // 1) PlaybackViewModel 提供时间轴与状态；2) PlayWidget 只负责展示与交互回传。
+    // 这样可以减少 UI 直接依赖底层播放服务和会话实现。
+
     // MVVM 架构说明
     PlaybackViewModel* m_playbackViewModel;  // 播放页面 ViewModel（UI 层入口）
-    
-    // 当前音频会话句柄，切歌时会替换并重新绑定信号。
-    AudioSession* currentSession;  // 当前播放会话（用于歌词与进度同步）
-    
+
     std::shared_ptr<LrcAnalyze> lrc;// 歌词解析模块
     std::map<int, std::string> lyrics;
 
@@ -243,7 +239,7 @@ private:
     QString currentSongArtist;  // 当前显示的歌手名
     QString networkSongArtist;  // 在线歌曲元数据中的歌手名
     QString networkSongCover;   // 在线歌曲元数据中的封面地址
-    
+
     LyricDisplayQml *lyricDisplay;
     QPushButton *music;
     QPushButton* net;
@@ -253,7 +249,7 @@ private:
     QLabel* artistInfoLabel = nullptr;
     QLabel* sceneLabel = nullptr;
     QLabel* backgroundLabel;  // 背景图层（用于封面模糊或默认渐变）
-    RotatingCircleImage* rotatingCircle;  // 唱片旋转控件
+    TurntableGlWidget* rotatingCircle;  // 2D 唱片机控件
     QWidget* rotatingCircleHost = nullptr;
     QWidget* squareCoverHost = nullptr;
     QLabel* squareCoverLabel = nullptr;
@@ -262,7 +258,7 @@ private:
     QPixmap m_originalBackgroundPixmap;
     QPixmap m_stageBackgroundCache;
     bool m_stageBackgroundCacheDirty = true;
-    
+
     // 歌词滚动信号连接，切歌时需断开旧连接防止重复触发。
     QMetaObject::Connection lyricUpdateConnection;
     // 历史线程字段已废弃，保留注释以便追踪旧实现。
@@ -270,7 +266,7 @@ private:
     //QThread *b;
     //QThread *c;
     // 歌词解析任务使用独立线程，避免阻塞 UI 渲染。
-    
+
     // 解析线程与播放进度连接句柄。
     QThread *b;  // 歌词解析线程
     QMetaObject::Connection positionUpdateConnection;  // 播放位置更新连接

@@ -27,6 +27,15 @@ class UserMessage(MessageEnvelope):
     request_id: str | None = Field(default=None, alias="requestId")
 
 
+class HostSnapshotMessage(MessageEnvelope):
+    model_config = ConfigDict(populate_by_name=True)
+
+    type: Literal["host_snapshot"]
+    host_context: dict = Field(default_factory=dict, alias="hostContext")
+    capabilities: list[dict] = Field(default_factory=list)
+    catalog_version: str | None = Field(default=None, alias="catalogVersion")
+
+
 class AssistantStartMessage(MessageEnvelope):
     model_config = ConfigDict(populate_by_name=True)
 
@@ -256,6 +265,12 @@ class HealthResponse(BaseModel):
     status: Literal["ok", "degraded"]
     model_configured: bool = Field(alias="modelConfigured")
     missing_config: list[str] = Field(alias="missingConfig")
+    local_model_base_url: str | None = Field(default=None, alias="localModelBaseUrl")
+    local_model_name: str | None = Field(default=None, alias="localModelName")
+    remote_model_enabled: bool = Field(default=False, alias="remoteModelEnabled")
+    remote_model_base_url: str | None = Field(default=None, alias="remoteModelBaseUrl")
+    remote_model_name: str | None = Field(default=None, alias="remoteModelName")
+    default_mode: str = Field(default="control", alias="defaultMode")
     openai_base_url: str | None = Field(alias="openaiBaseUrl")
     openai_model: str | None = Field(alias="openaiModel")
     openai_wire_api: str = Field(alias="openaiWireApi")

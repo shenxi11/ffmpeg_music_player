@@ -25,6 +25,15 @@ class SettingsViewModel : public BaseViewModel
     Q_PROPERTY(bool downloadLyrics READ downloadLyrics NOTIFY downloadLyricsChanged)
     Q_PROPERTY(bool downloadCover READ downloadCover NOTIFY downloadCoverChanged)
     Q_PROPERTY(int playerPageStyle READ playerPageStyle NOTIFY playerPageStyleChanged)
+    Q_PROPERTY(QString agentMode READ agentMode NOTIFY agentSettingsChanged)
+    Q_PROPERTY(QString agentLocalModelPath READ agentLocalModelPath NOTIFY agentSettingsChanged)
+    Q_PROPERTY(QString agentLocalModelBaseUrl READ agentLocalModelBaseUrl NOTIFY agentSettingsChanged)
+    Q_PROPERTY(QString agentLocalModelName READ agentLocalModelName NOTIFY agentSettingsChanged)
+    Q_PROPERTY(int agentLocalContextSize READ agentLocalContextSize NOTIFY agentSettingsChanged)
+    Q_PROPERTY(int agentLocalThreadCount READ agentLocalThreadCount NOTIFY agentSettingsChanged)
+    Q_PROPERTY(bool agentRemoteFallbackEnabled READ agentRemoteFallbackEnabled NOTIFY agentSettingsChanged)
+    Q_PROPERTY(QString agentRemoteBaseUrl READ agentRemoteBaseUrl NOTIFY agentSettingsChanged)
+    Q_PROPERTY(QString agentRemoteModelName READ agentRemoteModelName NOTIFY agentSettingsChanged)
     Q_PROPERTY(QString serverHost READ serverHost NOTIFY settingsCenterChanged)
     Q_PROPERTY(int serverPort READ serverPort NOTIFY settingsCenterChanged)
     Q_PROPERTY(bool launchAtStartup READ launchAtStartup NOTIFY settingsCenterChanged)
@@ -157,6 +166,15 @@ public:
     bool downloadLyrics() const;
     bool downloadCover() const;
     int playerPageStyle() const;
+    QString agentMode() const;
+    QString agentLocalModelPath() const;
+    QString agentLocalModelBaseUrl() const;
+    QString agentLocalModelName() const;
+    int agentLocalContextSize() const;
+    int agentLocalThreadCount() const;
+    bool agentRemoteFallbackEnabled() const;
+    QString agentRemoteBaseUrl() const;
+    QString agentRemoteModelName() const;
     QString serverHost() const;
     int serverPort() const;
     bool launchAtStartup() const;
@@ -260,6 +278,15 @@ public slots:
     void setDownloadLyrics(bool enabled);
     void setDownloadCover(bool enabled);
     void setPlayerPageStyle(int styleId);
+    void setAgentMode(const QString& mode);
+    void setAgentLocalModelPath(const QString& modelPath);
+    void setAgentLocalModelBaseUrl(const QString& baseUrl);
+    void setAgentLocalModelName(const QString& modelName);
+    void setAgentLocalContextSize(int contextSize);
+    void setAgentLocalThreadCount(int threadCount);
+    void setAgentRemoteFallbackEnabled(bool enabled);
+    void setAgentRemoteBaseUrl(const QString& baseUrl);
+    void setAgentRemoteModelName(const QString& modelName);
     void setServerHost(const QString& host);
     void setServerPort(int port);
     void setLaunchAtStartup(bool enabled);
@@ -355,6 +382,7 @@ signals:
     void downloadLyricsChanged();
     void downloadCoverChanged();
     void playerPageStyleChanged();
+    void agentSettingsChanged();
     void settingsCenterChanged();
     void presenceChanged();
     void messageRequested(const QString& title, const QString& message);

@@ -1,9 +1,9 @@
 #ifndef PLAYLIST_WIDGET_H
 #define PLAYLIST_WIDGET_H
 
-#include <QHash>
-#include <QQuickItem>
 #include <QQuickWidget>
+#include <QQuickItem>
+#include <QHash>
 #include <QVariantList>
 #include <QVariantMap>
 
@@ -16,10 +16,11 @@
 异常与错误: QML根对象为空时跳过调用并记录日志。
 维护说明: 仅负责 UI 桥接，不承载网络请求逻辑。
 */
-class PlaylistWidget : public QQuickWidget {
+class PlaylistWidget : public QQuickWidget
+{
     Q_OBJECT
 
-  public:
+public:
     explicit PlaylistWidget(QWidget* parent = nullptr);
 
     void setLoggedIn(bool loggedIn, const QString& userAccount = QString());
@@ -37,34 +38,34 @@ class PlaylistWidget : public QQuickWidget {
     QVariantList ownedPlaylistsSnapshot() const;
     QVariantList subscribedPlaylistsSnapshot() const;
 
-  signals:
+signals:
     void loginRequested();
     void refreshRequested();
     void openPlaylistRequested(qint64 playlistId);
     void createPlaylistRequested(const QString& name, const QString& description);
-    void updatePlaylistRequested(qint64 playlistId, const QString& name,
-                                 const QString& description);
+    void updatePlaylistRequested(qint64 playlistId, const QString& name, const QString& description);
     void deletePlaylistRequested(qint64 playlistId);
     void removePlaylistItemsRequested(qint64 playlistId, const QStringList& musicPaths);
     void reorderPlaylistItemsRequested(qint64 playlistId, const QVariantList& orderedItems);
     void addCurrentSongRequested(qint64 playlistId);
-    void playMusicWithMetadata(const QString& filePath, const QString& title, const QString& artist,
+    void playMusicWithMetadata(const QString& filePath,
+                               const QString& title,
+                               const QString& artist,
                                const QString& cover);
     void songActionRequested(const QString& action, const QVariantMap& songData);
 
-  private slots:
+private slots:
     void handleOpenPlaylistRequested(const QVariant& playlistIdValue);
-    void handleUpdatePlaylistRequested(const QVariant& playlistIdValue, const QString& name,
+    void handleUpdatePlaylistRequested(const QVariant& playlistIdValue,
+                                       const QString& name,
                                        const QString& description);
     void handleDeletePlaylistRequested(const QVariant& playlistIdValue);
-    void handleRemovePlaylistItemsRequested(const QVariant& playlistIdValue,
-                                            const QVariant& musicPathsValue);
-    void handleReorderPlaylistItemsRequested(const QVariant& playlistIdValue,
-                                             const QVariant& orderedItemsValue);
+    void handleRemovePlaylistItemsRequested(const QVariant& playlistIdValue, const QVariant& musicPathsValue);
+    void handleReorderPlaylistItemsRequested(const QVariant& playlistIdValue, const QVariant& orderedItemsValue);
     void handleAddCurrentSongRequested(const QVariant& playlistIdValue);
     void handleSongActionRequested(const QString& action, const QVariant& payload);
 
-  private:
+private:
     QVariantMap normalizePlaylistDetailForCover(const QVariantMap& detail);
     void updateCachedPlaylistCover(qint64 playlistId, const QString& coverUrl);
     QVariantList m_lastPlaylists;

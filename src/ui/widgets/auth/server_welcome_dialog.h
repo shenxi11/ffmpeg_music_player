@@ -13,26 +13,25 @@ class QShowEvent;
 class QString;
 class ServerWelcomeViewModel;
 
-class ServerWelcomeDialog : public QDialog {
+class ServerWelcomeDialog : public QDialog
+{
     Q_OBJECT
 
-  public:
+public:
     explicit ServerWelcomeDialog(bool autoVerifyOnShow = true, QWidget* parent = nullptr);
-    bool enterLocalOnly() const {
-        return m_enterLocalOnly;
-    }
+    bool enterLocalOnly() const { return m_enterLocalOnly; }
 
-  protected:
+protected:
     void showEvent(QShowEvent* event) override;
     void mousePressEvent(QMouseEvent* event) override;
     void mouseMoveEvent(QMouseEvent* event) override;
     void mouseReleaseEvent(QMouseEvent* event) override;
 
-  private slots:
+private slots:
     void onVerifyClicked();
     void onEnterLocalOnlyClicked();
 
-  private:
+private:
     // 连接拆分：统一维护按钮、快捷键与输入触发行为。
     void setupInteractionConnections();
     void moveToScreenCenter();
@@ -41,7 +40,7 @@ class ServerWelcomeDialog : public QDialog {
     void setUiBusy(bool busy);
     void setStatusMessage(const QString& message, bool isError);
 
-  private:
+private:
     QLineEdit* m_hostEdit = nullptr;
     QSpinBox* m_portSpin = nullptr;
     QFrame* m_statusFrame = nullptr;

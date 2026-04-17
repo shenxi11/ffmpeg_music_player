@@ -24,6 +24,26 @@
 - 设置页新增在线状态面板：可查看账号、会话 token、心跳间隔、TTL、TTL 剩余、最近上报时间，并支持手动刷新。
 - 构建状态：`Debug` 版本可成功编译并运行（Windows + CMake + Qt）。
 
+## 🤝 多 AI 协作
+
+这个仓库现在内置了一套面向“多个 Codex 会话并行开发不同模块”的协作约定。
+
+- 协作 skill 位于 `.codex/skills/multi-ai-module-collab/`
+- 共享状态文件位于 `.ai/`
+- 新会话进入仓库后，先读取 `.ai/ownership.yaml`、`.ai/tasks.yaml`、`.ai/decisions.md`
+- 全仓库模块地图以 `.ai/ownership.yaml` 为唯一准入索引，先按模块认领，再看任务板
+- 再显式使用 `$multi-ai-module-collab`，确认自己要认领的模块和任务
+- 会话结束前，更新任务状态并在 `.ai/handoffs/` 写入一份 handoff
+
+`.ai/` 目录用途：
+
+- `.ai/ownership.yaml`：记录模块归属
+- `.ai/tasks.yaml`：记录活跃任务与验收条件
+- `.ai/decisions.md`：记录跨模块决策
+- `.ai/handoffs/`：记录每次会话的交接文件
+
+默认按“目录/模块”而不是“单文件”认领，避免不同会话互相覆盖改动。
+
 ## 🎵 功能特性
 
 ### 🎶 音乐播放

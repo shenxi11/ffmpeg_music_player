@@ -1,7 +1,5 @@
 #include "main_widget.h"
 
-#include "AudioService.h"
-
 #include <QCursor>
 #include <QDir>
 #include <QFileInfo>
@@ -175,8 +173,11 @@ QString derivePlaylistCoverFromDetailMap(const QVariantMap& detail) {
     }
 
     const QVariantMap firstItem = items.constFirst().toMap();
-    const QStringList candidateKeys = {QStringLiteral("cover_art_url"), QStringLiteral("cover_url"),
-                                       QStringLiteral("cover_art_path")};
+    const QStringList candidateKeys = {
+        QStringLiteral("cover_art_url"),
+        QStringLiteral("cover_url"),
+        QStringLiteral("cover_art_path")
+    };
     for (const QString& key : candidateKeys) {
         const QString cover = firstItem.value(key).toString().trimmed();
         if (!cover.isEmpty()) {
@@ -678,22 +679,16 @@ void MainWidget::handlePlaylistAddCurrentSongRequested(qint64 playlistId) {
         return;
     }
 
-    AudioSession* session = AudioService::instance().currentSession();
-    if (!session) {
+    PlaybackViewModel* playbackVm = w ? w->playbackViewModel() : nullptr;
+    if (!playbackVm || !playbackVm->hasActiveTrack()) {
         QMessageBox::information(this, QStringLiteral("提示"),
                                  QStringLiteral("当前没有可添加的播放歌曲。"));
         return;
     }
 
-    QUrl currentUrl = AudioService::instance().currentUrl();
-    if (!currentUrl.isValid() || currentUrl.toString().trimmed().isEmpty()) {
-        QMessageBox::warning(this, QStringLiteral("提示"),
-                             QStringLiteral("当前歌曲路径为空，无法添加到歌单。"));
-        return;
-    }
-
-    QString musicPath = currentUrl.isLocalFile() ? currentUrl.toLocalFile() : currentUrl.toString();
-    if (musicPath.trimmed().isEmpty()) {
+    const QVariantMap trackSnapshot = playbackVm->currentTrackSnapshot();
+    const QString musicPath = trackSnapshot.value(QStringLiteral("filePath")).toString().trimmed();
+    if (musicPath.isEmpty()) {
         QMessageBox::warning(this, QStringLiteral("提示"),
                              QStringLiteral("当前歌曲路径为空，无法添加到歌单。"));
         return;
@@ -701,17 +696,21 @@ void MainWidget::handlePlaylistAddCurrentSongRequested(qint64 playlistId) {
 
     QVariantMap item;
     item.insert(QStringLiteral("music_path"), musicPath);
-    item.insert(QStringLiteral("music_title"), session->title().trimmed().isEmpty()
-                                                   ? QFileInfo(musicPath).completeBaseName()
-                                                   : session->title());
-    item.insert(QStringLiteral("artist"), normalizeArtistForHistory(session->artist()));
+    const QString title = trackSnapshot.value(QStringLiteral("title")).toString().trimmed();
+    item.insert(QStringLiteral("music_title"),
+                title.isEmpty() ? QFileInfo(musicPath).completeBaseName() : title);
+    item.insert(QStringLiteral("artist"), normalizeArtistForHistory(
+                                               trackSnapshot.value(QStringLiteral("artist"))
+                                                   .toString()));
     item.insert(QStringLiteral("album"), QString());
-    item.insert(QStringLiteral("duration_sec"),
-                static_cast<int>(qMax<qint64>(0, session->duration() / 1000)));
-    const bool isLocal = !musicPath.startsWith("http", Qt::CaseInsensitive);
+    item.insert(QStringLiteral("duration_sec"), static_cast<int>(qMax<qint64>(
+                                                  0, trackSnapshot.value(QStringLiteral("durationMs"))
+                                                         .toLongLong() /
+                                                         1000)));
+    const bool isLocal = trackSnapshot.value(QStringLiteral("isLocal")).toBool();
     item.insert(QStringLiteral("is_local"), isLocal);
 
-    QString coverSource = session->albumArt().trimmed();
+    QString coverSource = trackSnapshot.value(QStringLiteral("albumArt")).toString().trimmed();
     if (!isLocal && !m_networkMusicCover.trimmed().isEmpty()) {
         coverSource = m_networkMusicCover.trimmed();
     }
@@ -738,13 +737,13 @@ void MainWidget::handlePlaylistsListReady(const QVariantList& playlists, int pag
         QVariantMap playlist = item.toMap();
         const qint64 playlistId = playlist.value(QStringLiteral("id")).toLongLong();
         if (playlistId > 0 && m_playlistDerivedCoverUrls.contains(playlistId)) {
-            playlist.insert(QStringLiteral("cover_url"),
-                            m_playlistDerivedCoverUrls.value(playlistId));
+            playlist.insert(QStringLiteral("cover_url"), m_playlistDerivedCoverUrls.value(playlistId));
         } else if (playlistId > 0) {
             bool cacheFound = false;
-            const QString cachedCover = lookupPlaylistCoverCache(
-                account, playlistId, playlist.value(QStringLiteral("updated_at")).toString(),
-                &cacheFound);
+            const QString cachedCover =
+                lookupPlaylistCoverCache(account, playlistId,
+                                         playlist.value(QStringLiteral("updated_at")).toString(),
+                                         &cacheFound);
             if (cacheFound) {
                 playlist.insert(QStringLiteral("cover_url"), cachedCover);
                 m_playlistDerivedCoverUrls.insert(playlistId, cachedCover);
@@ -936,10 +935,12 @@ void MainWidget::handleSongActionRequested(const QString& action, const QVariant
             (action == QStringLiteral("add_to_playlist") ||
              action == QStringLiteral("create_playlist_and_add") ||
              action == QStringLiteral("add_favorite") ||
-             action == QStringLiteral("remove_favorite") || action == QStringLiteral("download"));
-        const bool remotePlaybackAction = !isLocal && (action == QStringLiteral("play") ||
-                                                       action == QStringLiteral("play_next") ||
-                                                       action == QStringLiteral("queue_append"));
+             action == QStringLiteral("remove_favorite") ||
+             action == QStringLiteral("download"));
+        const bool remotePlaybackAction =
+            !isLocal &&
+            (action == QStringLiteral("play") || action == QStringLiteral("play_next") ||
+             action == QStringLiteral("queue_append"));
         if (serverOnlyAction || remotePlaybackAction) {
             showLocalOnlyUnavailableMessage();
             return;
@@ -1072,8 +1073,8 @@ void MainWidget::applyPlaylistCoverToUiCaches(qint64 playlistId, const QString& 
     m_playlistDerivedCoverUrls.insert(playlistId, normalizedCoverUrl);
     storePlaylistCoverCache(playlistId, normalizedUpdatedAt, normalizedCoverUrl);
 
-    auto patchCollection = [playlistId, &normalizedCoverUrl,
-                            &normalizedUpdatedAt](QVariantList& playlists) {
+    auto patchCollection = [playlistId, &normalizedCoverUrl, &normalizedUpdatedAt](
+                               QVariantList& playlists) {
         for (QVariant& value : playlists) {
             QVariantMap item = value.toMap();
             if (item.value(QStringLiteral("id")).toLongLong() != playlistId) {
@@ -1101,12 +1102,12 @@ void MainWidget::applyPlaylistCoverToUiCaches(qint64 playlistId, const QString& 
 }
 
 void MainWidget::queueSongAsNext(const QVariantMap& songData) {
-    if (!w || !w->playbackViewModel()) {
+    PlaybackViewModel* playbackVm = w ? w->playbackViewModel() : nullptr;
+    if (!playbackVm) {
         return;
     }
 
-    if (AudioService::instance().currentIndex() < 0 ||
-        AudioService::instance().playlistSize() <= 0) {
+    if (!playbackVm->hasActiveTrack()) {
         playSongByAction(songData);
         return;
     }
@@ -1115,8 +1116,8 @@ void MainWidget::queueSongAsNext(const QVariantMap& songData) {
     if (!url.isValid() || url.isEmpty()) {
         return;
     }
-    w->playbackViewModel()->rememberTrackMetadata(url, songData);
-    w->playbackViewModel()->queueTrackAsNext(url);
+    playbackVm->rememberTrackMetadata(url, songData);
+    playbackVm->queueTrackAsNext(url);
 }
 
 void MainWidget::appendSongToPlaybackQueue(const QVariantMap& songData) {

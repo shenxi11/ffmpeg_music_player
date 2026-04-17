@@ -1,4 +1,4 @@
-﻿<RCC>
+<RCC>
     <qresource prefix="/">
         <file>qml/MainView.qml</file>
         <file>qml/components/search/SearchBox.qml</file>
@@ -85,19 +85,9 @@
         <file>qml/assets/ai/icons/default-user-avatar.svg</file>
         <file>qml/assets/ai/icons/main-menu.svg</file>
         <file>qml/assets/ai/icons/default-music-cover.svg</file>
-        <file>qml/assets/ai/icons/video-close.svg</file>
-        <file>qml/assets/ai/icons/video-open.svg</file>
-        <file>qml/assets/ai/icons/video-play.svg</file>
-        <file>qml/assets/ai/icons/video-pause.svg</file>
-        <file>qml/assets/ai/icons/video-stop.svg</file>
-        <file>qml/assets/ai/icons/video-fullscreen-enter.svg</file>
-        <file>qml/assets/ai/icons/video-fullscreen-exit.svg</file>
-        <file>qml/assets/ai/icons/video-fit.svg</file>
-        <file>qml/assets/ai/icons/video-fill.svg</file>
-        <file>qml/assets/ai/icons/video-speed.svg</file>
-        <file>qml/assets/ai/icons/video-quality.svg</file>
         <file>qml/assets/ai/icons/welcome-server.svg</file>
         <file>qml/assets/ai/icons/welcome-offline.svg</file>
+        <file>qml/assets/turntable/needle.png</file>
     </qresource>
 </RCC>
 

@@ -5,6 +5,7 @@
 #include <QList>
 #include <QObject>
 #include <QString>
+
 #include <functional>
 
 class QNetworkAccessManager;
@@ -12,10 +13,11 @@ class QNetworkAccessManager;
 /**
  * @brief 客户端封面缓存管理器，统一处理封面 URL 规范化、远程落盘和 QML 展示路径。
  */
-class CoverCacheManager : public QObject {
+class CoverCacheManager : public QObject
+{
     Q_OBJECT
 
-  public:
+public:
     using CacheCallback = std::function<void(const QString&)>;
 
     static CoverCacheManager& instance();
@@ -26,10 +28,10 @@ class CoverCacheManager : public QObject {
     QString imageSourceForCover(const QString& rawCover);
     void cacheRemoteCover(const QString& rawCover, CacheCallback callback = {});
 
-  signals:
+signals:
     void coverCached(const QString& normalizedSource, const QString& localFilePath);
 
-  private:
+private:
     explicit CoverCacheManager(QObject* parent = nullptr);
 
     QString cacheDirectory() const;

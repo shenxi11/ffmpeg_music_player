@@ -1,10 +1,11 @@
 #include "main_widget.h"
 
 #include "VideoPlayerWindow.h"
+#include "client_automation_host_service.h"
 #include "playback_state_manager.h"
 #include "plugin_host_window.h"
-#include "search_history_popup.h"
 #include "plugin_manager.h"
+#include "search_history_popup.h"
 #include "searchbox_qml.h"
 #include "settings_manager.h"
 
@@ -34,21 +35,113 @@
 
 namespace {
 
-QIcon defaultSidebarPlaylistCoverIcon() {
+// 顶部 AI 入口临时关闭，底层 Agent 能力保留用于内部联调和后续恢复。
+constexpr bool kAiAssistantTopEntryEnabled = false;
+
+bool agentPathIsLocal(const QString& rawPath)
+{
+    const QString trimmed = rawPath.trimmed();
+    if (trimmed.isEmpty()) {
+        return false;
+    }
+
+    const QUrl url = QUrl::fromUserInput(trimmed);
+    if (url.isLocalFile()) {
+        return true;
+    }
+
+    const QFileInfo fileInfo(trimmed);
+    return fileInfo.isAbsolute();
+}
+
+qint64 agentDurationMsFromText(const QString& durationText)
+{
+    const QString trimmed = durationText.trimmed();
+    if (trimmed.isEmpty()) {
+        return 0;
+    }
+
+    if (trimmed.contains(':')) {
+        const QStringList parts = trimmed.split(':');
+        if (parts.size() >= 2) {
+            bool okMin = false;
+            bool okSec = false;
+            const qint64 minutes = parts.at(0).toLongLong(&okMin);
+            const qint64 seconds = parts.at(1).toLongLong(&okSec);
+            if (okMin && okSec) {
+                return qMax<qint64>(0, minutes * 60 + seconds) * 1000;
+            }
+        }
+    }
+
+    bool ok = false;
+    const qint64 seconds = trimmed.toLongLong(&ok);
+    return ok ? qMax<qint64>(0, seconds) * 1000 : 0;
+}
+
+qint64 parsePlaylistTrackId(const QVariantMap& rawItem)
+{
+    qint64 trackId = rawItem.value(QStringLiteral("track_id")).toLongLong();
+    if (trackId > 0) {
+        return trackId;
+    }
+
+    trackId = rawItem.value(QStringLiteral("music_id")).toLongLong();
+    if (trackId > 0) {
+        return trackId;
+    }
+
+    trackId = rawItem.value(QStringLiteral("id")).toLongLong();
+    if (trackId > 0) {
+        return trackId;
+    }
+
+    return rawItem.value(QStringLiteral("trackId")).toLongLong();
+}
+
+qint64 parsePlaylistCollectionId(const QVariantMap& raw)
+{
+    qint64 playlistId = raw.value(QStringLiteral("playlist_id")).toLongLong();
+    if (playlistId > 0) {
+        return playlistId;
+    }
+
+    playlistId = raw.value(QStringLiteral("playlistId")).toLongLong();
+    if (playlistId > 0) {
+        return playlistId;
+    }
+
+    return raw.value(QStringLiteral("id")).toLongLong();
+}
+
+QString fallbackTrackId(const QString& path, const QString& title, const QString& artist)
+{
+    const QString base = QStringLiteral("%1|%2|%3").arg(path, title, artist);
+    const QByteArray digest =
+        QCryptographicHash::hash(base.toUtf8(), QCryptographicHash::Md5).toHex();
+    return QString::fromLatin1(digest.constData(), digest.size());
+}
+
+QIcon defaultSidebarPlaylistCoverIcon()
+{
     return QIcon(QStringLiteral(":/qml/assets/ai/icons/default-music-cover.svg"));
 }
 
-bool isRemoteCoverSource(const QString& source) {
+bool isRemoteCoverSource(const QString& source)
+{
     return source.startsWith(QStringLiteral("http://"), Qt::CaseInsensitive) ||
            source.startsWith(QStringLiteral("https://"), Qt::CaseInsensitive);
 }
 
-bool isWindowsDrivePath(const QString& path) {
-    return path.size() >= 3 && path.at(1) == QLatin1Char(':') && path.at(0).isLetter() &&
+bool isWindowsDrivePath(const QString& path)
+{
+    return path.size() >= 3 && path.at(1) == QLatin1Char(':') &&
+           path.at(0).isLetter() &&
            (path.at(2) == QLatin1Char('/') || path.at(2) == QLatin1Char('\\'));
 }
 
-QString collapseDuplicateUploads(QString text) {
+QString collapseDuplicateUploads(QString text)
+{
     text = QDir::fromNativeSeparators(text.trimmed());
     while (text.contains(QStringLiteral("/uploads/uploads/"), Qt::CaseInsensitive)) {
         text.replace(QStringLiteral("/uploads/uploads/"), QStringLiteral("/uploads/"),
@@ -60,7 +153,8 @@ QString collapseDuplicateUploads(QString text) {
     return text;
 }
 
-QString stripUploadsPrefix(QString path) {
+QString stripUploadsPrefix(QString path)
+{
     path = collapseDuplicateUploads(path);
     while (path.startsWith(QLatin1Char('/'))) {
         path.remove(0, 1);
@@ -71,7 +165,8 @@ QString stripUploadsPrefix(QString path) {
     return path;
 }
 
-QString normalizeSidebarPlaylistCoverSource(const QString& rawCover) {
+QString normalizeSidebarPlaylistCoverSource(const QString& rawCover)
+{
     QString cover = collapseDuplicateUploads(rawCover);
     if (cover.isEmpty()) {
         return QString();
@@ -104,31 +199,35 @@ QString normalizeSidebarPlaylistCoverSource(const QString& rawCover) {
     return cover;
 }
 
-QString playlistCoverCacheDirectory() {
+QString playlistCoverCacheDirectory()
+{
     const QString base = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
     return QDir(base.isEmpty() ? QDir::currentPath() : base)
         .absoluteFilePath(QStringLiteral("playlist_cover_cache"));
 }
 
-QString playlistCoverCacheIndexPath() {
+QString playlistCoverCacheIndexPath()
+{
     return QDir(playlistCoverCacheDirectory()).absoluteFilePath(QStringLiteral("index.json"));
 }
 
-QString playlistCoverCacheKey(const QString& account, qint64 playlistId, const QString& updatedAt) {
-    const QString rawKey =
-        QStringLiteral("%1|%2|%3").arg(account, QString::number(playlistId), updatedAt);
+QString playlistCoverCacheKey(const QString& account, qint64 playlistId, const QString& updatedAt)
+{
+    const QString rawKey = QStringLiteral("%1|%2|%3").arg(account, QString::number(playlistId), updatedAt);
     const QByteArray digest =
         QCryptographicHash::hash(rawKey.toUtf8(), QCryptographicHash::Sha256).toHex();
     return QString::fromLatin1(digest.constData(), digest.size());
 }
 
-QString playlistCoverSourceHash(const QString& source) {
+QString playlistCoverSourceHash(const QString& source)
+{
     const QByteArray digest =
         QCryptographicHash::hash(source.toUtf8(), QCryptographicHash::Sha256).toHex();
     return QString::fromLatin1(digest.constData(), digest.size());
 }
 
-QString cachedCoverFilePathForSource(const QString& source) {
+QString cachedCoverFilePathForSource(const QString& source)
+{
     if (!isRemoteCoverSource(source)) {
         return QString();
     }
@@ -136,7 +235,8 @@ QString cachedCoverFilePathForSource(const QString& source) {
         .absoluteFilePath(playlistCoverSourceHash(source) + QStringLiteral(".img"));
 }
 
-QJsonObject loadPlaylistCoverCacheIndex() {
+QJsonObject loadPlaylistCoverCacheIndex()
+{
     QFile file(playlistCoverCacheIndexPath());
     if (!file.open(QIODevice::ReadOnly)) {
         return {};
@@ -145,7 +245,8 @@ QJsonObject loadPlaylistCoverCacheIndex() {
     return document.isObject() ? document.object() : QJsonObject{};
 }
 
-void savePlaylistCoverCacheIndex(const QJsonObject& index) {
+void savePlaylistCoverCacheIndex(const QJsonObject& index)
+{
     QDir().mkpath(playlistCoverCacheDirectory());
     QSaveFile file(playlistCoverCacheIndexPath());
     if (!file.open(QIODevice::WriteOnly)) {
@@ -156,6 +257,51 @@ void savePlaylistCoverCacheIndex(const QJsonObject& index) {
     if (!file.commit()) {
         qWarning() << "[PlaylistCoverCache] Commit index failed:" << playlistCoverCacheIndexPath();
     }
+}
+
+QVariantMap normalizePlaylistEntry(const QVariantMap& raw, const QString& ownership)
+{
+    const qint64 playlistId = parsePlaylistCollectionId(raw);
+    return {
+        {QStringLiteral("playlistId"), playlistId},
+        {QStringLiteral("name"), raw.value(QStringLiteral("name")).toString().trimmed()},
+        {QStringLiteral("description"), raw.value(QStringLiteral("description")).toString().trimmed()},
+        {QStringLiteral("coverUrl"), raw.value(QStringLiteral("cover_url")).toString().trimmed()},
+        {QStringLiteral("trackCount"), raw.value(QStringLiteral("track_count")).toInt()},
+        {QStringLiteral("ownership"), ownership}
+    };
+}
+
+QVariantMap normalizeTrackItem(QVariantMap item, const QString& sourceType, qint64 playlistId = -1)
+{
+    QString musicPath = item.value(QStringLiteral("musicPath")).toString().trimmed();
+    if (musicPath.isEmpty()) {
+        musicPath = item.value(QStringLiteral("path")).toString().trimmed();
+    }
+    QString playPath = item.value(QStringLiteral("playPath")).toString().trimmed();
+    if (playPath.isEmpty()) {
+        playPath = musicPath;
+    }
+    const QString title = item.value(QStringLiteral("title")).toString().trimmed().isEmpty()
+        ? QFileInfo(musicPath).completeBaseName()
+        : item.value(QStringLiteral("title")).toString().trimmed();
+    const QString artist = item.value(QStringLiteral("artist")).toString().trimmed().isEmpty()
+        ? QStringLiteral("未知艺术家")
+        : item.value(QStringLiteral("artist")).toString().trimmed();
+    if (!item.contains(QStringLiteral("trackId")) ||
+        item.value(QStringLiteral("trackId")).toString().trimmed().isEmpty()) {
+        item.insert(QStringLiteral("trackId"), fallbackTrackId(musicPath, title, artist));
+    }
+    item.insert(QStringLiteral("musicPath"), musicPath);
+    item.insert(QStringLiteral("path"), musicPath);
+    item.insert(QStringLiteral("playPath"), playPath);
+    item.insert(QStringLiteral("title"), title);
+    item.insert(QStringLiteral("artist"), artist);
+    item.insert(QStringLiteral("sourceType"), sourceType);
+    if (playlistId > 0) {
+        item.insert(QStringLiteral("playlistId"), playlistId);
+    }
+    return item;
 }
 
 } // namespace
@@ -173,6 +319,7 @@ MainWidget::MainWidget(bool localOnlyMode, QWidget* parent)
 
     setObjectName("MainWidget");
     m_viewModel = new MainShellViewModel(this);
+    m_clientAutomationHostService = new ClientAutomationHostService(this, m_viewModel, this);
 
     m_playbackStateManager = new PlaybackStateManager(this);
     connect(m_playbackStateManager, &PlaybackStateManager::pauseAudioRequested, this,
@@ -217,9 +364,9 @@ MainWidget::MainWidget(bool localOnlyMode, QWidget* parent)
     connect(closeButton, &QPushButton::clicked, this, &MainWidget::close);
 
     searchBox = new SearchBoxQml(this);
-    searchBox->setFixedHeight(46);
-    searchBox->setMinimumWidth(240);
-    searchBox->setMaximumWidth(420);
+    searchBox->setFixedHeight(50);
+    searchBox->setMinimumWidth(280);
+    searchBox->setMaximumWidth(460);
     searchBox->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
     // userWidget = new UserWidget(this);
@@ -229,34 +376,39 @@ MainWidget::MainWidget(bool localOnlyMode, QWidget* parent)
     userWidgetQml->setMinimumWidth(120);
     userWidgetQml->setMaximumWidth(150);
 
-    aiAssistantTopButton = new QPushButton(QStringLiteral(u"AI助手"), this);
+    aiAssistantTopButton = new QPushButton(QStringLiteral(u"AI 助手"), this);
     aiAssistantTopButton->setFixedHeight(36);
-    aiAssistantTopButton->setMinimumWidth(84);
-    aiAssistantTopButton->setObjectName("SideNavButton");
-    aiAssistantTopButton->hide();
+    aiAssistantTopButton->setMinimumWidth(116);
+    aiAssistantTopButton->setObjectName("TopAgentButton");
+    aiAssistantTopButton->setIcon(QIcon(QStringLiteral(":/qml/assets/ai/icons/run.svg")));
+    aiAssistantTopButton->setIconSize(QSize(16, 16));
+    aiAssistantTopButton->setVisible(kAiAssistantTopEntryEnabled);
 
     menuButton = new QPushButton(QStringLiteral(u"\u83dc\u5355"), this);
-    menuButton->setFixedHeight(50);
-    menuButton->setMinimumWidth(92);
+    menuButton->setFixedHeight(42);
+    menuButton->setMinimumWidth(84);
     menuButton->setObjectName("MainMenuButton");
     menuButton->setIcon(QIcon(QStringLiteral(":/qml/assets/ai/icons/main-menu.svg")));
-    menuButton->setIconSize(QSize(18, 18));
+    menuButton->setIconSize(QSize(16, 16));
 
     mainMenu = nullptr;
 
     QHBoxLayout* widget_op_layout = new QHBoxLayout(topWidget);
 
     widget_op_layout->addWidget(searchBox);
+    if (kAiAssistantTopEntryEnabled) {
+        widget_op_layout->addWidget(aiAssistantTopButton);
+    }
     widget_op_layout->addStretch();
     widget_op_layout->addWidget(menuButton);
     widget_op_layout->addWidget(maximizeButton);
     widget_op_layout->addWidget(minimizeButton);
     widget_op_layout->addWidget(closeButton);
     widget_op_layout->setSpacing(10);
-    widget_op_layout->setContentsMargins(220, 5, 10, 5);
+    widget_op_layout->setContentsMargins(236, 10, 14, 8);
 
     topWidget->setLayout(widget_op_layout);
-    topWidget->setGeometry(0, 0, this->width(), 60);
+    topWidget->setGeometry(0, 0, this->width(), 74);
     topWidget->raise();
     if (userWidgetQml) {
         userWidgetQml->raise();
@@ -359,8 +511,10 @@ MainWidget::MainWidget(bool localOnlyMode, QWidget* parent)
     leftButtons->setExclusive(true);
 
     brandWidget = new QWidget(leftWidget);
+    brandWidget->setObjectName("SidebarBrandWidget");
 
     QLabel* icolabel = new QLabel(brandWidget);
+    icolabel->setObjectName("SidebarBrandIcon");
     icolabel->setPixmap(QPixmap(":/new/prefix1/icon/netease.ico"));
     icolabel->setScaledContents(true);
     icolabel->setFixedSize(40, 40);
@@ -375,6 +529,8 @@ MainWidget::MainWidget(bool localOnlyMode, QWidget* parent)
     textLabel->adjustSize();
 
     QHBoxLayout* layout_text = new QHBoxLayout(brandWidget);
+    layout_text->setContentsMargins(10, 0, 10, 0);
+    layout_text->setSpacing(10);
     layout_text->addWidget(icolabel);
     layout_text->addWidget(textLabel);
 
@@ -443,6 +599,12 @@ MainWidget::MainWidget(bool localOnlyMode, QWidget* parent)
     connect(favoriteButton, &QPushButton::toggled, this, &MainWidget::handleFavoriteTabToggled);
     connect(playlistButton, &QPushButton::toggled, this, &MainWidget::handlePlaylistTabToggled);
     connect(videoButton, &QPushButton::toggled, this, &MainWidget::handleVideoTabToggled);
+    if (kAiAssistantTopEntryEnabled) {
+        connect(aiAssistantTopButton, &QPushButton::clicked, this,
+                &MainWidget::handleAiAssistantClicked);
+    }
+    connect(&SettingsManager::instance(), &SettingsManager::agentSettingsChanged, this,
+            &MainWidget::updateAiAssistantButtonState);
     connect(sidebarOwnedTabButton, &QPushButton::clicked, this,
             &MainWidget::handleSidebarOwnedTabClicked);
     connect(sidebarSubscribedTabButton, &QPushButton::clicked, this,
@@ -452,6 +614,7 @@ MainWidget::MainWidget(bool localOnlyMode, QWidget* parent)
 
     localButton->setChecked(true);
     updateSidebarPlaylistTabs();
+    updateAiAssistantButtonState();
 
     qDebug() << "[MainWidget] Creating PlayWidget...";
 
@@ -484,6 +647,10 @@ MainWidget::MainWidget(bool localOnlyMode, QWidget* parent)
 
     if (m_viewModel) {
         m_viewModel->registerPluginHostService(QStringLiteral("mainWidget"), this);
+        if (m_clientAutomationHostService) {
+            m_viewModel->registerPluginHostService(QStringLiteral("clientAutomationHost"),
+                                                   m_clientAutomationHostService);
+        }
         m_viewModel->registerPluginHostService(QStringLiteral("httpRequestV2"),
                                                m_viewModel->requestGateway());
         m_viewModel->registerPluginHostService(QStringLiteral("audioService"),
@@ -714,9 +881,10 @@ void MainWidget::updateSearchBoxForMode() {
     }
 
     if (QQuickItem* rootItem = searchBox->rootObject()) {
-        rootItem->setProperty("placeholderText", m_localOnlyMode
-                                                     ? QStringLiteral(" 离线模式仅支持本地内容")
-                                                     : QStringLiteral(" 搜索想听的歌曲吧..."));
+        rootItem->setProperty(
+            "placeholderText",
+            m_localOnlyMode ? QStringLiteral(" 离线模式仅支持本地内容")
+                            : QStringLiteral(" 搜索想听的歌曲吧..."));
     }
     searchBox->setEnabled(!m_localOnlyMode);
     if (m_localOnlyMode) {
@@ -781,8 +949,44 @@ void MainWidget::hideSearchHistoryPopup() {
     }
 }
 
+void MainWidget::updateAiAssistantButtonState() {
+    if (!aiAssistantTopButton || !kAiAssistantTopEntryEnabled) {
+        return;
+    }
+
+    const SettingsManager& settings = SettingsManager::instance();
+    const bool assistantMode =
+        settings.agentMode().trimmed().compare(QStringLiteral("assistant"), Qt::CaseInsensitive) ==
+        0;
+    const QString localModelName = settings.agentLocalModelName().trimmed();
+
+    aiAssistantTopButton->setText(assistantMode ? QStringLiteral("AI·助手")
+                                                : QStringLiteral("AI·控制"));
+
+    QStringList tooltipLines;
+    if (assistantMode) {
+        tooltipLines << QStringLiteral("当前为助手模式：仅解释，不直接执行写操作。");
+        tooltipLines << (settings.agentRemoteFallbackEnabled()
+                             ? QStringLiteral("远程兜底已启用。")
+                             : QStringLiteral("远程兜底未启用，仅可进行解释性回复。"));
+    } else {
+        tooltipLines << QStringLiteral("当前为控制模式：优先使用本地模型控制软件。");
+        tooltipLines << QStringLiteral("本地模型：%1")
+                            .arg(localModelName.isEmpty() ? QStringLiteral("未配置")
+                                                          : localModelName);
+    }
+
+    if (m_localOnlyMode) {
+        tooltipLines
+            << QStringLiteral("当前处于离线直进模式，AI 助手仍可用于本地控制与状态解释。");
+    }
+
+    aiAssistantTopButton->setToolTip(tooltipLines.join(QLatin1Char('\n')));
+}
+
 void MainWidget::applyLocalOnlyModeUi() {
     updateSearchBoxForMode();
+    updateAiAssistantButtonState();
 
     if (recommendButton) {
         recommendButton->hide();
@@ -808,9 +1012,8 @@ void MainWidget::applyLocalOnlyModeUi() {
     if (userWidgetQml) {
         userWidgetQml->setPopupBlocked(true);
         userWidgetQml->setLoginState(false);
-        userWidgetQml->setUserInfo(
-            QStringLiteral("本地模式"),
-            QStringLiteral("qrc:/qml/assets/ai/icons/default-user-avatar.svg"));
+        userWidgetQml->setUserInfo(QStringLiteral("本地模式"),
+                                   QStringLiteral("qrc:/qml/assets/ai/icons/default-user-avatar.svg"));
     }
     if (localButton) {
         localButton->show();
@@ -1029,6 +1232,606 @@ void MainWidget::handleSearchRequested(const QString& keyword) {
     if (m_viewModel) {
         m_viewModel->searchMusic(trimmedKeyword);
     }
+}
+
+bool MainWidget::agentOfflineMode() const
+{
+    return m_localOnlyMode;
+}
+
+QString MainWidget::agentCurrentPageKey() const
+{
+    if (settingsWidget && settingsWidget->isVisible()) {
+        return QStringLiteral("settings");
+    }
+    if (userProfileWidget && userProfileWidget->isVisible()) {
+        return QStringLiteral("user_profile");
+    }
+    if (playlistWidget && playlistWidget->isVisible()) {
+        return QStringLiteral("playlists");
+    }
+    if (favoriteMusicWidget && favoriteMusicWidget->isVisible()) {
+        return QStringLiteral("favorites");
+    }
+    if (playHistoryWidget && playHistoryWidget->isVisible()) {
+        return QStringLiteral("history");
+    }
+    if (net_list && net_list->isVisible()) {
+        return QStringLiteral("online_music");
+    }
+    if (videoListWidget && videoListWidget->isVisible()) {
+        return QStringLiteral("video");
+    }
+    if (recommendMusicWidget && recommendMusicWidget->isVisible()) {
+        return QStringLiteral("recommend");
+    }
+    if (localAndDownloadWidget && localAndDownloadWidget->isVisible()) {
+        return QStringLiteral("local_download");
+    }
+    return QString();
+}
+
+QString MainWidget::agentLocalDownloadSubTabKey() const
+{
+    return localAndDownloadWidget ? localAndDownloadWidget->currentSubTabKey()
+                                  : QStringLiteral("local_music");
+}
+
+QString MainWidget::agentSidebarPlaylistTabKey() const
+{
+    if (m_sidebarSelectedPlaylistId > 0) {
+        for (const QVariant& value : m_subscribedSidebarPlaylists) {
+            if (parsePlaylistCollectionId(value.toMap()) == m_sidebarSelectedPlaylistId) {
+                return QStringLiteral("playlist_list_subscribed");
+            }
+        }
+    }
+    return QStringLiteral("playlist_list_owned");
+}
+
+QString MainWidget::agentCurrentMusicTabKey() const
+{
+    const QString pageKey = agentCurrentPageKey();
+    if (pageKey == QLatin1String("local_download")) {
+        return agentLocalDownloadSubTabKey();
+    }
+    if (pageKey == QLatin1String("playlists")) {
+        const QVariantMap detail = playlistWidget ? playlistWidget->currentPlaylistDetailSnapshot()
+                                                  : QVariantMap{};
+        if (!detail.isEmpty()) {
+            return QStringLiteral("playlist_detail");
+        }
+        return agentSidebarPlaylistTabKey();
+    }
+    if (pageKey == QLatin1String("recommend") || pageKey == QLatin1String("online_music") ||
+        pageKey == QLatin1String("history") || pageKey == QLatin1String("favorites")) {
+        return pageKey;
+    }
+    return QString();
+}
+
+QVariantList MainWidget::agentOwnedPlaylistEntries() const
+{
+    QVariantList items;
+    items.reserve(m_ownedSidebarPlaylists.size());
+    for (const QVariant& value : m_ownedSidebarPlaylists) {
+        items.push_back(normalizePlaylistEntry(value.toMap(), QStringLiteral("owned")));
+    }
+    return items;
+}
+
+QVariantList MainWidget::agentSubscribedPlaylistEntries() const
+{
+    QVariantList items;
+    items.reserve(m_subscribedSidebarPlaylists.size());
+    for (const QVariant& value : m_subscribedSidebarPlaylists) {
+        items.push_back(normalizePlaylistEntry(value.toMap(), QStringLiteral("subscribed")));
+    }
+    return items;
+}
+
+QVariantMap MainWidget::agentSelectedPlaylistSnapshot() const
+{
+    QVariantMap snapshot;
+
+    if (playlistWidget) {
+        const QVariantMap detail = playlistWidget->currentPlaylistDetailSnapshot();
+        const qint64 detailPlaylistId = parsePlaylistCollectionId(detail);
+        if (detailPlaylistId > 0 ||
+            !detail.value(QStringLiteral("name")).toString().trimmed().isEmpty()) {
+            const QVariantList items = detail.value(QStringLiteral("items")).toList();
+            snapshot.insert(QStringLiteral("playlistId"), detailPlaylistId);
+            snapshot.insert(QStringLiteral("name"),
+                            detail.value(QStringLiteral("name")).toString().trimmed());
+            snapshot.insert(QStringLiteral("trackCount"),
+                            detail.contains(QStringLiteral("track_count"))
+                                ? detail.value(QStringLiteral("track_count")).toInt()
+                                : items.size());
+            snapshot.insert(QStringLiteral("description"),
+                            detail.value(QStringLiteral("description")).toString().trimmed());
+            snapshot.insert(QStringLiteral("coverUrl"),
+                            detail.value(QStringLiteral("cover_url")).toString().trimmed());
+            return snapshot;
+        }
+    }
+
+    const qint64 selectedPlaylistId = m_sidebarSelectedPlaylistId;
+    if (selectedPlaylistId <= 0) {
+        return snapshot;
+    }
+
+    const auto buildSidebarSnapshot = [selectedPlaylistId](const QVariantList& playlists)
+        -> QVariantMap {
+        for (const QVariant& value : playlists) {
+            const QVariantMap raw = value.toMap();
+            if (parsePlaylistCollectionId(raw) != selectedPlaylistId) {
+                continue;
+            }
+
+            QVariantMap item;
+            item.insert(QStringLiteral("playlistId"), selectedPlaylistId);
+            item.insert(QStringLiteral("name"), raw.value(QStringLiteral("name")).toString().trimmed());
+            item.insert(QStringLiteral("trackCount"), raw.value(QStringLiteral("track_count")).toInt());
+            item.insert(QStringLiteral("description"),
+                        raw.value(QStringLiteral("description")).toString().trimmed());
+            item.insert(QStringLiteral("coverUrl"),
+                        raw.value(QStringLiteral("cover_url")).toString().trimmed());
+            return item;
+        }
+        return {};
+    };
+
+    snapshot = buildSidebarSnapshot(m_ownedSidebarPlaylists);
+    if (!snapshot.isEmpty()) {
+        return snapshot;
+    }
+    return buildSidebarSnapshot(m_subscribedSidebarPlaylists);
+}
+
+QVariantList MainWidget::agentSelectedTrackIdsSnapshot() const
+{
+    if (!playlistWidget || !playlistWidget->isVisible()) {
+        return {};
+    }
+
+    QVariantList normalized;
+    const QVariantList rawTrackIds = playlistWidget->currentPlaylistTrackIds();
+    normalized.reserve(rawTrackIds.size());
+    for (const QVariant& rawId : rawTrackIds) {
+        const QString text = rawId.toString().trimmed();
+        if (!text.isEmpty()) {
+            normalized.push_back(text);
+        }
+    }
+    return normalized;
+}
+
+QVariantMap MainWidget::agentCurrentTrackSnapshot() const
+{
+    QVariantMap track;
+    if (!w || !w->playbackViewModel()) {
+        track.insert(QStringLiteral("playing"), false);
+        return track;
+    }
+
+    PlaybackViewModel* playbackVm = w->playbackViewModel();
+    const QString filePath = playbackVm->currentFilePath().trimmed();
+    if (filePath.isEmpty()) {
+        track.insert(QStringLiteral("playing"), false);
+        return track;
+    }
+
+    const QString title = playbackVm->currentTitle().trimmed().isEmpty()
+        ? QFileInfo(filePath).completeBaseName()
+        : playbackVm->currentTitle().trimmed();
+    const QString artist = playbackVm->currentArtist().trimmed().isEmpty()
+        ? QStringLiteral("未知艺术家")
+        : playbackVm->currentArtist().trimmed();
+
+    track.insert(QStringLiteral("musicPath"), filePath);
+    track.insert(QStringLiteral("title"), title);
+    track.insert(QStringLiteral("artist"), artist);
+    track.insert(QStringLiteral("coverUrl"), playbackVm->currentAlbumArt().trimmed());
+    track.insert(QStringLiteral("durationMs"), qMax<qint64>(0, playbackVm->duration()));
+    track.insert(QStringLiteral("positionMs"), qMax<qint64>(0, playbackVm->position()));
+    track.insert(QStringLiteral("playing"), playbackVm->isPlaying());
+    track.insert(QStringLiteral("paused"), playbackVm->isPaused());
+    track.insert(QStringLiteral("isLocal"), agentPathIsLocal(filePath));
+    return track;
+}
+
+QVariantMap MainWidget::agentQueueSnapshot() const
+{
+    QVariantMap snapshot;
+    QVariantList items;
+
+    if (w && w->playbackViewModel()) {
+        PlaybackViewModel* playbackVm = w->playbackViewModel();
+        const QVariantList rawItems = playbackVm->playlistSnapshot();
+        const QVariantMap currentTrack = agentCurrentTrackSnapshot();
+        const QString currentPath = currentTrack.value(QStringLiteral("musicPath")).toString();
+
+        items.reserve(rawItems.size());
+        for (int index = 0; index < rawItems.size(); ++index) {
+            const QVariantMap raw = rawItems.at(index).toMap();
+            const QString filePath = raw.value(QStringLiteral("filePath")).toString().trimmed();
+
+            QVariantMap item;
+            item.insert(QStringLiteral("musicPath"), filePath);
+            item.insert(QStringLiteral("title"), raw.value(QStringLiteral("title")).toString().trimmed());
+            item.insert(QStringLiteral("artist"), raw.value(QStringLiteral("artist")).toString().trimmed());
+            item.insert(QStringLiteral("coverUrl"), raw.value(QStringLiteral("cover")).toString().trimmed());
+            item.insert(QStringLiteral("isCurrent"), raw.value(QStringLiteral("isCurrent")).toBool());
+            item.insert(QStringLiteral("isLocal"), agentPathIsLocal(filePath));
+            item.insert(QStringLiteral("index"), index);
+
+            qint64 durationMs = raw.value(QStringLiteral("durationMs")).toLongLong();
+            if (durationMs <= 0 && raw.value(QStringLiteral("duration")).isValid()) {
+                durationMs = agentDurationMsFromText(raw.value(QStringLiteral("duration")).toString());
+            }
+            if (durationMs <= 0 && filePath == currentPath) {
+                durationMs = currentTrack.value(QStringLiteral("durationMs")).toLongLong();
+            }
+            if (durationMs <= 0 && item.value(QStringLiteral("isLocal")).toBool() && m_viewModel) {
+                durationMs =
+                    static_cast<qint64>(m_viewModel->localMusicCacheDurationSeconds(filePath)) * 1000;
+            }
+            item.insert(QStringLiteral("durationMs"), qMax<qint64>(0, durationMs));
+            items.push_back(item);
+        }
+
+        snapshot.insert(QStringLiteral("items"), items);
+        snapshot.insert(QStringLiteral("count"), items.size());
+        snapshot.insert(QStringLiteral("currentIndex"), playbackVm->currentIndex());
+        snapshot.insert(QStringLiteral("playing"), playbackVm->isPlaying());
+        snapshot.insert(QStringLiteral("paused"), playbackVm->isPaused());
+        snapshot.insert(QStringLiteral("volume"), playbackVm->volume());
+        snapshot.insert(QStringLiteral("playMode"), playbackVm->playModeValue());
+        return snapshot;
+    }
+
+    snapshot.insert(QStringLiteral("items"), items);
+    snapshot.insert(QStringLiteral("count"), 0);
+    snapshot.insert(QStringLiteral("currentIndex"), -1);
+    snapshot.insert(QStringLiteral("playing"), false);
+    snapshot.insert(QStringLiteral("paused"), false);
+    snapshot.insert(QStringLiteral("volume"), 50);
+    snapshot.insert(QStringLiteral("playMode"), 0);
+    return snapshot;
+}
+
+QVariantMap MainWidget::agentUiOverviewSnapshot() const
+{
+    QVariantMap snapshot;
+    snapshot.insert(QStringLiteral("currentPage"), agentCurrentPageKey());
+    snapshot.insert(QStringLiteral("offlineMode"), agentOfflineMode());
+    snapshot.insert(QStringLiteral("loggedIn"), isUserLoggedIn());
+    snapshot.insert(QStringLiteral("currentMusicTab"), agentCurrentMusicTabKey());
+    snapshot.insert(QStringLiteral("localDownloadSubTab"), agentLocalDownloadSubTabKey());
+    snapshot.insert(QStringLiteral("sidebarPlaylistTab"), agentSidebarPlaylistTabKey());
+    snapshot.insert(QStringLiteral("selectedPlaylist"), agentSelectedPlaylistSnapshot());
+    snapshot.insert(QStringLiteral("selectedTrackIds"), agentSelectedTrackIdsSnapshot());
+    snapshot.insert(QStringLiteral("currentTrack"), agentCurrentTrackSnapshot());
+    snapshot.insert(QStringLiteral("queueSummary"), agentQueueSnapshot());
+    return snapshot;
+}
+
+QVariantMap MainWidget::agentUiPageStateSnapshot(const QString& pageKey) const
+{
+    const QString page = pageKey.trimmed().toLower();
+    QVariantMap state{
+        {QStringLiteral("page"), page},
+        {QStringLiteral("currentPage"), agentCurrentPageKey()},
+        {QStringLiteral("visible"), page == agentCurrentPageKey()}
+    };
+
+    if (page == QLatin1String("recommend")) {
+        const QVariantList items =
+            recommendMusicWidget ? recommendMusicWidget->recommendationItemsSnapshot(50)
+                                 : QVariantList{};
+        state.insert(QStringLiteral("items"), items);
+        state.insert(QStringLiteral("count"), items.size());
+        state.insert(QStringLiteral("meta"),
+                     recommendMusicWidget ? recommendMusicWidget->recommendationMetaSnapshot()
+                                          : QVariantMap{});
+        return state;
+    }
+    if (page == QLatin1String("local_download")) {
+        state.insert(QStringLiteral("currentMusicTab"), agentCurrentMusicTabKey());
+        state.insert(QStringLiteral("localDownloadSubTab"), agentLocalDownloadSubTabKey());
+        state.insert(QStringLiteral("localMusicCount"),
+                     localAndDownloadWidget
+                         ? localAndDownloadWidget->localMusicItemsSnapshot().size()
+                         : 0);
+        state.insert(QStringLiteral("downloadedMusicCount"),
+                     localAndDownloadWidget
+                         ? localAndDownloadWidget->downloadedMusicItemsSnapshot().size()
+                         : 0);
+        state.insert(QStringLiteral("downloadingTaskCount"),
+                     localAndDownloadWidget
+                         ? localAndDownloadWidget->downloadingTaskItemsSnapshot().size()
+                         : 0);
+        return state;
+    }
+    if (page == QLatin1String("online_music")) {
+        const QVariantList items = net_list ? net_list->currentItemsSnapshot(100) : QVariantList{};
+        state.insert(QStringLiteral("items"), items);
+        state.insert(QStringLiteral("count"), items.size());
+        return state;
+    }
+    if (page == QLatin1String("history")) {
+        const QVariantList items =
+            playHistoryWidget ? playHistoryWidget->historyItemsSnapshot(100) : QVariantList{};
+        state.insert(QStringLiteral("items"), items);
+        state.insert(QStringLiteral("count"), items.size());
+        return state;
+    }
+    if (page == QLatin1String("favorites")) {
+        const QVariantList items =
+            favoriteMusicWidget ? favoriteMusicWidget->favoriteItemsSnapshot(100) : QVariantList{};
+        state.insert(QStringLiteral("items"), items);
+        state.insert(QStringLiteral("count"), items.size());
+        return state;
+    }
+    if (page == QLatin1String("playlists")) {
+        const QVariantList owned = agentOwnedPlaylistEntries();
+        const QVariantList subscribed = agentSubscribedPlaylistEntries();
+        const QVariantMap selected = agentSelectedPlaylistSnapshot();
+        const QVariantMap detail =
+            playlistWidget ? playlistWidget->currentPlaylistDetailSnapshot() : QVariantMap{};
+        state.insert(QStringLiteral("sidebarPlaylistTab"), agentSidebarPlaylistTabKey());
+        state.insert(QStringLiteral("selectedPlaylist"), selected);
+        state.insert(QStringLiteral("ownedPlaylists"), owned);
+        state.insert(QStringLiteral("subscribedPlaylists"), subscribed);
+        state.insert(QStringLiteral("ownedCount"), owned.size());
+        state.insert(QStringLiteral("subscribedCount"), subscribed.size());
+        state.insert(QStringLiteral("detailCount"),
+                     detail.value(QStringLiteral("items")).toList().size());
+        return state;
+    }
+    if (page == QLatin1String("user_profile")) {
+        state.insert(QStringLiteral("profile"), agentUserProfileSnapshot());
+        return state;
+    }
+    if (page == QLatin1String("video")) {
+        state.insert(QStringLiteral("videoWindow"), agentVideoWindowState());
+        return state;
+    }
+    if (page == QLatin1String("settings")) {
+        SettingsManager& settings = SettingsManager::instance();
+        state.insert(QStringLiteral("agentMode"), settings.agentMode());
+        state.insert(QStringLiteral("localModelPath"), settings.agentLocalModelPath());
+        state.insert(QStringLiteral("localModelName"), settings.agentLocalModelName());
+        state.insert(QStringLiteral("localContextSize"), settings.agentLocalContextSize());
+        state.insert(QStringLiteral("localThreadCount"), settings.agentLocalThreadCount());
+        state.insert(QStringLiteral("remoteFallbackEnabled"),
+                     settings.agentRemoteFallbackEnabled());
+        return state;
+    }
+
+    return state;
+}
+
+QVariantList MainWidget::agentMusicTabItemsSnapshot(const QString& tabKey,
+                                                    const QVariantMap& options) const
+{
+    const QString tab = tabKey.trimmed().toLower();
+    const int limit = qMax(1, options.value(QStringLiteral("limit"), 200).toInt());
+
+    if (tab == QLatin1String("recommend")) {
+        QVariantList items =
+            recommendMusicWidget ? recommendMusicWidget->recommendationItemsSnapshot(limit)
+                                 : QVariantList{};
+        for (QVariant& value : items) {
+            value = normalizeTrackItem(value.toMap(), QStringLiteral("recommend"));
+        }
+        return items;
+    }
+    if (tab == QLatin1String("local_music")) {
+        return localAndDownloadWidget ? localAndDownloadWidget->localMusicItemsSnapshot(limit)
+                                      : QVariantList{};
+    }
+    if (tab == QLatin1String("downloaded_music")) {
+        return localAndDownloadWidget
+            ? localAndDownloadWidget->downloadedMusicItemsSnapshot(limit)
+            : QVariantList{};
+    }
+    if (tab == QLatin1String("downloading_tasks")) {
+        return localAndDownloadWidget
+            ? localAndDownloadWidget->downloadingTaskItemsSnapshot(limit)
+            : QVariantList{};
+    }
+    if (tab == QLatin1String("online_music")) {
+        return net_list ? net_list->currentItemsSnapshot(limit) : QVariantList{};
+    }
+    if (tab == QLatin1String("history")) {
+        QVariantList items =
+            playHistoryWidget ? playHistoryWidget->historyItemsSnapshot(limit) : QVariantList{};
+        for (QVariant& value : items) {
+            value = normalizeTrackItem(value.toMap(), QStringLiteral("history"));
+        }
+        return items;
+    }
+    if (tab == QLatin1String("favorites")) {
+        QVariantList items =
+            favoriteMusicWidget ? favoriteMusicWidget->favoriteItemsSnapshot(limit) : QVariantList{};
+        for (QVariant& value : items) {
+            value = normalizeTrackItem(value.toMap(), QStringLiteral("favorite"));
+        }
+        return items;
+    }
+    if (tab == QLatin1String("playlist_list_owned")) {
+        return agentOwnedPlaylistEntries();
+    }
+    if (tab == QLatin1String("playlist_list_subscribed")) {
+        return agentSubscribedPlaylistEntries();
+    }
+    if (tab == QLatin1String("playlist_detail")) {
+        const QVariantMap detail =
+            playlistWidget ? playlistWidget->currentPlaylistDetailSnapshot() : QVariantMap{};
+        const qint64 playlistId = parsePlaylistCollectionId(detail);
+        QVariantList items = detail.value(QStringLiteral("items")).toList();
+        QVariantList normalized;
+        const int bounded = qMin(limit, items.size());
+        normalized.reserve(bounded);
+        for (int i = 0; i < bounded; ++i) {
+            normalized.push_back(
+                normalizeTrackItem(items.at(i).toMap(), QStringLiteral("playlist"), playlistId));
+        }
+        return normalized;
+    }
+
+    return {};
+}
+
+QVariantMap MainWidget::agentResolveMusicTabItem(const QString& tabKey,
+                                                 const QVariantMap& selector) const
+{
+    const QString tab = tabKey.trimmed().toLower();
+    QVariantMap options;
+    if (selector.contains(QStringLiteral("playlistId"))) {
+        options.insert(QStringLiteral("playlistId"), selector.value(QStringLiteral("playlistId")));
+    }
+    if (selector.contains(QStringLiteral("playlistName"))) {
+        options.insert(QStringLiteral("playlistName"), selector.value(QStringLiteral("playlistName")));
+    }
+
+    const QVariantList items = agentMusicTabItemsSnapshot(tab, options);
+    const QString trackId = selector.value(QStringLiteral("trackId")).toString().trimmed();
+    const QString musicPath = selector.value(QStringLiteral("musicPath")).toString().trimmed();
+    const qint64 playlistId = selector.value(QStringLiteral("playlistId")).toLongLong();
+    const QString playlistName = selector.value(QStringLiteral("playlistName")).toString().trimmed();
+
+    for (const QVariant& value : items) {
+        const QVariantMap item = value.toMap();
+        if (!trackId.isEmpty() &&
+            item.value(QStringLiteral("trackId")).toString().trimmed() == trackId) {
+            return item;
+        }
+        if (!musicPath.isEmpty() &&
+            item.value(QStringLiteral("musicPath")).toString().trimmed() == musicPath) {
+            return item;
+        }
+        if ((tab == QLatin1String("playlist_list_owned") ||
+             tab == QLatin1String("playlist_list_subscribed")) &&
+            playlistId > 0 &&
+            item.value(QStringLiteral("playlistId")).toLongLong() == playlistId) {
+            return item;
+        }
+        if ((tab == QLatin1String("playlist_list_owned") ||
+             tab == QLatin1String("playlist_list_subscribed")) &&
+            !playlistName.isEmpty() &&
+            item.value(QStringLiteral("name")).toString().trimmed().compare(
+                playlistName, Qt::CaseInsensitive) == 0) {
+            return item;
+        }
+    }
+    return {};
+}
+
+QVariantMap MainWidget::agentInvokeSongAction(const QString& action,
+                                              const QVariantMap& songData)
+{
+    QVariantMap payload = songData;
+    const QString trimmedAction = action.trimmed();
+    if (trimmedAction.isEmpty() || payload.isEmpty()) {
+        return {{QStringLiteral("accepted"), false},
+                {QStringLiteral("errorCode"), QStringLiteral("invalid_args")}};
+    }
+
+    if (trimmedAction == QLatin1String("add_to_playlist")) {
+        qint64 playlistId = payload.value(QStringLiteral("playlistId")).toLongLong();
+        if (playlistId <= 0) {
+            const QString playlistName =
+                payload.value(QStringLiteral("playlistName")).toString().trimmed();
+            if (!playlistName.isEmpty()) {
+                for (const QVariant& value : m_ownedSidebarPlaylists) {
+                    const QVariantMap item = value.toMap();
+                    if (item.value(QStringLiteral("name")).toString().trimmed().compare(
+                            playlistName, Qt::CaseInsensitive) == 0) {
+                        playlistId = parsePlaylistCollectionId(item);
+                        break;
+                    }
+                }
+            }
+        }
+        if (playlistId <= 0) {
+            return {{QStringLiteral("accepted"), false},
+                    {QStringLiteral("errorCode"), QStringLiteral("playlist_context_required")}};
+        }
+        payload.insert(QStringLiteral("playlistId"), playlistId);
+    }
+
+    handleSongActionRequested(trimmedAction, payload);
+    return {
+        {QStringLiteral("accepted"), true},
+        {QStringLiteral("action"), trimmedAction},
+        {QStringLiteral("item"), payload}
+    };
+}
+
+QVariantMap MainWidget::agentUserProfileSnapshot() const
+{
+    QVariantMap profile = cachedUserProfileSnapshot();
+    profile.insert(QStringLiteral("loggedIn"), isUserLoggedIn());
+    profile.insert(QStringLiteral("offlineMode"), m_localOnlyMode);
+    profile.insert(QStringLiteral("favoritesCount"), m_profileFavoritesCount);
+    profile.insert(QStringLiteral("historyCount"), m_profileHistoryCount);
+    profile.insert(QStringLiteral("ownedPlaylistsCount"), m_profileOwnedPlaylistsCount);
+    return profile;
+}
+
+bool MainWidget::agentRefreshUserProfile()
+{
+    if (m_localOnlyMode || !m_viewModel || !isUserLoggedIn()) {
+        return false;
+    }
+    m_viewModel->requestUserProfile();
+    refreshUserProfileStats();
+    return true;
+}
+
+bool MainWidget::agentUpdateUsername(const QString& username)
+{
+    if (m_localOnlyMode || !m_viewModel || !isUserLoggedIn()) {
+        return false;
+    }
+
+    const QString trimmed = username.trimmed();
+    if (trimmed.isEmpty()) {
+        return false;
+    }
+    m_viewModel->updateCurrentUsername(trimmed);
+    return true;
+}
+
+bool MainWidget::agentUploadAvatar(const QString& filePath)
+{
+    if (m_localOnlyMode || !m_viewModel || !isUserLoggedIn()) {
+        return false;
+    }
+
+    const QString trimmed = filePath.trimmed();
+    if (trimmed.isEmpty() || !QFileInfo::exists(trimmed)) {
+        return false;
+    }
+    m_viewModel->uploadCurrentAvatar(trimmed);
+    return true;
+}
+
+bool MainWidget::agentLogoutUser()
+{
+    if (m_localOnlyMode || !m_viewModel || !isUserLoggedIn()) {
+        return false;
+    }
+    handleUserLogoutRequested();
+    return true;
+}
+
+bool MainWidget::agentReturnToWelcome()
+{
+    handleSettingsReturnToWelcomeRequested();
+    return true;
 }
 
 void MainWidget::handleSearchResultsReady() {
@@ -1277,7 +2080,7 @@ int MainWidget::placeSideNavButton(int row, QPushButton* button, int navStartY, 
         }
         return row;
     }
-    button->setGeometry(0, navStartY + row * itemHeight, panelWidth, itemHeight);
+    button->setGeometry(10, navStartY + row * itemHeight, panelWidth - 20, itemHeight);
     return row + 1;
 }
 
@@ -1304,13 +2107,13 @@ void MainWidget::showPluginDiagnosticsDialog() {
 }
 
 QRect MainWidget::computeContentRect() const {
-    const int topBarHeight = 60;
-    const int leftWidth = leftWidget ? leftWidget->width() : 210;
-    const int bottomReserved = (w && !w->isUp) ? (w->collapsedPlaybackHeight() + 8) : 100;
+    const int topBarHeight = 74;
+    const int leftEdge = leftWidget ? (leftWidget->geometry().right() + 18) : 228;
+    const int bottomReserved = (w && !w->isUp) ? (w->collapsedPlaybackHeight() + 16) : 104;
 
-    const int x = leftWidth;
-    const int y = topBarHeight;
-    const int widthValue = qMax(300, width() - x);
+    const int x = leftEdge;
+    const int y = topBarHeight + 12;
+    const int widthValue = qMax(300, width() - x - 16);
     const int heightValue = qMax(180, height() - y - bottomReserved);
     return QRect(x, y, widthValue, heightValue);
 }
@@ -1321,12 +2124,12 @@ void MainWidget::updateSideNavLayout() {
     }
 
     const int panelWidth = leftWidget->width();
-    const int itemHeight = 50;
-    const int brandTop = 10;
-    const int brandHeight = 50;
+    const int itemHeight = 48;
+    const int brandTop = 14;
+    const int brandHeight = 52;
     brandWidget->setGeometry(8, brandTop, panelWidth - 16, brandHeight);
 
-    const int navStartY = brandTop + brandHeight + 14;
+    const int navStartY = brandTop + brandHeight + 18;
     int row = 0;
     row = placeSideNavButton(row, recommendButton, navStartY, itemHeight, panelWidth);
     row = placeSideNavButton(row, localButton, navStartY, itemHeight, panelWidth);
@@ -1376,7 +2179,8 @@ void MainWidget::clearSidebarPlaylistButtons() {
 }
 
 QString MainWidget::lookupPlaylistCoverCache(const QString& account, qint64 playlistId,
-                                             const QString& updatedAt, bool* found) const {
+                                             const QString& updatedAt, bool* found) const
+{
     if (found) {
         *found = false;
     }
@@ -1396,8 +2200,8 @@ QString MainWidget::lookupPlaylistCoverCache(const QString& account, qint64 play
         *found = true;
     }
 
-    const QString normalizedSource = normalizeSidebarPlaylistCoverSource(
-        entry.value(QStringLiteral("normalizedSource")).toString());
+    const QString normalizedSource =
+        normalizeSidebarPlaylistCoverSource(entry.value(QStringLiteral("normalizedSource")).toString());
     const QString localFilePath =
         QDir::fromNativeSeparators(entry.value(QStringLiteral("localFilePath")).toString());
     if (!localFilePath.isEmpty() && QFileInfo::exists(localFilePath)) {
@@ -1413,7 +2217,8 @@ QString MainWidget::lookupPlaylistCoverCache(const QString& account, qint64 play
 }
 
 void MainWidget::storePlaylistCoverCache(qint64 playlistId, const QString& updatedAt,
-                                         const QString& coverUrl) {
+                                         const QString& coverUrl)
+{
     const QString account = m_viewModel ? m_viewModel->currentUserAccount().trimmed() : QString();
     const QString normalizedUpdatedAt = updatedAt.trimmed();
     if (account.isEmpty() || playlistId <= 0 || normalizedUpdatedAt.isEmpty()) {
@@ -1447,7 +2252,8 @@ void MainWidget::storePlaylistCoverCache(qint64 playlistId, const QString& updat
     savePlaylistCoverCacheIndex(index);
 }
 
-void MainWidget::clearPlaylistCoverCacheForPlaylist(qint64 playlistId) {
+void MainWidget::clearPlaylistCoverCacheForPlaylist(qint64 playlistId)
+{
     const QString account = m_viewModel ? m_viewModel->currentUserAccount().trimmed() : QString();
     if (account.isEmpty() || playlistId <= 0) {
         return;
@@ -1470,7 +2276,8 @@ void MainWidget::clearPlaylistCoverCacheForPlaylist(qint64 playlistId) {
     }
 }
 
-QIcon MainWidget::sidebarPlaylistCoverIcon(const QString& coverUrl) {
+QIcon MainWidget::sidebarPlaylistCoverIcon(const QString& coverUrl)
+{
     const QString source = normalizeSidebarPlaylistCoverSource(coverUrl);
     if (source.isEmpty()) {
         return defaultSidebarPlaylistCoverIcon();
@@ -1513,11 +2320,13 @@ QIcon MainWidget::sidebarPlaylistCoverIcon(const QString& coverUrl) {
     return defaultSidebarPlaylistCoverIcon();
 }
 
-QString MainWidget::normalizePlaylistCoverUrl(const QString& coverUrl) const {
+QString MainWidget::normalizePlaylistCoverUrl(const QString& coverUrl) const
+{
     return collapseDuplicateUploads(coverUrl);
 }
 
-void MainWidget::applySidebarPlaylistButtonIcon(QPushButton* button, const QString& coverUrl) {
+void MainWidget::applySidebarPlaylistButtonIcon(QPushButton* button, const QString& coverUrl)
+{
     if (!button) {
         return;
     }
@@ -1529,7 +2338,8 @@ void MainWidget::applySidebarPlaylistButtonIcon(QPushButton* button, const QStri
     button->setIconSize(QSize(18, 18));
 }
 
-void MainWidget::requestSidebarPlaylistCoverIcon(const QString& coverUrl) {
+void MainWidget::requestSidebarPlaylistCoverIcon(const QString& coverUrl)
+{
     const QString source = normalizeSidebarPlaylistCoverSource(coverUrl);
     if (!isRemoteCoverSource(source) || m_sidebarCoverIconCache.contains(source) ||
         m_sidebarCoverRequestsInFlight.contains(source)) {
@@ -1576,7 +2386,8 @@ void MainWidget::requestSidebarPlaylistCoverIcon(const QString& coverUrl) {
     });
 }
 
-void MainWidget::refreshSidebarPlaylistCoverIcon(qint64 playlistId, const QString& coverUrl) {
+void MainWidget::refreshSidebarPlaylistCoverIcon(qint64 playlistId, const QString& coverUrl)
+{
     for (QPushButton* button : m_sidebarPlaylistButtons) {
         if (!button || button->property("playlistId").toLongLong() != playlistId) {
             continue;
@@ -1645,31 +2456,34 @@ void MainWidget::syncSidebarPlaylistSelection(qint64 playlistId) {
 }
 
 void MainWidget::updateAdaptiveLayout() {
-    const int topBarHeight = 60;
-    const int leftWidth = qBound(190, width() / 5, 240);
+    const int topBarHeight = 74;
+    const int leftPanelMargin = 14;
+    const int leftPanelTop = topBarHeight + 10;
+    const int leftWidth = qBound(208, width() / 5, 260);
 
     if (topWidget) {
         topWidget->setGeometry(0, 0, width(), topBarHeight);
         topWidget->raise();
         if (auto* layout = qobject_cast<QHBoxLayout*>(topWidget->layout())) {
-            layout->setContentsMargins(leftWidth + 10, 5, 10, 5);
+            layout->setContentsMargins(leftPanelMargin + leftWidth + 18, 10, 14, 8);
         }
     }
 
     if (userWidgetQml) {
-        const int avatarWidth = qMin(150, qMax(120, leftWidth - 20));
-        userWidgetQml->setGeometry(10, 10, avatarWidth, 40);
+        const int avatarWidth = qMin(160, qMax(128, leftWidth - 8));
+        userWidgetQml->setGeometry(leftPanelMargin, 16, avatarWidth, 42);
         userWidgetQml->raise();
     }
 
     if (searchBox) {
-        const int searchWidth = qBound(240, width() / 4, 460);
+        const int searchWidth = qBound(280, width() / 4, 500);
         searchBox->setMinimumWidth(searchWidth);
         searchBox->setMaximumWidth(searchWidth);
     }
 
     if (leftWidget) {
-        leftWidget->setGeometry(0, topBarHeight, leftWidth, qMax(200, height() - topBarHeight));
+        leftWidget->setGeometry(leftPanelMargin, leftPanelTop, leftWidth,
+                                qMax(200, height() - leftPanelTop - 12));
     }
 
     if (w) {
@@ -1808,9 +2622,6 @@ void MainWidget::closeEvent(QCloseEvent* event) {
 MainWidget::~MainWidget() {
     qDebug() << "MainWidget::~MainWidget() - Starting cleanup...";
 
-    if (videoListWidget) {
-        videoListWidget->pauseVideoPlayback();
-    }
     if (videoPlayerWindow) {
         videoPlayerWindow->pausePlayback();
     }

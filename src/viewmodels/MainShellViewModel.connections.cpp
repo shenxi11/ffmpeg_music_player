@@ -1,4 +1,4 @@
-﻿#include "MainShellViewModel.h"
+#include "MainShellViewModel.h"
 
 #include "AudioService.h"
 #include "online_presence_manager.h"
@@ -113,9 +113,9 @@ void MainShellViewModel::setupConnections() {
             const QString createdAt = profile.value(QStringLiteral("created_at")).toString();
             const QString updatedAt = profile.value(QStringLiteral("updated_at")).toString();
             const QString onlineToken = currentOnlineSessionToken();
-            const QString persistedUsername = username.trimmed().isEmpty()
-                                                  ? SettingsManager::instance().cachedUsername()
-                                                  : username;
+            const QString persistedUsername =
+                username.trimmed().isEmpty() ? SettingsManager::instance().cachedUsername()
+                                             : username;
 
             if (!username.trimmed().isEmpty()) {
                 User::getInstance()->setUsername(username);

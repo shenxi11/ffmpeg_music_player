@@ -1,4 +1,4 @@
-﻿#ifndef LOCAL_AND_DOWNLOAD_WIDGET_H
+#ifndef LOCAL_AND_DOWNLOAD_WIDGET_H
 #define LOCAL_AND_DOWNLOAD_WIDGET_H
 
 #include <QQuickWidget>
@@ -20,7 +20,7 @@ class LocalAndDownloadWidget : public QQuickWidget
 
 public:
     explicit LocalAndDownloadWidget(QWidget *parent = nullptr);
-    
+
     /**
      * @brief 设置当前播放的歌曲路径（用于高亮显示）
      */
@@ -30,7 +30,11 @@ public:
     void setFavoritePaths(const QStringList& favoritePaths);
     void updateDownloadedSongMetadata(const QString& filePath, const QString& coverUrl,
                                       const QString& duration, const QString& artist);
-    
+    QString currentSubTabKey() const;
+    QVariantList localMusicItemsSnapshot(int limit = -1) const;
+    QVariantList downloadedMusicItemsSnapshot(int limit = -1) const;
+    QVariantList downloadingTaskItemsSnapshot(int limit = -1) const;
+
 signals:
     void playMusic(const QString& filename);
     void deleteMusic(const QString& filename);

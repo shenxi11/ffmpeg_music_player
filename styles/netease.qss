@@ -1,4 +1,4 @@
-﻿/* NetEase Cloud Music inspired global theme */
+/* NetEase Cloud Music inspired global theme */
 * {
     font-family: "Microsoft YaHei", "Segoe UI", "PingFang SC";
 }
@@ -347,11 +347,16 @@ QWidget#TopBar {
 }
 
 QWidget#MainLeftPanel {
-    background: #F2F3F5;
-    border-right: 1px solid #E8E9EE;
+    background: #FFFFFF;
+    border: 1px solid #E8EBF1;
+    border-radius: 22px;
 }
 
 QWidget#SidebarPlaylistSection {
+    background: transparent;
+}
+
+QWidget#SidebarBrandWidget {
     background: transparent;
 }
 
@@ -362,23 +367,23 @@ QWidget#SidebarPlaylistListContainer {
 }
 
 QPushButton#SidebarPlaylistTabButton {
-    min-height: 24px;
-    padding: 0;
+    min-height: 30px;
+    padding: 0 2px;
     border: none;
     background: transparent;
     color: #7A7F89;
     text-align: left;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
 }
 
 QPushButton#SidebarPlaylistTabButton:checked {
-    color: #20232A;
+    color: #1F2430;
     font-weight: 700;
 }
 
 QPushButton#SidebarPlaylistTabButton:hover {
-    color: #20232A;
+    color: #1F2430;
 }
 
 QPushButton#SidebarPlaylistAddButton {
@@ -402,61 +407,88 @@ QLabel#SidebarPlaylistEmptyLabel {
 }
 
 QPushButton[sidePlaylistItem="true"] {
-    min-height: 42px;
-    max-height: 42px;
-    padding: 0 10px;
+    min-height: 40px;
+    max-height: 40px;
+    padding: 0 12px;
     border: none;
-    border-radius: 10px;
+    border-radius: 12px;
     background: transparent;
     color: #23262D;
     text-align: left;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
 }
 
 QPushButton[sidePlaylistItem="true"]:hover {
-    background: #ECEDEF;
+    background: #F8F1F1;
 }
 
 QPushButton[sidePlaylistItem="true"][selectedPlaylist="true"] {
-    background: #DCDDDF;
-    color: #14161A;
+    background: #FDECEC;
+    color: #D63B3B;
     font-weight: 600;
 }
 
 QPushButton#MainMenuButton {
-    min-height: 50px;
-    min-width: 92px;
-    max-height: 50px;
+    min-height: 42px;
+    min-width: 84px;
+    max-height: 42px;
     padding: 0 14px;
-    border: none;
-    border-radius: 25px;
-    background: transparent;
-    color: #666666;
-    font-size: 17px;
-    font-weight: 700;
+    border: 1px solid #E7EAF0;
+    border-radius: 21px;
+    background: #FFFFFF;
+    color: #505664;
+    font-size: 14px;
+    font-weight: 600;
 }
 
 QPushButton#MainMenuButton:hover {
-    background: rgba(236, 65, 65, 0.10);
+    background: #FFF2F2;
+    border-color: #F1C8C8;
     color: #EC4141;
 }
 
 QPushButton#MainMenuButton:pressed {
-    background: rgba(236, 65, 65, 0.20);
+    background: #FDE5E5;
+    border-color: #EBB2B2;
+}
+
+QPushButton#TopAgentButton {
+    min-height: 36px;
+    min-width: 116px;
+    max-height: 36px;
+    padding: 0 14px;
+    border: 1px solid #F2CACA;
+    border-radius: 18px;
+    background: #FFF7F7;
+    color: #EC4141;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+}
+
+QPushButton#TopAgentButton:hover {
+    background: #FDEDED;
+    border-color: #EFAAAA;
+    color: #D93636;
+}
+
+QPushButton#TopAgentButton:pressed {
+    background: #FADDDD;
+    border-color: #E78C8C;
 }
 
 QPushButton#WindowToggleButton,
 QPushButton#WindowMinimizeButton,
 QPushButton#WindowCloseButton {
-    min-height: 30px;
-    min-width: 30px;
-    max-height: 30px;
-    max-width: 30px;
-    border: none;
-    border-radius: 15px;
+    min-height: 32px;
+    min-width: 32px;
+    max-height: 32px;
+    max-width: 32px;
+    border: 1px solid #E7EAF0;
+    border-radius: 16px;
     padding: 0;
-    background: transparent;
+    background: #FFFFFF;
 }
 
 QPushButton#WindowToggleButton {
@@ -473,45 +505,48 @@ QPushButton#WindowCloseButton {
 
 QPushButton#WindowToggleButton:hover,
 QPushButton#WindowMinimizeButton:hover {
-    background: rgba(236, 65, 65, 0.12);
+    background: #FFF2F2;
+    border-color: #F1C8C8;
 }
 
 QPushButton#WindowCloseButton:hover {
-    background: rgba(244, 67, 54, 0.20);
+    background: #FFE7E7;
+    border-color: #F5B7B7;
 }
 
 QPushButton[sideNav="true"] {
-    min-height: 50px;
-    max-height: 50px;
+    min-height: 46px;
+    max-height: 46px;
     border: none;
-    border-radius: 0;
+    border-radius: 14px;
     background: transparent;
-    color: #30323A;
+    color: #303444;
     text-align: left;
-    padding-left: 20px;
+    padding-left: 16px;
     font-size: 14px;
     font-weight: 500;
 }
 
 QPushButton[sideNav="true"]:hover {
-    background: rgba(236, 65, 65, 0.08);
+    background: #FFF2F2;
     color: #EC4141;
 }
 
 QPushButton[sideNav="true"]:checked {
-    background: rgba(236, 65, 65, 0.15);
+    background: #FDECEC;
     color: #EC4141;
-    border-left: 3px solid #EC4141;
-    padding-left: 17px;
+    padding-left: 16px;
     font-weight: 600;
 }
 
 QPushButton[sideNav="true"]:checked:hover {
-    background: rgba(236, 65, 65, 0.18);
+    background: #FCE4E4;
 }
 
 QLabel#BrandTitleLabel {
-    color: #333333;
+    color: #1C212B;
+    font-size: 18px;
+    font-weight: 700;
 }
 
 QWidget#VideoPlayerWindow {

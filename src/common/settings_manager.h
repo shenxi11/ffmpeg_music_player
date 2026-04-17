@@ -30,6 +30,23 @@ class SettingsManager : public QObject {
     Q_PROPERTY(int serverPort READ serverPort WRITE setServerPort NOTIFY serverEndpointChanged)
     Q_PROPERTY(int playerPageStyle READ playerPageStyle WRITE setPlayerPageStyle NOTIFY
                    playerPageStyleChanged)
+    Q_PROPERTY(QString agentMode READ agentMode WRITE setAgentMode NOTIFY agentSettingsChanged)
+    Q_PROPERTY(QString agentLocalModelPath READ agentLocalModelPath WRITE
+                   setAgentLocalModelPath NOTIFY agentSettingsChanged)
+    Q_PROPERTY(QString agentLocalModelBaseUrl READ agentLocalModelBaseUrl WRITE
+                   setAgentLocalModelBaseUrl NOTIFY agentSettingsChanged)
+    Q_PROPERTY(QString agentLocalModelName READ agentLocalModelName WRITE setAgentLocalModelName
+                   NOTIFY agentSettingsChanged)
+    Q_PROPERTY(int agentLocalContextSize READ agentLocalContextSize WRITE setAgentLocalContextSize
+                   NOTIFY agentSettingsChanged)
+    Q_PROPERTY(int agentLocalThreadCount READ agentLocalThreadCount WRITE setAgentLocalThreadCount
+                   NOTIFY agentSettingsChanged)
+    Q_PROPERTY(bool agentRemoteFallbackEnabled READ agentRemoteFallbackEnabled WRITE
+                   setAgentRemoteFallbackEnabled NOTIFY agentSettingsChanged)
+    Q_PROPERTY(QString agentRemoteBaseUrl READ agentRemoteBaseUrl WRITE setAgentRemoteBaseUrl
+                   NOTIFY agentSettingsChanged)
+    Q_PROPERTY(QString agentRemoteModelName READ agentRemoteModelName WRITE
+                   setAgentRemoteModelName NOTIFY agentSettingsChanged)
     Q_PROPERTY(bool launchAtStartup READ launchAtStartup WRITE setLaunchAtStartup NOTIFY
                    settingsCenterChanged)
     Q_PROPERTY(bool autoPlayOnStartup READ autoPlayOnStartup WRITE setAutoPlayOnStartup NOTIFY
@@ -231,6 +248,42 @@ class SettingsManager : public QObject {
         return m_playerPageStyle;
     }
     void setPlayerPageStyle(int styleId);
+    QString agentMode() const {
+        return m_agentMode;
+    }
+    void setAgentMode(const QString& mode);
+    QString agentLocalModelPath() const {
+        return m_agentLocalModelPath;
+    }
+    void setAgentLocalModelPath(const QString& modelPath);
+    QString agentLocalModelBaseUrl() const {
+        return m_agentLocalModelBaseUrl;
+    }
+    void setAgentLocalModelBaseUrl(const QString& baseUrl);
+    QString agentLocalModelName() const {
+        return m_agentLocalModelName;
+    }
+    void setAgentLocalModelName(const QString& modelName);
+    int agentLocalContextSize() const {
+        return m_agentLocalContextSize;
+    }
+    void setAgentLocalContextSize(int contextSize);
+    int agentLocalThreadCount() const {
+        return m_agentLocalThreadCount;
+    }
+    void setAgentLocalThreadCount(int threadCount);
+    bool agentRemoteFallbackEnabled() const {
+        return m_agentRemoteFallbackEnabled;
+    }
+    void setAgentRemoteFallbackEnabled(bool enabled);
+    QString agentRemoteBaseUrl() const {
+        return m_agentRemoteBaseUrl;
+    }
+    void setAgentRemoteBaseUrl(const QString& baseUrl);
+    QString agentRemoteModelName() const {
+        return m_agentRemoteModelName;
+    }
+    void setAgentRemoteModelName(const QString& modelName);
     bool launchAtStartup() const {
         return m_launchAtStartup;
     }
@@ -620,6 +673,7 @@ class SettingsManager : public QObject {
     void logPathChanged();
     void serverEndpointChanged();
     void playerPageStyleChanged();
+    void agentSettingsChanged();
     void settingsCenterChanged();
     void accountCacheChanged();
     void autoLoginChanged();
@@ -641,6 +695,15 @@ class SettingsManager : public QObject {
     QString m_serverHost;
     int m_serverPort = 8080;
     int m_playerPageStyle = 0;
+    QString m_agentMode;
+    QString m_agentLocalModelPath;
+    QString m_agentLocalModelBaseUrl;
+    QString m_agentLocalModelName;
+    int m_agentLocalContextSize = 16384;
+    int m_agentLocalThreadCount = 4;
+    bool m_agentRemoteFallbackEnabled = false;
+    QString m_agentRemoteBaseUrl;
+    QString m_agentRemoteModelName;
     bool m_launchAtStartup = false;
     bool m_autoPlayOnStartup = false;
     bool m_autoOpenLyrics = false;

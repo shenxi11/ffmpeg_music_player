@@ -1,0 +1,4 @@
+interface:
+  display_name: "Multi-AI Module Collab"
+  short_description: "Coordinate parallel Codex sessions by module ownership."
+  default_prompt: "Use $multi-ai-module-collab to claim a module, read the shared .ai state, and write back a clean handoff."

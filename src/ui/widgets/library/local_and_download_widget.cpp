@@ -1,7 +1,66 @@
-﻿#include "local_and_download_widget.h"
+#include "local_and_download_widget.h"
 #include "local_music_cache.h"
+#include <QCryptographicHash>
 #include <QDebug>
+#include <QFileInfo>
 #include <QQuickItem>
+
+namespace {
+
+QString fallbackTrackId(const QString& path, const QString& title, const QString& artist)
+{
+    const QString base = QStringLiteral("%1|%2|%3").arg(path, title, artist);
+    const QByteArray digest =
+        QCryptographicHash::hash(base.toUtf8(), QCryptographicHash::Md5).toHex();
+    return QString::fromLatin1(digest.constData(), digest.size());
+}
+
+QVariantMap buildDownloadTaskSnapshot(const DownloadTaskModel* model, int row)
+{
+    const QModelIndex index = model->index(row, 0);
+    const QString savePath =
+        model->data(index, DownloadTaskModel::SavePathRole).toString().trimmed();
+    const QString filename =
+        model->data(index, DownloadTaskModel::FilenameRole).toString().trimmed();
+    const QString title = QFileInfo(savePath).completeBaseName().trimmed().isEmpty()
+        ? filename
+        : QFileInfo(savePath).completeBaseName().trimmed();
+    const QString artist =
+        model->data(index, DownloadTaskModel::ArtistRole).toString().trimmed().isEmpty()
+        ? QStringLiteral("未知艺术家")
+        : model->data(index, DownloadTaskModel::ArtistRole).toString().trimmed();
+
+    return {
+        {QStringLiteral("taskId"),
+         model->data(index, DownloadTaskModel::TaskIdRole).toString().trimmed()},
+        {QStringLiteral("trackId"), fallbackTrackId(savePath, title, artist)},
+        {QStringLiteral("musicPath"), savePath},
+        {QStringLiteral("path"), savePath},
+        {QStringLiteral("playPath"), savePath},
+        {QStringLiteral("title"), title},
+        {QStringLiteral("artist"), artist},
+        {QStringLiteral("duration"),
+         model->data(index, DownloadTaskModel::DurationRole).toString().trimmed()},
+        {QStringLiteral("coverUrl"),
+         model->data(index, DownloadTaskModel::CoverUrlRole).toString().trimmed()},
+        {QStringLiteral("cover"),
+         model->data(index, DownloadTaskModel::CoverUrlRole).toString().trimmed()},
+        {QStringLiteral("state"),
+         model->data(index, DownloadTaskModel::StateRole).toString().trimmed()},
+        {QStringLiteral("stateText"),
+         model->data(index, DownloadTaskModel::StateTextRole).toString().trimmed()},
+        {QStringLiteral("progress"),
+         model->data(index, DownloadTaskModel::ProgressRole).toInt()},
+        {QStringLiteral("downloadedSize"),
+         model->data(index, DownloadTaskModel::DownloadedSizeRole).toLongLong()},
+        {QStringLiteral("totalSize"),
+         model->data(index, DownloadTaskModel::TotalSizeRole).toLongLong()},
+        {QStringLiteral("isLocal"), true},
+        {QStringLiteral("sourceType"), QStringLiteral("downloaded")}
+    };
+}
+
+} // namespace
 
 LocalAndDownloadWidget::LocalAndDownloadWidget(QWidget *parent)
     : QQuickWidget(parent)
@@ -9,53 +68,53 @@ LocalAndDownloadWidget::LocalAndDownloadWidget(QWidget *parent)
     , m_localMusicModel(new LocalMusicModel(this))
 {
     qDebug() << "[LocalAndDownloadWidget] Initializing...";
-    
+
     // 补充 qrc 导入路径，确保 QML 组件可解析。
     engine()->addImportPath("qrc:/");
     setResizeMode(QQuickWidget::SizeRootObjectToView);
-    
+
     // 将数据模型暴露给 QML 层。
     rootContext()->setContextProperty("downloadTaskModel", m_downloadTaskModel);
     rootContext()->setContextProperty("localMusicModel", m_localMusicModel);
-    
+
     // 转发“添加本地音乐”请求到上层业务。
     connect(m_localMusicModel, &LocalMusicModel::addMusicRequested,
             this, &LocalAndDownloadWidget::addLocalMusicRequested);
-    
+
     // 启动时先刷新一次下载任务状态。
     qDebug() << "[LocalAndDownloadWidget] Initial refresh of active tasks";
     m_downloadTaskModel->refresh(false);
-    
+
     // 加载本地与下载页面 QML。
     setSource(QUrl("qrc:/qml/components/library/LocalAndDownloadWidget.qml"));
-    
+
     if (status() == QQuickWidget::Error) {
         qWarning() << "[LocalAndDownloadWidget] Failed to load QML";
         for (const auto& error : errors()) {
             qWarning() << "  " << error.toString();
         }
     }
-    
+
     // 根对象用于连接 QML 事件。
     QQuickItem* root = rootObject();
     if (root) {
         qDebug() << "[LocalAndDownloadWidget] Root object loaded successfully";
-        
+
         // 本地列表播放事件。
         connect(root, SIGNAL(playMusic(QString)), this, SLOT(onPlayMusic(QString)));
         // 本地列表删除事件。
         connect(root, SIGNAL(deleteMusic(QString)), this, SLOT(onDeleteMusic(QString)));
         // 收藏动作透传给业务层。
-        connect(root, SIGNAL(addToFavorite(QString,QString,QString,QString)), 
+        connect(root, SIGNAL(addToFavorite(QString,QString,QString,QString)),
                 this, SIGNAL(addToFavorite(QString,QString,QString,QString)));
         connect(root, SIGNAL(songActionRequested(QString,QVariant)),
                 this, SLOT(onSongActionRequested(QString,QVariant)));
-        
+
         qDebug() << "[LocalAndDownloadWidget] Signals connected";
     } else {
         qWarning() << "[LocalAndDownloadWidget] Root object is null";
     }
-    
+
     qDebug() << "[LocalAndDownloadWidget] Initialized successfully";
 }
 
@@ -125,5 +184,111 @@ void LocalAndDownloadWidget::updateDownloadedSongMetadata(const QString& filePat
     }
 
     m_downloadTaskModel->updateSongMetadata(filePath, coverUrl, duration, artist);
+}
+
+QString LocalAndDownloadWidget::currentSubTabKey() const
+{
+    if (QQuickItem* root = rootObject()) {
+        const QString key = root->property("currentSubTabKey").toString().trimmed();
+        if (!key.isEmpty()) {
+            return key;
+        }
+    }
+    return QStringLiteral("local_music");
+}
+
+QVariantList LocalAndDownloadWidget::localMusicItemsSnapshot(int limit) const
+{
+    QVariantList items;
+    if (!m_localMusicModel) {
+        return items;
+    }
+
+    const int rowCount = m_localMusicModel->rowCount();
+    const int bounded = (limit <= 0) ? rowCount : qMin(limit, rowCount);
+    items.reserve(bounded);
+    for (int row = 0; row < bounded; ++row) {
+        const QModelIndex index = m_localMusicModel->index(row, 0);
+        const QString path = m_localMusicModel->data(index, LocalMusicModel::FilePathRole)
+                                 .toString()
+                                 .trimmed();
+        const QString title = m_localMusicModel->data(index, LocalMusicModel::FileNameRole)
+                                  .toString()
+                                  .trimmed()
+                                  .isEmpty()
+            ? QFileInfo(path).completeBaseName()
+            : m_localMusicModel->data(index, LocalMusicModel::FileNameRole).toString().trimmed();
+        const QString artist = m_localMusicModel->data(index, LocalMusicModel::ArtistRole)
+                                   .toString()
+                                   .trimmed()
+                                   .isEmpty()
+            ? QStringLiteral("未知艺术家")
+            : m_localMusicModel->data(index, LocalMusicModel::ArtistRole).toString().trimmed();
+        items.push_back(QVariantMap{
+            {QStringLiteral("trackId"), fallbackTrackId(path, title, artist)},
+            {QStringLiteral("musicPath"), path},
+            {QStringLiteral("path"), path},
+            {QStringLiteral("playPath"), path},
+            {QStringLiteral("title"), title},
+            {QStringLiteral("artist"), artist},
+            {QStringLiteral("duration"),
+             m_localMusicModel->data(index, LocalMusicModel::DurationRole).toString().trimmed()},
+            {QStringLiteral("coverUrl"),
+             m_localMusicModel->data(index, LocalMusicModel::CoverUrlRole).toString().trimmed()},
+            {QStringLiteral("cover"),
+             m_localMusicModel->data(index, LocalMusicModel::CoverUrlRole).toString().trimmed()},
+            {QStringLiteral("isLocal"), true},
+            {QStringLiteral("isPlaying"),
+             m_localMusicModel->data(index, LocalMusicModel::IsPlayingRole).toBool()},
+            {QStringLiteral("sourceType"), QStringLiteral("local")}
+        });
+    }
+    return items;
+}
+
+QVariantList LocalAndDownloadWidget::downloadedMusicItemsSnapshot(int limit) const
+{
+    QVariantList items;
+    if (!m_downloadTaskModel) {
+        return items;
+    }
+
+    const int rowCount = m_downloadTaskModel->rowCount();
+    const int bounded = (limit <= 0) ? rowCount : qMin(limit, rowCount);
+    items.reserve(bounded);
+    for (int row = 0; row < bounded; ++row) {
+        const QModelIndex index = m_downloadTaskModel->index(row, 0);
+        const QString state =
+            m_downloadTaskModel->data(index, DownloadTaskModel::StateRole).toString().trimmed();
+        if (state != QLatin1String("completed")) {
+            continue;
+        }
+        items.push_back(buildDownloadTaskSnapshot(m_downloadTaskModel, row));
+    }
+    return items;
+}
+
+QVariantList LocalAndDownloadWidget::downloadingTaskItemsSnapshot(int limit) const
+{
+    QVariantList items;
+    if (!m_downloadTaskModel) {
+        return items;
+    }
+
+    const int rowCount = m_downloadTaskModel->rowCount();
+    const int bounded = (limit <= 0) ? rowCount : qMin(limit, rowCount);
+    items.reserve(bounded);
+    for (int row = 0; row < bounded; ++row) {
+        const QModelIndex index = m_downloadTaskModel->index(row, 0);
+        const QString state =
+            m_downloadTaskModel->data(index, DownloadTaskModel::StateRole).toString().trimmed();
+        if (state == QLatin1String("completed")) {
+            continue;
+        }
+        QVariantMap item = buildDownloadTaskSnapshot(m_downloadTaskModel, row);
+        item.insert(QStringLiteral("sourceType"), QStringLiteral("downloading_task"));
+        items.push_back(item);
+    }
+    return items;
 }
 
