@@ -4,8 +4,10 @@
 
 #include <QAbstractButton>
 #include <QAbstractSpinBox>
-#include <QFont>
+#include <QColor>
 #include <QFrame>
+#include <QFont>
+#include <QGraphicsDropShadowEffect>
 #include <QGridLayout>
 #include <QGuiApplication>
 #include <QHBoxLayout>
@@ -26,17 +28,21 @@
 
 namespace {
 
-QFont buildWelcomeFont(int pixelSize, int weight = QFont::Normal) {
+QFont buildWelcomeFont(int pixelSize, int weight = QFont::Normal)
+{
     QFont font;
-    font.setFamilies({QStringLiteral("Microsoft YaHei UI"), QStringLiteral("Microsoft YaHei"),
-                      QStringLiteral("PingFang SC"), QStringLiteral("Segoe UI")});
+    font.setFamilies({QStringLiteral("Microsoft YaHei UI"),
+                      QStringLiteral("Microsoft YaHei"),
+                      QStringLiteral("PingFang SC"),
+                      QStringLiteral("Segoe UI")});
     font.setPixelSize(pixelSize);
     font.setWeight(weight);
     font.setStyleStrategy(QFont::PreferAntialias);
     return font;
 }
 
-QLabel* createIconLabel(const QString& iconPath, const QSize& size, QWidget* parent) {
+QLabel* createIconLabel(const QString& iconPath, const QSize& size, QWidget* parent)
+{
     auto* label = new QLabel(parent);
     label->setFixedSize(size);
 
@@ -50,8 +56,11 @@ QLabel* createIconLabel(const QString& iconPath, const QSize& size, QWidget* par
     return label;
 }
 
-QFrame* createHeroTipCard(const QString& iconPath, const QString& title, const QString& text,
-                          QWidget* parent) {
+QFrame* createHeroTipCard(const QString& iconPath,
+                          const QString& title,
+                          const QString& text,
+                          QWidget* parent)
+{
     auto* card = new QFrame(parent);
     card->setObjectName(QStringLiteral("HeroTipCard"));
 
@@ -92,8 +101,10 @@ QFrame* createHeroTipCard(const QString& iconPath, const QString& title, const Q
 } // namespace
 
 ServerWelcomeDialog::ServerWelcomeDialog(bool autoVerifyOnShow, QWidget* parent)
-    : QDialog(parent), m_viewModel(new ServerWelcomeViewModel(this)),
-      m_autoVerifyOnShow(autoVerifyOnShow) {
+    : QDialog(parent)
+    , m_viewModel(new ServerWelcomeViewModel(this))
+    , m_autoVerifyOnShow(autoVerifyOnShow)
+{
     setObjectName(QStringLiteral("ServerWelcomeDialog"));
     setWindowTitle(QStringLiteral(u"欢迎使用 云音乐"));
     setWindowFlags(Qt::Dialog | Qt::FramelessWindowHint);
@@ -102,171 +113,172 @@ ServerWelcomeDialog::ServerWelcomeDialog(bool autoVerifyOnShow, QWidget* parent)
     setFixedSize(720, 500);
     setFont(buildWelcomeFont(13));
 
-    setStyleSheet(
-        QStringLiteral("QDialog#ServerWelcomeDialog {"
-                       "  background: transparent;"
-                       "}"
-                       "QFrame#MainCard {"
-                       "  background: transparent;"
-                       "  border: none;"
-                       "}"
-                       "QFrame#HeroPanel {"
-                       "  background: qlineargradient(x1:0,y1:0,x2:1,y2:1,"
-                       "              stop:0 #FFF2F2, stop:0.58 #FFF8F8, stop:1 #FFFFFF);"
-                       "  border: 1px solid #F3D9D9;"
-                       "  border-radius: 16px;"
-                       "}"
-                       "QFrame#BrandLogoWrap {"
-                       "  background: #EC4141;"
-                       "  border: none;"
-                       "  border-radius: 16px;"
-                       "}"
-                       "QFrame#HeroTipCard {"
-                       "  background: rgba(255, 255, 255, 0.92);"
-                       "  border: 1px solid #F1DFDF;"
-                       "  border-radius: 14px;"
-                       "}"
-                       "QFrame#HeroTipIconWrap {"
-                       "  background: #FFF1F1;"
-                       "  border: 1px solid #F4D4D4;"
-                       "  border-radius: 12px;"
-                       "}"
-                       "QFrame#FormPanel {"
-                       "  background: #FFFFFF;"
-                       "  border: 1px solid #ECECEC;"
-                       "  border-radius: 16px;"
-                       "}"
-                       "QFrame#StatusPanel {"
-                       "  background: #FFF4F4;"
-                       "  border: 1px solid #F3C9C9;"
-                       "  border-radius: 12px;"
-                       "}"
-                       "QDialog#ServerWelcomeDialog QLabel {"
-                       "  background: transparent;"
-                       "}"
-                       "QLabel#TitleLabel {"
-                       "  color: #1F2329;"
-                       "}"
-                       "QLabel#SubTitleLabel {"
-                       "  color: #6F7785;"
-                       "}"
-                       "QLabel#BadgeLabel {"
-                       "  color: #EC4141;"
-                       "  background: rgba(255, 255, 255, 0.92);"
-                       "  border: 1px solid #F4D4D4;"
-                       "  border-radius: 11px;"
-                       "  padding: 4px 12px;"
-                       "}"
-                       "QLabel#HeroTipTitle {"
-                       "  color: #1F2329;"
-                       "}"
-                       "QLabel#HeroTipText, QLabel#FieldHintLabel, QLabel#SecondaryLinkLabel {"
-                       "  color: #7A7D85;"
-                       "}"
-                       "QLabel#SectionTitle {"
-                       "  color: #4F5663;"
-                       "}"
-                       "QLabel#StatusLabel {"
-                       "  color: #D64848;"
-                       "}"
-                       "QLabel#SecondaryLinkLabel[disabled=\"true\"] {"
-                       "  color: #C8CDD7;"
-                       "}"
-                       "QLabel#SecondaryLinkLabel a {"
-                       "  color: #EC4141;"
-                       "  text-decoration: none;"
-                       "}"
-                       "QLabel#SecondaryLinkLabel a:hover {"
-                       "  text-decoration: underline;"
-                       "}"
-                       "QLineEdit, QSpinBox {"
-                       "  min-height: 44px;"
-                       "  border: 1px solid #E4E5EA;"
-                       "  border-radius: 12px;"
-                       "  padding: 0 14px;"
-                       "  background: #FFFFFF;"
-                       "  color: #1F2329;"
-                       "  font-size: 14px;"
-                       "}"
-                       "QLineEdit:hover, QSpinBox:hover {"
-                       "  border-color: #F2B0B0;"
-                       "}"
-                       "QLineEdit:focus, QSpinBox:focus {"
-                       "  border-color: #EC4141;"
-                       "}"
-                       "QSpinBox::up-button, QSpinBox::down-button {"
-                       "  width: 0px;"
-                       "  border: none;"
-                       "}"
-                       "QPushButton {"
-                       "  min-height: 44px;"
-                       "  border-radius: 12px;"
-                       "  padding: 0 18px;"
-                       "  font-size: 14px;"
-                       "  font-weight: 600;"
-                       "}"
-                       "QPushButton#CancelButton {"
-                       "  border: 1px solid #E5E5E5;"
-                       "  background: #FFFFFF;"
-                       "  color: #4A515C;"
-                       "}"
-                       "QPushButton#CancelButton:hover {"
-                       "  background: #F8F8F8;"
-                       "}"
-                       "QPushButton#CancelButton:pressed {"
-                       "  background: #F3F3F3;"
-                       "}"
-                       "QPushButton#PrimaryButton {"
-                       "  border: none;"
-                       "  background: #EC4141;"
-                       "  color: #FFFFFF;"
-                       "}"
-                       "QPushButton#PrimaryButton:hover {"
-                       "  background: #F15A5A;"
-                       "}"
-                       "QPushButton#PrimaryButton:pressed {"
-                       "  background: #D83939;"
-                       "}"
-                       "QPushButton#PrimaryButton:disabled {"
-                       "  background: #F3A1A1;"
-                       "  color: #FFF5F5;"
-                       "}"
-                       "QPushButton#CloseButton, QPushButton#CenterButton {"
-                       "  min-height: 28px;"
-                       "  max-height: 28px;"
-                       "  min-width: 28px;"
-                       "  max-width: 28px;"
-                       "  border: none;"
-                       "  border-radius: 14px;"
-                       "  padding: 0;"
-                       "  background: transparent;"
-                       "}"
-                       "QPushButton#CloseButton {"
-                       "  color: #7A818D;"
-                       "  font-size: 20px;"
-                       "  font-weight: 400;"
-                       "}"
-                       "QPushButton#CloseButton:hover {"
-                       "  background: #FFE8E8;"
-                       "  color: #EC4141;"
-                       "}"
-                       "QPushButton#CloseButton:pressed {"
-                       "  background: #FFD9D9;"
-                       "  color: #D83939;"
-                       "}"
-                       "QPushButton#CenterButton {"
-                       "  color: #A2A7B1;"
-                       "  font-size: 11px;"
-                       "  font-weight: 700;"
-                       "}"
-                       "QPushButton#CenterButton:hover {"
-                       "  background: #F1F4FB;"
-                       "  color: #616A79;"
-                       "}"
-                       "QPushButton#CenterButton:pressed {"
-                       "  background: #E7EDF9;"
-                       "  color: #4B5361;"
-                       "}"));
+    setStyleSheet(QStringLiteral(
+        "QDialog#ServerWelcomeDialog {"
+        "  background: transparent;"
+        "}"
+        "QFrame#MainCard {"
+        "  background: transparent;"
+        "  border: none;"
+        "}"
+        "QFrame#HeroPanel {"
+        "  background: qlineargradient(x1:0,y1:0,x2:1,y2:1,"
+        "              stop:0 #FFF2F2, stop:0.58 #FFF8F8, stop:1 #FFFFFF);"
+        "  border: 1px solid #F3D9D9;"
+        "  border-radius: 16px;"
+        "}"
+        "QFrame#BrandLogoWrap {"
+        "  background: #EC4141;"
+        "  border: none;"
+        "  border-radius: 16px;"
+        "}"
+        "QFrame#HeroTipCard {"
+        "  background: rgba(255, 255, 255, 0.92);"
+        "  border: 1px solid #F1DFDF;"
+        "  border-radius: 14px;"
+        "}"
+        "QFrame#HeroTipIconWrap {"
+        "  background: #FFF1F1;"
+        "  border: 1px solid #F4D4D4;"
+        "  border-radius: 12px;"
+        "}"
+        "QFrame#FormPanel {"
+        "  background: #FFFFFF;"
+        "  border: 1px solid #ECECEC;"
+        "  border-radius: 16px;"
+        "}"
+        "QFrame#StatusPanel {"
+        "  background: #FFF4F4;"
+        "  border: 1px solid #F3C9C9;"
+        "  border-radius: 12px;"
+        "}"
+        "QDialog#ServerWelcomeDialog QLabel {"
+        "  background: transparent;"
+        "}"
+        "QLabel#TitleLabel {"
+        "  color: #1F2329;"
+        "}"
+        "QLabel#SubTitleLabel {"
+        "  color: #6F7785;"
+        "}"
+        "QLabel#BadgeLabel {"
+        "  color: #EC4141;"
+        "  background: rgba(255, 255, 255, 0.92);"
+        "  border: 1px solid #F4D4D4;"
+        "  border-radius: 11px;"
+        "  padding: 4px 12px;"
+        "}"
+        "QLabel#HeroTipTitle {"
+        "  color: #1F2329;"
+        "}"
+        "QLabel#HeroTipText, QLabel#FieldHintLabel, QLabel#SecondaryLinkLabel {"
+        "  color: #7A7D85;"
+        "}"
+        "QLabel#SectionTitle {"
+        "  color: #4F5663;"
+        "}"
+        "QLabel#StatusLabel {"
+        "  color: #D64848;"
+        "}"
+        "QLabel#SecondaryLinkLabel[disabled=\"true\"] {"
+        "  color: #C8CDD7;"
+        "}"
+        "QLabel#SecondaryLinkLabel a {"
+        "  color: #EC4141;"
+        "  text-decoration: none;"
+        "}"
+        "QLabel#SecondaryLinkLabel a:hover {"
+        "  text-decoration: underline;"
+        "}"
+        "QLineEdit, QSpinBox {"
+        "  min-height: 44px;"
+        "  border: 1px solid #E4E5EA;"
+        "  border-radius: 12px;"
+        "  padding: 0 14px;"
+        "  background: #FFFFFF;"
+        "  color: #1F2329;"
+        "  font-size: 14px;"
+        "}"
+        "QLineEdit:hover, QSpinBox:hover {"
+        "  border-color: #F2B0B0;"
+        "}"
+        "QLineEdit:focus, QSpinBox:focus {"
+        "  border-color: #EC4141;"
+        "}"
+        "QSpinBox::up-button, QSpinBox::down-button {"
+        "  width: 0px;"
+        "  border: none;"
+        "}"
+        "QPushButton {"
+        "  min-height: 44px;"
+        "  border-radius: 12px;"
+        "  padding: 0 18px;"
+        "  font-size: 14px;"
+        "  font-weight: 600;"
+        "}"
+        "QPushButton#CancelButton {"
+        "  border: 1px solid #E5E5E5;"
+        "  background: #FFFFFF;"
+        "  color: #4A515C;"
+        "}"
+        "QPushButton#CancelButton:hover {"
+        "  background: #F8F8F8;"
+        "}"
+        "QPushButton#CancelButton:pressed {"
+        "  background: #F3F3F3;"
+        "}"
+        "QPushButton#PrimaryButton {"
+        "  border: none;"
+        "  background: #EC4141;"
+        "  color: #FFFFFF;"
+        "}"
+        "QPushButton#PrimaryButton:hover {"
+        "  background: #F15A5A;"
+        "}"
+        "QPushButton#PrimaryButton:pressed {"
+        "  background: #D83939;"
+        "}"
+        "QPushButton#PrimaryButton:disabled {"
+        "  background: #F3A1A1;"
+        "  color: #FFF5F5;"
+        "}"
+        "QPushButton#CloseButton, QPushButton#CenterButton {"
+        "  min-height: 28px;"
+        "  max-height: 28px;"
+        "  min-width: 28px;"
+        "  max-width: 28px;"
+        "  border: none;"
+        "  border-radius: 14px;"
+        "  padding: 0;"
+        "  background: transparent;"
+        "}"
+        "QPushButton#CloseButton {"
+        "  color: #7A818D;"
+        "  font-size: 20px;"
+        "  font-weight: 400;"
+        "}"
+        "QPushButton#CloseButton:hover {"
+        "  background: #FFE8E8;"
+        "  color: #EC4141;"
+        "}"
+        "QPushButton#CloseButton:pressed {"
+        "  background: #FFD9D9;"
+        "  color: #D83939;"
+        "}"
+        "QPushButton#CenterButton {"
+        "  color: #A2A7B1;"
+        "  font-size: 11px;"
+        "  font-weight: 700;"
+        "}"
+        "QPushButton#CenterButton:hover {"
+        "  background: #F1F4FB;"
+        "  color: #616A79;"
+        "}"
+        "QPushButton#CenterButton:pressed {"
+        "  background: #E7EDF9;"
+        "  color: #4B5361;"
+        "}"
+    ));
 
     auto* card = new QFrame(this);
     card->setObjectName(QStringLiteral("MainCard"));
@@ -282,8 +294,7 @@ ServerWelcomeDialog::ServerWelcomeDialog(bool autoVerifyOnShow, QWidget* parent)
     logoLabel->setFixedSize(36, 36);
     logoLabel->move((logoWrap->width() - logoLabel->width()) / 2,
                     (logoWrap->height() - logoLabel->height()) / 2);
-    const QPixmap logo(QStringLiteral(
-        ":/design/design_exports/netease_ui_pack_20260309/icon/ui/brand/brand_logo_light@2x.png"));
+    const QPixmap logo(QStringLiteral(":/design/design_exports/netease_ui_pack_20260309/icon/ui/brand/brand_logo_light@2x.png"));
     if (!logo.isNull()) {
         logoLabel->setPixmap(logo.scaled(36, 36, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     }
@@ -318,12 +329,16 @@ ServerWelcomeDialog::ServerWelcomeDialog(bool autoVerifyOnShow, QWidget* parent)
     m_closeButton->setFocusPolicy(Qt::NoFocus);
 
     auto* serverTipCard = createHeroTipCard(
-        QStringLiteral(":/qml/assets/ai/icons/welcome-server.svg"), QStringLiteral(u"连接服务器"),
-        QStringLiteral(u"支持直接输入常用地址，首次连接后会自动记住。"), heroPanel);
+        QStringLiteral(":/qml/assets/ai/icons/welcome-server.svg"),
+        QStringLiteral(u"连接服务器"),
+        QStringLiteral(u"支持直接输入常用地址，首次连接后会自动记住。"),
+        heroPanel);
 
     auto* offlineTipCard = createHeroTipCard(
-        QStringLiteral(":/qml/assets/ai/icons/welcome-offline.svg"), QStringLiteral(u"离线进入"),
-        QStringLiteral(u"暂时不连接也可以先进入，照常管理本地音乐。"), heroPanel);
+        QStringLiteral(":/qml/assets/ai/icons/welcome-offline.svg"),
+        QStringLiteral(u"离线进入"),
+        QStringLiteral(u"暂时不连接也可以先进入，照常管理本地音乐。"),
+        heroPanel);
 
     auto* actionRow = new QHBoxLayout();
     actionRow->setContentsMargins(0, 0, 0, 0);
@@ -369,8 +384,7 @@ ServerWelcomeDialog::ServerWelcomeDialog(bool autoVerifyOnShow, QWidget* parent)
     hostLabel->setFont(buildWelcomeFont(13, QFont::DemiBold));
 
     m_hostEdit = new QLineEdit(formPanel);
-    m_hostEdit->setPlaceholderText(
-        QStringLiteral(u"例如：192.168.1.208、music.local 或 host:port"));
+    m_hostEdit->setPlaceholderText(QStringLiteral(u"例如：192.168.1.208、music.local 或 host:port"));
     m_hostEdit->setText(m_viewModel ? m_viewModel->serverHost() : QString());
     m_hostEdit->setClearButtonEnabled(true);
     m_hostEdit->setFont(buildWelcomeFont(14));
@@ -386,8 +400,8 @@ ServerWelcomeDialog::ServerWelcomeDialog(bool autoVerifyOnShow, QWidget* parent)
     m_portSpin->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     m_portSpin->setFont(buildWelcomeFont(14));
 
-    auto* fieldHintLabel =
-        new QLabel(QStringLiteral(u"支持直接输入 host:port，端口会自动识别。"), formPanel);
+    auto* fieldHintLabel = new QLabel(
+        QStringLiteral(u"支持直接输入 host:port，端口会自动识别。"), formPanel);
     fieldHintLabel->setObjectName(QStringLiteral("FieldHintLabel"));
     fieldHintLabel->setWordWrap(true);
     fieldHintLabel->setFont(buildWelcomeFont(13));
@@ -418,8 +432,7 @@ ServerWelcomeDialog::ServerWelcomeDialog(bool autoVerifyOnShow, QWidget* parent)
 
     m_localOnlyEntryLabel = new QLabel(formPanel);
     m_localOnlyEntryLabel->setObjectName(QStringLiteral("SecondaryLinkLabel"));
-    m_localOnlyEntryLabel->setText(
-        QStringLiteral("暂时不连接？<a href=\"localOnly\">进入离线模式</a>"));
+    m_localOnlyEntryLabel->setText(QStringLiteral("暂时不连接？<a href=\"localOnly\">进入离线模式</a>"));
     m_localOnlyEntryLabel->setTextFormat(Qt::RichText);
     m_localOnlyEntryLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
     m_localOnlyEntryLabel->setCursor(Qt::PointingHandCursor);
@@ -475,7 +488,8 @@ ServerWelcomeDialog::ServerWelcomeDialog(bool autoVerifyOnShow, QWidget* parent)
     setupInteractionConnections();
 }
 
-void ServerWelcomeDialog::showEvent(QShowEvent* event) {
+void ServerWelcomeDialog::showEvent(QShowEvent* event)
+{
     QDialog::showEvent(event);
 
     if (m_hostEdit && !m_hostEdit->hasFocus()) {
@@ -500,15 +514,18 @@ void ServerWelcomeDialog::showEvent(QShowEvent* event) {
     });
 }
 
-void ServerWelcomeDialog::mousePressEvent(QMouseEvent* event) {
+void ServerWelcomeDialog::mousePressEvent(QMouseEvent* event)
+{
     if (!event || event->button() != Qt::LeftButton) {
         QDialog::mousePressEvent(event);
         return;
     }
 
     QWidget* hit = childAt(event->pos());
-    if (hit && (qobject_cast<QAbstractButton*>(hit) || qobject_cast<QLineEdit*>(hit) ||
-                qobject_cast<QSpinBox*>(hit) || hit->inherits("QAbstractSpinBox"))) {
+    if (hit && (qobject_cast<QAbstractButton*>(hit)
+                || qobject_cast<QLineEdit*>(hit)
+                || qobject_cast<QSpinBox*>(hit)
+                || hit->inherits("QAbstractSpinBox"))) {
         QDialog::mousePressEvent(event);
         return;
     }
@@ -522,7 +539,8 @@ void ServerWelcomeDialog::mousePressEvent(QMouseEvent* event) {
     event->accept();
 }
 
-void ServerWelcomeDialog::mouseMoveEvent(QMouseEvent* event) {
+void ServerWelcomeDialog::mouseMoveEvent(QMouseEvent* event)
+{
     if (!event || !m_dragging || !(event->buttons() & Qt::LeftButton)) {
         QDialog::mouseMoveEvent(event);
         return;
@@ -536,7 +554,8 @@ void ServerWelcomeDialog::mouseMoveEvent(QMouseEvent* event) {
     event->accept();
 }
 
-void ServerWelcomeDialog::mouseReleaseEvent(QMouseEvent* event) {
+void ServerWelcomeDialog::mouseReleaseEvent(QMouseEvent* event)
+{
     if (m_dragging) {
         const QPoint snapped = adjustedWindowPos(pos(), true);
         if (snapped != pos()) {
@@ -550,8 +569,8 @@ void ServerWelcomeDialog::mouseReleaseEvent(QMouseEvent* event) {
     QDialog::mouseReleaseEvent(event);
 }
 
-QPoint ServerWelcomeDialog::adjustedWindowPos(const QPoint& desiredTopLeft,
-                                              bool snapToEdges) const {
+QPoint ServerWelcomeDialog::adjustedWindowPos(const QPoint& desiredTopLeft, bool snapToEdges) const
+{
     QScreen* screen = QGuiApplication::screenAt(desiredTopLeft + QPoint(width() / 2, height() / 2));
     if (!screen) {
         screen = QGuiApplication::primaryScreen();
@@ -585,7 +604,8 @@ QPoint ServerWelcomeDialog::adjustedWindowPos(const QPoint& desiredTopLeft,
     return QPoint(x, y);
 }
 
-void ServerWelcomeDialog::onVerifyClicked() {
+void ServerWelcomeDialog::onVerifyClicked()
+{
     m_enterLocalOnly = false;
     setUiBusy(true);
     setStatusMessage(QString(), false);
@@ -593,9 +613,12 @@ void ServerWelcomeDialog::onVerifyClicked() {
     QString errorMessage;
     QString normalizedHost;
     int normalizedPort = m_portSpin ? m_portSpin->value() : 8080;
-    if (m_viewModel &&
-        m_viewModel->verifyServer(m_hostEdit ? m_hostEdit->text() : QString(), normalizedPort,
-                                  &normalizedHost, &normalizedPort, &errorMessage)) {
+    if (m_viewModel
+        && m_viewModel->verifyServer(m_hostEdit ? m_hostEdit->text() : QString(),
+                                     normalizedPort,
+                                     &normalizedHost,
+                                     &normalizedPort,
+                                     &errorMessage)) {
         if (m_hostEdit) {
             m_hostEdit->setText(normalizedHost);
         }
@@ -606,15 +629,15 @@ void ServerWelcomeDialog::onVerifyClicked() {
         return;
     }
 
-    setStatusMessage(
-        errorMessage.isEmpty()
-            ? QStringLiteral(u"暂时无法连接到该服务器，请检查地址、端口和服务状态后重试。")
-            : errorMessage,
-        true);
+    setStatusMessage(errorMessage.isEmpty()
+                         ? QStringLiteral(u"暂时无法连接到该服务器，请检查地址、端口和服务状态后重试。")
+                         : errorMessage,
+                     true);
     setUiBusy(false);
 }
 
-void ServerWelcomeDialog::onEnterLocalOnlyClicked() {
+void ServerWelcomeDialog::onEnterLocalOnlyClicked()
+{
     if (m_verifyButton && !m_verifyButton->isEnabled()) {
         return;
     }
@@ -623,7 +646,8 @@ void ServerWelcomeDialog::onEnterLocalOnlyClicked() {
     accept();
 }
 
-void ServerWelcomeDialog::setUiBusy(bool busy) {
+void ServerWelcomeDialog::setUiBusy(bool busy)
+{
     if (m_hostEdit) {
         m_hostEdit->setEnabled(!busy);
     }
@@ -632,8 +656,9 @@ void ServerWelcomeDialog::setUiBusy(bool busy) {
     }
     if (m_verifyButton) {
         m_verifyButton->setEnabled(!busy);
-        m_verifyButton->setText(busy ? QStringLiteral(u"连接中...")
-                                     : QStringLiteral(u"连接并进入"));
+        m_verifyButton->setText(busy
+                                ? QStringLiteral(u"连接中...")
+                                : QStringLiteral(u"连接并进入"));
     }
     if (m_cancelButton) {
         m_cancelButton->setEnabled(!busy);
@@ -643,7 +668,8 @@ void ServerWelcomeDialog::setUiBusy(bool busy) {
     }
 }
 
-void ServerWelcomeDialog::setStatusMessage(const QString& message, bool isError) {
+void ServerWelcomeDialog::setStatusMessage(const QString& message, bool isError)
+{
     if (!m_statusFrame || !m_statusLabel) {
         return;
     }
@@ -656,18 +682,20 @@ void ServerWelcomeDialog::setStatusMessage(const QString& message, bool isError)
     }
 
     if (isError) {
-        m_statusFrame->setStyleSheet(QStringLiteral("QFrame#StatusPanel {"
-                                                    "  background: #FFF4F4;"
-                                                    "  border: 1px solid #F3C9C9;"
-                                                    "  border-radius: 12px;"
-                                                    "}"));
+        m_statusFrame->setStyleSheet(QStringLiteral(
+            "QFrame#StatusPanel {"
+            "  background: #FFF4F4;"
+            "  border: 1px solid #F3C9C9;"
+            "  border-radius: 12px;"
+            "}"));
         m_statusLabel->setStyleSheet(QStringLiteral("color: #D64848;"));
     } else {
-        m_statusFrame->setStyleSheet(QStringLiteral("QFrame#StatusPanel {"
-                                                    "  background: #F4FAF6;"
-                                                    "  border: 1px solid #CFE9D7;"
-                                                    "  border-radius: 12px;"
-                                                    "}"));
+        m_statusFrame->setStyleSheet(QStringLiteral(
+            "QFrame#StatusPanel {"
+            "  background: #F4FAF6;"
+            "  border: 1px solid #CFE9D7;"
+            "  border-radius: 12px;"
+            "}"));
         m_statusLabel->setStyleSheet(QStringLiteral("color: #1F8E49;"));
     }
 

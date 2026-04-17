@@ -2027,8 +2027,8 @@ QVariantMap HttpRequestV2::parsePlaylistDetailPayload(const Network::NetworkResp
     detail.insert(QStringLiteral("description"),
                   detailObj.value(QStringLiteral("description")).toString());
     detail.insert(QStringLiteral("cover_url"),
-                  rewriteServiceUrlToBase(detailObj.value(QStringLiteral("cover_url")).toString(),
-                                          m_baseUrl));
+                  rewriteServiceUrlToBase(
+                      detailObj.value(QStringLiteral("cover_url")).toString(), m_baseUrl));
     detail.insert(QStringLiteral("created_at"),
                   detailObj.value(QStringLiteral("created_at")).toString());
     detail.insert(QStringLiteral("updated_at"),
@@ -2077,8 +2077,8 @@ QVariantMap HttpRequestV2::parsePlaylistDetailPayload(const Network::NetworkResp
         QString coverArtUrl = rewriteServiceUrlToBase(
             obj.value(QStringLiteral("cover_art_url")).toString(), m_baseUrl);
         if (coverArtUrl.trimmed().isEmpty()) {
-            coverArtUrl = rewriteServiceUrlToBase(obj.value(QStringLiteral("cover_url")).toString(),
-                                                  m_baseUrl);
+            coverArtUrl = rewriteServiceUrlToBase(
+                obj.value(QStringLiteral("cover_url")).toString(), m_baseUrl);
         }
         if (coverArtUrl.trimmed().isEmpty()) {
             coverArtUrl = rewriteServiceUrlToBase(
@@ -2102,7 +2102,8 @@ QVariantMap HttpRequestV2::parsePlaylistDetailPayload(const Network::NetworkResp
         rememberCoverForSongMeta(obj.value(QStringLiteral("music_title")).toString(),
                                  readArtistFromObject(obj), coverArtUrl);
 
-        item.insert(QStringLiteral("id"), obj.value(QStringLiteral("id")).toVariant().toLongLong());
+        item.insert(QStringLiteral("id"),
+                    obj.value(QStringLiteral("id")).toVariant().toLongLong());
         item.insert(QStringLiteral("position"), obj.value(QStringLiteral("position")).toInt());
         item.insert(QStringLiteral("path"), musicPath);
         item.insert(QStringLiteral("music_path"), musicPath);
@@ -2116,7 +2117,8 @@ QVariantMap HttpRequestV2::parsePlaylistDetailPayload(const Network::NetworkResp
         item.insert(QStringLiteral("duration_sec"),
                     obj.value(QStringLiteral("duration_sec")).toInt());
         item.insert(QStringLiteral("is_local"), isLocal);
-        item.insert(QStringLiteral("added_at"), obj.value(QStringLiteral("added_at")).toString());
+        item.insert(QStringLiteral("added_at"),
+                    obj.value(QStringLiteral("added_at")).toString());
         item.insert(QStringLiteral("cover_art_url"), coverArtUrl);
 
         items.append(item);
@@ -2127,7 +2129,8 @@ QVariantMap HttpRequestV2::parsePlaylistDetailPayload(const Network::NetworkResp
         detailObj.value(QStringLiteral("total_duration_sec")).toInt(totalDurationSec);
     detail.insert(QStringLiteral("track_count"), trackCount);
     detail.insert(QStringLiteral("total_duration_sec"), serverDurationSec);
-    detail.insert(QStringLiteral("total_duration"), formatDurationFromSeconds(serverDurationSec));
+    detail.insert(QStringLiteral("total_duration"),
+                  formatDurationFromSeconds(serverDurationSec));
     detail.insert(QStringLiteral("items"), items);
 
     return detail;
@@ -2164,8 +2167,8 @@ void HttpRequestV2::getPlaylistDetail(const QString& userAccount, qint64 playlis
     });
 }
 
-void HttpRequestV2::requestPlaylistDetailForCover(const QString& userAccount, qint64 playlistId,
-                                                  bool useCache) {
+void HttpRequestV2::getPlaylistDetailForCover(const QString& userAccount, qint64 playlistId,
+                                              bool useCache) {
     const QString trimmedUser = userAccount.trimmed();
     if (trimmedUser.isEmpty() || playlistId <= 0) {
         QVariantMap failedDetail;
@@ -2187,21 +2190,19 @@ void HttpRequestV2::requestPlaylistDetailForCover(const QString& userAccount, qi
         options.useCache = false;
     }
 
-    m_networkService.get(url, options,
-                         [this, playlistId](const Network::NetworkResponse& response) {
-                             if (!response.isSuccess()) {
-                                 qWarning() << "[HttpRequestV2] Get playlist cover detail error:"
-                                            << response.errorString;
-                                 QVariantMap failedDetail;
-                                 failedDetail.insert(QStringLiteral("id"), playlistId);
-                                 failedDetail.insert(QStringLiteral("_prefetch_failed"), true);
-                                 emit signalPlaylistCoverDetail(failedDetail);
-                                 return;
-                             }
+    m_networkService.get(url, options, [this, playlistId](const Network::NetworkResponse& response) {
+        if (!response.isSuccess()) {
+            qWarning() << "[HttpRequestV2] Get playlist cover detail error:" << response.errorString;
+            QVariantMap failedDetail;
+            failedDetail.insert(QStringLiteral("id"), playlistId);
+            failedDetail.insert(QStringLiteral("_prefetch_failed"), true);
+            emit signalPlaylistCoverDetail(failedDetail);
+            return;
+        }
 
-                             const QVariantMap detail = parsePlaylistDetailPayload(response);
-                             emit signalPlaylistCoverDetail(detail);
-                         });
+        const QVariantMap detail = parsePlaylistDetailPayload(response);
+        emit signalPlaylistCoverDetail(detail);
+    });
 }
 
 void HttpRequestV2::deletePlaylist(const QString& userAccount, qint64 playlistId) {
