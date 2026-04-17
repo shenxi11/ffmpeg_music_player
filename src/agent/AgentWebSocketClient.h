@@ -1,4 +1,4 @@
-﻿#ifndef AGENT_WEBSOCKET_CLIENT_H
+#ifndef AGENT_WEBSOCKET_CLIENT_H
 #define AGENT_WEBSOCKET_CLIENT_H
 
 #include <QObject>
@@ -31,6 +31,9 @@ public:
     void setSessionId(const QString& sessionId);
     void clearSession();
 
+    void sendHostSnapshot(const QVariantMap& hostContext,
+                          const QVariantList& capabilities,
+                          const QString& catalogVersion = QString());
     void sendUserMessage(const QString& content, const QString& requestId);
     void sendToolResult(const QString& toolCallId,
                         bool ok,

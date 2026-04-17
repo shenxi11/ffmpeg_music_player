@@ -60,6 +60,7 @@ class PendingClarification:
 class WorkflowState:
     session_id: str
     workflow_mode: str = "chat"
+    agent_mode: str = "control"
     current_goal: str | None = None
     goal_status: str = "idle"
     goal_history: list[str] = field(default_factory=list)
@@ -91,6 +92,9 @@ class WorkflowState:
     pending_clarification: PendingClarification | None = None
     active_plan: ExecutionPlan | None = None
     pending_approval: bool = False
+    host_context_snapshot: dict = field(default_factory=dict)
+    capability_snapshot: dict = field(default_factory=dict)
+    last_result_set: list[dict] = field(default_factory=list)
 
 
 class WorkflowMemoryStore:

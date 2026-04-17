@@ -1,24 +1,48 @@
 #include "AgentChatViewModel.h"
 
 #include "AgentProcessManager.h"
+#include "AgentLocalRuntime.h"
 #include "AgentSessionService.h"
 #include "AgentWebSocketClient.h"
 #include "capability/AgentCapabilityFacade.h"
 #include "host/HostStateProvider.h"
 #include "script/AgentScriptExecutor.h"
+#include "settings_manager.h"
+#include "tool/ToolRegistry.h"
 
 #include <QDateTime>
 #include <QDebug>
 #include <QJsonDocument>
 #include <QJsonObject>
 
+namespace {
+
+QString normalizeAgentFailureMessage(const QString& rawReason)
+{
+    const QString reason = rawReason.trimmed();
+    const QString lowered = reason.toLower();
+    if (lowered.contains(QStringLiteral("8765"))
+        || lowered.contains(QStringLiteral("10048"))
+        || lowered.contains(QStringLiteral("address already in use"))
+        || lowered.contains(QStringLiteral("占用"))) {
+        return QStringLiteral("检测到旧版兼容 AI 服务仍占用 8765 端口，请先关闭旧实例后再继续。");
+    }
+    if (lowered.contains(QStringLiteral("healthz")) || lowered.contains(QStringLiteral("健康检查超时"))) {
+        return QStringLiteral("检测到旧版兼容 AI 服务健康检查失败，当前桌面主链不再依赖该服务。");
+    }
+    return reason;
+}
+
+}
+
 AgentChatViewModel::AgentChatViewModel(QObject* parent)
     : QObject(parent)
-    , m_processManager(new AgentProcessManager(this))
+    , m_processManager(nullptr)
     , m_sessionService(new AgentSessionService(this))
-    , m_socketClient(new AgentWebSocketClient(this))
+    , m_socketClient(nullptr)
     , m_hostStateProvider(new HostStateProvider(this))
     , m_capabilityFacade(new AgentCapabilityFacade(m_hostStateProvider, this))
+    , m_localRuntime(new AgentLocalRuntime(m_capabilityFacade, this))
     , m_scriptExecutor(new AgentScriptExecutor(m_capabilityFacade, this))
     , m_messageModel(this)
     , m_sessionModel(this)
@@ -38,27 +62,16 @@ void AgentChatViewModel::initialize()
     }
 
     setLastError(QString());
-
-    if (m_processManager->isRunning()) {
-        if (!m_initialSessionsLoaded) {
-            loadSessions(m_lastSessionQuery);
-            return;
-        }
-
-        if (!m_currentSessionId.isEmpty() && !m_socketClient->isConnected()) {
-            connectSocketForCurrentSession();
-            return;
-        }
-
-        if (m_currentSessionId.isEmpty()) {
-            setState(AgentConnectionState::Idle);
-        }
+    setState(AgentConnectionState::StartingProcess);
+    if (!m_initialSessionsLoaded) {
+        loadSessions(m_lastSessionQuery);
         return;
     }
 
-    setState(AgentConnectionState::StartingProcess);
-    if (!m_processManager->startAgent()) {
-        setState(AgentConnectionState::Error);
+    if (m_currentSessionId.isEmpty()) {
+        setState(AgentConnectionState::Idle);
+    } else {
+        setState(AgentConnectionState::Ready);
     }
 }
 
@@ -68,23 +81,12 @@ void AgentChatViewModel::retryConnection()
         return;
     }
 
-    if (m_socketClient->isConnected()) {
-        m_manualDisconnect = true;
-    }
     setLastError(QString());
-
-    if (m_processManager->isRunning()) {
-        if (m_currentSessionId.isEmpty()) {
-            loadSessions(m_lastSessionQuery);
-            return;
-        }
-
-        setState(AgentConnectionState::ConnectingSocket);
-        m_socketClient->reconnect();
+    if (m_currentSessionId.isEmpty()) {
+        loadSessions(m_lastSessionQuery);
         return;
     }
-
-    initialize();
+    setState(AgentConnectionState::Ready);
 }
 
 void AgentChatViewModel::sendMessage(const QString& text)
@@ -101,8 +103,8 @@ void AgentChatViewModel::sendMessage(const QString& text)
     }
 
     if (!isReady()) {
-        appendErrorMessage(QString(), QStringLiteral("当前未连接到 AI 助手，请先重连。"));
-        emit toastRequested(QStringLiteral("AI 助手未连接"));
+        appendErrorMessage(QString(), QStringLiteral("AI 助手尚未就绪，请先完成会话初始化。"));
+        emit toastRequested(QStringLiteral("AI 助手尚未就绪"));
         return;
     }
 
@@ -110,18 +112,25 @@ void AgentChatViewModel::sendMessage(const QString& text)
     m_debugUserPromptByRequestId.insert(requestId, content);
     m_debugPendingRequestIds.append(requestId);
     appendUserMessage(requestId, content);
-    m_socketClient->sendUserMessage(content, requestId);
+    persistCurrentSessionMessages();
+
+    ToolRegistry* registry = m_capabilityFacade ? m_capabilityFacade->toolRegistry() : nullptr;
+    const QVariantList capabilities = registry ? registry->allToolsAsVariantList() : QVariantList();
+    const QVariantMap hostContext = m_hostStateProvider ? m_hostStateProvider->hostContextSnapshot()
+                                                        : QVariantMap();
+    if (!m_localRuntime) {
+        appendErrorMessage(requestId, QStringLiteral("Qt 内嵌 Agent 运行时尚未初始化。"));
+        persistCurrentSessionMessages();
+        return;
+    }
+    m_localRuntime->sendUserMessage(m_currentSessionId, requestId, content, hostContext, capabilities);
 }
 
 void AgentChatViewModel::loadSessions(const QString& query)
 {
     m_lastSessionQuery = query.trimmed();
-    if (!m_processManager->isRunning()) {
-        initialize();
-        return;
-    }
-
     setLoadingSessions(true);
+    setState(AgentConnectionState::ConnectingSocket);
     m_sessionService->fetchSessions(m_lastSessionQuery);
 }
 
@@ -132,12 +141,6 @@ void AgentChatViewModel::searchSessions(const QString& query)
 
 void AgentChatViewModel::createSession(const QString& title)
 {
-    if (!m_processManager->isRunning()) {
-        initialize();
-        appendErrorMessage(QString(), QStringLiteral("AI 服务尚未就绪，请稍后再试。"));
-        return;
-    }
-
     setLastError(QString());
     m_sessionService->createSession(title);
 }
@@ -149,21 +152,9 @@ void AgentChatViewModel::selectSession(const QString& sessionIdValue)
         return;
     }
 
-    if (!m_processManager->isRunning()) {
-        initialize();
-        return;
-    }
-
     m_pendingMessageSessionId = sid;
     m_sessionModel.setSelectedSession(sid);
     m_pendingChunkByRequestId.clear();
-
-    if (m_socketClient->isConnected()) {
-        m_manualDisconnect = true;
-        m_socketClient->disconnectFromServer();
-    }
-    m_socketClient->setSessionId(sid);
-
     setState(AgentConnectionState::ConnectingSocket);
     m_sessionService->fetchSessionMessages(sid);
 }
@@ -199,19 +190,16 @@ void AgentChatViewModel::sendApprovalResponse(const QString& planId,
                                               bool approved,
                                               const QString& reason)
 {
-    if (!m_socketClient) {
-        appendErrorMessage(QString(), QStringLiteral("AI 连接未就绪，无法提交审批。"));
-        return;
-    }
-    if (!m_socketClient->isConnected()) {
-        appendErrorMessage(QString(), QStringLiteral("当前未连接到 AI 助手，请先重连。"));
+    if (!m_localRuntime) {
+        appendErrorMessage(QString(), QStringLiteral("Qt 内嵌 Agent 运行时尚未初始化。"));
         return;
     }
 
-    m_socketClient->sendApprovalResponse(planId, approved, reason);
+    m_localRuntime->sendApprovalResponse(m_currentSessionId, planId, approved, reason);
     const QString actionText = approved ? QStringLiteral("已同意执行计划。")
                                         : QStringLiteral("已拒绝执行计划。");
     appendSystemMessage(actionText, QStringLiteral("done"));
+    persistCurrentSessionMessages();
 }
 
 void AgentChatViewModel::startNewConversation()
@@ -236,10 +224,6 @@ void AgentChatViewModel::switchToSession(const QString& sessionIdValue)
 
 void AgentChatViewModel::handleWindowClosed()
 {
-    if (m_socketClient->isConnected()) {
-        m_manualDisconnect = true;
-    }
-    m_socketClient->disconnectFromServer();
     if (!m_appExiting) {
         setState(AgentConnectionState::Idle);
     }
@@ -248,28 +232,41 @@ void AgentChatViewModel::handleWindowClosed()
 void AgentChatViewModel::shutdownForAppExit()
 {
     m_appExiting = true;
-    if (m_socketClient && m_socketClient->isConnected()) {
-        m_manualDisconnect = true;
-    }
-
-    if (m_socketClient) {
-        m_socketClient->disconnectFromServer();
-    }
-    if (m_processManager) {
-        m_processManager->stopAgent();
-    }
-
     setState(AgentConnectionState::Idle);
 }
 
-void AgentChatViewModel::setMainShellViewModel(MainShellViewModel* shellViewModel)
+void AgentChatViewModel::setHostContext(QObject* hostContext)
 {
     if (m_hostStateProvider) {
-        m_hostStateProvider->setMainShellViewModel(shellViewModel);
+        m_hostStateProvider->setHostContext(hostContext);
     }
     if (m_capabilityFacade) {
-        m_capabilityFacade->setMainShellViewModel(shellViewModel);
+        m_capabilityFacade->setHostContext(hostContext);
     }
+}
+
+void AgentChatViewModel::setAgentMode(const QString& mode)
+{
+    const QString trimmed = mode.trimmed();
+    if (trimmed.isEmpty() || SettingsManager::instance().agentMode() == trimmed) {
+        return;
+    }
+    SettingsManager::instance().setAgentMode(trimmed);
+}
+
+QString AgentChatViewModel::agentMode() const
+{
+    return SettingsManager::instance().agentMode();
+}
+
+QString AgentChatViewModel::localModelName() const
+{
+    return SettingsManager::instance().agentLocalModelName();
+}
+
+bool AgentChatViewModel::remoteFallbackEnabled() const
+{
+    return SettingsManager::instance().agentRemoteFallbackEnabled();
 }
 
 QVariantMap AgentChatViewModel::validateClientScript(const QString& scriptText) const
@@ -581,9 +578,10 @@ void AgentChatViewModel::onAgentStarted()
 
 void AgentChatViewModel::onAgentStartFailed(const QString& reason)
 {
-    setLastError(reason, true);
+    const QString normalized = normalizeAgentFailureMessage(reason);
+    setLastError(normalized, true);
     setState(AgentConnectionState::Error);
-    appendErrorMessage(QString(), QStringLiteral("AI 服务启动失败：%1").arg(reason));
+    appendErrorMessage(QString(), QStringLiteral("AI 服务启动失败：%1").arg(normalized));
 }
 
 void AgentChatViewModel::onAgentExited(int exitCode, QProcess::ExitStatus exitStatus)
@@ -592,7 +590,13 @@ void AgentChatViewModel::onAgentExited(int exitCode, QProcess::ExitStatus exitSt
         return;
     }
 
-    const QString reason = QStringLiteral("AI 服务已退出（code=%1，status=%2）")
+    if (m_restartPending) {
+        m_restartPending = false;
+        initialize();
+        return;
+    }
+
+    const QString reason = QStringLiteral("AI 服务异常退出（code=%1，status=%2）")
                                .arg(exitCode)
                                .arg(static_cast<int>(exitStatus));
     appendErrorMessage(QString(), reason);
@@ -638,7 +642,7 @@ void AgentChatViewModel::onHealthInfoUpdated(const QVariantMap& healthInfo)
     m_toolsEnabled = m_toolsEnabledByHealth && m_toolsEnabledBySession;
 
     if (!m_toolsEnabled) {
-        appendSystemMessage(QStringLiteral("healthz 显示 tools 能力未开启，当前仅支持聊天。"));
+        appendSystemMessage(QStringLiteral("兼容诊断信息显示 tools 能力未开启，当前仅支持聊天。"));
     }
 }
 
@@ -656,7 +660,6 @@ void AgentChatViewModel::onSessionsLoaded(const QVector<ChatSessionItem>& sessio
 
     if (normalized.isEmpty()) {
         m_messageModel.clear();
-        m_socketClient->clearSession();
         clearCurrentSession();
         setState(AgentConnectionState::Idle);
         return;
@@ -664,7 +667,7 @@ void AgentChatViewModel::onSessionsLoaded(const QVector<ChatSessionItem>& sessio
 
     if (!m_currentSessionId.isEmpty() && m_sessionModel.containsSession(m_currentSessionId)) {
         m_sessionModel.setSelectedSession(m_currentSessionId);
-        if (!m_socketClient->isConnected() && m_messageModel.rowCount() == 0) {
+        if (m_messageModel.rowCount() == 0) {
             selectSession(m_currentSessionId);
         }
         return;
@@ -727,11 +730,6 @@ void AgentChatViewModel::onSessionDeleted(const QString& sessionIdValue)
     m_pendingChunkByRequestId.clear();
     m_messageModel.clear();
     clearCurrentSession();
-    m_socketClient->clearSession();
-    if (m_socketClient->isConnected()) {
-        m_manualDisconnect = true;
-    }
-    m_socketClient->disconnectFromServer();
 
     if (m_sessionModel.rowCount() > 0) {
         selectSession(m_sessionModel.sessionAt(0).sessionId);
@@ -751,7 +749,7 @@ void AgentChatViewModel::onSessionMessagesLoaded(const ChatSessionItem& session,
     setCurrentSession(session);
     m_sessionModel.setSelectedSession(session.sessionId);
     rebuildMessages(messages);
-    connectSocketForCurrentSession();
+    setState(AgentConnectionState::Ready);
 }
 
 void AgentChatViewModel::onSessionRequestFailed(const QString& operation, const QString& errorMessage)
@@ -788,7 +786,7 @@ void AgentChatViewModel::onSocketDisconnected()
         return;
     }
 
-    const QString reason = QStringLiteral("AI 会话连接已断开，可点击“重连”恢复。");
+    const QString reason = QStringLiteral("AI 本地运行时已结束当前会话，请点击“重连”或重新选择会话。");
     appendErrorMessage(QString(), reason);
     setLastError(reason, true);
     setState(AgentConnectionState::Error);
@@ -865,6 +863,8 @@ void AgentChatViewModel::onSessionReadyDetailed(const QString& sessionIdValue,
     if (!m_toolsEnabled) {
         appendSystemMessage(QStringLiteral("当前 Agent 会话未开启工具调用能力，将仅使用聊天模式。"));
     }
+
+    syncHostSnapshotToAgent();
 }
 
 void AgentChatViewModel::onAssistantStartReceived(const QString& requestId)
@@ -899,13 +899,7 @@ void AgentChatViewModel::onAssistantFinalReceived(const QString& requestId, cons
         clearDebugTrace(requestId);
         m_debugPendingRequestIds.removeAll(requestId);
     }
-
-    if (!m_currentSessionId.isEmpty()) {
-        m_sessionService->fetchSession(m_currentSessionId);
-        if (m_lastSessionQuery.isEmpty()) {
-            m_sessionService->fetchSessions();
-        }
-    }
+    persistCurrentSessionMessages();
 }
 
 void AgentChatViewModel::onAssistantMessageReceived(const QString& requestId, const QString& content)
@@ -1016,6 +1010,8 @@ void AgentChatViewModel::onRequestError(const QString& requestId, const QString&
     const QString text = QStringLiteral("请求失败[%1]：%2").arg(code, message);
     if (!m_messageModel.markAssistantMessageError(requestId, text)) {
         appendErrorMessage(requestId, text);
+    } else {
+        persistCurrentSessionMessages();
     }
     setLastError(text, true);
     if (!requestId.trimmed().isEmpty()) {
@@ -1040,6 +1036,12 @@ void AgentChatViewModel::onChunkFlushTimeout()
         }
         m_messageModel.appendRawDeltaAndReparse(requestId, delta);
     }
+}
+
+void AgentChatViewModel::onAgentSettingsChanged()
+{
+    emit agentSettingsChanged();
+    restartAgentForSettingsChange();
 }
 
 void AgentChatViewModel::onToolCallReceived(const QString& toolCallId,
@@ -1097,21 +1099,8 @@ void AgentChatViewModel::onToolResultReady(const QString& toolCallId,
 
 void AgentChatViewModel::setupConnections()
 {
-    connect(m_processManager, &AgentProcessManager::started,
-            this, &AgentChatViewModel::onAgentStarted);
-    connect(m_processManager, &AgentProcessManager::startFailed,
-            this, &AgentChatViewModel::onAgentStartFailed);
-    connect(m_processManager, &AgentProcessManager::exited,
-            this, &AgentChatViewModel::onAgentExited);
-    connect(m_processManager, &AgentProcessManager::stdOutReceived,
-            this, &AgentChatViewModel::onAgentStdOut);
-    connect(m_processManager, &AgentProcessManager::stdErrReceived,
-            this, &AgentChatViewModel::onAgentStdErr);
-    connect(m_processManager, &AgentProcessManager::healthWarning,
-            this, &AgentChatViewModel::onHealthWarning);
-    connect(m_processManager, &AgentProcessManager::healthInfoUpdated,
-            this, &AgentChatViewModel::onHealthInfoUpdated);
-
+    connect(&SettingsManager::instance(), &SettingsManager::agentSettingsChanged,
+            this, &AgentChatViewModel::onAgentSettingsChanged);
     connect(m_sessionService, &AgentSessionService::sessionsLoaded,
             this, &AgentChatViewModel::onSessionsLoaded);
     connect(m_sessionService, &AgentSessionService::sessionCreated,
@@ -1127,49 +1116,20 @@ void AgentChatViewModel::setupConnections()
     connect(m_sessionService, &AgentSessionService::requestFailed,
             this, &AgentChatViewModel::onSessionRequestFailed);
 
-    connect(m_socketClient, &AgentWebSocketClient::connected,
-            this, &AgentChatViewModel::onSocketConnected);
-    connect(m_socketClient, &AgentWebSocketClient::disconnected,
-            this, &AgentChatViewModel::onSocketDisconnected);
-    connect(m_socketClient, &AgentWebSocketClient::sessionReady,
-            this, &AgentChatViewModel::onSessionReady);
-    connect(m_socketClient, &AgentWebSocketClient::sessionReadyDetailed,
-            this, &AgentChatViewModel::onSessionReadyDetailed);
-    connect(m_socketClient, &AgentWebSocketClient::assistantStartReceived,
+    connect(m_localRuntime, &AgentLocalRuntime::assistantStartReceived,
             this, &AgentChatViewModel::onAssistantStartReceived);
-    connect(m_socketClient, &AgentWebSocketClient::assistantChunkReceived,
-            this, &AgentChatViewModel::onAssistantChunkReceived);
-    connect(m_socketClient, &AgentWebSocketClient::assistantFinalReceived,
+    connect(m_localRuntime, &AgentLocalRuntime::assistantFinalReceived,
             this, &AgentChatViewModel::onAssistantFinalReceived);
-    connect(m_socketClient, &AgentWebSocketClient::protocolError,
-            this, &AgentChatViewModel::onProtocolError);
-    connect(m_socketClient, &AgentWebSocketClient::requestError,
+    connect(m_localRuntime, &AgentLocalRuntime::requestError,
             this, &AgentChatViewModel::onRequestError);
-    connect(m_socketClient, &AgentWebSocketClient::sessionIdChanged,
-            this, &AgentChatViewModel::sessionIdChanged);
-    connect(m_socketClient, &AgentWebSocketClient::toolCallReceived,
-            this, &AgentChatViewModel::onToolCallReceived);
-    connect(m_socketClient, &AgentWebSocketClient::scriptValidationRequestReceived,
-            this, &AgentChatViewModel::onScriptValidationRequestReceived);
-    connect(m_socketClient, &AgentWebSocketClient::scriptDryRunRequestReceived,
-            this, &AgentChatViewModel::onScriptDryRunRequestReceived);
-    connect(m_socketClient, &AgentWebSocketClient::scriptExecutionRequestReceived,
-            this, &AgentChatViewModel::onScriptExecutionRequestReceived);
-    connect(m_socketClient, &AgentWebSocketClient::scriptCancelRequestReceived,
-            this, &AgentChatViewModel::onScriptCancelRequestReceived);
-    connect(m_socketClient, &AgentWebSocketClient::planPreviewReceived,
+    connect(m_localRuntime, &AgentLocalRuntime::planPreviewReceived,
             this, &AgentChatViewModel::onPlanPreviewReceived);
-    connect(m_socketClient, &AgentWebSocketClient::approvalRequestReceived,
+    connect(m_localRuntime, &AgentLocalRuntime::approvalRequestReceived,
             this, &AgentChatViewModel::onApprovalRequestReceived);
-    connect(m_socketClient, &AgentWebSocketClient::clarificationRequestReceived,
-            this, &AgentChatViewModel::onClarificationRequestReceived);
-    connect(m_socketClient, &AgentWebSocketClient::progressReceived,
+    connect(m_localRuntime, &AgentLocalRuntime::progressReceived,
             this, &AgentChatViewModel::onProgressReceived);
-    connect(m_socketClient, &AgentWebSocketClient::finalResultReceived,
+    connect(m_localRuntime, &AgentLocalRuntime::finalResultReceived,
             this, &AgentChatViewModel::onFinalResultReceived);
-
-    connect(m_capabilityFacade, &AgentCapabilityFacade::capabilityResultReady,
-            this, &AgentChatViewModel::onToolResultReady);
     connect(m_capabilityFacade, &AgentCapabilityFacade::capabilityProgress,
             this, [this](const QString& message) {
                 appendSystemMessage(message, QStringLiteral("pending"));
@@ -1182,6 +1142,16 @@ void AgentChatViewModel::setupConnections()
             this, &AgentChatViewModel::onScriptStepFinished);
     connect(m_scriptExecutor, &AgentScriptExecutor::scriptExecutionFinished,
             this, &AgentChatViewModel::onScriptExecutionFinished);
+}
+
+void AgentChatViewModel::restartAgentForSettingsChange()
+{
+    if (m_appExiting) {
+        return;
+    }
+    appendSystemMessage(QStringLiteral("Agent 配置已更新，新的本地运行时参数将在后续请求中生效。"),
+                        QStringLiteral("done"));
+    setState(m_currentSessionId.isEmpty() ? AgentConnectionState::Idle : AgentConnectionState::Ready);
 }
 
 void AgentChatViewModel::setState(AgentConnectionState state)
@@ -1263,25 +1233,7 @@ void AgentChatViewModel::connectSocketForCurrentSession()
         setState(AgentConnectionState::Idle);
         return;
     }
-
-    if (!m_processManager->isRunning()) {
-        initialize();
-        return;
-    }
-
-    if (m_socketClient->isConnected() && m_socketClient->sessionId() == m_currentSessionId) {
-        setState(AgentConnectionState::Ready);
-        return;
-    }
-
-    if (m_socketClient->isConnected() && m_socketClient->sessionId() != m_currentSessionId) {
-        m_manualDisconnect = true;
-        m_socketClient->disconnectFromServer();
-    }
-
-    m_socketClient->setSessionId(m_currentSessionId);
-    setState(AgentConnectionState::ConnectingSocket);
-    m_socketClient->connectToServer();
+    setState(AgentConnectionState::Ready);
 }
 
 void AgentChatViewModel::appendSystemMessage(const QString& text, const QString& status)
@@ -1295,6 +1247,7 @@ void AgentChatViewModel::appendSystemMessage(const QString& text, const QString&
     item.timestamp = QDateTime::currentDateTime();
     item.status = status;
     m_messageModel.appendMessage(item);
+    persistCurrentSessionMessages();
 }
 
 void AgentChatViewModel::appendUserMessage(const QString& requestId, const QString& text)
@@ -1309,6 +1262,7 @@ void AgentChatViewModel::appendUserMessage(const QString& requestId, const QStri
     item.timestamp = QDateTime::currentDateTime();
     item.status = QStringLiteral("sent");
     m_messageModel.appendMessage(item);
+    persistCurrentSessionMessages();
 }
 
 void AgentChatViewModel::appendAssistantMessage(const QString& requestId, const QString& text)
@@ -1323,6 +1277,7 @@ void AgentChatViewModel::appendAssistantMessage(const QString& requestId, const 
     item.timestamp = QDateTime::currentDateTime();
     item.status = QStringLiteral("done");
     m_messageModel.appendMessage(item);
+    persistCurrentSessionMessages();
 }
 
 void AgentChatViewModel::appendStructuredAssistantMessage(const QString& requestId,
@@ -1344,6 +1299,7 @@ void AgentChatViewModel::appendStructuredAssistantMessage(const QString& request
     item.timestamp = QDateTime::currentDateTime();
     item.status = status;
     m_messageModel.appendMessage(item);
+    persistCurrentSessionMessages();
 }
 
 void AgentChatViewModel::appendErrorMessage(const QString& requestId, const QString& text)
@@ -1358,6 +1314,7 @@ void AgentChatViewModel::appendErrorMessage(const QString& requestId, const QStr
     item.timestamp = QDateTime::currentDateTime();
     item.status = QStringLiteral("error");
     m_messageModel.appendMessage(item);
+    persistCurrentSessionMessages();
 }
 
 void AgentChatViewModel::rememberDebugScript(const QString& requestId,
@@ -1500,4 +1457,42 @@ void AgentChatViewModel::flushPendingChunksForRequest(const QString& requestId)
         return;
     }
     m_messageModel.appendRawDeltaAndReparse(requestId, delta);
+}
+
+void AgentChatViewModel::syncHostSnapshotToAgent()
+{
+}
+
+void AgentChatViewModel::persistCurrentSessionMessages()
+{
+    if (!m_sessionService || m_currentSessionId.trimmed().isEmpty()) {
+        return;
+    }
+
+    QVector<ChatMessageItem> items;
+    const QVariantList dumped = m_messageModel.dumpMessages();
+    items.reserve(dumped.size());
+    for (const QVariant& value : dumped) {
+        const QVariantMap map = value.toMap();
+        if (map.isEmpty()) {
+            continue;
+        }
+
+        ChatMessageItem item;
+        item.id = map.value(QStringLiteral("id")).toString();
+        item.role = map.value(QStringLiteral("role")).toString();
+        item.messageType = map.value(QStringLiteral("messageType")).toString();
+        item.meta = map.value(QStringLiteral("meta")).toMap();
+        item.text = map.value(QStringLiteral("text")).toString();
+        item.rawText = map.value(QStringLiteral("rawText")).toString();
+        item.blocks = map.value(QStringLiteral("blocks")).toList();
+        item.requestId = map.value(QStringLiteral("requestId")).toString();
+        item.status = map.value(QStringLiteral("status")).toString();
+        const qint64 timestampMs = map.value(QStringLiteral("timestampMs")).toLongLong();
+        item.timestamp = timestampMs > 0
+            ? QDateTime::fromMSecsSinceEpoch(timestampMs)
+            : QDateTime::currentDateTime();
+        items.push_back(item);
+    }
+    m_sessionService->saveSessionMessages(m_currentSessionId, items);
 }

@@ -78,8 +78,8 @@ async def run_terminal_chat(
     writer: Writer = print,
 ) -> int:
     resolved_settings = settings or Settings()
-    if not resolved_settings.is_model_configured():
-        missing = ", ".join(resolved_settings.missing_model_config())
+    if not resolved_settings.is_chat_model_configured():
+        missing = ", ".join(resolved_settings.missing_chat_model_config())
         writer(f"missing model config: {missing}")
         return 1
 

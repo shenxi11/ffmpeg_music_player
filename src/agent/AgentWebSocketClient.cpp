@@ -4,6 +4,7 @@
 
 #include <QAbstractSocket>
 #include <QDebug>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QMetaObject>
@@ -112,6 +113,20 @@ void AgentWebSocketClient::setSessionId(const QString& sessionId)
 void AgentWebSocketClient::clearSession()
 {
     setSessionId(QString());
+}
+
+void AgentWebSocketClient::sendHostSnapshot(const QVariantMap& hostContext,
+                                            const QVariantList& capabilities,
+                                            const QString& catalogVersion)
+{
+    QJsonObject obj;
+    obj.insert(QStringLiteral("type"), QStringLiteral("host_snapshot"));
+    obj.insert(QStringLiteral("hostContext"), QJsonObject::fromVariantMap(hostContext));
+    obj.insert(QStringLiteral("capabilities"), QJsonArray::fromVariantList(capabilities));
+    if (!catalogVersion.trimmed().isEmpty()) {
+        obj.insert(QStringLiteral("catalogVersion"), catalogVersion.trimmed());
+    }
+    sendJsonPayload(obj, QString(), QStringLiteral("host_snapshot"));
 }
 
 void AgentWebSocketClient::sendUserMessage(const QString& content, const QString& requestId)
