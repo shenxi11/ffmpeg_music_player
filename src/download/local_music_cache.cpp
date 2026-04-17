@@ -4,7 +4,8 @@
 
 namespace {
 
-QString normalizeArtistForCache(const QString& artist) {
+QString normalizeArtistForCache(const QString& artist)
+{
     const QString trimmed = artist.trimmed();
     if (trimmed.isEmpty()) {
         return QString();
@@ -20,7 +21,8 @@ QString normalizeArtistForCache(const QString& artist) {
 }
 
 QString normalizeCoverForCache(const QString& filePath, const QString& rawCover,
-                               LocalMusicCache* cache, bool startRemoteCache = true) {
+                               LocalMusicCache* cache, bool startRemoteCache = true)
+{
     CoverCacheManager& coverCache = CoverCacheManager::instance();
     const QString cachedCover = coverCache.lookupCachedCover(rawCover);
     if (!cachedCover.isEmpty()) {
@@ -42,7 +44,8 @@ QString normalizeCoverForCache(const QString& filePath, const QString& rawCover,
 
 } // namespace
 
-QJsonObject LocalMusicInfo::toJson() const {
+QJsonObject LocalMusicInfo::toJson() const
+{
     QJsonObject obj;
     obj["filePath"] = filePath;
     obj["fileName"] = fileName;
@@ -52,7 +55,8 @@ QJsonObject LocalMusicInfo::toJson() const {
     return obj;
 }
 
-LocalMusicInfo LocalMusicInfo::fromJson(const QJsonObject& obj) {
+LocalMusicInfo LocalMusicInfo::fromJson(const QJsonObject& obj)
+{
     LocalMusicInfo info;
     info.filePath = obj["filePath"].toString();
     info.fileName = obj["fileName"].toString();
@@ -62,12 +66,15 @@ LocalMusicInfo LocalMusicInfo::fromJson(const QJsonObject& obj) {
     return info;
 }
 
-LocalMusicCache::LocalMusicCache() : m_settings("FFmpegMusicPlayer", "LocalMusic") {
+LocalMusicCache::LocalMusicCache()
+    : m_settings("FFmpegMusicPlayer", "LocalMusic")
+{
     loadMusicList();
     qDebug() << "[LocalMusicCache] Initialized with" << m_musicList.size() << "songs";
 }
 
-void LocalMusicCache::addMusic(const LocalMusicInfo& info) {
+void LocalMusicCache::addMusic(const LocalMusicInfo& info)
+{
     LocalMusicInfo normalizedInfo = info;
     normalizedInfo.coverUrl = normalizeCoverForCache(info.filePath, info.coverUrl, this);
 
@@ -90,7 +97,8 @@ void LocalMusicCache::addMusic(const LocalMusicInfo& info) {
     qDebug() << "[LocalMusicCache] Added music:" << normalizedInfo.fileName;
 }
 
-void LocalMusicCache::removeMusic(const QString& filePath) {
+void LocalMusicCache::removeMusic(const QString& filePath)
+{
     for (int i = 0; i < m_musicList.size(); ++i) {
         if (m_musicList[i].filePath == filePath) {
             m_musicList.removeAt(i);
@@ -103,7 +111,8 @@ void LocalMusicCache::removeMusic(const QString& filePath) {
 }
 
 void LocalMusicCache::updateMetadata(const QString& filePath, const QString& coverUrl,
-                                     const QString& duration, const QString& artist) {
+                                     const QString& duration, const QString& artist)
+{
     for (int i = 0; i < m_musicList.size(); ++i) {
         if (m_musicList[i].filePath == filePath) {
             if (!coverUrl.isEmpty()) {
@@ -124,17 +133,20 @@ void LocalMusicCache::updateMetadata(const QString& filePath, const QString& cov
     }
 }
 
-QList<LocalMusicInfo> LocalMusicCache::getMusicList() const {
+QList<LocalMusicInfo> LocalMusicCache::getMusicList() const
+{
     return m_musicList;
 }
 
-void LocalMusicCache::clearAll() {
+void LocalMusicCache::clearAll()
+{
     m_musicList.clear();
     saveMusicList();
     emit musicListChanged();
 }
 
-void LocalMusicCache::saveMusicList() {
+void LocalMusicCache::saveMusicList()
+{
     QJsonArray array;
     for (const auto& info : m_musicList) {
         array.append(info.toJson());
@@ -145,7 +157,8 @@ void LocalMusicCache::saveMusicList() {
     m_settings.sync();
 }
 
-void LocalMusicCache::loadMusicList() {
+void LocalMusicCache::loadMusicList()
+{
     m_musicList.clear();
 
     QByteArray data = m_settings.value("musicList").toByteArray();

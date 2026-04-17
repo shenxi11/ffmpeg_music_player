@@ -1,6 +1,19 @@
-﻿#include "music_list_widget_net.h"
+#include "music_list_widget_net.h"
 
+#include <QCryptographicHash>
 #include <QDebug>
+
+namespace {
+
+QString fallbackTrackId(const QString& path, const QString& title, const QString& artist)
+{
+    const QString base = QStringLiteral("%1|%2|%3").arg(path, title, artist);
+    const QByteArray digest =
+        QCryptographicHash::hash(base.toUtf8(), QCryptographicHash::Md5).toHex();
+    return QString::fromLatin1(digest.constData(), digest.size());
+}
+
+}
 
 /*
 模块名称: MusicListWidgetNet 连接配置
@@ -56,6 +69,7 @@ void MusicListWidgetNet::setupConnections() {
                 QList<double> durations;
                 QStringList coverUrls;
                 QStringList artists;
+                QVariantList items;
 
                 for (const Music& music : musicList) {
                     const QString fullPath = music.getSongPath();
@@ -77,11 +91,33 @@ void MusicListWidgetNet::setupConnections() {
                     durations.append(static_cast<double>(music.getDuration()));
                     coverUrls.append(music.getPicPath());
                     artists.append(music.getSinger());
+                    const QString title = music.getSongName().trimmed().isEmpty()
+                        ? relativePath
+                        : music.getSongName().trimmed();
+                    const QString artist = music.getSinger().trimmed().isEmpty()
+                        ? QStringLiteral("未知艺术家")
+                        : music.getSinger().trimmed();
+                    items.push_back(QVariantMap{
+                        {QStringLiteral("trackId"), fallbackTrackId(relativePath, title, artist)},
+                        {QStringLiteral("musicPath"), relativePath},
+                        {QStringLiteral("path"), relativePath},
+                        {QStringLiteral("playPath"), relativePath},
+                        {QStringLiteral("title"), title},
+                        {QStringLiteral("artist"), artist},
+                        {QStringLiteral("coverUrl"), music.getPicPath()},
+                        {QStringLiteral("cover"), music.getPicPath()},
+                        {QStringLiteral("durationMs"),
+                         static_cast<qint64>(music.getDuration() > 0 ? music.getDuration() * 1000
+                                                                     : 0)},
+                        {QStringLiteral("isLocal"), false},
+                        {QStringLiteral("sourceType"), QStringLiteral("online")}
+                    });
 
                     song_duration[relativePath] = static_cast<double>(music.getDuration());
                     song_cover[relativePath] = music.getPicPath();
                 }
 
+                m_currentItems = items;
                 listWidget->addSongList(songNames, relativePaths, durations, coverUrls, artists);
             });
 

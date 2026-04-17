@@ -1,4 +1,4 @@
-﻿#ifndef HTTPREQUEST_V2_H
+#ifndef HTTPREQUEST_V2_H
 #define HTTPREQUEST_V2_H
 
 #include "music.h"
@@ -147,8 +147,8 @@ class HttpRequestV2 : public QObject {
      * @brief 获取歌单详情
      */
     void getPlaylistDetail(const QString& userAccount, qint64 playlistId, bool useCache = false);
-    void requestPlaylistDetailForCover(const QString& userAccount, qint64 playlistId,
-                                       bool useCache = true);
+    void getPlaylistDetailForCover(const QString& userAccount, qint64 playlistId,
+                                   bool useCache = true);
 
     /**
      * @brief 删除歌单

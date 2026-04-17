@@ -1,11 +1,12 @@
 #include "playlist_widget.h"
 
-#include <QDebug>
 #include <QMetaObject>
+#include <QDebug>
 
 namespace {
 
-qint64 parseTrackIdValue(const QVariantMap& rawItem) {
+qint64 parseTrackIdValue(const QVariantMap& rawItem)
+{
     qint64 trackId = rawItem.value(QStringLiteral("track_id")).toLongLong();
     if (trackId > 0) {
         return trackId;
@@ -24,7 +25,8 @@ qint64 parseTrackIdValue(const QVariantMap& rawItem) {
     return rawItem.value(QStringLiteral("trackId")).toLongLong();
 }
 
-QString normalizeCoverValue(const QVariant& value) {
+QString normalizeCoverValue(const QVariant& value)
+{
     const QString cover = value.toString().trimmed();
     if (cover.compare(QStringLiteral("null"), Qt::CaseInsensitive) == 0 ||
         cover.compare(QStringLiteral("undefined"), Qt::CaseInsensitive) == 0 ||
@@ -34,14 +36,18 @@ QString normalizeCoverValue(const QVariant& value) {
     return cover;
 }
 
-QString derivePlaylistCoverFromItems(const QVariantList& items) {
+QString derivePlaylistCoverFromItems(const QVariantList& items)
+{
     if (items.isEmpty()) {
         return QString();
     }
 
     const QVariantMap firstItem = items.constFirst().toMap();
-    const QStringList candidateKeys = {QStringLiteral("cover_art_url"), QStringLiteral("cover_url"),
-                                       QStringLiteral("cover_art_path")};
+    const QStringList candidateKeys = {
+        QStringLiteral("cover_art_url"),
+        QStringLiteral("cover_url"),
+        QStringLiteral("cover_art_path")
+    };
     for (const QString& key : candidateKeys) {
         const QString cover = normalizeCoverValue(firstItem.value(key));
         if (!cover.isEmpty()) {
@@ -51,7 +57,7 @@ QString derivePlaylistCoverFromItems(const QVariantList& items) {
     return QString();
 }
 
-} // namespace
+}
 
 /*
 模块名: PlaylistWidget 桥接实现
@@ -63,7 +69,9 @@ QString derivePlaylistCoverFromItems(const QVariantList& items) {
 维护说明: 该文件不应直接发网络请求。
 */
 
-PlaylistWidget::PlaylistWidget(QWidget* parent) : QQuickWidget(parent) {
+PlaylistWidget::PlaylistWidget(QWidget* parent)
+    : QQuickWidget(parent)
+{
     setResizeMode(QQuickWidget::SizeRootObjectToView);
     setSource(QUrl("qrc:/qml/components/library/PlaylistWidget.qml"));
     setAttribute(Qt::WA_TranslucentBackground);
@@ -74,29 +82,32 @@ PlaylistWidget::PlaylistWidget(QWidget* parent) : QQuickWidget(parent) {
         return;
     }
 
-    connect(root, SIGNAL(loginRequested()), this, SIGNAL(loginRequested()));
-    connect(root, SIGNAL(refreshRequested()), this, SIGNAL(refreshRequested()));
-    connect(root, SIGNAL(openPlaylistRequested(QVariant)), this,
-            SLOT(handleOpenPlaylistRequested(QVariant)));
-    connect(root, SIGNAL(createPlaylistRequested(QString, QString)), this,
-            SIGNAL(createPlaylistRequested(QString, QString)));
-    connect(root, SIGNAL(updatePlaylistRequested(QVariant, QString, QString)), this,
-            SLOT(handleUpdatePlaylistRequested(QVariant, QString, QString)));
-    connect(root, SIGNAL(deletePlaylistRequested(QVariant)), this,
-            SLOT(handleDeletePlaylistRequested(QVariant)));
-    connect(root, SIGNAL(removePlaylistItemsRequested(QVariant, QVariant)), this,
-            SLOT(handleRemovePlaylistItemsRequested(QVariant, QVariant)));
-    connect(root, SIGNAL(reorderPlaylistItemsRequested(QVariant, QVariant)), this,
-            SLOT(handleReorderPlaylistItemsRequested(QVariant, QVariant)));
-    connect(root, SIGNAL(addCurrentSongRequested(QVariant)), this,
-            SLOT(handleAddCurrentSongRequested(QVariant)));
-    connect(root, SIGNAL(playMusicWithMetadata(QString, QString, QString, QString)), this,
-            SIGNAL(playMusicWithMetadata(QString, QString, QString, QString)));
-    connect(root, SIGNAL(songActionRequested(QString, QVariant)), this,
-            SLOT(handleSongActionRequested(QString, QVariant)));
+    connect(root, SIGNAL(loginRequested()),
+            this, SIGNAL(loginRequested()));
+    connect(root, SIGNAL(refreshRequested()),
+            this, SIGNAL(refreshRequested()));
+    connect(root, SIGNAL(openPlaylistRequested(QVariant)),
+            this, SLOT(handleOpenPlaylistRequested(QVariant)));
+    connect(root, SIGNAL(createPlaylistRequested(QString,QString)),
+            this, SIGNAL(createPlaylistRequested(QString,QString)));
+    connect(root, SIGNAL(updatePlaylistRequested(QVariant,QString,QString)),
+            this, SLOT(handleUpdatePlaylistRequested(QVariant,QString,QString)));
+    connect(root, SIGNAL(deletePlaylistRequested(QVariant)),
+            this, SLOT(handleDeletePlaylistRequested(QVariant)));
+    connect(root, SIGNAL(removePlaylistItemsRequested(QVariant,QVariant)),
+            this, SLOT(handleRemovePlaylistItemsRequested(QVariant,QVariant)));
+    connect(root, SIGNAL(reorderPlaylistItemsRequested(QVariant,QVariant)),
+            this, SLOT(handleReorderPlaylistItemsRequested(QVariant,QVariant)));
+    connect(root, SIGNAL(addCurrentSongRequested(QVariant)),
+            this, SLOT(handleAddCurrentSongRequested(QVariant)));
+    connect(root, SIGNAL(playMusicWithMetadata(QString,QString,QString,QString)),
+            this, SIGNAL(playMusicWithMetadata(QString,QString,QString,QString)));
+    connect(root, SIGNAL(songActionRequested(QString,QVariant)),
+            this, SLOT(handleSongActionRequested(QString,QVariant)));
 }
 
-void PlaylistWidget::setLoggedIn(bool loggedIn, const QString& userAccount) {
+void PlaylistWidget::setLoggedIn(bool loggedIn, const QString& userAccount)
+{
     QQuickItem* root = rootObject();
     if (!root) {
         return;
@@ -105,8 +116,8 @@ void PlaylistWidget::setLoggedIn(bool loggedIn, const QString& userAccount) {
     root->setProperty("userAccount", userAccount);
 }
 
-void PlaylistWidget::loadPlaylists(const QVariantList& playlists, int page, int pageSize,
-                                   int total) {
+void PlaylistWidget::loadPlaylists(const QVariantList& playlists, int page, int pageSize, int total)
+{
     QVariantList normalizedPlaylists;
     normalizedPlaylists.reserve(playlists.size());
     for (const QVariant& value : playlists) {
@@ -123,12 +134,15 @@ void PlaylistWidget::loadPlaylists(const QVariantList& playlists, int page, int 
     if (!root) {
         return;
     }
-    QMetaObject::invokeMethod(
-        root, "loadPlaylists", Q_ARG(QVariant, QVariant::fromValue(normalizedPlaylists)),
-        Q_ARG(QVariant, page), Q_ARG(QVariant, pageSize), Q_ARG(QVariant, total));
+    QMetaObject::invokeMethod(root, "loadPlaylists",
+                              Q_ARG(QVariant, QVariant::fromValue(normalizedPlaylists)),
+                              Q_ARG(QVariant, page),
+                              Q_ARG(QVariant, pageSize),
+                              Q_ARG(QVariant, total));
 }
 
-void PlaylistWidget::loadPlaylistDetail(const QVariantMap& detail) {
+void PlaylistWidget::loadPlaylistDetail(const QVariantMap& detail)
+{
     const QVariantMap normalizedDetail = normalizePlaylistDetailForCover(detail);
     m_lastPlaylistDetail = normalizedDetail;
     QQuickItem* root = rootObject();
@@ -139,15 +153,15 @@ void PlaylistWidget::loadPlaylistDetail(const QVariantMap& detail) {
                               Q_ARG(QVariant, QVariant::fromValue(normalizedDetail)));
 }
 
-void PlaylistWidget::updatePlaylistCoverFromDetail(const QVariantMap& detail) {
+void PlaylistWidget::updatePlaylistCoverFromDetail(const QVariantMap& detail)
+{
     const QVariantMap normalizedDetail = normalizePlaylistDetailForCover(detail);
     const qint64 playlistId = normalizedDetail.value(QStringLiteral("id")).toLongLong();
     if (playlistId <= 0) {
         return;
     }
 
-    const QString coverUrl =
-        normalizedDetail.value(QStringLiteral("cover_url")).toString().trimmed();
+    const QString coverUrl = normalizedDetail.value(QStringLiteral("cover_url")).toString().trimmed();
     updateCachedPlaylistCover(playlistId, coverUrl);
 
     if (!m_lastPlaylistDetail.isEmpty() &&
@@ -159,11 +173,13 @@ void PlaylistWidget::updatePlaylistCoverFromDetail(const QVariantMap& detail) {
     if (!root) {
         return;
     }
-    QMetaObject::invokeMethod(root, "updatePlaylistCover", Q_ARG(QVariant, playlistId),
+    QMetaObject::invokeMethod(root, "updatePlaylistCover",
+                              Q_ARG(QVariant, playlistId),
                               Q_ARG(QVariant, coverUrl));
 }
 
-void PlaylistWidget::setFavoritePaths(const QStringList& favoritePaths) {
+void PlaylistWidget::setFavoritePaths(const QStringList& favoritePaths)
+{
     QQuickItem* root = rootObject();
     if (!root) {
         return;
@@ -171,7 +187,8 @@ void PlaylistWidget::setFavoritePaths(const QStringList& favoritePaths) {
     root->setProperty("favoritePaths", QVariant::fromValue(favoritePaths));
 }
 
-void PlaylistWidget::setCurrentPlayingPath(const QString& filePath) {
+void PlaylistWidget::setCurrentPlayingPath(const QString& filePath)
+{
     QQuickItem* root = rootObject();
     if (!root) {
         return;
@@ -179,16 +196,19 @@ void PlaylistWidget::setCurrentPlayingPath(const QString& filePath) {
     root->setProperty("currentPlayingPath", filePath);
 }
 
-void PlaylistWidget::setPlayingState(const QString& filePath, bool playing) {
+void PlaylistWidget::setPlayingState(const QString& filePath, bool playing)
+{
     QQuickItem* root = rootObject();
     if (!root) {
         return;
     }
-    QMetaObject::invokeMethod(root, "setPlayingState", Q_ARG(QVariant, filePath),
+    QMetaObject::invokeMethod(root, "setPlayingState",
+                              Q_ARG(QVariant, filePath),
                               Q_ARG(QVariant, playing));
 }
 
-void PlaylistWidget::clearData() {
+void PlaylistWidget::clearData()
+{
     m_lastPlaylists.clear();
     m_lastPlaylistDetail.clear();
     m_cachedPlaylistCoverUrls.clear();
@@ -199,7 +219,8 @@ void PlaylistWidget::clearData() {
     QMetaObject::invokeMethod(root, "clearData");
 }
 
-void PlaylistWidget::openCreatePlaylistDialog() {
+void PlaylistWidget::openCreatePlaylistDialog()
+{
     QQuickItem* root = rootObject();
     if (!root) {
         return;
@@ -207,7 +228,8 @@ void PlaylistWidget::openCreatePlaylistDialog() {
     QMetaObject::invokeMethod(root, "openCreatePlaylistDialog");
 }
 
-qint64 PlaylistWidget::selectedPlaylistIdValue() const {
+qint64 PlaylistWidget::selectedPlaylistIdValue() const
+{
     QQuickItem* root = rootObject();
     if (!root) {
         return -1;
@@ -215,7 +237,8 @@ qint64 PlaylistWidget::selectedPlaylistIdValue() const {
     return root->property("selectedPlaylistId").toLongLong();
 }
 
-QVariantMap PlaylistWidget::currentPlaylistDetailSnapshot() const {
+QVariantMap PlaylistWidget::currentPlaylistDetailSnapshot() const
+{
     if (!m_lastPlaylistDetail.isEmpty()) {
         return m_lastPlaylistDetail;
     }
@@ -226,7 +249,8 @@ QVariantMap PlaylistWidget::currentPlaylistDetailSnapshot() const {
     return root->property("currentPlaylistDetail").toMap();
 }
 
-QVariantList PlaylistWidget::currentPlaylistTrackIds() const {
+QVariantList PlaylistWidget::currentPlaylistTrackIds() const
+{
     const QVariantMap detail = currentPlaylistDetailSnapshot();
     const QVariantList items = detail.value(QStringLiteral("items")).toList();
 
@@ -241,14 +265,13 @@ QVariantList PlaylistWidget::currentPlaylistTrackIds() const {
     return trackIds;
 }
 
-QVariantList PlaylistWidget::ownedPlaylistsSnapshot() const {
+QVariantList PlaylistWidget::ownedPlaylistsSnapshot() const
+{
     QVariantList items;
     for (const QVariant& value : m_lastPlaylists) {
         const QVariantMap item = value.toMap();
-        if (item.value(QStringLiteral("ownership"))
-                .toString()
-                .trimmed()
-                .compare(QStringLiteral("subscribed"), Qt::CaseInsensitive) == 0) {
+        if (item.value(QStringLiteral("ownership")).toString().trimmed().compare(
+                QStringLiteral("subscribed"), Qt::CaseInsensitive) == 0) {
             continue;
         }
         items.push_back(item);
@@ -256,25 +279,25 @@ QVariantList PlaylistWidget::ownedPlaylistsSnapshot() const {
     return items;
 }
 
-QVariantList PlaylistWidget::subscribedPlaylistsSnapshot() const {
+QVariantList PlaylistWidget::subscribedPlaylistsSnapshot() const
+{
     QVariantList items;
     for (const QVariant& value : m_lastPlaylists) {
         const QVariantMap item = value.toMap();
-        if (item.value(QStringLiteral("ownership"))
-                .toString()
-                .trimmed()
-                .compare(QStringLiteral("subscribed"), Qt::CaseInsensitive) == 0) {
+        if (item.value(QStringLiteral("ownership")).toString().trimmed().compare(
+                QStringLiteral("subscribed"), Qt::CaseInsensitive) == 0) {
             items.push_back(item);
         }
     }
     return items;
 }
 
-QVariantMap PlaylistWidget::normalizePlaylistDetailForCover(const QVariantMap& detail) {
+QVariantMap PlaylistWidget::normalizePlaylistDetailForCover(const QVariantMap& detail)
+{
     QVariantMap normalizedDetail = detail;
     const qint64 playlistId = normalizedDetail.value(QStringLiteral("id")).toLongLong();
-    const QString derivedCover =
-        derivePlaylistCoverFromItems(normalizedDetail.value(QStringLiteral("items")).toList());
+    const QString derivedCover = derivePlaylistCoverFromItems(
+        normalizedDetail.value(QStringLiteral("items")).toList());
     normalizedDetail.insert(QStringLiteral("cover_url"), derivedCover);
     if (playlistId > 0) {
         updateCachedPlaylistCover(playlistId, derivedCover);
@@ -282,7 +305,8 @@ QVariantMap PlaylistWidget::normalizePlaylistDetailForCover(const QVariantMap& d
     return normalizedDetail;
 }
 
-void PlaylistWidget::updateCachedPlaylistCover(qint64 playlistId, const QString& coverUrl) {
+void PlaylistWidget::updateCachedPlaylistCover(qint64 playlistId, const QString& coverUrl)
+{
     if (playlistId <= 0) {
         return;
     }
@@ -299,22 +323,25 @@ void PlaylistWidget::updateCachedPlaylistCover(qint64 playlistId, const QString&
     }
 }
 
-void PlaylistWidget::handleOpenPlaylistRequested(const QVariant& playlistIdValue) {
+void PlaylistWidget::handleOpenPlaylistRequested(const QVariant& playlistIdValue)
+{
     emit openPlaylistRequested(playlistIdValue.toLongLong());
 }
 
 void PlaylistWidget::handleUpdatePlaylistRequested(const QVariant& playlistIdValue,
                                                    const QString& name,
-                                                   const QString& description) {
+                                                   const QString& description)
+{
     emit updatePlaylistRequested(playlistIdValue.toLongLong(), name, description);
 }
 
-void PlaylistWidget::handleDeletePlaylistRequested(const QVariant& playlistIdValue) {
+void PlaylistWidget::handleDeletePlaylistRequested(const QVariant& playlistIdValue)
+{
     emit deletePlaylistRequested(playlistIdValue.toLongLong());
 }
 
-void PlaylistWidget::handleRemovePlaylistItemsRequested(const QVariant& playlistIdValue,
-                                                        const QVariant& musicPathsValue) {
+void PlaylistWidget::handleRemovePlaylistItemsRequested(const QVariant& playlistIdValue, const QVariant& musicPathsValue)
+{
     QStringList musicPaths;
     const QVariantList rawList = musicPathsValue.toList();
     for (const QVariant& item : rawList) {
@@ -326,15 +353,17 @@ void PlaylistWidget::handleRemovePlaylistItemsRequested(const QVariant& playlist
     emit removePlaylistItemsRequested(playlistIdValue.toLongLong(), musicPaths);
 }
 
-void PlaylistWidget::handleReorderPlaylistItemsRequested(const QVariant& playlistIdValue,
-                                                         const QVariant& orderedItemsValue) {
+void PlaylistWidget::handleReorderPlaylistItemsRequested(const QVariant& playlistIdValue, const QVariant& orderedItemsValue)
+{
     emit reorderPlaylistItemsRequested(playlistIdValue.toLongLong(), orderedItemsValue.toList());
 }
 
-void PlaylistWidget::handleAddCurrentSongRequested(const QVariant& playlistIdValue) {
+void PlaylistWidget::handleAddCurrentSongRequested(const QVariant& playlistIdValue)
+{
     emit addCurrentSongRequested(playlistIdValue.toLongLong());
 }
 
-void PlaylistWidget::handleSongActionRequested(const QString& action, const QVariant& payload) {
+void PlaylistWidget::handleSongActionRequested(const QString& action, const QVariant& payload)
+{
     emit songActionRequested(action, payload.toMap());
 }

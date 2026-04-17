@@ -4,12 +4,15 @@
 
 #include <QFileInfo>
 #include <QStringList>
+
 #include <utility>
 
-LocalMusicModel::LocalMusicModel(QObject* parent) : QAbstractListModel(parent) {
+LocalMusicModel::LocalMusicModel(QObject *parent)
+    : QAbstractListModel(parent)
+{
     // 连接缓存管理器的信号
-    connect(&LocalMusicCache::instance(), &LocalMusicCache::musicListChanged, this,
-            &LocalMusicModel::onMusicListChanged);
+    connect(&LocalMusicCache::instance(), &LocalMusicCache::musicListChanged,
+            this, &LocalMusicModel::onMusicListChanged);
     connect(&CoverCacheManager::instance(), &CoverCacheManager::coverCached, this,
             [this](const QString& normalizedSource, const QString& localFilePath) {
                 if (normalizedSource.isEmpty() || localFilePath.isEmpty()) {
@@ -25,8 +28,8 @@ LocalMusicModel::LocalMusicModel(QObject* parent) : QAbstractListModel(parent) {
                 }
                 affectedPaths.removeDuplicates();
                 for (const QString& filePath : affectedPaths) {
-                    LocalMusicCache::instance().updateMetadata(filePath, localFilePath, QString(),
-                                                               QString());
+                    LocalMusicCache::instance().updateMetadata(filePath, localFilePath,
+                                                               QString(), QString());
                 }
             });
 
@@ -34,37 +37,40 @@ LocalMusicModel::LocalMusicModel(QObject* parent) : QAbstractListModel(parent) {
     refresh();
 }
 
-int LocalMusicModel::rowCount(const QModelIndex& parent) const {
+int LocalMusicModel::rowCount(const QModelIndex &parent) const
+{
     if (parent.isValid())
         return 0;
     return m_musicList.count();
 }
 
-QVariant LocalMusicModel::data(const QModelIndex& index, int role) const {
+QVariant LocalMusicModel::data(const QModelIndex &index, int role) const
+{
     if (!index.isValid() || index.row() >= m_musicList.count())
         return QVariant();
 
     const LocalMusicInfo& info = m_musicList[index.row()];
 
     switch (role) {
-        case FilePathRole:
-            return info.filePath;
-        case FileNameRole:
-            return info.fileName;
-        case CoverUrlRole:
-            return CoverCacheManager::instance().imageSourceForCover(info.coverUrl);
-        case DurationRole:
-            return info.duration;
-        case ArtistRole:
-            return info.artist;
-        case IsPlayingRole:
-            return info.filePath == m_currentPlayingPath;
-        default:
-            return QVariant();
+    case FilePathRole:
+        return info.filePath;
+    case FileNameRole:
+        return info.fileName;
+    case CoverUrlRole:
+        return CoverCacheManager::instance().imageSourceForCover(info.coverUrl);
+    case DurationRole:
+        return info.duration;
+    case ArtistRole:
+        return info.artist;
+    case IsPlayingRole:
+        return info.filePath == m_currentPlayingPath;
+    default:
+        return QVariant();
     }
 }
 
-QHash<int, QByteArray> LocalMusicModel::roleNames() const {
+QHash<int, QByteArray> LocalMusicModel::roleNames() const
+{
     QHash<int, QByteArray> roles;
     roles[FilePathRole] = "filePath";
     roles[FileNameRole] = "fileName";
@@ -75,21 +81,25 @@ QHash<int, QByteArray> LocalMusicModel::roleNames() const {
     return roles;
 }
 
-void LocalMusicModel::refresh() {
+void LocalMusicModel::refresh()
+{
     beginResetModel();
     m_musicList = LocalMusicCache::instance().getMusicList();
     endResetModel();
 }
 
-void LocalMusicModel::addMusic(const QString& filePath) {
+void LocalMusicModel::addMusic(const QString& filePath)
+{
     emit addMusicRequested();
 }
 
-void LocalMusicModel::removeMusic(const QString& filePath) {
+void LocalMusicModel::removeMusic(const QString& filePath)
+{
     LocalMusicCache::instance().removeMusic(filePath);
 }
 
-void LocalMusicModel::setCurrentPlayingPath(const QString& path) {
+void LocalMusicModel::setCurrentPlayingPath(const QString& path)
+{
     if (m_currentPlayingPath != path) {
         m_currentPlayingPath = path;
         emit currentPlayingPathChanged();
@@ -100,6 +110,7 @@ void LocalMusicModel::setCurrentPlayingPath(const QString& path) {
     }
 }
 
-void LocalMusicModel::onMusicListChanged() {
+void LocalMusicModel::onMusicListChanged()
+{
     refresh();
 }
