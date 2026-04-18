@@ -189,7 +189,7 @@ void MainShellViewModel::requestPlaylistDetail(const QString& userAccount, qint6
 
 void MainShellViewModel::prefetchPlaylistCoverDetail(const QString& userAccount, qint64 playlistId,
                                                      bool useCache) {
-    m_request.requestPlaylistDetailForCover(userAccount, playlistId, useCache);
+    m_request.getPlaylistDetailForCover(userAccount, playlistId, useCache);
 }
 
 void MainShellViewModel::deletePlaylist(const QString& userAccount, qint64 playlistId) {
