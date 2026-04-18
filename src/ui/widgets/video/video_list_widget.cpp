@@ -1,19 +1,23 @@
-﻿#include "video_list_widget.h"
+#include "video_list_widget.h"
 
-VideoListWidget::VideoListWidget(PlayWidget* playWidget, QWidget *parent)
+#include <QStackedLayout>
+
+VideoListWidget::VideoListWidget(QWidget* parent)
     : QWidget(parent)
-    , m_playWidget(playWidget)
     , m_viewModel(new VideoListViewModel(this))
 {
-    
     listWidget = new VideoListWidgetQml(this);
-    
-    QVBoxLayout* layout = new QVBoxLayout(this);
-    layout->setContentsMargins(0, 0, 0, 0);
-    layout->addWidget(listWidget);
-    setLayout(layout);
+    m_playerPage = new VideoPlayerPage(this);
+
+    m_pageLayout = new QStackedLayout(this);
+    m_pageLayout->setContentsMargins(0, 0, 0, 0);
+    m_pageLayout->addWidget(listWidget);
+    m_pageLayout->addWidget(m_playerPage);
+    m_pageLayout->setCurrentWidget(listWidget);
+    setLayout(m_pageLayout);
 
     setupConnections();
+    setupVideoPlayerConnections();
 }
 
 VideoListWidget::~VideoListWidget()
@@ -24,6 +28,7 @@ VideoListWidget::~VideoListWidget()
 void VideoListWidget::onRefreshRequested()
 {
     qDebug() << "[VideoListWidget] Refresh requested, fetching video list...";
+    m_videoEntriesByPath.clear();
     listWidget->clearAll();
     m_viewModel->refresh();
 }
@@ -31,43 +36,35 @@ void VideoListWidget::onRefreshRequested()
 void VideoListWidget::onVideoListReceived(const QVariantList& videoList)
 {
     qDebug() << "[VideoListWidget] Received" << videoList.size() << "videos";
+    m_videoEntriesByPath.clear();
     listWidget->clearAll();
+
+    for (const QVariant& value : videoList) {
+        const QVariantMap item = value.toMap();
+        const QString path = item.value(QStringLiteral("path")).toString().trimmed();
+        if (!path.isEmpty()) {
+            m_videoEntriesByPath.insert(path, item);
+        }
+    }
+
     listWidget->addVideoList(videoList);
 }
 
 void VideoListWidget::onVideoSelected(const QString& videoPath, const QString& videoName)
 {
     qDebug() << "[VideoListWidget] Video selected:" << videoName << "(" << videoPath << ")";
-    
-    m_selectedVideoName = videoName;
-    m_viewModel->resolveVideoStream(videoPath, videoName);
-}
 
-void VideoListWidget::onVideoStreamUrlReceived(const QString& videoUrl)
-{
-    qDebug() << "[VideoListWidget] Received video stream URL:" << videoUrl;
-    
-    if (!videoPlayerWindow) {
-        videoPlayerWindow = new VideoPlayerWindow(nullptr);
-        videoPlayerWindow->setAttribute(Qt::WA_DeleteOnClose, false);
-        emit videoPlayerWindowReady(videoPlayerWindow);
-
-        setupVideoPlayerConnections();
-    }
-    
-    videoPlayerWindow->loadVideo(videoUrl);
-    
-    videoPlayerWindow->show();
-    videoPlayerWindow->raise();
-    videoPlayerWindow->activateWindow();
-    
-    // this->hide();
+    m_selectedVideoPath = videoPath.trimmed();
+    m_selectedVideoName = videoName.trimmed();
+    m_selectedVideoSize =
+        m_videoEntriesByPath.value(m_selectedVideoPath).value(QStringLiteral("size")).toLongLong();
+    m_viewModel->resolveVideoStream(m_selectedVideoPath, m_selectedVideoName);
 }
 
 void VideoListWidget::pauseVideoPlayback()
 {
-    if (videoPlayerWindow) {
-        videoPlayerWindow->pausePlayback();
+    if (m_playerPage) {
+        m_playerPage->pausePlayback();
     }
 }
 
@@ -75,4 +72,24 @@ void VideoListWidget::showEvent(QShowEvent* event)
 {
     QWidget::showEvent(event);
     onRefreshRequested();
+}
+
+void VideoListWidget::hideEvent(QHideEvent* event)
+{
+    QWidget::hideEvent(event);
+    pauseVideoPlayback();
+}
+
+void VideoListWidget::showListPage()
+{
+    if (m_pageLayout) {
+        m_pageLayout->setCurrentWidget(listWidget);
+    }
+}
+
+void VideoListWidget::showPlayerPage()
+{
+    if (m_pageLayout) {
+        m_pageLayout->setCurrentWidget(m_playerPage);
+    }
 }

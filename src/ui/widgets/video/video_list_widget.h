@@ -1,71 +1,59 @@
-﻿#ifndef VIDEO_LIST_WIDGET_H
+#ifndef VIDEO_LIST_WIDGET_H
 #define VIDEO_LIST_WIDGET_H
 
-#include <QWidget>
-#include <QVBoxLayout>
-#include <QDebug>
 #include "video_list_widget_qml.h"
-#include "VideoPlayerWindow.h"
-#include "play_widget.h"  // 添加PlayWidget头文件
-#include "AudioService.h"  // 添加AudioService头文件
+#include "video_player_page.h"
 #include "viewmodels/VideoListViewModel.h"
+
+#include <QHash>
+#include <QWidget>
+
+class QStackedLayout;
 
 /**
  * @brief 在线视频列表窗口
- * 显示服务器上的视频列表，点击视频后获取播放URL并打开播放窗口
+ * 在主页面内切换视频列表与视频详情播放页。
  */
 class VideoListWidget : public QWidget
 {
     Q_OBJECT
+
 public:
-    explicit VideoListWidget(PlayWidget* playWidget, QWidget *parent = nullptr);
-    ~VideoListWidget();
-    VideoPlayerWindow* playerWindow() const { return videoPlayerWindow; }
+    explicit VideoListWidget(QWidget* parent = nullptr);
+    ~VideoListWidget() override;
 
 signals:
-    void signalOpenVideoPlayer(const QString& videoUrl, const QString& videoName);
-    void videoPlayerWindowReady(VideoPlayerWindow* window);
     void videoPlaybackStateChanged(bool isPlaying);
 
 public slots:
     void pauseVideoPlayback();
 
 private slots:
-    /**
-     * @brief 刷新按钮点击处理
-     */
     void onRefreshRequested();
-    
-    /**
-     * @brief 接收到视频列表
-     */
     void onVideoListReceived(const QVariantList& videoList);
-    
-    /**
-     * @brief 视频被选中
-     */
     void onVideoSelected(const QString& videoPath, const QString& videoName);
-    
-    /**
-     * @brief 接收到视频流URL
-     */
-    void onVideoStreamUrlReceived(const QString& videoUrl);
     void onVideoStreamResolved(const QString& videoUrl, const QString& videoName);
     void onVideoPlayerPlayStateChanged(bool isPlaying);
+    void onReturnToListRequested();
 
 protected:
     void showEvent(QShowEvent* event) override;
+    void hideEvent(QHideEvent* event) override;
 
 private:
-    // 连接拆分：将视频列表与 ViewModel 的绑定集中维护。
     void setupConnections();
     void setupVideoPlayerConnections();
+    void showListPage();
+    void showPlayerPage();
 
-    VideoListWidgetQml* listWidget;
+    VideoListWidgetQml* listWidget = nullptr;
+    VideoPlayerPage* m_playerPage = nullptr;
+    QStackedLayout* m_pageLayout = nullptr;
     VideoListViewModel* m_viewModel = nullptr;
-    VideoPlayerWindow* videoPlayerWindow = nullptr;
+    QHash<QString, QVariantMap> m_videoEntriesByPath;
+    QString m_selectedVideoPath;
     QString m_selectedVideoName;
-    PlayWidget* m_playWidget;  // 音乐播放器引用
+    qint64 m_selectedVideoSize = 0;
 };
 
 #endif // VIDEO_LIST_WIDGET_H

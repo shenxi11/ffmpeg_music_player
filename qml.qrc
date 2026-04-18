@@ -44,6 +44,19 @@
         <file>qml/assets/ai/icons/more.svg</file>
         <file>qml/assets/ai/icons/run.svg</file>
         <file>qml/assets/ai/icons/chevron_down.svg</file>
+        <file>qml/assets/ai/icons/video-play.svg</file>
+        <file>qml/assets/ai/icons/video-pause.svg</file>
+        <file>qml/assets/ai/icons/video-quality.svg</file>
+        <file>qml/assets/ai/icons/video-fullscreen-enter.svg</file>
+        <file>qml/assets/ai/icons/video-fullscreen-exit.svg</file>
+        <file>qml/assets/ai/icons/video-control-next.svg</file>
+        <file>qml/assets/ai/icons/video-control-volume.svg</file>
+        <file>qml/assets/ai/icons/video-control-playlist.svg</file>
+        <file>qml/assets/ai/icons/video-pip.svg</file>
+        <file>qml/assets/ai/icons/video-chevron-right.svg</file>
+        <file>qml/assets/ai/icons/action-share.svg</file>
+        <file>qml/assets/ai/icons/action-comment.svg</file>
+        <file>qml/assets/ai/icons/action-open.svg</file>
         <file>qml/theme/Theme.js</file>
         <file>qml/theme/PlayerStyle.js</file>
         <file>styles/netease.qss</file>

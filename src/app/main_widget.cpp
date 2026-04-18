@@ -1,6 +1,5 @@
 #include "main_widget.h"
 
-#include "VideoPlayerWindow.h"
 #include "playback_state_manager.h"
 #include "plugin_host_window.h"
 #include "search_history_popup.h"
@@ -161,8 +160,8 @@ void savePlaylistCoverCacheIndex(const QJsonObject& index) {
 } // namespace
 
 MainWidget::MainWidget(bool localOnlyMode, QWidget* parent)
-    : QWidget(parent), w(nullptr), list(nullptr), videoPlayerWindow(nullptr),
-      videoListWidget(nullptr), settingsWidget(nullptr), recommendMusicWidget(nullptr),
+    : QWidget(parent), w(nullptr), list(nullptr), videoListWidget(nullptr),
+      settingsWidget(nullptr), recommendMusicWidget(nullptr),
       playlistWidget(nullptr), m_localOnlyMode(localOnlyMode) {
     resize(1180, 760);
     setMinimumSize(1000, 640);
@@ -466,11 +465,9 @@ MainWidget::MainWidget(bool localOnlyMode, QWidget* parent)
 
     qDebug() << "[MainWidget] Creating VideoListWidget...";
 
-    videoListWidget = new VideoListWidget(w, this);
+    videoListWidget = new VideoListWidget(this);
     videoListWidget->hide();
     videoListWidget->setObjectName("videoList");
-    connect(videoListWidget, &VideoListWidget::videoPlayerWindowReady, this,
-            &MainWidget::handleVideoPlayerWindowReady);
     connect(videoListWidget, &VideoListWidget::videoPlaybackStateChanged, this,
             &MainWidget::handleVideoPlaybackStateChanged);
 
@@ -522,8 +519,6 @@ void MainWidget::handlePlaybackPauseAudioRequested() {
 void MainWidget::handlePlaybackPauseVideoRequested() {
     if (videoListWidget) {
         videoListWidget->pauseVideoPlayback();
-    } else if (videoPlayerWindow) {
-        videoPlayerWindow->pausePlayback();
     }
 }
 
@@ -863,11 +858,6 @@ void MainWidget::handlePlayStateChanged(ProcessSliderQml::State state) {
     } else if (state == ProcessSliderQml::Stop) {
         m_playbackStateManager->onAudioInactive();
     }
-}
-
-void MainWidget::handleVideoPlayerWindowReady(VideoPlayerWindow* window) {
-    videoPlayerWindow = window;
-    qDebug() << "[MainWidget] VideoPlayerWindow linked from VideoListWidget:" << window;
 }
 
 void MainWidget::handleVideoPlaybackStateChanged(bool isPlaying) {
@@ -1694,9 +1684,6 @@ void MainWidget::closeEvent(QCloseEvent* event) {
     if (loginWidget) {
         loginWidget->close();
     }
-    if (videoPlayerWindow) {
-        videoPlayerWindow->close();
-    }
     if (w) {
         w->close();
     }
@@ -1718,9 +1705,6 @@ MainWidget::~MainWidget() {
     if (videoListWidget) {
         videoListWidget->pauseVideoPlayback();
     }
-    if (videoPlayerWindow) {
-        videoPlayerWindow->pausePlayback();
-    }
     if (m_viewModel) {
         m_viewModel->shutdownAudioPipeline();
     }
@@ -1740,13 +1724,6 @@ MainWidget::~MainWidget() {
         loginWidget->close();
         delete loginWidget;
         loginWidget = nullptr;
-    }
-
-    if (videoPlayerWindow) {
-        qDebug() << "MainWidget: Deleting VideoPlayerWindow...";
-        videoPlayerWindow->close();
-        delete videoPlayerWindow;
-        videoPlayerWindow = nullptr;
     }
 
     if (videoListWidget) {
