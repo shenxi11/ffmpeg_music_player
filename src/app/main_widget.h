@@ -1,6 +1,6 @@
 ﻿#ifndef TEST_WIDGET_H
 #define TEST_WIDGET_H
-#include "VideoPlayerWindow.h"
+#include "comment_panel_qml.h"
 #include "favorite_music_widget.h"
 #include "local_and_download_widget.h"
 #include "loginwidget_qml.h"
@@ -11,7 +11,6 @@
 #include "play_history_widget.h"
 #include "play_widget.h"
 #include "playlist_widget.h"
-#include "comment_panel_qml.h"
 #include "recommend_music_widget.h"
 #include "searchbox_qml.h"
 #include "settings_widget.h"
@@ -109,7 +108,6 @@ class MainWidget : public QWidget {
     QWidget* sidebarPlaylistListContainer = nullptr;
     QVBoxLayout* sidebarPlaylistListLayout = nullptr;
     QLabel* sidebarPlaylistEmptyLabel = nullptr;
-    VideoPlayerWindow* videoPlayerWindow;
     VideoListWidget* videoListWidget; // 在线视频列表窗口
     SettingsWidget* settingsWidget;   // 设置主内容页
     CommentPanelQml* commentPageWidget = nullptr;
@@ -354,7 +352,6 @@ class MainWidget : public QWidget {
     void handleVideoTabToggled(bool checked);
     void handleAiAssistantClicked();
     void handlePlayStateChanged(ProcessSliderQml::State state);
-    void handleVideoPlayerWindowReady(VideoPlayerWindow* window);
     void handleVideoPlaybackStateChanged(bool isPlaying);
     void handleSearchBoxActivated();
     void handleSearchBoxTextEdited(const QString& text);

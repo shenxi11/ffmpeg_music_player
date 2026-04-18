@@ -93,6 +93,8 @@ list(APPEND PROJECT_SOURCES
     "${SRC_ROOT}/ui/widgets/library/music_list_widget_local.connections.cpp"
     "${SRC_ROOT}/ui/widgets/library/music_list_widget_net.connections.cpp"
     "${SRC_ROOT}/ui/widgets/video/video_list_widget.connections.cpp"
+    "${SRC_ROOT}/ui/widgets/video/video_player_page.cpp"
+    "${SRC_ROOT}/ui/widgets/video/video_player_page.h"
     "${SRC_ROOT}/app/main_menu.connections.cpp"
     "${SRC_ROOT}/app/plugin_host_window.connections.cpp"
     "${SRC_ROOT}/ui/widgets/user/user_widget.connections.cpp"
