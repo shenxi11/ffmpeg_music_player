@@ -1,5 +1,5 @@
 version: 1
-updated_at: "2026-04-18 10:52"
+updated_at: "2026-04-18 11:15"
 ownership:
   - module: "shell-core"
     paths_owned:
@@ -162,9 +162,9 @@ ownership:
       - ".codex/skills/"
       - "说明文档/"
     paths_shared: []
-    owner_session: "codex/all-current-work-one-pr"
-    owner_label: "codex-all-current-work-one-pr"
-    status: "active"
+    owner_session: ""
+    owner_label: ""
+    status: "released"
     claimed_at: "2026-04-18 10:52"
-    updated_at: "2026-04-18 10:52"
-    notes: "Claimed to publish the current mixed worktree as one PR to main, while explicitly excluding 打印日志.txt and third_party/llama.cpp."
+    updated_at: "2026-04-18 11:15"
+    notes: "Released after publishing PR #19 from codex/all-current-work-one-pr, explicitly excluding 打印日志.txt and third_party/llama.cpp, and validating a fresh VS2022 Debug configure/build plus 6-second smoke launch in E:\\FFmpeg_whisper\\ffmpeg_music_player_build_onepr."

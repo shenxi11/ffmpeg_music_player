@@ -1,5 +1,5 @@
 version: 1
-updated_at: "2026-04-18 10:52"
+updated_at: "2026-04-18 11:15"
 tasks:
   - task_id: "bugfix-playlist-current-track-display-mismatch"
     title: "Fix playlist row display mismatch when switching to another queued song"
@@ -485,7 +485,7 @@ tasks:
     title: "Publish the current mixed worktree as one PR to main"
     module: "docs-and-governance"
     owner_session: "codex/all-current-work-one-pr"
-    status: "doing"
+    status: "done"
     depends_on:
       - "remove-ai-stack-from-client-and-move-out-of-repo"
     files_expected:
@@ -497,8 +497,8 @@ tasks:
       - "Current product, governance, and AI-removal changes are included together."
       - "打印日志.txt and third_party/llama.cpp are excluded from the PR."
       - "The branch is pushed and a PR to main is opened."
-    notes: "In progress. Use a fresh branch rooted at origin/main instead of opening a PR from the current branch, whose upstream still points to origin/codex/multi-ai-collab-governance."
-    updated_at: "2026-04-18 10:52"
+    notes: "Done. Created fresh branch codex/all-current-work-one-pr from origin/main, cherry-picked the mixed worktree, removed the remaining in-repo AI runtime sources plus client_automation_host_service leftovers, validated configure/build/smoke in E:\\FFmpeg_whisper\\ffmpeg_music_player_build_onepr, pushed the branch, and opened PR #19: https://github.com/shenxi11/ffmpeg_music_player/pull/19 . 打印日志.txt and third_party/llama.cpp stayed out of the PR."
+    updated_at: "2026-04-18 11:15"
   - task_id: "observed-worktree-docs-and-governance"
     title: "Unsubmitted docs-and-governance changes need ownership"
     module: "docs-and-governance"
