@@ -3,9 +3,7 @@
 #include <QStackedLayout>
 
 VideoListWidget::VideoListWidget(QWidget* parent)
-    : QWidget(parent)
-    , m_viewModel(new VideoListViewModel(this))
-{
+    : QWidget(parent), m_viewModel(new VideoListViewModel(this)) {
     listWidget = new VideoListWidgetQml(this);
     m_playerPage = new VideoPlayerPage(this);
 
@@ -20,21 +18,18 @@ VideoListWidget::VideoListWidget(QWidget* parent)
     setupVideoPlayerConnections();
 }
 
-VideoListWidget::~VideoListWidget()
-{
+VideoListWidget::~VideoListWidget() {
     qDebug() << "[VideoListWidget] Destroyed";
 }
 
-void VideoListWidget::onRefreshRequested()
-{
+void VideoListWidget::onRefreshRequested() {
     qDebug() << "[VideoListWidget] Refresh requested, fetching video list...";
     m_videoEntriesByPath.clear();
     listWidget->clearAll();
     m_viewModel->refresh();
 }
 
-void VideoListWidget::onVideoListReceived(const QVariantList& videoList)
-{
+void VideoListWidget::onVideoListReceived(const QVariantList& videoList) {
     qDebug() << "[VideoListWidget] Received" << videoList.size() << "videos";
     m_videoEntriesByPath.clear();
     listWidget->clearAll();
@@ -50,8 +45,7 @@ void VideoListWidget::onVideoListReceived(const QVariantList& videoList)
     listWidget->addVideoList(videoList);
 }
 
-void VideoListWidget::onVideoSelected(const QString& videoPath, const QString& videoName)
-{
+void VideoListWidget::onVideoSelected(const QString& videoPath, const QString& videoName) {
     qDebug() << "[VideoListWidget] Video selected:" << videoName << "(" << videoPath << ")";
 
     m_selectedVideoPath = videoPath.trimmed();
@@ -61,34 +55,29 @@ void VideoListWidget::onVideoSelected(const QString& videoPath, const QString& v
     m_viewModel->resolveVideoStream(m_selectedVideoPath, m_selectedVideoName);
 }
 
-void VideoListWidget::pauseVideoPlayback()
-{
+void VideoListWidget::pauseVideoPlayback() {
     if (m_playerPage) {
         m_playerPage->pausePlayback();
     }
 }
 
-void VideoListWidget::showEvent(QShowEvent* event)
-{
+void VideoListWidget::showEvent(QShowEvent* event) {
     QWidget::showEvent(event);
     onRefreshRequested();
 }
 
-void VideoListWidget::hideEvent(QHideEvent* event)
-{
+void VideoListWidget::hideEvent(QHideEvent* event) {
     QWidget::hideEvent(event);
     pauseVideoPlayback();
 }
 
-void VideoListWidget::showListPage()
-{
+void VideoListWidget::showListPage() {
     if (m_pageLayout) {
         m_pageLayout->setCurrentWidget(listWidget);
     }
 }
 
-void VideoListWidget::showPlayerPage()
-{
+void VideoListWidget::showPlayerPage() {
     if (m_pageLayout) {
         m_pageLayout->setCurrentWidget(m_playerPage);
     }

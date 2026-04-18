@@ -2,8 +2,8 @@
 
 #include "playback_state_manager.h"
 #include "plugin_host_window.h"
-#include "search_history_popup.h"
 #include "plugin_manager.h"
+#include "search_history_popup.h"
 #include "searchbox_qml.h"
 #include "settings_manager.h"
 
@@ -160,9 +160,8 @@ void savePlaylistCoverCacheIndex(const QJsonObject& index) {
 } // namespace
 
 MainWidget::MainWidget(bool localOnlyMode, QWidget* parent)
-    : QWidget(parent), w(nullptr), list(nullptr), videoListWidget(nullptr),
-      settingsWidget(nullptr), recommendMusicWidget(nullptr),
-      playlistWidget(nullptr), m_localOnlyMode(localOnlyMode) {
+    : QWidget(parent), w(nullptr), list(nullptr), videoListWidget(nullptr), settingsWidget(nullptr),
+      recommendMusicWidget(nullptr), playlistWidget(nullptr), m_localOnlyMode(localOnlyMode) {
     resize(1180, 760);
     setMinimumSize(1000, 640);
     setWindowFlags(Qt::CustomizeWindowHint);
@@ -546,9 +545,9 @@ void MainWidget::showContentPanel(QWidget* activeWidget) {
         activeWidget = localAndDownloadWidget;
     }
 
-    const bool leavingCommentContent =
-        commentPageWidget && m_activeContentWidget == commentPageWidget &&
-        activeWidget != commentPageWidget;
+    const bool leavingCommentContent = commentPageWidget &&
+                                       m_activeContentWidget == commentPageWidget &&
+                                       activeWidget != commentPageWidget;
     if (leavingCommentContent) {
         if (w) {
             w->setMainContentCommentVisible(false);
@@ -986,8 +985,8 @@ void MainWidget::handleRecommendLoginRequested() {
 
 void MainWidget::handleRecommendPlayMusicWithMetadata(
     const QString& filePath, const QString& musicPath, const QString& title, const QString& artist,
-    const QString& cover, const QString& duration, const QString& songId,
-    const QString& requestId, const QString& modelVersion, const QString& scene) {
+    const QString& cover, const QString& duration, const QString& songId, const QString& requestId,
+    const QString& modelVersion, const QString& scene) {
     Q_UNUSED(duration);
     Q_UNUSED(requestId);
     Q_UNUSED(modelVersion);

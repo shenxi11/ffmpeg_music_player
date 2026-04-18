@@ -1,5 +1,6 @@
 ﻿#ifndef TEST_WIDGET_H
 #define TEST_WIDGET_H
+#include "comment_panel_qml.h"
 #include "favorite_music_widget.h"
 #include "local_and_download_widget.h"
 #include "loginwidget_qml.h"
@@ -10,7 +11,6 @@
 #include "play_history_widget.h"
 #include "play_widget.h"
 #include "playlist_widget.h"
-#include "comment_panel_qml.h"
 #include "recommend_music_widget.h"
 #include "searchbox_qml.h"
 #include "settings_widget.h"

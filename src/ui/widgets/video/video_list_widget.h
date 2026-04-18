@@ -14,21 +14,20 @@ class QStackedLayout;
  * @brief 在线视频列表窗口
  * 在主页面内切换视频列表与视频详情播放页。
  */
-class VideoListWidget : public QWidget
-{
+class VideoListWidget : public QWidget {
     Q_OBJECT
 
-public:
+  public:
     explicit VideoListWidget(QWidget* parent = nullptr);
     ~VideoListWidget() override;
 
-signals:
+  signals:
     void videoPlaybackStateChanged(bool isPlaying);
 
-public slots:
+  public slots:
     void pauseVideoPlayback();
 
-private slots:
+  private slots:
     void onRefreshRequested();
     void onVideoListReceived(const QVariantList& videoList);
     void onVideoSelected(const QString& videoPath, const QString& videoName);
@@ -36,11 +35,11 @@ private slots:
     void onVideoPlayerPlayStateChanged(bool isPlaying);
     void onReturnToListRequested();
 
-protected:
+  protected:
     void showEvent(QShowEvent* event) override;
     void hideEvent(QHideEvent* event) override;
 
-private:
+  private:
     void setupConnections();
     void setupVideoPlayerConnections();
     void showListPage();

@@ -7,8 +7,7 @@
 维护说明: 连接逻辑集中维护，减少构造函数复杂度。
 */
 
-void VideoListWidget::setupConnections()
-{
+void VideoListWidget::setupConnections() {
     connect(listWidget, &VideoListWidgetQml::signalRefreshRequested, this,
             &VideoListWidget::onRefreshRequested);
 
@@ -22,8 +21,7 @@ void VideoListWidget::setupConnections()
             &VideoListWidget::onVideoStreamResolved);
 }
 
-void VideoListWidget::setupVideoPlayerConnections()
-{
+void VideoListWidget::setupVideoPlayerConnections() {
     if (!m_playerPage) {
         return;
     }
@@ -34,8 +32,7 @@ void VideoListWidget::setupVideoPlayerConnections()
             &VideoListWidget::onReturnToListRequested);
 }
 
-void VideoListWidget::onVideoStreamResolved(const QString& videoUrl, const QString& videoName)
-{
+void VideoListWidget::onVideoStreamResolved(const QString& videoUrl, const QString& videoName) {
     Q_UNUSED(videoName);
 
     if (!m_playerPage) {
@@ -48,13 +45,11 @@ void VideoListWidget::onVideoStreamResolved(const QString& videoUrl, const QStri
     m_playerPage->resumePlayback();
 }
 
-void VideoListWidget::onVideoPlayerPlayStateChanged(bool isPlaying)
-{
+void VideoListWidget::onVideoPlayerPlayStateChanged(bool isPlaying) {
     emit videoPlaybackStateChanged(isPlaying);
 }
 
-void VideoListWidget::onReturnToListRequested()
-{
+void VideoListWidget::onReturnToListRequested() {
     pauseVideoPlayback();
     showListPage();
 }
