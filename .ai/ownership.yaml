@@ -1,5 +1,5 @@
 version: 1
-updated_at: "2026-04-18 10:16"
+updated_at: "2026-04-18 11:31"
 ownership:
   - module: "shell-core"
     paths_owned:
@@ -114,30 +114,6 @@ ownership:
     claimed_at: "2026-04-17 21:32"
     updated_at: "2026-04-17 23:28"
     notes: "Handoff after fixing the remaining overlap rows inside the HTML-draft settings page. The single-track queue options now wrap within a content-driven delegate, and the audio-device section uses content-driven rows so the memory-mode options no longer collide with the top device form."
-  - module: "agent-qt-host"
-    paths_owned:
-      - "src/agent/"
-      - "qml/components/agent/"
-      - "src/app/client_automation_host_service*"
-    paths_shared: []
-    owner_session: ""
-    owner_label: ""
-    status: "released"
-    claimed_at: ""
-    updated_at: "2026-04-17 13:46"
-    notes: "Qt-side agent host, chat UI, tool bridge, protocol router, and embedded runtime integration."
-  - module: "agent-python-runtime"
-    paths_owned:
-      - "agent/src/music_agent/"
-      - "agent/tests/"
-      - "agent/scripts/"
-    paths_shared: []
-    owner_session: ""
-    owner_label: ""
-    status: "released"
-    claimed_at: ""
-    updated_at: "2026-04-17 13:46"
-    notes: "Python agent service, planning/runtime stack, control models, and relay tooling."
   - module: "plugins-and-build"
     paths_owned:
       - "plugins/"
@@ -149,12 +125,12 @@ ownership:
       - "CMakeLists.txt"
       - "CMakePresets.json"
       - "qml.qrc"
-    owner_session: "codex/online-music-comments-v1"
-    owner_label: "codex-comments-v1"
-    status: "handoff"
-    claimed_at: "2026-04-17 20:45"
-    updated_at: "2026-04-17 21:17"
-    notes: "Build graph, resource packing, plugin packaging, and third-party source boundaries. Handoff after online music comments v1 QML resource registration; final link blocked by running exe."
+    owner_session: ""
+    owner_label: ""
+    status: "released"
+    claimed_at: "2026-04-18 10:30"
+    updated_at: "2026-04-18 10:41"
+    notes: "Released after removing ai_assistant_plugin from the build graph and validating a clean Debug build in a machine-local out-of-tree build directory for the AI-removed state."
   - module: "docs-and-governance"
     paths_owned:
       - "README.md"
@@ -165,6 +141,6 @@ ownership:
     owner_session: ""
     owner_label: ""
     status: "released"
-    claimed_at: "2026-04-18 03:40"
-    updated_at: "2026-04-18 10:16"
-    notes: "Released after completing the PR split-and-publish workflow. Governance files are on PR #17 and product changes are on PR #18; both PRs are now MERGEABLE/CLEAN."
+    claimed_at: "2026-04-18 10:52"
+    updated_at: "2026-04-18 11:31"
+    notes: "Released after addressing PR #19 governance review feedback, normalizing machine-local path references in the current PR's .ai files, adding a repo-relative archive convention note, and removing deleted agent module remnants from ownership/task tracking."

@@ -50,7 +50,6 @@ SettingsViewModel::SettingsViewModel(QObject* parent)
     connect(&settings(), &SettingsManager::downloadLyricsChanged, this, &SettingsViewModel::downloadLyricsChanged);
     connect(&settings(), &SettingsManager::downloadCoverChanged, this, &SettingsViewModel::downloadCoverChanged);
     connect(&settings(), &SettingsManager::playerPageStyleChanged, this, &SettingsViewModel::playerPageStyleChanged);
-    connect(&settings(), &SettingsManager::agentSettingsChanged, this, &SettingsViewModel::agentSettingsChanged);
     connect(&settings(), &SettingsManager::serverEndpointChanged, this, &SettingsViewModel::settingsCenterChanged);
     connect(&settings(), &SettingsManager::settingsCenterChanged, this, &SettingsViewModel::settingsCenterChanged);
 
@@ -93,51 +92,6 @@ bool SettingsViewModel::downloadCover() const
 int SettingsViewModel::playerPageStyle() const
 {
     return settings().playerPageStyle();
-}
-
-QString SettingsViewModel::agentMode() const
-{
-    return settings().agentMode();
-}
-
-QString SettingsViewModel::agentLocalModelPath() const
-{
-    return settings().agentLocalModelPath();
-}
-
-QString SettingsViewModel::agentLocalModelBaseUrl() const
-{
-    return settings().agentLocalModelBaseUrl();
-}
-
-QString SettingsViewModel::agentLocalModelName() const
-{
-    return settings().agentLocalModelName();
-}
-
-int SettingsViewModel::agentLocalContextSize() const
-{
-    return settings().agentLocalContextSize();
-}
-
-int SettingsViewModel::agentLocalThreadCount() const
-{
-    return settings().agentLocalThreadCount();
-}
-
-bool SettingsViewModel::agentRemoteFallbackEnabled() const
-{
-    return settings().agentRemoteFallbackEnabled();
-}
-
-QString SettingsViewModel::agentRemoteBaseUrl() const
-{
-    return settings().agentRemoteBaseUrl();
-}
-
-QString SettingsViewModel::agentRemoteModelName() const
-{
-    return settings().agentRemoteModelName();
 }
 
 QString SettingsViewModel::serverHost() const
@@ -684,93 +638,6 @@ void SettingsViewModel::setPlayerPageStyle(int styleId)
     settings().setPlayerPageStyle(styleId);
 }
 
-void SettingsViewModel::setAgentMode(const QString& mode)
-{
-    const QString trimmed = mode.trimmed();
-    if (trimmed.isEmpty() || agentMode() == trimmed) {
-        return;
-    }
-    settings().setAgentMode(trimmed);
-    emit agentSettingsChanged();
-}
-
-void SettingsViewModel::setAgentLocalModelPath(const QString& modelPath)
-{
-    const QString trimmed = modelPath.trimmed();
-    if (trimmed.isEmpty() || agentLocalModelPath() == trimmed) {
-        return;
-    }
-    settings().setAgentLocalModelPath(trimmed);
-    emit agentSettingsChanged();
-}
-
-void SettingsViewModel::setAgentLocalModelBaseUrl(const QString& baseUrl)
-{
-    const QString trimmed = baseUrl.trimmed();
-    if (trimmed.isEmpty() || agentLocalModelBaseUrl() == trimmed) {
-        return;
-    }
-    settings().setAgentLocalModelBaseUrl(trimmed);
-    emit agentSettingsChanged();
-}
-
-void SettingsViewModel::setAgentLocalModelName(const QString& modelName)
-{
-    const QString trimmed = modelName.trimmed();
-    if (trimmed.isEmpty() || agentLocalModelName() == trimmed) {
-        return;
-    }
-    settings().setAgentLocalModelName(trimmed);
-    emit agentSettingsChanged();
-}
-
-void SettingsViewModel::setAgentLocalContextSize(int contextSize)
-{
-    if (agentLocalContextSize() == contextSize) {
-        return;
-    }
-    settings().setAgentLocalContextSize(contextSize);
-    emit agentSettingsChanged();
-}
-
-void SettingsViewModel::setAgentLocalThreadCount(int threadCount)
-{
-    if (agentLocalThreadCount() == threadCount) {
-        return;
-    }
-    settings().setAgentLocalThreadCount(threadCount);
-    emit agentSettingsChanged();
-}
-
-void SettingsViewModel::setAgentRemoteFallbackEnabled(bool enabled)
-{
-    if (agentRemoteFallbackEnabled() == enabled) {
-        return;
-    }
-    settings().setAgentRemoteFallbackEnabled(enabled);
-    emit agentSettingsChanged();
-}
-
-void SettingsViewModel::setAgentRemoteBaseUrl(const QString& baseUrl)
-{
-    const QString trimmed = baseUrl.trimmed();
-    if (trimmed.isEmpty() || agentRemoteBaseUrl() == trimmed) {
-        return;
-    }
-    settings().setAgentRemoteBaseUrl(trimmed);
-    emit agentSettingsChanged();
-}
-
-void SettingsViewModel::setAgentRemoteModelName(const QString& modelName)
-{
-    const QString trimmed = modelName.trimmed();
-    if (trimmed.isEmpty() || agentRemoteModelName() == trimmed) {
-        return;
-    }
-    settings().setAgentRemoteModelName(trimmed);
-    emit agentSettingsChanged();
-}
-
 void SettingsViewModel::setServerHost(const QString& host)
 {
     settings().setServerHost(host);
@@ -1194,7 +1061,6 @@ void SettingsViewModel::syncFromSettings()
     emit downloadLyricsChanged();
     emit downloadCoverChanged();
     emit playerPageStyleChanged();
-    emit agentSettingsChanged();
     emit settingsCenterChanged();
 }
 

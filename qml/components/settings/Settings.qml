@@ -30,16 +30,8 @@ Rectangle {
         { "id": "lyrics", "label": "桌面歌词" },
         { "id": "shortcuts", "label": "快捷键" },
         { "id": "plugins", "label": "音效插件" },
-        { "id": "agent", "label": "AI助手" },
         { "id": "network", "label": "网络设置" },
         { "id": "audio", "label": "音频设备" }
-    ]
-    property var playerStyleOptions: [
-        { "value": 0, "label": "经典黑胶", "subtitle": "亮色卡片 + 右侧歌词布局" },
-        { "value": 1, "label": "简约方形", "subtitle": "冷色渐变 + 方形封面" },
-        { "value": 2, "label": "透明彩胶", "subtitle": "玻璃感底板 + 彩胶视觉" },
-        { "value": 3, "label": "简约歌词", "subtitle": "深色歌词舞台" },
-        { "value": 4, "label": "歌手写真", "subtitle": "沉浸式封面背景" }
     ]
 
     property var generalStartupOptions: [
@@ -209,7 +201,6 @@ Rectangle {
         case "lowLatencyAudioMode": return settingsViewModel.lowLatencyAudioMode
         case "audioLocalFileMemoryMode": return settingsViewModel.audioLocalFileMemoryMode
         case "audioGaplessPlayback": return settingsViewModel.audioGaplessPlayback
-        case "agentRemoteFallbackEnabled": return settingsViewModel.agentRemoteFallbackEnabled
         default: return false
         }
     }
@@ -251,7 +242,6 @@ Rectangle {
         case "lowLatencyAudioMode": settingsViewModel.setLowLatencyAudioMode(value); break
         case "audioLocalFileMemoryMode": settingsViewModel.setAudioLocalFileMemoryMode(value); break
         case "audioGaplessPlayback": settingsViewModel.setAudioGaplessPlayback(value); break
-        case "agentRemoteFallbackEnabled": settingsViewModel.setAgentRemoteFallbackEnabled(value); break
         }
     }
 
@@ -279,12 +269,6 @@ Rectangle {
         case "shortcutFastForward": return settingsViewModel.shortcutFastForward
         case "effectPluginType": return settingsViewModel.effectPluginType
         case "pluginDirectory": return settingsViewModel.pluginDirectory
-        case "agentMode": return settingsViewModel.agentMode
-        case "agentLocalModelPath": return settingsViewModel.agentLocalModelPath
-        case "agentLocalModelBaseUrl": return settingsViewModel.agentLocalModelBaseUrl
-        case "agentLocalModelName": return settingsViewModel.agentLocalModelName
-        case "agentRemoteBaseUrl": return settingsViewModel.agentRemoteBaseUrl
-        case "agentRemoteModelName": return settingsViewModel.agentRemoteModelName
         case "serverHost": return settingsViewModel.serverHost
         case "proxyType": return settingsViewModel.proxyType
         case "proxyHost": return settingsViewModel.proxyHost
@@ -323,12 +307,6 @@ Rectangle {
         case "shortcutFastForward": settingsViewModel.setShortcutFastForward(value); break
         case "effectPluginType": settingsViewModel.setEffectPluginType(value); break
         case "pluginDirectory": settingsViewModel.setPluginDirectory(value); break
-        case "agentMode": settingsViewModel.setAgentMode(value); break
-        case "agentLocalModelPath": settingsViewModel.setAgentLocalModelPath(value); break
-        case "agentLocalModelBaseUrl": settingsViewModel.setAgentLocalModelBaseUrl(value); break
-        case "agentLocalModelName": settingsViewModel.setAgentLocalModelName(value); break
-        case "agentRemoteBaseUrl": settingsViewModel.setAgentRemoteBaseUrl(value); break
-        case "agentRemoteModelName": settingsViewModel.setAgentRemoteModelName(value); break
         case "serverHost": settingsViewModel.setServerHost(value); break
         case "proxyType": settingsViewModel.setProxyType(value); break
         case "proxyHost": settingsViewModel.setProxyHost(value); break
@@ -345,9 +323,6 @@ Rectangle {
     function intSetting(key) {
         switch (key) {
         case "desktopLyricFontSize": return settingsViewModel.desktopLyricFontSize
-        case "playerPageStyle": return settingsViewModel.playerPageStyle
-        case "agentLocalContextSize": return settingsViewModel.agentLocalContextSize
-        case "agentLocalThreadCount": return settingsViewModel.agentLocalThreadCount
         case "serverPort": return settingsViewModel.serverPort
         case "proxyPort": return settingsViewModel.proxyPort
         case "outputSampleRate": return settingsViewModel.outputSampleRate
@@ -361,9 +336,6 @@ Rectangle {
     function setIntSetting(key, value) {
         switch (key) {
         case "desktopLyricFontSize": settingsViewModel.setDesktopLyricFontSize(value); break
-        case "playerPageStyle": settingsViewModel.setPlayerPageStyle(value); break
-        case "agentLocalContextSize": settingsViewModel.setAgentLocalContextSize(value); break
-        case "agentLocalThreadCount": settingsViewModel.setAgentLocalThreadCount(value); break
         case "serverPort": settingsViewModel.setServerPort(value); break
         case "proxyPort": settingsViewModel.setProxyPort(value); break
         case "outputSampleRate": settingsViewModel.setOutputSampleRate(value); break
@@ -518,7 +490,6 @@ Rectangle {
                             case "lyrics": return lyricsPage
                             case "shortcuts": return shortcutsPage
                             case "plugins": return pluginsPage
-                            case "agent": return agentPage
                             case "network": return networkPage
                             case "audio": return audioPage
                             default: return generalPage
@@ -969,61 +940,6 @@ Rectangle {
                                             anchors.fill: parent
                                             cursorShape: Qt.PointingHandCursor
                                             onClicked: root.setStringSetting("singleTrackQueueMode", modelData.value)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        Column {
-                            spacing: 14
-
-                            Text {
-                                text: "播放器页面样式："
-                                color: root.textColor
-                                font.pixelSize: 14
-                            }
-
-                            Flow {
-                                width: parent.width
-                                spacing: 16
-
-                                Repeater {
-                                    model: root.playerStyleOptions
-
-                                    delegate: Rectangle {
-                                        width: 180
-                                        height: 86
-                                        radius: 8
-                                        color: root.intSetting("playerPageStyle") === modelData.value ? "#eefcf7" : "#ffffff"
-                                        border.width: 1
-                                        border.color: root.intSetting("playerPageStyle") === modelData.value ? root.accentColor : root.borderColor
-
-                                        Column {
-                                            anchors.fill: parent
-                                            anchors.margins: 14
-                                            spacing: 8
-
-                                            Text {
-                                                text: modelData.label
-                                                color: root.textColor
-                                                font.pixelSize: 14
-                                                font.weight: Font.DemiBold
-                                            }
-
-                                            Text {
-                                                width: parent.width
-                                                text: modelData.subtitle
-                                                color: root.hintColor
-                                                font.pixelSize: 12
-                                                wrapMode: Text.WordWrap
-                                            }
-                                        }
-
-                                        MouseArea {
-                                            anchors.fill: parent
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: root.setIntSetting("playerPageStyle", modelData.value)
                                         }
                                     }
                                 }
@@ -1983,215 +1899,6 @@ Rectangle {
     }
 
     Component {
-        id: agentPage
-
-        Column {
-            width: contentColumn.width
-
-            Item {
-                width: parent.width
-                height: 56
-
-                Text {
-                    x: 0
-                    y: 20
-                    text: "AI助手"
-                    color: root.textColor
-                    font.pixelSize: 18
-                    font.weight: Font.DemiBold
-                }
-            }
-
-            Rectangle { width: parent.width; height: 1; color: root.lineColor }
-
-            Item {
-                width: parent.width
-                height: 420
-
-                Text { x: 0; y: 28; width: 110; text: "运行模式"; color: "#6b7280"; font.pixelSize: 14 }
-
-                Column {
-                    x: 110
-                    y: 24
-                    width: parent.width - 110
-                    spacing: 18
-
-                    Row {
-                        spacing: 16
-
-                        Repeater {
-                            model: [
-                                { "value": "control", "label": "控制模式", "tip": "优先执行工具与操作编排" },
-                                { "value": "assistant", "label": "助手模式", "tip": "保留更多对话回答能力" }
-                            ]
-
-                            delegate: Rectangle {
-                                width: 220
-                                height: 64
-                                radius: 8
-                                color: root.stringSetting("agentMode") === modelData.value ? "#eefcf7" : "#ffffff"
-                                border.width: 1
-                                border.color: root.stringSetting("agentMode") === modelData.value ? root.accentColor : root.borderColor
-
-                                Column {
-                                    anchors.fill: parent
-                                    anchors.margins: 12
-                                    spacing: 6
-
-                                    Text {
-                                        text: modelData.label
-                                        color: root.textColor
-                                        font.pixelSize: 14
-                                        font.weight: Font.DemiBold
-                                    }
-
-                                    Text {
-                                        width: parent.width
-                                        text: modelData.tip
-                                        color: root.hintColor
-                                        font.pixelSize: 12
-                                        wrapMode: Text.WordWrap
-                                    }
-                                }
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: root.setStringSetting("agentMode", modelData.value)
-                                }
-                            }
-                        }
-                    }
-
-                    GridLayout {
-                        width: parent.width
-                        columns: 2
-                        columnSpacing: 24
-                        rowSpacing: 14
-
-                        Text { text: "本地模型路径"; color: root.textColor; font.pixelSize: 14 }
-                        TextField {
-                            Layout.fillWidth: true
-                            text: root.stringSetting("agentLocalModelPath")
-                            font.pixelSize: 13
-                            color: root.textColor
-                            background: Rectangle { color: "#ffffff"; border.color: root.borderColor; radius: 2 }
-                            onEditingFinished: root.setStringSetting("agentLocalModelPath", text)
-                        }
-
-                        Text { text: "本地模型名称"; color: root.textColor; font.pixelSize: 14 }
-                        TextField {
-                            Layout.fillWidth: true
-                            text: root.stringSetting("agentLocalModelName")
-                            font.pixelSize: 13
-                            color: root.textColor
-                            background: Rectangle { color: "#ffffff"; border.color: root.borderColor; radius: 2 }
-                            onEditingFinished: root.setStringSetting("agentLocalModelName", text)
-                        }
-
-                        Text { text: "本地服务地址"; color: root.textColor; font.pixelSize: 14 }
-                        TextField {
-                            Layout.fillWidth: true
-                            text: root.stringSetting("agentLocalModelBaseUrl")
-                            font.pixelSize: 13
-                            color: root.textColor
-                            background: Rectangle { color: "#ffffff"; border.color: root.borderColor; radius: 2 }
-                            onEditingFinished: root.setStringSetting("agentLocalModelBaseUrl", text)
-                        }
-
-                        Text { text: "上下文窗口"; color: root.textColor; font.pixelSize: 14 }
-                        TextField {
-                            Layout.fillWidth: true
-                            text: String(root.intSetting("agentLocalContextSize"))
-                            font.pixelSize: 13
-                            color: root.textColor
-                            background: Rectangle { color: "#ffffff"; border.color: root.borderColor; radius: 2 }
-                            onEditingFinished: root.setIntSetting("agentLocalContextSize", parseInt(text || "16384"))
-                        }
-
-                        Text { text: "线程数"; color: root.textColor; font.pixelSize: 14 }
-                        TextField {
-                            Layout.fillWidth: true
-                            text: String(root.intSetting("agentLocalThreadCount"))
-                            font.pixelSize: 13
-                            color: root.textColor
-                            background: Rectangle { color: "#ffffff"; border.color: root.borderColor; radius: 2 }
-                            onEditingFinished: root.setIntSetting("agentLocalThreadCount", parseInt(text || "4"))
-                        }
-                    }
-
-                    Item {
-                        width: parent.width
-                        height: 24
-
-                        Row {
-                            anchors.verticalCenter: parent.verticalCenter
-                            spacing: 8
-
-                            Rectangle {
-                                width: 18
-                                height: 18
-                                radius: 9
-                                border.width: 1
-                                border.color: root.boolSetting("agentRemoteFallbackEnabled") ? root.accentColor : "#cfcfcf"
-                                color: root.boolSetting("agentRemoteFallbackEnabled") ? root.accentColor : "#ffffff"
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: root.boolSetting("agentRemoteFallbackEnabled") ? "✓" : ""
-                                    color: "#ffffff"
-                                    font.pixelSize: 11
-                                    font.weight: Font.Bold
-                                }
-                            }
-
-                            Text {
-                                text: "本地失败时启用远端模型回退"
-                                color: root.textColor
-                                font.pixelSize: 14
-                            }
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.setBoolSetting("agentRemoteFallbackEnabled", !root.boolSetting("agentRemoteFallbackEnabled"))
-                        }
-                    }
-
-                    GridLayout {
-                        width: parent.width
-                        columns: 2
-                        columnSpacing: 24
-                        rowSpacing: 14
-                        visible: root.boolSetting("agentRemoteFallbackEnabled")
-
-                        Text { text: "远端地址"; color: root.textColor; font.pixelSize: 14 }
-                        TextField {
-                            Layout.fillWidth: true
-                            text: root.stringSetting("agentRemoteBaseUrl")
-                            font.pixelSize: 13
-                            color: root.textColor
-                            background: Rectangle { color: "#ffffff"; border.color: root.borderColor; radius: 2 }
-                            onEditingFinished: root.setStringSetting("agentRemoteBaseUrl", text)
-                        }
-
-                        Text { text: "远端模型"; color: root.textColor; font.pixelSize: 14 }
-                        TextField {
-                            Layout.fillWidth: true
-                            text: root.stringSetting("agentRemoteModelName")
-                            font.pixelSize: 13
-                            color: root.textColor
-                            background: Rectangle { color: "#ffffff"; border.color: root.borderColor; radius: 2 }
-                            onEditingFinished: root.setStringSetting("agentRemoteModelName", text)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    Component {
         id: networkPage
 
         Column {
@@ -2211,89 +1918,6 @@ Rectangle {
             }
 
             Rectangle { width: parent.width; height: 1; color: root.lineColor }
-
-            Item {
-                width: parent.width
-                height: 254
-
-                Text { x: 0; y: 28; width: 110; text: "服务端"; color: "#6b7280"; font.pixelSize: 14 }
-
-                Column {
-                    x: 110
-                    y: 24
-                    width: parent.width - 110
-                    spacing: 16
-
-                    Row {
-                        spacing: 16
-
-                        Text { width: 48; text: "地址"; color: "#6b7280"; font.pixelSize: 14 }
-                        TextField {
-                            width: 280
-                            text: root.stringSetting("serverHost")
-                            font.pixelSize: 13
-                            color: root.textColor
-                            background: Rectangle { color: "#ffffff"; border.color: root.borderColor; radius: 2 }
-                            onEditingFinished: root.setStringSetting("serverHost", text)
-                        }
-
-                        Text { width: 40; text: "端口"; color: "#6b7280"; font.pixelSize: 14 }
-                        TextField {
-                            width: 120
-                            text: String(root.intSetting("serverPort"))
-                            font.pixelSize: 13
-                            color: root.textColor
-                            background: Rectangle { color: "#ffffff"; border.color: root.borderColor; radius: 2 }
-                            onEditingFinished: root.setIntSetting("serverPort", parseInt(text || "0"))
-                        }
-                    }
-
-                    Rectangle {
-                        width: parent.width
-                        height: 138
-                        radius: 8
-                        color: root.boolSetting("agentRemoteFallbackEnabled") ? "#fbfcff" : "#fafafa"
-                        border.color: root.borderColor
-
-                        Column {
-                            anchors.fill: parent
-                            anchors.margins: 16
-                            spacing: 10
-
-                            Row {
-                                spacing: 12
-
-                                Rectangle {
-                                    width: 56
-                                    height: 24
-                                    radius: 12
-                                    color: settingsViewModel.presenceOnline ? "#e9f8ef" : "#fbecec"
-                                    border.color: settingsViewModel.presenceOnline ? "#7ac38e" : "#e3a2a2"
-
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: settingsViewModel.presenceOnline ? "在线" : "离线"
-                                        color: settingsViewModel.presenceOnline ? "#2d7a44" : "#b24343"
-                                        font.pixelSize: 12
-                                        font.weight: Font.DemiBold
-                                    }
-                                }
-
-                                Button {
-                                    text: "刷新状态"
-                                    onClicked: root.refreshPresenceRequested()
-                                }
-                            }
-
-                            Text { text: "账号：" + (settingsViewModel.presenceAccount || "-"); color: root.textColor; font.pixelSize: 13 }
-                            Text { text: "Token：" + (settingsViewModel.presenceSessionToken || "-"); color: root.textColor; font.pixelSize: 13 }
-                            Text { text: "心跳间隔：" + settingsViewModel.presenceHeartbeatIntervalSec + "s / TTL：" + settingsViewModel.presenceOnlineTtlSec + "s / 剩余：" + settingsViewModel.presenceTtlRemainingSec + "s"; color: root.hintColor; font.pixelSize: 12 }
-                            Text { text: "最近上报：" + (settingsViewModel.presenceLastSeenText || "未上报"); color: root.hintColor; font.pixelSize: 12 }
-                            Text { text: "状态说明：" + (settingsViewModel.presenceStatusMessage || "-"); color: root.hintColor; font.pixelSize: 12; wrapMode: Text.WordWrap }
-                        }
-                    }
-                }
-            }
 
             Item {
                 width: parent.width

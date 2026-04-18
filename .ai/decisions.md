@@ -89,3 +89,10 @@ Use this file only for decisions that affect more than one active Codex session.
 - Reason: The standalone window shape conflicts with the desired product behavior and makes the redesigned settings center render with misleading window semantics inside a page-oriented app shell.
 - Constraints: The migration must reuse the existing `showContentPanel()` pattern instead of inventing a second navigation system. The settings page remains the owner of settings UI and persistence, while `shell-core` only hosts and switches it.
 - Follow-up: Simplify settings-page footer actions to page semantics and keep shell changes limited to the minimum required entry, visibility, and geometry wiring.
+
+### 2026-04-18 - AI Stack Removal Keeps Generic Plugin Infrastructure
+- Scope: `agent-qt-host`, `agent-python-runtime`, `plugins-and-build`, `shell-core`, `docs-and-governance`
+- Decision: The in-repo AI stack is removed as a whole and moved outside the client repo, but the generic plugin infrastructure remains. Remove AI-specific plugin/build/runtime/UI/documentation assets while keeping `PluginManager`, `PluginHostWindow`, `PluginHostContext`, and non-AI plugins intact.
+- Reason: The current build blockage comes from the AI plugin dependency chain, but the project still needs the generic plugin host for the remaining plugins.
+- Constraints: Do not rename or relocate shared non-AI icon resources just because they currently live under `qml/assets/ai/icons`. Do not expand the change into a general plugin-system rewrite.
+- Follow-up: Remove `plugins/ai_assistant_plugin`, `src/agent`, `qml/components/agent`, the repo-root `agent/` runtime directory, AI-specific shell entrypoints, and Agent-facing docs from the repo, then validate that the client still builds without `Qt5::WebSockets`/`llama`/`ggml` requirements.

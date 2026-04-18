@@ -1,13 +1,11 @@
-#ifndef MAINSHELLVIEWMODEL_H
+﻿#ifndef MAINSHELLVIEWMODEL_H
 #define MAINSHELLVIEWMODEL_H
 
 #include "BaseViewModel.h"
 #include "httprequest_v2.h"
 #include "plugin_manager.h"
 
-#include <QList>
 #include <QUrl>
-#include <QVariantMap>
 
 /**
  * @brief 主窗口壳层视图模型。
@@ -94,24 +92,8 @@ class MainShellViewModel : public BaseViewModel {
     void returnToWelcomeAndKeepAccountCache(bool graceful, int gracefulTimeoutMs = 0);
     void shutdownUserSessionOnAppExit(bool graceful, int gracefulTimeoutMs = 0);
 
-    bool pauseAudioIfPlaying();
-    bool resumeAudioIfPaused();
-    bool stopAudio();
-    bool seekAudio(qint64 positionMs);
-    bool playNextAudio();
-    bool playPreviousAudio();
-    bool playAudioAtIndex(int index);
-    bool setAudioVolume(int volume);
-    bool setAudioPlayMode(int mode);
-    bool setAudioPlaylist(const QList<QUrl>& urls, bool playNow, int startIndex);
-    bool appendAudioToQueue(const QUrl& url);
-    bool removeAudioFromQueue(int index);
-    bool clearAudioQueue();
-    bool playAudioUrl(const QUrl& url);
-    bool playAudioPlaylist(const QList<QUrl>& urls);
-    QVariantMap audioQueueSnapshot() const;
-    QVariantMap audioCurrentTrackSnapshot() const;
-    QVariantMap audioStateSnapshot() const;
+    void pauseAudioIfPlaying();
+    void stopAudio();
     void shutdownAudioPipeline();
 
     int loadPlugins(const QString& pluginPath);
@@ -119,16 +101,7 @@ class MainShellViewModel : public BaseViewModel {
     QVector<PluginInfo> pluginInfos() const;
     PluginInterface* pluginById(const QString& pluginId) const;
     QString pluginDiagnosticsReport() const;
-    QVariantMap pluginsSnapshot() const;
-    QVariantMap pluginDiagnosticsSnapshot() const;
-    QVariantMap reloadPluginsSnapshot();
-    bool unloadPluginByKey(const QString& pluginKey);
-    int unloadAllPluginsAndReturnCount();
-    void registerPluginHostService(const QString& serviceName, QObject* service);
     void unloadAllPlugins();
-
-    QVariantMap settingsSnapshot() const;
-    bool updateSettingValue(const QString& key, const QVariant& value);
 
     void addLocalMusicCacheEntry(const QString& filePath, const QString& fileName);
     void updateLocalMusicCacheMetadata(const QString& filePath, const QString& coverUrl,

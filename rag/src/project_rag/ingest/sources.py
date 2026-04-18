@@ -25,23 +25,12 @@ class SourceSpec:
 
 DEFAULT_SOURCE_SPECS: tuple[SourceSpec, ...] = (
     SourceSpec("说明文档", "client", "docs", ("*.md",)),
-    SourceSpec("src/agent", "client", "agent", ("*.h", "*.hpp", "*.cpp", "*.cc")),
     SourceSpec("src/audio", "client", "audio", ("*.h", "*.hpp", "*.cpp", "*.cc")),
     SourceSpec("src/video", "client", "video", ("*.h", "*.hpp", "*.cpp", "*.cc")),
     SourceSpec("src/network", "client", "network", ("*.h", "*.hpp", "*.cpp", "*.cc")),
     SourceSpec("src/viewmodels", "client", "viewmodels", ("*.h", "*.hpp", "*.cpp", "*.cc")),
     SourceSpec("src/app", "client", "app", ("*.h", "*.hpp", "*.cpp", "*.cc")),
     SourceSpec("qml", "client", "ui", ("*.qml",)),
-    SourceSpec("agent/src/music_agent", "agent", "agent", ("*.py",)),
-    SourceSpec("agent/README.md", "agent", "agent", ("README.md",)),
-    SourceSpec("agent/提示文档.md", "agent", "agent", ("提示文档.md",)),
-    SourceSpec("agent/Qt端对接建议.md", "agent", "agent", ("Qt端对接建议.md",)),
-    SourceSpec(
-        "agent/Claude Code方法论对当前音乐Agent的架构借鉴清单.md",
-        "agent",
-        "agent",
-        ("Claude Code方法论对当前音乐Agent的架构借鉴清单.md",),
-    ),
     SourceSpec("README.md", "client", "docs", ("README.md",)),
     SourceSpec("AUDIO_ARCHITECTURE.md", "client", "audio", ("AUDIO_ARCHITECTURE.md",)),
     SourceSpec("VIDEO_ARCHITECTURE.md", "client", "video", ("VIDEO_ARCHITECTURE.md",)),

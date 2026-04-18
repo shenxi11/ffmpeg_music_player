@@ -210,7 +210,6 @@ git push origin --delete feature/xxx
 
 以下内容默认不应混入客户端功能 PR：
 
-- `agent/...`
 - `说明文档/...`
 - `打印日志.txt`
 - `毕业论文/...`
