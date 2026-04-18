@@ -50,6 +50,22 @@ void PlayWidget::setupPlaybackViewModelConnections()
     connect(m_playbackViewModel, &PlaybackViewModel::currentTitleChanged, this, &PlayWidget::handleVmCurrentTitleChanged);
     connect(m_playbackViewModel, &PlaybackViewModel::currentArtistChanged, this, &PlayWidget::handleVmCurrentArtistChanged);
     connect(m_playbackViewModel, &PlaybackViewModel::currentAlbumArtChanged, this, &PlayWidget::handleVmCurrentAlbumArtChanged);
+    connect(m_playbackViewModel, &PlaybackViewModel::currentFilePathChanged, this, [this]() {
+        if (!playlistHistory || !m_playbackViewModel) {
+            return;
+        }
+
+        QString currentPath = m_playbackViewModel->currentFilePath();
+        if (currentPath.isEmpty()) {
+            currentPath = filePath;
+        }
+        if (currentPath.isEmpty()) {
+            return;
+        }
+
+        playlistHistory->setCurrentPlayingPath(currentPath);
+        playlistHistory->setPaused(!m_playbackViewModel->isPlaying());
+    });
     connect(m_playbackViewModel, &PlaybackViewModel::playlistSnapshotChanged,
             this, &PlayWidget::refreshPlaylistHistoryFromViewModel);
     connect(m_playbackViewModel, &PlaybackViewModel::playbackStarted, this, &PlayWidget::handleVmPlaybackStarted);
@@ -100,6 +116,7 @@ void PlayWidget::handleVmCurrentTitleChanged()
         qDebug() << "[MVVM-UI] Title changed:" << title;
         currentSongTitle = title;
         refreshStageTexts();
+        syncCommentPanelTrackContext();
     }
 }
 
@@ -111,6 +128,7 @@ void PlayWidget::handleVmCurrentArtistChanged()
         currentSongArtist = artist;
         refreshStageTexts();
     }
+    syncCommentPanelTrackContext();
     emitLocalMetadataUpdateIfNeeded();
 }
 
@@ -152,6 +170,7 @@ void PlayWidget::handleVmCurrentAlbumArtChanged()
     }
 
     emitLocalMetadataUpdateIfNeeded();
+    syncCommentPanelTrackContext();
 }
 
 void PlayWidget::handleVmPlaybackStarted()

@@ -7,6 +7,7 @@ SettingsWidget::SettingsWidget(QWidget* parent)
     qDebug() << "[SettingsWidget] Initializing...";
 
     engine()->addImportPath("qrc:/");
+    rootContext()->setContextProperty(QStringLiteral("settingsViewModel"), m_viewModel);
     setResizeMode(QQuickWidget::SizeRootObjectToView);
     setSource(QUrl("qrc:/qml/components/settings/Settings.qml"));
 
@@ -19,18 +20,23 @@ SettingsWidget::SettingsWidget(QWidget* parent)
 
     QQuickItem* root = rootObject();
     if (root) {
-        syncViewModelToRoot();
-        syncPresenceToRoot();
         setupRootConnections(root);
     }
 
-    setupViewModelConnections();
     setupRefreshTimer();
 
     setWindowTitle(QStringLiteral("设置"));
-    resize(860, 700);
-    setMinimumSize(720, 560);
-    setWindowFlags(Qt::Window | Qt::WindowTitleHint | Qt::WindowCloseButtonHint | Qt::WindowMinMaxButtonsHint);
+    resize(1080, 760);
+    setMinimumSize(820, 520);
+    setAttribute(Qt::WA_StyledBackground, true);
+    setClearColor(Qt::transparent);
+    setStyleSheet(QStringLiteral("border: none; background: transparent;"));
+    if (parent) {
+        setWindowFlags(Qt::Widget);
+    } else {
+        setWindowFlags(Qt::Window | Qt::WindowTitleHint | Qt::WindowCloseButtonHint |
+                       Qt::WindowMinMaxButtonsHint);
+    }
     setAttribute(Qt::WA_DeleteOnClose, false);
 }
 
@@ -54,181 +60,12 @@ void SettingsWidget::onClearLocalCacheRequested()
     m_viewModel->clearLocalCache(this);
 }
 
-void SettingsWidget::onDownloadPathChanged()
-{
-    if (QQuickItem* root = rootObject()) {
-        m_viewModel->setDownloadPath(root->property("downloadPath").toString());
-    }
-}
-
-void SettingsWidget::onDownloadLyricsChanged()
-{
-    if (QQuickItem* root = rootObject()) {
-        m_viewModel->setDownloadLyrics(root->property("downloadLyrics").toBool());
-    }
-}
-
-void SettingsWidget::onDownloadCoverChanged()
-{
-    if (QQuickItem* root = rootObject()) {
-        m_viewModel->setDownloadCover(root->property("downloadCover").toBool());
-    }
-}
-
-void SettingsWidget::onAudioCachePathChanged()
-{
-    if (QQuickItem* root = rootObject()) {
-        m_viewModel->setAudioCachePath(root->property("audioCachePath").toString());
-    }
-}
-
-void SettingsWidget::onLogPathChanged()
-{
-    if (QQuickItem* root = rootObject()) {
-        m_viewModel->setLogPath(root->property("logPath").toString());
-    }
-}
-
 void SettingsWidget::onRefreshPresenceRequested()
 {
     m_viewModel->refreshPresence();
 }
 
-void SettingsWidget::onAgentModeChanged()
-{
-    if (QQuickItem* root = rootObject()) {
-        m_viewModel->setAgentMode(root->property("agentMode").toString());
-    }
-}
-
-void SettingsWidget::onAgentLocalModelPathChanged()
-{
-    if (QQuickItem* root = rootObject()) {
-        m_viewModel->setAgentLocalModelPath(root->property("agentLocalModelPath").toString());
-    }
-}
-
-void SettingsWidget::onAgentLocalModelBaseUrlChanged()
-{
-    if (QQuickItem* root = rootObject()) {
-        m_viewModel->setAgentLocalModelBaseUrl(root->property("agentLocalModelBaseUrl").toString());
-    }
-}
-
-void SettingsWidget::onAgentLocalModelNameChanged()
-{
-    if (QQuickItem* root = rootObject()) {
-        m_viewModel->setAgentLocalModelName(root->property("agentLocalModelName").toString());
-    }
-}
-
-void SettingsWidget::onAgentLocalContextSizeChanged()
-{
-    if (QQuickItem* root = rootObject()) {
-        m_viewModel->setAgentLocalContextSize(root->property("agentLocalContextSize").toInt());
-    }
-}
-
-void SettingsWidget::onAgentLocalThreadCountChanged()
-{
-    if (QQuickItem* root = rootObject()) {
-        m_viewModel->setAgentLocalThreadCount(root->property("agentLocalThreadCount").toInt());
-    }
-}
-
-void SettingsWidget::onAgentRemoteFallbackEnabledChanged()
-{
-    if (QQuickItem* root = rootObject()) {
-        m_viewModel->setAgentRemoteFallbackEnabled(
-            root->property("agentRemoteFallbackEnabled").toBool());
-    }
-}
-
-void SettingsWidget::onAgentRemoteBaseUrlChanged()
-{
-    if (QQuickItem* root = rootObject()) {
-        m_viewModel->setAgentRemoteBaseUrl(root->property("agentRemoteBaseUrl").toString());
-    }
-}
-
-void SettingsWidget::onAgentRemoteModelNameChanged()
-{
-    if (QQuickItem* root = rootObject()) {
-        m_viewModel->setAgentRemoteModelName(root->property("agentRemoteModelName").toString());
-    }
-}
-
-void SettingsWidget::onPlayerPageStyleChanged()
-{
-    if (QQuickItem* root = rootObject()) {
-        m_viewModel->setPlayerPageStyle(root->property("playerPageStyle").toInt());
-    }
-}
-
 void SettingsWidget::onReturnToWelcomeRequested()
 {
     emit returnToWelcomeRequested();
-}
-
-void SettingsWidget::syncViewModelToRoot()
-{
-    QQuickItem* root = rootObject();
-    if (!root) {
-        return;
-    }
-
-    QMetaObject::invokeMethod(root, "setDownloadPath", Q_ARG(QVariant, m_viewModel->downloadPath()));
-    QMetaObject::invokeMethod(root, "setDownloadLyrics", Q_ARG(QVariant, m_viewModel->downloadLyrics()));
-    QMetaObject::invokeMethod(root, "setDownloadCover", Q_ARG(QVariant, m_viewModel->downloadCover()));
-    QMetaObject::invokeMethod(root, "setAudioCachePath", Q_ARG(QVariant, m_viewModel->audioCachePath()));
-    QMetaObject::invokeMethod(root, "setLogPath", Q_ARG(QVariant, m_viewModel->logPath()));
-    QMetaObject::invokeMethod(root, "setPlayerPageStyle", Q_ARG(QVariant, m_viewModel->playerPageStyle()));
-    QMetaObject::invokeMethod(root, "setAgentMode", Q_ARG(QVariant, m_viewModel->agentMode()));
-    QMetaObject::invokeMethod(root,
-                              "setAgentLocalModelPath",
-                              Q_ARG(QVariant, m_viewModel->agentLocalModelPath()));
-    QMetaObject::invokeMethod(root,
-                              "setAgentLocalModelBaseUrl",
-                              Q_ARG(QVariant, m_viewModel->agentLocalModelBaseUrl()));
-    QMetaObject::invokeMethod(root,
-                              "setAgentLocalModelName",
-                              Q_ARG(QVariant, m_viewModel->agentLocalModelName()));
-    QMetaObject::invokeMethod(root,
-                              "setAgentLocalContextSize",
-                              Q_ARG(QVariant, m_viewModel->agentLocalContextSize()));
-    QMetaObject::invokeMethod(root,
-                              "setAgentLocalThreadCount",
-                              Q_ARG(QVariant, m_viewModel->agentLocalThreadCount()));
-    QMetaObject::invokeMethod(root,
-                              "setAgentRemoteFallbackEnabled",
-                              Q_ARG(QVariant, m_viewModel->agentRemoteFallbackEnabled()));
-    QMetaObject::invokeMethod(root,
-                              "setAgentRemoteBaseUrl",
-                              Q_ARG(QVariant, m_viewModel->agentRemoteBaseUrl()));
-    QMetaObject::invokeMethod(root,
-                              "setAgentRemoteModelName",
-                              Q_ARG(QVariant, m_viewModel->agentRemoteModelName()));
-    QMetaObject::invokeMethod(root,
-                              "setServerEndpoint",
-                              Q_ARG(QVariant, m_viewModel->serverHost()),
-                              Q_ARG(QVariant, m_viewModel->serverPort()));
-}
-
-void SettingsWidget::syncPresenceToRoot()
-{
-    QQuickItem* root = rootObject();
-    if (!root) {
-        return;
-    }
-
-    QMetaObject::invokeMethod(root,
-                              "setPresenceSnapshot",
-                              Q_ARG(QVariant, QVariant(m_viewModel->presenceAccount())),
-                              Q_ARG(QVariant, QVariant(m_viewModel->presenceSessionToken())),
-                              Q_ARG(QVariant, QVariant(m_viewModel->presenceOnline())),
-                              Q_ARG(QVariant, QVariant(m_viewModel->presenceHeartbeatIntervalSec())),
-                              Q_ARG(QVariant, QVariant(m_viewModel->presenceOnlineTtlSec())),
-                              Q_ARG(QVariant, QVariant(m_viewModel->presenceTtlRemainingSec())),
-                              Q_ARG(QVariant, QVariant(m_viewModel->presenceStatusMessage())),
-                              Q_ARG(QVariant, QVariant(m_viewModel->presenceLastSeenText())));
 }

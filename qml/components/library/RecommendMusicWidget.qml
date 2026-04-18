@@ -18,7 +18,7 @@ Rectangle {
     property string playerIconPrefix: "qrc:/design/design_exports/netease_ui_pack_20260309/icon/ui/player/"
     property string listIconPrefix: "qrc:/design/design_exports/netease_ui_pack_20260309/icon/ui/list/"
 
-    signal playMusicWithMetadata(string filePath, string title, string artist, string cover, string duration,
+    signal playMusicWithMetadata(string filePath, string musicPath, string title, string artist, string cover, string duration,
                                  string songId, string requestId, string modelVersion, string scene)
     signal addToFavorite(string filePath, string title, string artist, string duration, bool isLocal)
     signal feedbackEvent(string songId, string eventType, int playMs, int durationMs,
@@ -111,6 +111,7 @@ Rectangle {
         reportEvent(item, "play", 0)
         playMusicWithMetadata(
             path,
+            normalizeText(item.path, path),
             normalizeText(item.title, "未知歌曲"),
             normalizeText(item.artist, "未知艺术家"),
             normalizeText(item.cover_art_url, ""),

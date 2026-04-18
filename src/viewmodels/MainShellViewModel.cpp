@@ -328,6 +328,55 @@ void MainShellViewModel::reorderPlaylistItems(const QString& userAccount, qint64
     m_request.reorderPlaylistItems(userAccount, playlistId, orderedItems);
 }
 
+void MainShellViewModel::requestMusicComments(const QString& musicPath, int page, int pageSize) {
+    m_request.getMusicComments(musicPath, page, pageSize);
+}
+
+void MainShellViewModel::requestMusicCommentReplies(qint64 rootCommentId, int page, int pageSize) {
+    m_request.getMusicCommentReplies(rootCommentId, page, pageSize);
+}
+
+void MainShellViewModel::createMusicComment(const QString& musicPath, const QString& musicTitle,
+                                            const QString& artist, const QString& content) {
+    const QString account = currentUserAccount().trimmed();
+    const QString onlineSessionToken = currentOnlineSessionToken().trimmed();
+    if (account.isEmpty() || onlineSessionToken.isEmpty()) {
+        emit createMusicCommentResultReady(false, QVariantMap(), QStringLiteral("请先登录后再评论"),
+                                           401, musicPath);
+        return;
+    }
+
+    m_request.createMusicComment(account, onlineSessionToken, musicPath, musicTitle, artist,
+                                 content);
+}
+
+void MainShellViewModel::createMusicCommentReply(qint64 rootCommentId, const QString& content,
+                                                 qint64 targetCommentId) {
+    const QString account = currentUserAccount().trimmed();
+    const QString onlineSessionToken = currentOnlineSessionToken().trimmed();
+    if (account.isEmpty() || onlineSessionToken.isEmpty()) {
+        emit createMusicCommentReplyResultReady(false, rootCommentId, QVariantMap(),
+                                                QStringLiteral("请先登录后再回复"), 401,
+                                                targetCommentId);
+        return;
+    }
+
+    m_request.createMusicCommentReply(rootCommentId, account, onlineSessionToken, content,
+                                      targetCommentId);
+}
+
+void MainShellViewModel::deleteMusicComment(qint64 commentId) {
+    const QString account = currentUserAccount().trimmed();
+    const QString onlineSessionToken = currentOnlineSessionToken().trimmed();
+    if (account.isEmpty() || onlineSessionToken.isEmpty()) {
+        emit deleteMusicCommentResultReady(false, commentId, QStringLiteral("请先登录后再删除评论"),
+                                           401);
+        return;
+    }
+
+    m_request.deleteMusicComment(commentId, account, onlineSessionToken);
+}
+
 void MainShellViewModel::handleLoginSuccess(const QString& account, const QString& password,
                                             const QString& username, const QString& avatarUrl,
                                             const QString& onlineSessionToken) {

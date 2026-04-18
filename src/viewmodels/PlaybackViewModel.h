@@ -140,6 +140,7 @@ class PlaybackViewModel : public BaseViewModel {
     QVariantMap buildPlaylistSnapshotItem(const QUrl& url, int index) const;
     static QString normalizePlaylistEntryPath(const QUrl& url);
     static QString titleFromUrl(const QUrl& url);
+    QString currentPlaybackMetadataKey() const;
     void cacheCurrentTrackMetadata();
     QString resolveCoverForPlaylistEntry(const QString& filePath, const QString& title,
                                          const QString& artist) const;

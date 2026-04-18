@@ -39,6 +39,8 @@ Item {
     property bool volumeVisible: false
     property bool mlistChecked: false
     property bool deskChecked: false
+    property bool commentChecked: false
+    property bool commentEnabled: false
     property int playMode: 2    // 0: Sequential, 1: RepeatOne, 2: RepeatAll, 3: Shuffle
     property string playerIconPrefix: "qrc:/qml/assets/ai/icons/player-control/"
     property int playerPageStyle: 0
@@ -88,6 +90,7 @@ Item {
     signal playClicked()
     signal rePlay()
     signal deskToggled(bool checked)
+    signal commentToggled(bool checked)
     signal loopToggled(bool isLooping)
     signal playerPageStyleRequested(int styleId)
 
@@ -706,6 +709,42 @@ Item {
                     Row {
                         spacing: root.compact ? 10 : 14
                         Layout.alignment: Qt.AlignVCenter
+
+                        Rectangle {
+                            width: root.compact ? 52 : 60
+                            height: root.iconButtonSize
+                            radius: height / 2
+                            color: !root.commentEnabled
+                                   ? "#F2F4F8"
+                                   : (commentArea.containsMouse || root.commentChecked
+                                      ? Theme.accentSoft
+                                      : root.idleButtonFillColor)
+                            border.width: 1
+                            border.color: root.commentChecked ? Theme.accent : root.idleButtonBorderColor
+                            opacity: root.commentEnabled ? 1.0 : 0.65
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "评论"
+                                font.pixelSize: 12
+                                font.weight: Font.DemiBold
+                                color: !root.commentEnabled
+                                       ? "#A0A9B8"
+                                       : (root.commentChecked ? Theme.accent : root.secondaryTextColor)
+                            }
+
+                            MouseArea {
+                                id: commentArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                enabled: root.commentEnabled
+                                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ForbiddenCursor
+                                onClicked: {
+                                    root.commentChecked = !root.commentChecked
+                                    root.commentToggled(root.commentChecked)
+                                }
+                            }
+                        }
 
                         Rectangle {
                             width: root.iconButtonSize

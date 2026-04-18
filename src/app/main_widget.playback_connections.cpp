@@ -60,4 +60,7 @@ void MainWidget::setupPlaybackAndListConnections() {
             &MainWidget::handleAudioPlaybackStopped);
 
     connect(w, &PlayWidget::signalBigClicked, this, &MainWidget::handlePlayWidgetBigClicked);
+    connect(w, &PlayWidget::signalCommentLoginRequired, this, &MainWidget::showLoginWindow);
+    connect(w, &PlayWidget::signalMainCommentPageRequested, this,
+            &MainWidget::handleMainCommentPageRequested);
 }

@@ -11,6 +11,7 @@
 #include "play_history_widget.h"
 #include "play_widget.h"
 #include "playlist_widget.h"
+#include "comment_panel_qml.h"
 #include "recommend_music_widget.h"
 #include "searchbox_qml.h"
 #include "settings_widget.h"
@@ -148,7 +149,8 @@ class MainWidget : public QWidget {
     QPushButton* aiAssistantTopButton = nullptr;
     VideoPlayerWindow* videoPlayerWindow;
     VideoListWidget* videoListWidget; // 在线视频列表窗口
-    SettingsWidget* settingsWidget;   // 设置窗口
+    SettingsWidget* settingsWidget;   // 设置主内容页
+    CommentPanelQml* commentPageWidget = nullptr;
 
     QPushButton* Login;
     MainShellViewModel* m_viewModel = nullptr;
@@ -185,6 +187,9 @@ class MainWidget : public QWidget {
     QHash<QString, QIcon> m_sidebarCoverIconCache;
     QSet<QString> m_sidebarCoverRequestsInFlight;
     bool m_localOnlyMode = false;
+    QWidget* m_activeContentWidget = nullptr;
+    QWidget* m_previousContentWidgetBeforeComment = nullptr;
+    bool m_commentContentOpening = false;
 
     QPoint pos_ = QPoint(0, 0);
     bool dragging = false;
@@ -270,7 +275,7 @@ class MainWidget : public QWidget {
     void handleLocalAndDownloadPlayMusic(const QString& filename);
     void handleLocalAndDownloadDeleteMusic(const QString& filename);
     void handleNetListPlayClick(const QString& name, const QString& artist, const QString& cover,
-                                bool flag);
+                                bool flag, const QString& originalMusicPath);
     void handleHistoryPlayMusic(const QString& filePath);
     void handleHistoryPlayMusicWithMetadata(const QString& filePath, const QString& title,
                                             const QString& artist, const QString& cover);
@@ -279,6 +284,7 @@ class MainWidget : public QWidget {
     void handleAudioPlaybackResumed();
     void handleAudioPlaybackStopped();
     void handlePlayWidgetBigClicked(bool checked);
+    void handleMainCommentPageRequested(bool show);
 
     void handleMenuButtonClicked();
     void ensureMainMenuCreated();
@@ -363,6 +369,11 @@ class MainWidget : public QWidget {
     void toggleFavoriteByAction(const QString& action, const QVariantMap& songData);
     void removeOrDeleteSongByAction(const QVariantMap& songData);
     void playSongByAction(const QVariantMap& songData);
+    void applyCommentTrackContext(const QString& musicPath, const QString& title,
+                                  const QString& artist, const QString& cover);
+    void clearCommentTrackContext();
+    void openCommentContentPage();
+    void closeCommentContentPage(bool restorePrevious);
     void rememberPlaybackQueueMetadata(const QString& filePath, const QString& title,
                                        const QString& artist, const QString& cover);
 
@@ -394,11 +405,11 @@ class MainWidget : public QWidget {
                                               const QString& anchorSongId);
     void handleRecommendRefreshRequested();
     void handleRecommendLoginRequested();
-    void handleRecommendPlayMusicWithMetadata(const QString& filePath, const QString& title,
-                                              const QString& artist, const QString& cover,
-                                              const QString& duration, const QString& songId,
-                                              const QString& requestId, const QString& modelVersion,
-                                              const QString& scene);
+    void handleRecommendPlayMusicWithMetadata(const QString& filePath, const QString& musicPath,
+                                              const QString& title, const QString& artist,
+                                              const QString& cover, const QString& duration,
+                                              const QString& songId, const QString& requestId,
+                                              const QString& modelVersion, const QString& scene);
     void handleRecommendAddToFavorite(const QString& path, const QString& title,
                                       const QString& artist, const QString& duration, bool isLocal);
     void handleRecommendFeedbackEvent(const QString& songId, const QString& eventType, int playMs,

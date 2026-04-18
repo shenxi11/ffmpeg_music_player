@@ -1,6 +1,7 @@
 #include "play_widget.h"
 
 #include "settings_manager.h"
+#include "viewmodels/MainShellViewModel.h"
 
 #include <QDir>
 #include <QGraphicsBlurEffect>
@@ -70,6 +71,61 @@ QString displayTitleFromFileName(const QString& fileName) {
 
 QString stageSubtitleText() {
     return QString();
+}
+
+bool isWindowsAbsolutePath(const QString& path) {
+    return path.size() >= 3 && path.at(1) == QLatin1Char(':') && path.at(0).isLetter() &&
+           (path.at(2) == QLatin1Char('/') || path.at(2) == QLatin1Char('\\'));
+}
+
+bool isJamendoVirtualPath(const QString& path) {
+    return path.contains(QStringLiteral("[jamendo-"), Qt::CaseInsensitive);
+}
+
+QString normalizeCommentMusicPathCandidate(const QString& rawPath) {
+    QString path = rawPath.trimmed();
+    if (path.isEmpty()) {
+        return QString();
+    }
+
+    path = QDir::fromNativeSeparators(path);
+    if (path.startsWith(QStringLiteral("file:///"), Qt::CaseInsensitive) ||
+        isWindowsAbsolutePath(path)) {
+        return QString();
+    }
+
+    if (isJamendoVirtualPath(path)) {
+        return path;
+    }
+
+    if (path.startsWith(QStringLiteral("http://"), Qt::CaseInsensitive) ||
+        path.startsWith(QStringLiteral("https://"), Qt::CaseInsensitive)) {
+        const QUrl url(path);
+        const QString baseUrl = SettingsManager::instance().serverBaseUrl().trimmed();
+        const QUrl base(baseUrl.endsWith(QLatin1Char('/')) ? baseUrl : baseUrl + QLatin1Char('/'));
+        if (!base.isValid() || !url.isValid()) {
+            return QString();
+        }
+
+        if (!base.host().trimmed().isEmpty() &&
+            url.host().compare(base.host(), Qt::CaseInsensitive) != 0) {
+            return QString();
+        }
+
+        QString decodedPath = QUrl::fromPercentEncoding(url.path().toUtf8());
+        decodedPath = QDir::fromNativeSeparators(decodedPath);
+        const QString uploadsPrefix = QStringLiteral("/uploads/");
+        const int uploadsIndex = decodedPath.indexOf(uploadsPrefix, 0, Qt::CaseInsensitive);
+        if (uploadsIndex >= 0) {
+            decodedPath = decodedPath.mid(uploadsIndex + uploadsPrefix.size());
+        }
+        while (decodedPath.startsWith(QLatin1Char('/'))) {
+            decodedPath.remove(0, 1);
+        }
+        return decodedPath;
+    }
+
+    return path;
 }
 
 struct StageLayoutSpec {
@@ -172,9 +228,19 @@ PlayWidget::PlayWidget(QWidget* parent, QWidget* mainWidget)
     desk->raise();
     desk->hide();
 
-    // 创建播放历史列表，父窗口为mainWidget
-    playlistHistory = new PlaylistHistoryQml(mainParent);
+    m_rightOverlayHost = new QWidget(mainParent);
+    m_rightOverlayHost->setObjectName(QStringLiteral("PlaybackRightOverlayHost"));
+    m_rightOverlayHost->setAttribute(Qt::WA_TranslucentBackground, true);
+    m_rightOverlayHost->setAutoFillBackground(false);
+    m_rightOverlayHost->setStyleSheet(QStringLiteral("background: transparent; border: 0;"));
+    m_rightOverlayHost->hide();
+
+    // 创建播放历史列表，父窗口为右侧共享宿主
+    playlistHistory = new PlaylistHistoryQml(m_rightOverlayHost);
     playlistHistory->hide();
+    commentPanel = new CommentPanelQml(m_rightOverlayHost);
+    commentPanel->setDisplayMode(QStringLiteral("drawer"));
+    commentPanel->hide();
 
     music = new QPushButton(this);
     music->setFixedSize(30, 30);
@@ -256,6 +322,7 @@ PlayWidget::PlayWidget(QWidget* parent, QWidget* mainWidget)
     refreshStageTexts();
 
     updateAdaptiveLayout();
+    refreshCommentAvailability();
 }
 
 void PlayWidget::handleMusicButtonClicked() {
@@ -844,6 +911,8 @@ void PlayWidget::updateAdaptiveLayout() {
         process_slider->setGeometry(0, wHeight - controlHeight, wWidth, controlHeight);
     }
 
+    syncCommentOverlayGeometry();
+
     if (music) {
         music->move(10, 10);
     }
@@ -1118,7 +1187,6 @@ void PlayWidget::initLyricDisplay() {
     qDebug() << "Initializing LyricDisplay...";
     lyricDisplay = new LyricDisplayQml(this);
     lyricDisplay->setClearColor(QColor(Qt::transparent));
-    lyricDisplay->setAttribute(Qt::WA_AlwaysStackOnTop, true);
     lyricDisplay->setStyleSheet("background: transparent; border: 0;");
     lyricDisplay->setAutoFillBackground(false);
     lyricDisplay->setContentsMargins(0, 0, 0, 0);
@@ -1168,6 +1236,11 @@ void PlayWidget::playClick(QString songPath) {
 
     if (normalizedSongPath != normalizedCurrentPath) {
         this->filePath = normalizedSongPath;
+        m_expandedCommentId = 0;
+        m_commentReplyItems.clear();
+        m_replyTargetRootCommentId = 0;
+        m_replyTargetCommentId = 0;
+        m_replyTargetUsername.clear();
 
         fileName = decodedFileNameFromPath(normalizedSongPath);
         if (!checkAndWarnIfPathNotExists(normalizedSongPath))
@@ -1194,6 +1267,17 @@ void PlayWidget::playClick(QString songPath) {
 
         // 这里只需要处理UI层特有的逻辑
         emit signalBeginToPlay(normalizedSongPath);
+        refreshCommentAvailability();
+        if (commentPanel && commentPanel->isVisible()) {
+            if (process_slider) {
+                process_slider->setCommentChecked(true);
+            }
+            loadMusicComments(1);
+            syncCommentPanelReplies();
+            if (commentPanel) {
+                commentPanel->clearReplyTarget();
+            }
+        }
     } else {
         // 相同路径，切换播暂停
         onPlayClick();
@@ -1281,6 +1365,7 @@ PlayWidget::~PlayWidget() {
     shutdownQuickWidget(lyricDisplay);
     shutdownQuickWidget(process_slider);
     shutdownQuickWidget(playlistHistory);
+    shutdownQuickWidget(commentPanel);
 
     // 清理歌词线程（保留）
     if (b) {
@@ -1312,6 +1397,16 @@ PlayWidget::~PlayWidget() {
     if (playlistHistory) {
         delete playlistHistory;
         playlistHistory = nullptr;
+    }
+
+    if (commentPanel) {
+        delete commentPanel;
+        commentPanel = nullptr;
+    }
+
+    if (m_rightOverlayHost) {
+        delete m_rightOverlayHost;
+        m_rightOverlayHost = nullptr;
     }
 
     lrc.reset();
@@ -1498,6 +1593,114 @@ PlaybackViewModel* PlayWidget::playbackViewModel() const {
     return m_playbackViewModel;
 }
 
+void PlayWidget::setMainShellViewModel(MainShellViewModel* viewModel) {
+    if (m_shellViewModel == viewModel) {
+        return;
+    }
+
+    m_shellViewModel = viewModel;
+    connectCommentSignals();
+    syncCommentPanelAuthState();
+    refreshCommentAvailability();
+}
+
+void PlayWidget::setEmbeddedCommentPanel(CommentPanelQml* panel) {
+    if (m_embeddedCommentPanel == panel) {
+        return;
+    }
+
+    m_embeddedCommentPanel = panel;
+    if (m_embeddedCommentPanel) {
+        m_embeddedCommentPanel->setDisplayMode(QStringLiteral("page"));
+        connectCommentPanel(m_embeddedCommentPanel);
+        syncCommentPanelTrackContext();
+        syncCommentPanelAuthState();
+        syncCommentPanelComments();
+        syncCommentPanelReplies();
+        m_embeddedCommentPanel->setSubmitting(m_commentSubmitting);
+        m_embeddedCommentPanel->setVisible(m_mainContentCommentVisible);
+    }
+    syncCommentToggleState();
+}
+
+void PlayWidget::setCommentTrackContext(const QVariantMap& context) {
+    m_commentTrackContext = context;
+    syncCommentPanelTrackContext();
+    refreshCommentAvailability();
+}
+
+void PlayWidget::clearCommentTrackContext() {
+    m_commentTrackContext.clear();
+    syncCommentPanelTrackContext();
+    refreshCommentAvailability();
+}
+
+void PlayWidget::setMainContentCommentVisible(bool visible) {
+    m_mainContentCommentVisible = visible;
+    if (m_embeddedCommentPanel) {
+        m_embeddedCommentPanel->setDisplayMode(QStringLiteral("page"));
+        m_embeddedCommentPanel->setVisible(visible);
+        if (visible) {
+            syncCommentPanelTrackContext();
+            syncCommentPanelAuthState();
+            syncCommentPanelComments();
+            syncCommentPanelReplies();
+            m_embeddedCommentPanel->setSubmitting(m_commentSubmitting);
+            loadMusicComments(1);
+        } else {
+            m_embeddedCommentPanel->clearReplyTarget();
+        }
+    }
+    syncCommentToggleState();
+}
+
+bool PlayWidget::isMainContentCommentVisible() const {
+    return m_mainContentCommentVisible;
+}
+
+void PlayWidget::syncCommentOverlayGeometry() {
+    if (!m_rightOverlayHost || !m_rightOverlayHost->isVisible()) {
+        return;
+    }
+
+    QWidget* mainWidget = m_rightOverlayHost->parentWidget();
+    if (!mainWidget) {
+        return;
+    }
+
+    const int panelWidth = m_rightOverlayPage == RightOverlayPage::Playlist
+                               ? qBound(344, mainWidget->width() / 4, 372)
+                               : qBound(420, mainWidget->width() / 3, 500);
+    const int topBarHeight = isUp ? 0 : 60;
+    const int bottomPadding = qMax(10, collapsedPlaybackHeight() + 8);
+    const int panelHeight = qMax(280, mainWidget->height() - topBarHeight - bottomPadding);
+    m_rightOverlayHost->setGeometry(mainWidget->width() - panelWidth, topBarHeight, panelWidth,
+                                    panelHeight);
+    updateRightOverlayChildLayout();
+    m_rightOverlayHost->raise();
+
+    QWidget* topBar = mainWidget->findChild<QWidget*>(QStringLiteral("TopBar"));
+    if (topBar && !isUp) {
+        topBar->raise();
+    }
+}
+
+void PlayWidget::closePlaylistHistoryPanel() {
+    if (m_rightOverlayPage == RightOverlayPage::Playlist) {
+        closeRightOverlay();
+    } else {
+        syncPlaylistToggleState();
+    }
+}
+
+void PlayWidget::closeCommentDrawerPanel() {
+    if (m_rightOverlayPage == RightOverlayPage::Comments) {
+        closeRightOverlay();
+    } else {
+        syncCommentToggleState();
+    }
+}
+
 bool PlayWidget::getNetFlag() {
     return play_net;
 }
@@ -1505,12 +1708,14 @@ bool PlayWidget::getNetFlag() {
 void PlayWidget::setPlayNet(bool flag) {
     play_net = flag;
     emit signalNetFlagChanged(flag);
+    refreshCommentAvailability();
 }
 
 void PlayWidget::setNetworkMetadata(const QString& artist, const QString& cover) {
     networkSongArtist = artist;
     networkSongCover = cover;
     refreshStageTexts();
+    syncCommentPanelTrackContext();
 }
 
 void PlayWidget::setNetworkMetadata(const QString& title, const QString& artist,
@@ -1520,4 +1725,629 @@ void PlayWidget::setNetworkMetadata(const QString& title, const QString& artist,
     networkSongArtist = artist;
     networkSongCover = cover;
     refreshStageTexts();
+    syncCommentPanelTrackContext();
+}
+
+bool PlayWidget::isCommentableMusicPath(const QString& musicPath) const {
+    return !normalizeCommentMusicPathCandidate(musicPath).isEmpty();
+}
+
+QString PlayWidget::resolveCommentMusicPath() const {
+    const QString explicitPath =
+        normalizeCommentMusicPathCandidate(m_commentTrackContext.value(QStringLiteral("music_path"))
+                                               .toString());
+    if (!explicitPath.isEmpty()) {
+        return explicitPath;
+    }
+
+    if (!play_net) {
+        return QString();
+    }
+
+    QString currentPath;
+    if (m_playbackViewModel) {
+        currentPath = m_playbackViewModel->currentFilePath();
+    }
+    if (currentPath.trimmed().isEmpty()) {
+        currentPath = filePath;
+    }
+    return normalizeCommentMusicPathCandidate(currentPath);
+}
+
+QVariantMap PlayWidget::resolvedCommentTrackContext() const {
+    QVariantMap context = m_commentTrackContext;
+    const QString musicPath = resolveCommentMusicPath();
+    context.insert(QStringLiteral("music_path"), musicPath);
+    context.insert(QStringLiteral("comment_eligible"), !musicPath.isEmpty());
+
+    QString title = context.value(QStringLiteral("title")).toString().trimmed();
+    if (title.isEmpty()) {
+        title = m_commentThreadMeta.value(QStringLiteral("music_title")).toString().trimmed();
+    }
+    if (title.isEmpty()) {
+        title = !currentSongTitle.trimmed().isEmpty() ? currentSongTitle.trimmed()
+                                                      : displayTitleFromFileName(fileName);
+    }
+    QString artist = context.value(QStringLiteral("artist")).toString().trimmed();
+    if (artist.isEmpty()) {
+        artist = m_commentThreadMeta.value(QStringLiteral("artist")).toString().trimmed();
+    }
+    if (artist.isEmpty()) {
+        artist = displayArtistText();
+    }
+    QString cover = context.value(QStringLiteral("cover")).toString().trimmed();
+    if (cover.isEmpty()) {
+        cover = m_commentThreadMeta.value(QStringLiteral("cover_art_url")).toString().trimmed();
+    }
+    if (cover.isEmpty()) {
+        cover = networkSongCover.trimmed();
+    }
+
+    context.insert(QStringLiteral("title"), title);
+    context.insert(QStringLiteral("artist"), artist);
+    context.insert(QStringLiteral("cover"), cover);
+    return context;
+}
+
+void PlayWidget::syncCommentPanelTrackContext() {
+    const QVariantMap context = resolvedCommentTrackContext();
+    if (commentPanel) {
+        commentPanel->setTrackContext(context);
+        commentPanel->setThreadMeta(m_commentThreadMeta);
+    }
+    if (m_embeddedCommentPanel) {
+        m_embeddedCommentPanel->setTrackContext(context);
+        m_embeddedCommentPanel->setThreadMeta(m_commentThreadMeta);
+    }
+}
+
+void PlayWidget::syncCommentPanelAuthState() {
+    const bool loggedIn = m_shellViewModel && m_shellViewModel->hasLoggedInUser() &&
+                          !m_shellViewModel->currentOnlineSessionToken().trimmed().isEmpty();
+    if (commentPanel) {
+        commentPanel->setLoggedIn(loggedIn);
+    }
+    if (m_embeddedCommentPanel) {
+        m_embeddedCommentPanel->setLoggedIn(loggedIn);
+    }
+}
+
+void PlayWidget::syncCommentPanelComments() {
+    if (commentPanel) {
+        commentPanel->setCommentsLoading(m_commentLoading);
+        commentPanel->setSubmitting(m_commentSubmitting);
+        commentPanel->updateComments(m_commentItems, m_commentPage, m_commentHasMore,
+                                     m_commentErrorMessage);
+    }
+    if (m_embeddedCommentPanel) {
+        m_embeddedCommentPanel->setCommentsLoading(m_commentLoading);
+        m_embeddedCommentPanel->setSubmitting(m_commentSubmitting);
+        m_embeddedCommentPanel->updateComments(m_commentItems, m_commentPage, m_commentHasMore,
+                                               m_commentErrorMessage);
+    }
+}
+
+void PlayWidget::syncCommentPanelReplies() {
+    if (commentPanel) {
+        commentPanel->setExpandedRootCommentId(m_expandedCommentId);
+        commentPanel->setRepliesLoading(m_replyLoading);
+        commentPanel->updateReplies(m_expandedCommentId, m_commentReplyItems, m_replyPage,
+                                    m_replyHasMore, m_replyTotal, m_commentReplyErrorMessage);
+    }
+    if (m_embeddedCommentPanel) {
+        m_embeddedCommentPanel->setExpandedRootCommentId(m_expandedCommentId);
+        m_embeddedCommentPanel->setRepliesLoading(m_replyLoading);
+        m_embeddedCommentPanel->updateReplies(m_expandedCommentId, m_commentReplyItems, m_replyPage,
+                                              m_replyHasMore, m_replyTotal,
+                                              m_commentReplyErrorMessage);
+    }
+}
+
+void PlayWidget::syncCommentToggleState() {
+    if (!process_slider) {
+        return;
+    }
+    process_slider->setCommentChecked(m_mainContentCommentVisible ||
+                                      m_rightOverlayPage == RightOverlayPage::Comments);
+}
+
+void PlayWidget::syncPlaylistToggleState() {
+    if (!process_slider) {
+        return;
+    }
+    process_slider->setPlaylistChecked(m_rightOverlayPage == RightOverlayPage::Playlist);
+}
+
+void PlayWidget::showRightOverlayPage(RightOverlayPage page) {
+    if (!m_rightOverlayHost || page == RightOverlayPage::None) {
+        return;
+    }
+
+    m_rightOverlayPage = page;
+    if (playlistHistory) {
+        playlistHistory->setVisible(page == RightOverlayPage::Playlist);
+    }
+    if (commentPanel) {
+        commentPanel->setVisible(page == RightOverlayPage::Comments);
+    }
+
+    updateRightOverlayChildLayout();
+    m_rightOverlayHost->show();
+    syncCommentOverlayGeometry();
+    syncCommentToggleState();
+    syncPlaylistToggleState();
+}
+
+void PlayWidget::closeRightOverlay() {
+    m_rightOverlayPage = RightOverlayPage::None;
+    if (playlistHistory) {
+        playlistHistory->hide();
+    }
+    if (commentPanel) {
+        commentPanel->hide();
+        commentPanel->clearReplyTarget();
+    }
+    if (m_rightOverlayHost) {
+        m_rightOverlayHost->hide();
+    }
+    syncCommentToggleState();
+    syncPlaylistToggleState();
+}
+
+void PlayWidget::updateRightOverlayChildLayout() {
+    if (!m_rightOverlayHost) {
+        return;
+    }
+    const QRect hostRect(0, 0, m_rightOverlayHost->width(), m_rightOverlayHost->height());
+    if (playlistHistory) {
+        playlistHistory->setGeometry(hostRect);
+    }
+    if (commentPanel) {
+        commentPanel->setGeometry(hostRect);
+    }
+}
+
+void PlayWidget::refreshCommentAvailability() {
+    const QVariantMap context = resolvedCommentTrackContext();
+    const bool eligible = context.value(QStringLiteral("comment_eligible")).toBool();
+    if (process_slider) {
+        process_slider->setCommentEnabled(eligible);
+    }
+    if (commentPanel) {
+        commentPanel->setCommentEnabled(eligible);
+    }
+    if (m_embeddedCommentPanel) {
+        m_embeddedCommentPanel->setCommentEnabled(eligible);
+    }
+    syncCommentPanelTrackContext();
+    syncCommentPanelAuthState();
+    if (!eligible) {
+        closeCommentPanel();
+        if (m_mainContentCommentVisible) {
+            emit signalMainCommentPageRequested(false);
+        }
+    }
+}
+
+void PlayWidget::loadMusicComments(int page) {
+    if (!m_shellViewModel) {
+        return;
+    }
+
+    const QString musicPath = resolveCommentMusicPath();
+    if (musicPath.isEmpty()) {
+        m_commentItems.clear();
+        m_commentErrorMessage = QStringLiteral("仅在线歌曲支持评论");
+        syncCommentPanelComments();
+        return;
+    }
+
+    m_commentLoading = true;
+    if (page <= 1) {
+        m_commentPage = 1;
+        m_commentItems.clear();
+    }
+    m_commentErrorMessage.clear();
+    syncCommentPanelComments();
+    m_shellViewModel->requestMusicComments(musicPath, qMax(1, page), m_commentPageSize);
+}
+
+void PlayWidget::loadCommentReplies(qint64 rootCommentId, int page) {
+    if (!m_shellViewModel || rootCommentId <= 0) {
+        return;
+    }
+
+    m_replyLoading = true;
+    if (page <= 1) {
+        m_replyPage = 1;
+        m_commentReplyItems.clear();
+    }
+    m_commentReplyErrorMessage.clear();
+    syncCommentPanelReplies();
+    m_shellViewModel->requestMusicCommentReplies(rootCommentId, qMax(1, page), m_replyPageSize);
+}
+
+void PlayWidget::closeCommentPanel() {
+    closeRightOverlay();
+}
+
+void PlayWidget::connectCommentSignals() {
+    if (!m_shellViewModel || m_commentSignalsConnected) {
+        return;
+    }
+    m_commentSignalsConnected = true;
+
+    connect(m_shellViewModel, &MainShellViewModel::musicCommentsReady, this,
+            &PlayWidget::handleMusicCommentsReady);
+    connect(m_shellViewModel, &MainShellViewModel::musicCommentsRequestFailed, this,
+            &PlayWidget::handleMusicCommentsRequestFailed);
+    connect(m_shellViewModel, &MainShellViewModel::musicCommentRepliesReady, this,
+            &PlayWidget::handleMusicCommentRepliesReady);
+    connect(m_shellViewModel, &MainShellViewModel::musicCommentRepliesRequestFailed, this,
+            &PlayWidget::handleMusicCommentRepliesRequestFailed);
+    connect(m_shellViewModel, &MainShellViewModel::createMusicCommentResultReady, this,
+            &PlayWidget::handleCreateMusicCommentResultReady);
+    connect(m_shellViewModel, &MainShellViewModel::createMusicCommentReplyResultReady, this,
+            &PlayWidget::handleCreateMusicCommentReplyResultReady);
+    connect(m_shellViewModel, &MainShellViewModel::deleteMusicCommentResultReady, this,
+            &PlayWidget::handleDeleteMusicCommentResultReady);
+    connect(m_shellViewModel, &MainShellViewModel::accountCacheChanged, this,
+            [this]() { syncCommentPanelAuthState(); });
+    connect(m_shellViewModel, &MainShellViewModel::sessionExpired, this,
+            [this]() { syncCommentPanelAuthState(); });
+}
+
+void PlayWidget::connectCommentPanel(CommentPanelQml* panel) {
+    if (!panel) {
+        return;
+    }
+
+    connect(panel, &CommentPanelQml::closeRequested, this, &PlayWidget::handleCommentPanelCloseRequested,
+            Qt::UniqueConnection);
+    connect(panel, &CommentPanelQml::loadMoreCommentsRequested, this,
+            &PlayWidget::handleCommentPanelLoadMoreRequested, Qt::UniqueConnection);
+    connect(panel, &CommentPanelQml::toggleRepliesRequested, this,
+            &PlayWidget::handleCommentPanelToggleRepliesRequested, Qt::UniqueConnection);
+    connect(panel, &CommentPanelQml::loadMoreRepliesRequested, this,
+            &PlayWidget::handleCommentPanelLoadMoreRepliesRequested, Qt::UniqueConnection);
+    connect(panel, &CommentPanelQml::submitMainCommentRequested, this,
+            &PlayWidget::handleCommentPanelSubmitMainRequested, Qt::UniqueConnection);
+    connect(panel, &CommentPanelQml::submitReplyRequested, this,
+            &PlayWidget::handleCommentPanelSubmitReplyRequested, Qt::UniqueConnection);
+    connect(panel, &CommentPanelQml::deleteCommentRequested, this,
+            &PlayWidget::handleCommentPanelDeleteRequested, Qt::UniqueConnection);
+    connect(panel, &CommentPanelQml::startReplyRequested, this,
+            &PlayWidget::handleCommentPanelStartReplyRequested, Qt::UniqueConnection);
+    connect(panel, &CommentPanelQml::loginRequested, this, &PlayWidget::handleCommentPanelLoginRequested,
+            Qt::UniqueConnection);
+}
+
+void PlayWidget::handleCommentToggled(bool show) {
+    if (!resolvedCommentTrackContext().value(QStringLiteral("comment_eligible")).toBool()) {
+        syncCommentToggleState();
+        return;
+    }
+
+    if (show) {
+        closePlaylistHistoryPanel();
+
+        if (!isUp) {
+            emit signalMainCommentPageRequested(true);
+            return;
+        }
+
+        if (!commentPanel) {
+            return;
+        }
+        commentPanel->setDisplayMode(QStringLiteral("drawer"));
+        syncCommentPanelTrackContext();
+        syncCommentPanelAuthState();
+        showRightOverlayPage(RightOverlayPage::Comments);
+        loadMusicComments(1);
+        return;
+    }
+
+    if (!isUp) {
+        emit signalMainCommentPageRequested(false);
+        return;
+    }
+
+    if (m_rightOverlayPage == RightOverlayPage::Comments) {
+        closeRightOverlay();
+    } else {
+        syncCommentToggleState();
+    }
+}
+
+void PlayWidget::handleCommentPanelCloseRequested() {
+    closeCommentPanel();
+}
+
+void PlayWidget::handleCommentPanelLoadMoreRequested() {
+    if (!m_commentLoading && m_commentHasMore) {
+        loadMusicComments(m_commentPage + 1);
+    }
+}
+
+void PlayWidget::handleCommentPanelToggleRepliesRequested(qint64 rootCommentId, bool expanded) {
+    if (!expanded) {
+        m_expandedCommentId = 0;
+        m_commentReplyItems.clear();
+        m_commentReplyErrorMessage.clear();
+        m_replyTargetRootCommentId = 0;
+        m_replyTargetCommentId = 0;
+        m_replyTargetUsername.clear();
+        if (commentPanel) {
+            commentPanel->clearReplyTarget();
+        }
+        if (m_embeddedCommentPanel) {
+            m_embeddedCommentPanel->clearReplyTarget();
+        }
+        syncCommentPanelReplies();
+        return;
+    }
+
+    m_expandedCommentId = rootCommentId;
+    m_replyPage = 1;
+    m_commentReplyItems.clear();
+    syncCommentPanelReplies();
+    loadCommentReplies(rootCommentId, 1);
+}
+
+void PlayWidget::handleCommentPanelLoadMoreRepliesRequested(qint64 rootCommentId) {
+    if (!m_replyLoading && m_replyHasMore && rootCommentId == m_expandedCommentId) {
+        loadCommentReplies(rootCommentId, m_replyPage + 1);
+    }
+}
+
+void PlayWidget::handleCommentPanelSubmitMainRequested(const QString& content) {
+    if (!m_shellViewModel || !m_shellViewModel->hasLoggedInUser()) {
+        emit signalCommentLoginRequired();
+        return;
+    }
+    const QVariantMap context = resolvedCommentTrackContext();
+    const QString musicPath = context.value(QStringLiteral("music_path")).toString();
+    if (musicPath.isEmpty()) {
+        return;
+    }
+    m_commentSubmitting = true;
+    syncCommentPanelComments();
+    m_shellViewModel->createMusicComment(musicPath, context.value(QStringLiteral("title")).toString(),
+                                         context.value(QStringLiteral("artist")).toString(),
+                                         content.trimmed());
+}
+
+void PlayWidget::handleCommentPanelSubmitReplyRequested(qint64 rootCommentId,
+                                                        qint64 targetCommentId,
+                                                        const QString& content) {
+    if (!m_shellViewModel || !m_shellViewModel->hasLoggedInUser()) {
+        emit signalCommentLoginRequired();
+        return;
+    }
+    m_commentSubmitting = true;
+    syncCommentPanelComments();
+    m_shellViewModel->createMusicCommentReply(rootCommentId, content.trimmed(), targetCommentId);
+}
+
+void PlayWidget::handleCommentPanelDeleteRequested(qint64 commentId) {
+    if (!m_shellViewModel || !m_shellViewModel->hasLoggedInUser()) {
+        emit signalCommentLoginRequired();
+        return;
+    }
+    m_commentSubmitting = true;
+    syncCommentPanelComments();
+    m_shellViewModel->deleteMusicComment(commentId);
+}
+
+void PlayWidget::handleCommentPanelStartReplyRequested(qint64 rootCommentId,
+                                                       qint64 targetCommentId,
+                                                       const QString& username) {
+    if (!m_shellViewModel || !m_shellViewModel->hasLoggedInUser()) {
+        emit signalCommentLoginRequired();
+        return;
+    }
+    m_replyTargetRootCommentId = rootCommentId;
+    m_replyTargetCommentId = targetCommentId;
+    m_replyTargetUsername = username;
+    if (commentPanel) {
+        commentPanel->setReplyTarget(rootCommentId, targetCommentId, username);
+    }
+    if (m_embeddedCommentPanel) {
+        m_embeddedCommentPanel->setReplyTarget(rootCommentId, targetCommentId, username);
+    }
+}
+
+void PlayWidget::handleCommentPanelLoginRequested() {
+    emit signalCommentLoginRequired();
+}
+
+void PlayWidget::handleMusicCommentsReady(const QVariantMap& threadMeta, const QVariantList& items,
+                                          const QString& musicPath, int page, int pageSize) {
+    const QString currentMusicPath = resolveCommentMusicPath();
+    if (musicPath != currentMusicPath) {
+        return;
+    }
+
+    m_commentLoading = false;
+    m_commentThreadMeta = threadMeta;
+    m_commentPage = page;
+    m_commentPageSize = pageSize;
+    const QString currentAccount =
+        m_shellViewModel ? m_shellViewModel->currentUserAccount().trimmed() : QString();
+    QVariantList normalizedItems;
+    normalizedItems.reserve(items.size());
+    for (const QVariant& rawItem : items) {
+        QVariantMap item = rawItem.toMap();
+        item.insert(QStringLiteral("can_delete"),
+                    !currentAccount.isEmpty() &&
+                        item.value(QStringLiteral("user_account")).toString().trimmed() ==
+                            currentAccount);
+        normalizedItems.append(item);
+    }
+
+    if (page <= 1) {
+        m_commentItems = normalizedItems;
+    } else {
+        for (const QVariant& item : normalizedItems) {
+            m_commentItems.append(item);
+        }
+    }
+
+    const int totalRoots = threadMeta.value(QStringLiteral("root_comment_count")).toInt();
+    m_commentHasMore = m_commentItems.size() < totalRoots;
+    m_commentErrorMessage.clear();
+    syncCommentPanelTrackContext();
+    syncCommentPanelComments();
+}
+
+void PlayWidget::handleMusicCommentsRequestFailed(const QString& message, int statusCode,
+                                                  const QString& musicPath, int page,
+                                                  int pageSize) {
+    Q_UNUSED(statusCode);
+    Q_UNUSED(pageSize);
+    if (musicPath != resolveCommentMusicPath()) {
+        return;
+    }
+    m_commentLoading = false;
+    if (page <= 1) {
+        m_commentItems.clear();
+    }
+    m_commentErrorMessage = message;
+    m_commentHasMore = false;
+    syncCommentPanelComments();
+}
+
+void PlayWidget::handleMusicCommentRepliesReady(qint64 rootCommentId, const QVariantList& items,
+                                                int total, int page, int pageSize) {
+    if (rootCommentId != m_expandedCommentId) {
+        return;
+    }
+
+    m_replyLoading = false;
+    m_replyPage = page;
+    m_replyPageSize = pageSize;
+    m_replyTotal = total;
+    const QString currentAccount =
+        m_shellViewModel ? m_shellViewModel->currentUserAccount().trimmed() : QString();
+    QVariantList normalizedItems;
+    normalizedItems.reserve(items.size());
+    for (const QVariant& rawItem : items) {
+        QVariantMap item = rawItem.toMap();
+        item.insert(QStringLiteral("can_delete"),
+                    !currentAccount.isEmpty() &&
+                        item.value(QStringLiteral("user_account")).toString().trimmed() ==
+                            currentAccount);
+        normalizedItems.append(item);
+    }
+
+    if (page <= 1) {
+        m_commentReplyItems = normalizedItems;
+    } else {
+        for (const QVariant& item : normalizedItems) {
+            m_commentReplyItems.append(item);
+        }
+    }
+    m_replyHasMore = m_commentReplyItems.size() < total;
+    m_commentReplyErrorMessage.clear();
+    syncCommentPanelReplies();
+}
+
+void PlayWidget::handleMusicCommentRepliesRequestFailed(qint64 rootCommentId,
+                                                        const QString& message, int statusCode,
+                                                        int page, int pageSize) {
+    Q_UNUSED(statusCode);
+    Q_UNUSED(page);
+    Q_UNUSED(pageSize);
+    if (rootCommentId != m_expandedCommentId) {
+        return;
+    }
+
+    m_replyLoading = false;
+    m_commentReplyErrorMessage = message;
+    m_replyHasMore = false;
+    syncCommentPanelReplies();
+}
+
+void PlayWidget::handleCreateMusicCommentResultReady(bool success, const QVariantMap& comment,
+                                                     const QString& message, int statusCode,
+                                                     const QString& musicPath) {
+    Q_UNUSED(comment);
+    Q_UNUSED(musicPath);
+    m_commentSubmitting = false;
+    syncCommentPanelComments();
+    if (!success) {
+        if (statusCode == 401) {
+            emit signalCommentLoginRequired();
+        } else {
+            QMessageBox::warning(this, QStringLiteral("评论"), message);
+        }
+        return;
+    }
+    if (commentPanel) {
+        commentPanel->clearComposer();
+        commentPanel->clearReplyTarget();
+    }
+    if (m_embeddedCommentPanel) {
+        m_embeddedCommentPanel->clearComposer();
+        m_embeddedCommentPanel->clearReplyTarget();
+    }
+    m_replyTargetRootCommentId = 0;
+    m_replyTargetCommentId = 0;
+    m_replyTargetUsername.clear();
+    loadMusicComments(1);
+}
+
+void PlayWidget::handleCreateMusicCommentReplyResultReady(bool success, qint64 rootCommentId,
+                                                          const QVariantMap& comment,
+                                                          const QString& message, int statusCode,
+                                                          qint64 targetCommentId) {
+    Q_UNUSED(comment);
+    Q_UNUSED(targetCommentId);
+    m_commentSubmitting = false;
+    syncCommentPanelComments();
+    if (!success) {
+        if (statusCode == 401) {
+            emit signalCommentLoginRequired();
+        } else {
+            QMessageBox::warning(this, QStringLiteral("评论"), message);
+        }
+        return;
+    }
+
+    if (commentPanel) {
+        commentPanel->clearComposer();
+        commentPanel->clearReplyTarget();
+    }
+    if (m_embeddedCommentPanel) {
+        m_embeddedCommentPanel->clearComposer();
+        m_embeddedCommentPanel->clearReplyTarget();
+    }
+    m_replyTargetRootCommentId = 0;
+    m_replyTargetCommentId = 0;
+    m_replyTargetUsername.clear();
+    if (rootCommentId > 0) {
+        m_expandedCommentId = rootCommentId;
+        loadCommentReplies(rootCommentId, 1);
+    }
+    loadMusicComments(1);
+}
+
+void PlayWidget::handleDeleteMusicCommentResultReady(bool success, qint64 commentId,
+                                                     const QString& message, int statusCode) {
+    Q_UNUSED(commentId);
+    m_commentSubmitting = false;
+    syncCommentPanelComments();
+    if (!success) {
+        if (statusCode == 401) {
+            emit signalCommentLoginRequired();
+        } else {
+            QMessageBox::warning(this, QStringLiteral("评论"), message);
+        }
+        return;
+    }
+
+    if (m_expandedCommentId > 0) {
+        loadCommentReplies(m_expandedCommentId, 1);
+    }
+    loadMusicComments(1);
 }

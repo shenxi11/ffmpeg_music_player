@@ -21,6 +21,9 @@ class MusicListWidgetNet : public QWidget {
     MusicListWidgetNetQml* getListWidget() const {
         return listWidget;
     }
+    QString currentResolvedOriginalPath() const {
+        return m_currentResolvedOriginalPath;
+    }
 
     void clearList() {
         if (listWidget) {
@@ -42,7 +45,7 @@ class MusicListWidgetNet : public QWidget {
   signals:
     void signalAddSonglist(const QList<Music>& musicList);
     void signalPlayClick(const QString songName, const QString artist, const QString cover,
-                         bool net);
+                         bool net, const QString originalMusicPath);
     void signalLast(QString songName);
     void signalNext(QString songName);
     void signalTranslateButtonClicked();
@@ -74,6 +77,7 @@ class MusicListWidgetNet : public QWidget {
     QVariantList m_currentItems;
     QString currentSongArtist;
     QString currentSongCover;
+    QString m_currentResolvedOriginalPath;
     QWidget* mainWidget = nullptr;
 };
 

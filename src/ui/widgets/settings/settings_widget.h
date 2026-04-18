@@ -27,30 +27,12 @@ private slots:
     void onChooseAudioCachePath();
     void onChooseLogPath();
     void onClearLocalCacheRequested();
-    void onDownloadPathChanged();
-    void onDownloadLyricsChanged();
-    void onDownloadCoverChanged();
-    void onAudioCachePathChanged();
-    void onLogPathChanged();
-    void onPlayerPageStyleChanged();
-    void onAgentModeChanged();
-    void onAgentLocalModelPathChanged();
-    void onAgentLocalModelBaseUrlChanged();
-    void onAgentLocalModelNameChanged();
-    void onAgentLocalContextSizeChanged();
-    void onAgentLocalThreadCountChanged();
-    void onAgentRemoteFallbackEnabledChanged();
-    void onAgentRemoteBaseUrlChanged();
-    void onAgentRemoteModelNameChanged();
     void onRefreshPresenceRequested();
     void onReturnToWelcomeRequested();
-    void syncViewModelToRoot();
-    void syncPresenceToRoot();
 
 private:
     // 连接拆分：保持构造函数聚焦于 UI 构建流程。
     void setupRootConnections(QQuickItem* root);
-    void setupViewModelConnections();
     void setupRefreshTimer();
 
     QTimer m_presenceRefreshTimer;

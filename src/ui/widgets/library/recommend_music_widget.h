@@ -25,6 +25,7 @@ public:
 
 signals:
     void playMusicWithMetadata(const QString& filePath,
+                               const QString& musicPath,
                                const QString& title,
                                const QString& artist,
                                const QString& cover,

@@ -115,6 +115,9 @@ void MainWidget::handleAudioPlaybackStopped() {
 void MainWidget::handlePlayWidgetBigClicked(bool checked) {
     qDebug() << "[MainWidget] signalBigClicked checked =" << checked;
     if (checked) {
+        if (w && w->isMainContentCommentVisible()) {
+            closeCommentContentPage(true);
+        }
         if (topWidget) {
             topWidget->hide();
         }
@@ -146,7 +149,22 @@ void MainWidget::handlePlayWidgetBigClicked(bool checked) {
     // 收起态也保持播放层在最上方，避免底部点击事件被其他面板抢占。
     w->raise();
     w->setIsUp(false);
+    w->closeCommentDrawerPanel();
     update();
     w->setPianWidgetEnable(false);
     updateAdaptiveLayout();
+}
+
+void MainWidget::handleMainCommentPageRequested(bool show) {
+    if (!w) {
+        return;
+    }
+
+    if (show) {
+        w->closePlaylistHistoryPanel();
+        openCommentContentPage();
+        return;
+    }
+
+    closeCommentContentPage(true);
 }

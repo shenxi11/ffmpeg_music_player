@@ -52,6 +52,51 @@ void MainShellViewModel::setupConnections() {
             &MainShellViewModel::removePlaylistItemsResultReady);
     connect(&m_request, &HttpRequestV2::signalReorderPlaylistItemsResult, this,
             &MainShellViewModel::reorderPlaylistItemsResultReady);
+    connect(&m_request, &HttpRequestV2::signalMusicCommentsResult, this,
+            [this](bool success, const QVariantMap& threadMeta, const QVariantList& items,
+                   const QString& message, int statusCode, const QString& musicPath, int page,
+                   int pageSize) {
+                if (success) {
+                    emit musicCommentsReady(threadMeta, items, musicPath, page, pageSize);
+                    return;
+                }
+                emit musicCommentsRequestFailed(message, statusCode, musicPath, page, pageSize);
+            });
+    connect(&m_request, &HttpRequestV2::signalMusicCommentRepliesResult, this,
+            [this](bool success, qint64 rootCommentId, const QVariantList& items, int total,
+                   const QString& message, int statusCode, int page, int pageSize) {
+                if (success) {
+                    emit musicCommentRepliesReady(rootCommentId, items, total, page, pageSize);
+                    return;
+                }
+                emit musicCommentRepliesRequestFailed(rootCommentId, message, statusCode, page,
+                                                      pageSize);
+            });
+    connect(&m_request, &HttpRequestV2::signalCreateMusicCommentResult, this,
+            [this](bool success, const QVariantMap& comment, const QString& message,
+                   int statusCode, const QString& musicPath) {
+                if (!success && statusCode == 401) {
+                    emit sessionExpired();
+                }
+                emit createMusicCommentResultReady(success, comment, message, statusCode,
+                                                   musicPath);
+            });
+    connect(&m_request, &HttpRequestV2::signalCreateMusicCommentReplyResult, this,
+            [this](bool success, qint64 rootCommentId, const QVariantMap& comment,
+                   const QString& message, int statusCode, qint64 targetCommentId) {
+                if (!success && statusCode == 401) {
+                    emit sessionExpired();
+                }
+                emit createMusicCommentReplyResultReady(success, rootCommentId, comment, message,
+                                                        statusCode, targetCommentId);
+            });
+    connect(&m_request, &HttpRequestV2::signalDeleteMusicCommentResult, this,
+            [this](bool success, qint64 commentId, const QString& message, int statusCode) {
+                if (!success && statusCode == 401) {
+                    emit sessionExpired();
+                }
+                emit deleteMusicCommentResultReady(success, commentId, message, statusCode);
+            });
     connect(
         &m_request, &HttpRequestV2::signalUserProfileResult, this,
         [this](bool success, const QVariantMap& profile, const QString& message, int statusCode) {

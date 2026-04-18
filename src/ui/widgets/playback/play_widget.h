@@ -16,9 +16,11 @@
 #include "controlbar_qml.h"
 #include "desklrc_qml.h"
 #include "playlist_history_qml.h"
+#include "comment_panel_qml.h"
 
 class QQuickWidget;
 class QGraphicsDropShadowEffect;
+class MainShellViewModel;
 
 class PlayWidget : public QWidget
 {
@@ -28,6 +30,12 @@ class PlayWidget : public QWidget
     Q_PROPERTY(PlaybackViewModel* playbackViewModel READ playbackViewModel CONSTANT)
 
 public:
+    enum class RightOverlayPage {
+        None = 0,
+        Playlist,
+        Comments
+    };
+
     PlayWidget(QWidget *parent = nullptr, QWidget *mainWidget = nullptr);
     ~PlayWidget();
 
@@ -42,6 +50,15 @@ public:
     QVariantMap desktopLyricSnapshot() const;
     bool setDesktopLyricVisible(bool visible);
     bool setDesktopLyricStyleFromMap(const QVariantMap& style);
+    void setMainShellViewModel(MainShellViewModel* viewModel);
+    void setEmbeddedCommentPanel(CommentPanelQml* panel);
+    void setCommentTrackContext(const QVariantMap& context);
+    void clearCommentTrackContext();
+    void setMainContentCommentVisible(bool visible);
+    bool isMainContentCommentVisible() const;
+    void syncCommentOverlayGeometry();
+    void closePlaylistHistoryPanel();
+    void closeCommentDrawerPanel();
 public slots:
 
     void beginTakeLrc(QString str);
@@ -89,6 +106,8 @@ signals:
     void signalMetadataUpdated(QString filePath, QString coverUrl, QString duration,
                                QString artist);
     void signalSimilarSongSelected(const QVariantMap& item);
+    void signalCommentLoginRequired();
+    void signalMainCommentPageRequested(bool show);
 private:
     void setupCoreConnections();
     // 播放页 ViewModel 连接在独立实现文件中维护，降低构造函数复杂度。
@@ -113,6 +132,18 @@ private:
     void handlePlaylistClearAllRequested();
     void handlePlaylistPauseToggled();
     void handlePlayModeChanged(int mode);
+    void handleCommentToggled(bool show);
+    void handleCommentPanelCloseRequested();
+    void handleCommentPanelLoadMoreRequested();
+    void handleCommentPanelToggleRepliesRequested(qint64 rootCommentId, bool expanded);
+    void handleCommentPanelLoadMoreRepliesRequested(qint64 rootCommentId);
+    void handleCommentPanelSubmitMainRequested(const QString& content);
+    void handleCommentPanelSubmitReplyRequested(qint64 rootCommentId, qint64 targetCommentId,
+                                                const QString& content);
+    void handleCommentPanelDeleteRequested(qint64 commentId);
+    void handleCommentPanelStartReplyRequested(qint64 rootCommentId, qint64 targetCommentId,
+                                               const QString& username);
+    void handleCommentPanelLoginRequested();
     void handleSliderPressed();
     void handleSliderReleased();
     void handleVmIsPlayingChanged();
@@ -151,6 +182,41 @@ private:
     void invalidateStageBackgroundCache();
     void rebuildStageBackgroundCache();
     void emitLocalMetadataUpdateIfNeeded();
+    void refreshCommentAvailability();
+    QString resolveCommentMusicPath() const;
+    QVariantMap resolvedCommentTrackContext() const;
+    bool isCommentableMusicPath(const QString& musicPath) const;
+    void connectCommentPanel(CommentPanelQml* panel);
+    void syncCommentToggleState();
+    void syncPlaylistToggleState();
+    void showRightOverlayPage(RightOverlayPage page);
+    void closeRightOverlay();
+    void updateRightOverlayChildLayout();
+    void syncCommentPanelTrackContext();
+    void syncCommentPanelAuthState();
+    void syncCommentPanelComments();
+    void syncCommentPanelReplies();
+    void loadMusicComments(int page = 1);
+    void loadCommentReplies(qint64 rootCommentId, int page = 1);
+    void closeCommentPanel();
+    void connectCommentSignals();
+    void handleMusicCommentsReady(const QVariantMap& threadMeta, const QVariantList& items,
+                                  const QString& musicPath, int page, int pageSize);
+    void handleMusicCommentsRequestFailed(const QString& message, int statusCode,
+                                          const QString& musicPath, int page, int pageSize);
+    void handleMusicCommentRepliesReady(qint64 rootCommentId, const QVariantList& items, int total,
+                                        int page, int pageSize);
+    void handleMusicCommentRepliesRequestFailed(qint64 rootCommentId, const QString& message,
+                                                int statusCode, int page, int pageSize);
+    void handleCreateMusicCommentResultReady(bool success, const QVariantMap& comment,
+                                             const QString& message, int statusCode,
+                                             const QString& musicPath);
+    void handleCreateMusicCommentReplyResultReady(bool success, qint64 rootCommentId,
+                                                  const QVariantMap& comment,
+                                                  const QString& message, int statusCode,
+                                                  qint64 targetCommentId);
+    void handleDeleteMusicCommentResultReady(bool success, qint64 commentId,
+                                             const QString& message, int statusCode);
 
     void updateAdaptiveLayout();
 
@@ -213,7 +279,34 @@ private:
     ProcessSliderQml* process_slider;
     ProcessSliderQml* controlBar;  // controlBar 当前复用 process_slider 组件
     DeskLrcQml* desk;
+    QWidget* m_rightOverlayHost = nullptr;
     PlaylistHistoryQml* playlistHistory;  // 播放历史列表组件
+    CommentPanelQml* commentPanel = nullptr;
+    CommentPanelQml* m_embeddedCommentPanel = nullptr;
+    MainShellViewModel* m_shellViewModel = nullptr;
+    QVariantMap m_commentTrackContext;
+    QVariantMap m_commentThreadMeta;
+    QVariantList m_commentItems;
+    QVariantList m_commentReplyItems;
+    QString m_commentErrorMessage;
+    QString m_commentReplyErrorMessage;
+    int m_commentPage = 1;
+    int m_commentPageSize = 20;
+    bool m_commentHasMore = false;
+    bool m_commentLoading = false;
+    qint64 m_expandedCommentId = 0;
+    int m_replyPage = 1;
+    int m_replyPageSize = 50;
+    int m_replyTotal = 0;
+    bool m_replyHasMore = false;
+    bool m_replyLoading = false;
+    qint64 m_replyTargetRootCommentId = 0;
+    qint64 m_replyTargetCommentId = 0;
+    QString m_replyTargetUsername;
+    bool m_commentSubmitting = false;
+    bool m_commentSignalsConnected = false;
+    bool m_mainContentCommentVisible = false;
+    RightOverlayPage m_rightOverlayPage = RightOverlayPage::None;
 
     bool play_net = false;
     int m_playerPageStyle = 0;

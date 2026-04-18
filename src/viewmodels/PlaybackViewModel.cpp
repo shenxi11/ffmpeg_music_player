@@ -33,8 +33,6 @@ PlaybackViewModel::PlaybackViewModel(QObject* parent)
         prunePlaylistMetadataCache();
         emit playlistSnapshotChanged();
     });
-    connect(m_audioService, &AudioService::currentIndexChanged, this,
-            &PlaybackViewModel::playlistSnapshotChanged);
 
     connect(m_audioService, &AudioService::currentTrackChanged, this,
             [this](const QString& title, const QString& artist, qint64 duration) {
@@ -442,32 +440,33 @@ QString PlaybackViewModel::formatTime(qint64 milliseconds) {
 }
 
 QVariantMap PlaybackViewModel::buildPlaylistSnapshotItem(const QUrl& url, int index) const {
+    const QString entryKey = normalizePlaylistEntryPath(url);
     const bool isCurrent = index == m_audioService->currentIndex();
-    const QVariantMap cachedMetadata =
-        m_playlistMetadataCache.value(normalizePlaylistEntryPath(url));
+    const bool ownsCurrentMetadata = isCurrent && !entryKey.isEmpty() &&
+                                     entryKey == currentPlaybackMetadataKey();
+    const QVariantMap cachedMetadata = m_playlistMetadataCache.value(entryKey);
     const QString fallbackTitle = titleFromUrl(url);
     const QString title =
-        isCurrent && !m_currentTitle.trimmed().isEmpty()
+        ownsCurrentMetadata && !m_currentTitle.trimmed().isEmpty()
             ? m_currentTitle.trimmed()
             : (!cachedMetadata.value(QStringLiteral("title")).toString().trimmed().isEmpty()
                    ? cachedMetadata.value(QStringLiteral("title")).toString().trimmed()
                    : fallbackTitle);
     const QString artist =
-        isCurrent && !m_currentArtist.trimmed().isEmpty()
+        ownsCurrentMetadata && !m_currentArtist.trimmed().isEmpty()
             ? m_currentArtist.trimmed()
             : (!cachedMetadata.value(QStringLiteral("artist")).toString().trimmed().isEmpty()
                    ? cachedMetadata.value(QStringLiteral("artist")).toString().trimmed()
-                   : resolveArtistForPlaylistEntry(normalizePlaylistEntryPath(url),
-                                                   cachedMetadata));
+                   : resolveArtistForPlaylistEntry(entryKey, cachedMetadata));
     const QString cover =
-        isCurrent && !m_currentAlbumArt.trimmed().isEmpty()
+        ownsCurrentMetadata && !m_currentAlbumArt.trimmed().isEmpty()
             ? m_currentAlbumArt.trimmed()
             : (!cachedMetadata.value(QStringLiteral("cover")).toString().trimmed().isEmpty()
                    ? cachedMetadata.value(QStringLiteral("cover")).toString().trimmed()
-                   : resolveCoverForPlaylistEntry(normalizePlaylistEntryPath(url), title, artist));
+                   : resolveCoverForPlaylistEntry(entryKey, title, artist));
 
     QVariantMap item;
-    item.insert(QStringLiteral("filePath"), normalizePlaylistEntryPath(url));
+    item.insert(QStringLiteral("filePath"), entryKey);
     item.insert(QStringLiteral("title"), title);
     item.insert(QStringLiteral("artist"), artist);
     item.insert(QStringLiteral("cover"), cover);
@@ -500,6 +499,25 @@ QString PlaybackViewModel::titleFromUrl(const QUrl& url) {
     }
 
     return title.isEmpty() ? QStringLiteral("未知歌曲") : title;
+}
+
+QString PlaybackViewModel::currentPlaybackMetadataKey() const {
+    if (!m_currentUrl.isEmpty()) {
+        const QString normalizedUrl = normalizePlaylistEntryPath(m_currentUrl);
+        if (!normalizedUrl.isEmpty()) {
+            return normalizedUrl;
+        }
+    }
+
+    const QString trimmedPath = m_currentFilePath.trimmed();
+    if (trimmedPath.isEmpty()) {
+        return QString();
+    }
+
+    if (trimmedPath.startsWith(QStringLiteral("http"), Qt::CaseInsensitive)) {
+        return normalizePlaylistEntryPath(QUrl(trimmedPath));
+    }
+    return normalizeMusicPathForLookup(trimmedPath);
 }
 
 void PlaybackViewModel::prunePlaylistMetadataCache() {
