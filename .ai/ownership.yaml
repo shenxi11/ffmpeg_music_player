@@ -1,5 +1,5 @@
 version: 1
-updated_at: "2026-04-18 11:15"
+updated_at: "2026-04-18 11:31"
 ownership:
   - module: "shell-core"
     paths_owned:
@@ -114,30 +114,6 @@ ownership:
     claimed_at: "2026-04-17 21:32"
     updated_at: "2026-04-17 23:28"
     notes: "Handoff after fixing the remaining overlap rows inside the HTML-draft settings page. The single-track queue options now wrap within a content-driven delegate, and the audio-device section uses content-driven rows so the memory-mode options no longer collide with the top device form."
-  - module: "agent-qt-host"
-    paths_owned:
-      - "src/agent/"
-      - "qml/components/agent/"
-      - "src/app/client_automation_host_service*"
-    paths_shared: []
-    owner_session: ""
-    owner_label: ""
-    status: "released"
-    claimed_at: "2026-04-18 10:30"
-    updated_at: "2026-04-18 10:41"
-    notes: "Released after removing the Qt-side AI host stack from the repo and moving it to E:\\FFmpeg_whisper\\ffmpeg_music_player_ai_removed."
-  - module: "agent-python-runtime"
-    paths_owned:
-      - "agent/src/music_agent/"
-      - "agent/tests/"
-      - "agent/scripts/"
-    paths_shared: []
-    owner_session: ""
-    owner_label: ""
-    status: "released"
-    claimed_at: "2026-04-18 10:30"
-    updated_at: "2026-04-18 10:41"
-    notes: "Released after moving the Python-side AI runtime out of the repo to E:\\FFmpeg_whisper\\ffmpeg_music_player_ai_removed."
   - module: "plugins-and-build"
     paths_owned:
       - "plugins/"
@@ -154,7 +130,7 @@ ownership:
     status: "released"
     claimed_at: "2026-04-18 10:30"
     updated_at: "2026-04-18 10:41"
-    notes: "Released after removing ai_assistant_plugin from the build graph and validating a clean Debug build in E:\\FFmpeg_whisper\\ffmpeg_music_player_build_ai_removed."
+    notes: "Released after removing ai_assistant_plugin from the build graph and validating a clean Debug build in a machine-local out-of-tree build directory for the AI-removed state."
   - module: "docs-and-governance"
     paths_owned:
       - "README.md"
@@ -166,5 +142,5 @@ ownership:
     owner_label: ""
     status: "released"
     claimed_at: "2026-04-18 10:52"
-    updated_at: "2026-04-18 11:15"
-    notes: "Released after publishing PR #19 from codex/all-current-work-one-pr, explicitly excluding 打印日志.txt and third_party/llama.cpp, and validating a fresh VS2022 Debug configure/build plus 6-second smoke launch in E:\\FFmpeg_whisper\\ffmpeg_music_player_build_onepr."
+    updated_at: "2026-04-18 11:31"
+    notes: "Released after addressing PR #19 governance review feedback, normalizing machine-local path references in the current PR's .ai files, adding a repo-relative archive convention note, and removing deleted agent module remnants from ownership/task tracking."
