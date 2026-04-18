@@ -1,11 +1,11 @@
 version: 1
-updated_at: "2026-04-18 04:37"
+updated_at: "2026-04-18 10:16"
 tasks:
   - task_id: "workflow-split-submit-feature-and-governance-prs"
     title: "Split the mixed worktree into a product PR and a governance PR, then publish both"
     module: "docs-and-governance"
     owner_session: "codex/pr-split-submit"
-    status: "review"
+    status: "done"
     depends_on:
       - "feature-online-music-comments-v2-playback-dual-host"
       - "feature-playback-queue-redesign-from-draft"
@@ -18,8 +18,8 @@ tasks:
       - "Product code is isolated onto a dedicated branch without .ai files, logs, or third_party payloads."
       - "Governance files are isolated onto a dedicated branch with updated ownership, task, and handoff state."
       - "Both branches are validated, committed, pushed, and opened as separate draft PRs to main."
-    notes: "Completed and moved to review. The mixed worktree was split across dedicated worktrees rooted at the shared product baseline 73d7edf, the governance branch was published as draft PR #17, and the product branch was published as draft PR #18."
-    updated_at: "2026-04-18 04:37"
+    notes: "Done. The mixed worktree was split across dedicated worktrees rooted at the shared product baseline 73d7edf, the governance branch was published as draft PR #17, the product branch was published as draft PR #18, and both PRs are now MERGEABLE/CLEAN after pushing the feature-branch merge resolution."
+    updated_at: "2026-04-18 10:16"
 
   - task_id: "bugfix-playlist-current-track-display-mismatch"
     title: "Fix playlist row display mismatch when switching to another queued song"

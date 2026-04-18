@@ -1,5 +1,5 @@
 version: 1
-updated_at: "2026-04-18 04:37"
+updated_at: "2026-04-18 10:16"
 ownership:
   - module: "shell-core"
     paths_owned:
@@ -162,9 +162,9 @@ ownership:
       - ".codex/skills/"
       - "说明文档/"
     paths_shared: []
-    owner_session: "codex/pr-split-submit"
-    owner_label: "codex-pr-split-submit"
-    status: "handoff"
+    owner_session: ""
+    owner_label: ""
+    status: "released"
     claimed_at: "2026-04-18 03:40"
-    updated_at: "2026-04-18 04:37"
-    notes: "Claimed to split the mixed worktree into two PR tracks. Governance files were published on PR #17, while product code was isolated and published on PR #18 without mixing .ai state, logs, or third_party payloads."
+    updated_at: "2026-04-18 10:16"
+    notes: "Released after completing the PR split-and-publish workflow. Governance files are on PR #17 and product changes are on PR #18; both PRs are now MERGEABLE/CLEAN."
