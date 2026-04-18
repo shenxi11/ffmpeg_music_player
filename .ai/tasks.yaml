@@ -1,6 +1,181 @@
 version: 1
-updated_at: "2026-04-17 13:46"
+updated_at: "2026-04-18 10:16"
 tasks:
+  - task_id: "workflow-split-submit-feature-and-governance-prs"
+    title: "Split the mixed worktree into a product PR and a governance PR, then publish both"
+    module: "docs-and-governance"
+    owner_session: "codex/pr-split-submit"
+    status: "done"
+    depends_on:
+      - "feature-online-music-comments-v2-playback-dual-host"
+      - "feature-playback-queue-redesign-from-draft"
+      - "bugfix-playlist-current-track-display-mismatch"
+    files_expected:
+      - ".ai/*"
+      - ".ai/handoffs/*"
+      - "git branches codex/ui-comments-playback-settings-batch and codex/multi-ai-collab-files"
+    acceptance:
+      - "Product code is isolated onto a dedicated branch without .ai files, logs, or third_party payloads."
+      - "Governance files are isolated onto a dedicated branch with updated ownership, task, and handoff state."
+      - "Both branches are validated, committed, pushed, and opened as separate draft PRs to main."
+    notes: "Done. The mixed worktree was split across dedicated worktrees rooted at the shared product baseline 73d7edf, the governance branch was published as draft PR #17, the product branch was published as draft PR #18, and both PRs are now MERGEABLE/CLEAN after pushing the feature-branch merge resolution."
+    updated_at: "2026-04-18 10:16"
+
+  - task_id: "bugfix-playlist-current-track-display-mismatch"
+    title: "Fix playlist row display mismatch when switching to another queued song"
+    module: "playback-and-audio"
+    owner_session: "codex/online-music-comments-v1"
+    status: "review"
+    depends_on:
+      - "bugfix-playlist-queue-click-crash"
+    files_expected:
+      - "src/viewmodels/PlaybackViewModel*"
+      - "src/ui/widgets/playback/play_widget.viewmodel_connections.cpp"
+    acceptance:
+      - "Switching to another queued song no longer makes the previous row text or cover appear to be replaced by the newly playing song."
+      - "The playlist order remains unchanged when selecting an existing queued song; only the current-playing state moves."
+    notes: "Implemented. PlaybackViewModel no longer emits a full playlist snapshot refresh on currentIndexChanged, the snapshot builder only applies current-track metadata when the row path actually matches the active track, and PlayWidget now pushes current-file-path state to the playlist immediately without rebuilding the list. Debug build passed and the app survived a short launch smoke test; manual playback-list regression is still needed."
+    updated_at: "2026-04-18 00:40"
+  - task_id: "bugfix-playlist-queue-click-crash"
+    title: "Fix expanded-playback playlist click crash caused by QML delegate destruction"
+    module: "playback-and-audio"
+    owner_session: "codex/online-music-comments-v1"
+    status: "review"
+    depends_on:
+      - "feature-playback-queue-redesign-from-draft"
+    files_expected:
+      - "src/ui/qml_bridge/playback/playlist_history_qml.h"
+      - "qml/components/playback/PlaylistHistory.qml"
+    acceptance:
+      - "Clicking another song from the expanded-playback playlist no longer triggers a QML fatal about an object being destroyed while one of its signal handlers is in progress."
+      - "The playlist panel no longer logs 'requestPaint is not a function' during current-track state updates."
+    notes: "Implemented. Playlist queue actions are now deferred past the active QML click handler, full snapshot refreshes are queued from the QWidget bridge, and the cover-state canvas repaint path no longer calls parent.requestPaint(). Debug build passed and the app survived a short launch smoke test; manual interaction regression is still needed."
+    updated_at: "2026-04-18 00:26"
+  - task_id: "feature-playback-queue-redesign-from-draft"
+    title: "Rewrite the expanded-playback playlist drawer from the approved draft"
+    module: "playback-and-audio"
+    owner_session: "codex/online-music-comments-v1"
+    status: "review"
+    depends_on:
+      - "feature-playback-right-overlay-shared-host"
+    files_expected:
+      - "src/ui/widgets/playback/play_widget*"
+      - "qml/components/playback/PlaylistHistory.qml"
+    acceptance:
+      - "Expanded playback uses a redesigned right-side queue panel that matches the approved draft structure while preserving the existing queue actions."
+      - "Playlist and comments still share the same right overlay host, but the playlist drawer may use a narrower width than comments."
+      - "Unimplemented draft actions render as shell/disabled menu items instead of inventing new backend behavior."
+    notes: "Implemented. The playlist drawer UI is now rebuilt from the approved draft, existing queue actions remain wired, unsupported draft actions render as disabled menu shells, and the shared right overlay uses a narrower width for playlist than comments. Debug build passed and the app survived a short launch smoke test."
+    updated_at: "2026-04-18 00:07"
+  - task_id: "feature-online-music-comments-v2-shell-content-host"
+    title: "Host online comments as a temporary main-content page when playback is collapsed"
+    module: "shell-core"
+    owner_session: "codex/online-music-comments-v1"
+    status: "review"
+    depends_on:
+      - "feature-online-music-comments-v1-shell-shared-surface"
+    files_expected:
+      - "src/app/main_widget*"
+    acceptance:
+      - "Collapsed playback comment entry opens a temporary main-content comments page through the existing showContentPanel flow without adding a permanent left-nav tab."
+      - "Leaving the temporary comments page restores the previous main content surface and resets the playback comment toggle state."
+    notes: "Implemented shell-side host switching for comments page mode. Runtime build verification is blocked by an unrelated missing settings QML resource in the current dirty worktree."
+    updated_at: "2026-04-17 22:11"
+  - task_id: "feature-online-music-comments-v2-playback-dual-host"
+    title: "Reuse one comments surface across playback drawer mode and main-content page mode"
+    module: "playback-and-audio"
+    owner_session: "codex/online-music-comments-v1"
+    status: "review"
+    depends_on:
+      - "feature-online-music-comments-v1-network"
+      - "feature-online-music-comments-v2-shell-content-host"
+    files_expected:
+      - "src/ui/widgets/playback/play_widget*"
+      - "src/ui/qml_bridge/playback/*"
+      - "qml/components/playback/*"
+    acceptance:
+      - "Collapsed playback routes the comment button to the shell-hosted main-content comments page, while expanded playback opens the right drawer overlay."
+      - "Comments and details share one visual structure across both hosts, and drawer mode stays above content surfaces without covering the top bar."
+    notes: "Implemented dual-host comment routing, shared state sync for both hosts, and a design-led comments/details page rewrite in QML. Extended with a shared right overlay host so expanded-playback playlist/comments now reuse one container above the lyric surface. Full Debug build passed."
+    updated_at: "2026-04-17 23:24"
+  - task_id: "feature-playback-right-overlay-shared-host"
+    title: "Unify expanded-playback playlist and comments into one right overlay host"
+    module: "playback-and-audio"
+    owner_session: "codex/online-music-comments-v1"
+    status: "review"
+    depends_on:
+      - "feature-online-music-comments-v2-playback-dual-host"
+    files_expected:
+      - "src/ui/widgets/playback/play_widget*"
+      - "src/ui/qml_bridge/playback/*"
+    acceptance:
+      - "Expanded-playback playlist and comments are hosted by one shared right overlay container and switch pages instead of creating separate sibling drawers."
+      - "The shared right overlay stays above the lyric-only playback surface, and the lyric surface no longer relies on always-on-top behavior."
+    notes: "Implemented with a shared QWidget host inside PlayWidget, reparented playlist/comment QQuickWidgets, unified geometry/raise logic, and removed lyricDisplay always-on-top. Full Debug build passed."
+    updated_at: "2026-04-17 23:24"
+  - task_id: "feature-online-music-comments-v1-shell-shared-surface"
+    title: "Wire online comment context through shell shared surfaces"
+    module: "shell-core"
+    owner_session: "codex/online-music-comments-v1"
+    status: "review"
+    depends_on: []
+    files_expected:
+      - "src/app/main_widget*"
+      - "src/viewmodels/MainShellViewModel*"
+    acceptance:
+      - "Current online track comment context is propagated through shell surfaces without inferring from stream URL, title, or artist."
+      - "Shared-surface changes for comment context are documented before editing."
+    notes: "Implemented shared-surface comment context wiring. Needs final runtime verification after closing the running client."
+    updated_at: "2026-04-17 21:17"
+  - task_id: "feature-online-music-comments-v1-network"
+    title: "Implement online music comments API client and path propagation"
+    module: "library-and-search"
+    owner_session: "codex/online-music-comments-v1"
+    status: "review"
+    depends_on:
+      - "feature-online-music-comments-v1-shell-shared-surface"
+    files_expected:
+      - "src/network/httprequest_v2*"
+      - "src/viewmodels/OnlineMusicListViewModel*"
+      - "src/ui/widgets/library/music_list_widget_net*"
+    acceptance:
+      - "Client supports read/create/reply/delete flows against the documented comments endpoints."
+      - "Original online music_path is preserved for comments and not reconstructed from stream URL or metadata."
+    notes: "Implemented comments API requests and online path propagation. Build reached link stage; runtime verification still pending."
+    updated_at: "2026-04-17 21:17"
+  - task_id: "feature-online-music-comments-v1-playback"
+    title: "Implement online music comments playback entry and drawer UI"
+    module: "playback-and-audio"
+    owner_session: "codex/online-music-comments-v1"
+    status: "review"
+    depends_on:
+      - "feature-online-music-comments-v1-network"
+      - "feature-online-music-comments-v1-shell-shared-surface"
+    files_expected:
+      - "src/ui/widgets/playback/play_widget*"
+      - "src/ui/qml_bridge/playback/*"
+      - "qml/components/playback/*"
+    acceptance:
+      - "Playback area exposes a comments entry for online songs only and opens a right-side comments drawer."
+      - "Unauthenticated users can read comments but write actions route to login."
+      - "Replies are shown as a flat list under one expanded root comment without client-side tree nesting."
+    notes: "Black-screen fix completed: CommentPanel QML no longer uses invalid qlonglong signal types, bridge now logs load errors, and project builds successfully."
+    updated_at: "2026-04-17 21:29"
+  - task_id: "feature-online-music-comments-v1-qml-resource-registration"
+    title: "Register online comment drawer QML resources"
+    module: "plugins-and-build"
+    owner_session: "codex/online-music-comments-v1"
+    status: "review"
+    depends_on:
+      - "feature-online-music-comments-v1-playback"
+    files_expected:
+      - "qml.qrc"
+      - "qml/components/playback/CommentPanel.qml"
+    acceptance:
+      - "New playback comments QML resources are packaged with the client build."
+      - "Resource registration changes stay limited to the online music comments v1 surface."
+    notes: "Comment drawer resource registered in qml.qrc. Final link verification blocked by the running ffmpeg_music_player.exe."
+    updated_at: "2026-04-17 21:17"
   - task_id: "module-bootstrap-shell-core"
     title: "Keep shell-core ownership map current"
     module: "shell-core"
@@ -269,8 +444,8 @@ tasks:
   - task_id: "observed-worktree-settings-and-theme"
     title: "Unsubmitted settings-and-theme changes need ownership"
     module: "settings-and-theme"
-    owner_session: ""
-    status: "todo"
+    owner_session: "codex/settings-overlap-row-fix"
+    status: "review"
     depends_on: []
     files_expected:
       - "src/ui/widgets/settings/"
@@ -281,8 +456,25 @@ tasks:
     acceptance:
       - "An active session claims settings-and-theme before editing overlapping config or theme files."
       - "Shared configuration changes are paired with decision/task updates when other modules depend on them."
-    notes: "Observed from current worktree; placeholder only until a real owner sets status to doing."
-    updated_at: "2026-04-17 13:46"
+    notes: "Final targeted overlap fix completed for review. The long single-track queue row now wraps instead of drawing through adjacent content, and the audio device area now uses content-driven row heights plus a wrapped memory-mode option block. Build verification passed; runtime visual confirmation is still recommended."
+    updated_at: "2026-04-17 23:28"
+  - task_id: "feature-settings-main-content-host-migration"
+    title: "Move settings from standalone window into main content panel"
+    module: "shell-core"
+    owner_session: "codex/settings-page-main-content"
+    status: "review"
+    depends_on:
+      - "observed-worktree-settings-and-theme"
+    files_expected:
+      - "src/app/main_widget*"
+      - "src/ui/widgets/settings/*"
+      - "qml/components/settings/Settings.qml"
+    acceptance:
+      - "Clicking the main menu settings entry switches the main content area to settings instead of opening a separate window."
+      - "Settings content participates in showContentPanel visibility and geometry updates like other main content pages."
+      - "The embedded settings page no longer renders as a window-style layout with misleading close semantics."
+    notes: "Cross-module migration is implemented. Main menu settings now switch the main content area instead of opening a separate window, embedded geometry follows showContentPanel, and the settings page no longer keeps a window-style footer. Build verification passed; runtime visual confirmation is the remaining review item."
+    updated_at: "2026-04-17 21:38"
   - task_id: "observed-worktree-docs-and-governance"
     title: "Unsubmitted docs-and-governance changes need ownership"
     module: "docs-and-governance"
