@@ -346,21 +346,21 @@ QVariantMap parseCommentItem(const QJsonObject& obj, const QString& baseUrl) {
     QVariantMap item;
     const bool isDeleted = obj.value(QStringLiteral("is_deleted")).toBool();
 
-    item.insert(QStringLiteral("comment_id"),
-                obj.value(QStringLiteral("comment_id")).toVariant());
+    item.insert(QStringLiteral("comment_id"), obj.value(QStringLiteral("comment_id")).toVariant());
     item.insert(QStringLiteral("root_comment_id"),
                 obj.value(QStringLiteral("root_comment_id")).toVariant());
     item.insert(QStringLiteral("user_account"),
                 obj.value(QStringLiteral("user_account")).toString());
     item.insert(QStringLiteral("username"), obj.value(QStringLiteral("username")).toString());
-    item.insert(QStringLiteral("avatar_url"),
-                rewriteServiceUrlToBase(obj.value(QStringLiteral("avatar_url")).toString(),
-                                        baseUrl));
+    item.insert(
+        QStringLiteral("avatar_url"),
+        rewriteServiceUrlToBase(obj.value(QStringLiteral("avatar_url")).toString(), baseUrl));
     item.insert(QStringLiteral("content"), obj.value(QStringLiteral("content")).toString());
     item.insert(QStringLiteral("is_deleted"), isDeleted);
     item.insert(QStringLiteral("created_at"), obj.value(QStringLiteral("created_at")).toString());
     item.insert(QStringLiteral("reply_count"), obj.value(QStringLiteral("reply_count")).toInt());
-    item.insert(QStringLiteral("reply_to"), parseReplyTarget(obj.value(QStringLiteral("reply_to"))));
+    item.insert(QStringLiteral("reply_to"),
+                parseReplyTarget(obj.value(QStringLiteral("reply_to"))));
     item.insert(QStringLiteral("display_content"),
                 isDeleted ? QStringLiteral("该评论已删除")
                           : obj.value(QStringLiteral("content")).toString());
@@ -1511,81 +1511,88 @@ void HttpRequestV2::getHotMusicChart(const QString& window, int limit) {
     qDebug() << "[HttpRequestV2] Getting hot chart, window:" << normalizedWindow
              << "limit:" << safeLimit;
 
-    m_networkService.get(url, options, [this, normalizedWindow](const Network::NetworkResponse& response) {
-        if (!response.isSuccess()) {
-            emit signalHotChartResult(false, QVariantMap(), QVariantList(),
-                                      extractErrorMessage(response, QStringLiteral("热歌榜加载失败")),
-                                      response.statusCode, normalizedWindow);
-            return;
-        }
-
-        const QJsonObject rootObj = Network::NetworkService::parseJsonObject(response);
-        const QJsonObject dataObj = unwrapDataObject(rootObj);
-
-        QVariantMap meta;
-        meta.insert(QStringLiteral("chart_id"),
-                    dataObj.value(QStringLiteral("chart_id")).toString());
-        meta.insert(QStringLiteral("title"),
-                    dataObj.value(QStringLiteral("title")).toString());
-        meta.insert(QStringLiteral("window"),
-                    dataObj.value(QStringLiteral("window")).toString());
-        meta.insert(QStringLiteral("generated_at"),
-                    dataObj.value(QStringLiteral("generated_at")).toString());
-
-        QVariantList items;
-        const QJsonArray itemArray = dataObj.value(QStringLiteral("items")).toArray();
-        items.reserve(itemArray.size());
-        for (const QJsonValue& value : itemArray) {
-            if (!value.isObject()) {
-                continue;
+    m_networkService.get(
+        url, options, [this, normalizedWindow](const Network::NetworkResponse& response) {
+            if (!response.isSuccess()) {
+                emit signalHotChartResult(
+                    false, QVariantMap(), QVariantList(),
+                    extractErrorMessage(response, QStringLiteral("热歌榜加载失败")),
+                    response.statusCode, normalizedWindow);
+                return;
             }
 
-            const QJsonObject itemObj = value.toObject();
-            const QString rawPath = itemObj.value(QStringLiteral("path")).toString().trimmed();
-            const QString musicPath =
-                itemObj.value(QStringLiteral("music_path")).toString().trimmed().isEmpty()
-                    ? rawPath
-                    : itemObj.value(QStringLiteral("music_path")).toString().trimmed();
+            const QJsonObject rootObj = Network::NetworkService::parseJsonObject(response);
+            const QJsonObject dataObj = unwrapDataObject(rootObj);
 
-            const double durationSec = itemObj.value(QStringLiteral("duration_sec")).toDouble(0.0);
-            QString durationText = formatDurationFromSeconds(static_cast<int>(durationSec + 0.5));
-            if (durationText.isEmpty()) {
-                durationText = readDurationFromObject(itemObj);
+            QVariantMap meta;
+            meta.insert(QStringLiteral("chart_id"),
+                        dataObj.value(QStringLiteral("chart_id")).toString());
+            meta.insert(QStringLiteral("title"), dataObj.value(QStringLiteral("title")).toString());
+            meta.insert(QStringLiteral("window"),
+                        dataObj.value(QStringLiteral("window")).toString());
+            meta.insert(QStringLiteral("generated_at"),
+                        dataObj.value(QStringLiteral("generated_at")).toString());
+
+            QVariantList items;
+            const QJsonArray itemArray = dataObj.value(QStringLiteral("items")).toArray();
+            items.reserve(itemArray.size());
+            for (const QJsonValue& value : itemArray) {
+                if (!value.isObject()) {
+                    continue;
+                }
+
+                const QJsonObject itemObj = value.toObject();
+                const QString rawPath = itemObj.value(QStringLiteral("path")).toString().trimmed();
+                const QString musicPath =
+                    itemObj.value(QStringLiteral("music_path")).toString().trimmed().isEmpty()
+                        ? rawPath
+                        : itemObj.value(QStringLiteral("music_path")).toString().trimmed();
+
+                const double durationSec =
+                    itemObj.value(QStringLiteral("duration_sec")).toDouble(0.0);
+                QString durationText =
+                    formatDurationFromSeconds(static_cast<int>(durationSec + 0.5));
+                if (durationText.isEmpty()) {
+                    durationText = readDurationFromObject(itemObj);
+                }
+
+                QString coverArtUrl = rewriteServiceUrlToBase(
+                    itemObj.value(QStringLiteral("cover_art_url")).toString(), m_baseUrl);
+                if (coverArtUrl.trimmed().isEmpty()) {
+                    coverArtUrl = queryCoverForMusicPath(musicPath);
+                }
+
+                QVariantMap item;
+                item.insert(QStringLiteral("rank"), itemObj.value(QStringLiteral("rank")).toInt());
+                item.insert(QStringLiteral("music_path"), musicPath);
+                item.insert(QStringLiteral("path"), rawPath.isEmpty() ? musicPath : rawPath);
+                item.insert(QStringLiteral("play_path"), rawPath.isEmpty() ? musicPath : rawPath);
+                item.insert(QStringLiteral("title"),
+                            itemObj.value(QStringLiteral("title")).toString());
+                item.insert(QStringLiteral("artist"), readArtistFromObject(itemObj));
+                item.insert(QStringLiteral("album"),
+                            itemObj.value(QStringLiteral("album")).toString());
+                item.insert(QStringLiteral("duration_sec"), durationSec);
+                item.insert(QStringLiteral("duration"), durationText);
+                item.insert(QStringLiteral("cover_art_url"), coverArtUrl);
+                item.insert(QStringLiteral("source"),
+                            itemObj.value(QStringLiteral("source")).toString());
+                item.insert(QStringLiteral("source_id"),
+                            itemObj.value(QStringLiteral("source_id")).toString());
+                item.insert(QStringLiteral("play_count"),
+                            itemObj.value(QStringLiteral("play_count")).toVariant());
+
+                rememberCoverForMusicPath(musicPath, coverArtUrl);
+                rememberCoverForMusicPath(rawPath, coverArtUrl);
+                rememberCoverForSongMeta(item.value(QStringLiteral("title")).toString(),
+                                         item.value(QStringLiteral("artist")).toString(),
+                                         coverArtUrl);
+                items.append(item);
             }
 
-            QString coverArtUrl = rewriteServiceUrlToBase(
-                itemObj.value(QStringLiteral("cover_art_url")).toString(), m_baseUrl);
-            if (coverArtUrl.trimmed().isEmpty()) {
-                coverArtUrl = queryCoverForMusicPath(musicPath);
-            }
-
-            QVariantMap item;
-            item.insert(QStringLiteral("rank"), itemObj.value(QStringLiteral("rank")).toInt());
-            item.insert(QStringLiteral("music_path"), musicPath);
-            item.insert(QStringLiteral("path"), rawPath.isEmpty() ? musicPath : rawPath);
-            item.insert(QStringLiteral("play_path"), rawPath.isEmpty() ? musicPath : rawPath);
-            item.insert(QStringLiteral("title"), itemObj.value(QStringLiteral("title")).toString());
-            item.insert(QStringLiteral("artist"), readArtistFromObject(itemObj));
-            item.insert(QStringLiteral("album"), itemObj.value(QStringLiteral("album")).toString());
-            item.insert(QStringLiteral("duration_sec"), durationSec);
-            item.insert(QStringLiteral("duration"), durationText);
-            item.insert(QStringLiteral("cover_art_url"), coverArtUrl);
-            item.insert(QStringLiteral("source"), itemObj.value(QStringLiteral("source")).toString());
-            item.insert(QStringLiteral("source_id"),
-                        itemObj.value(QStringLiteral("source_id")).toString());
-            item.insert(QStringLiteral("play_count"),
-                        itemObj.value(QStringLiteral("play_count")).toVariant());
-
-            rememberCoverForMusicPath(musicPath, coverArtUrl);
-            rememberCoverForMusicPath(rawPath, coverArtUrl);
-            rememberCoverForSongMeta(item.value(QStringLiteral("title")).toString(),
-                                     item.value(QStringLiteral("artist")).toString(), coverArtUrl);
-            items.append(item);
-        }
-
-        emit signalHotChartResult(true, meta, items, QString(), response.statusCode,
-                                  normalizedWindow);
-    });
+            emit signalHotChartResult(true, meta, items, QString(), response.statusCode,
+                                      normalizedWindow);
+        });
 }
 
 void HttpRequestV2::postRecommendationFeedback(const QString& userId, const QString& songId,
@@ -1883,60 +1890,63 @@ void HttpRequestV2::getMusicComments(const QString& musicPath, int page, int pag
     auto options = Network::RequestOptions::withPriority(Network::RequestPriority::High);
     options.useCache = false;
 
-    m_networkService.get(url, options, [this, trimmedPath, page, pageSize](
-                                        const Network::NetworkResponse& response) {
-        if (!response.isSuccess()) {
-            emit signalMusicCommentsResult(
-                false, QVariantMap(), QVariantList(),
-                extractCommentMessage(response, QStringLiteral("评论加载失败")), response.statusCode,
-                trimmedPath, page, pageSize);
-            return;
-        }
-
-        const QJsonObject rootObj = Network::NetworkService::parseJsonObject(response);
-        const QJsonObject dataObj = unwrapDataObject(rootObj);
-
-        QVariantMap threadMeta;
-        threadMeta.insert(QStringLiteral("music_path"),
-                          dataObj.value(QStringLiteral("music_path")).toString());
-        threadMeta.insert(QStringLiteral("source"), dataObj.value(QStringLiteral("source")).toString());
-        threadMeta.insert(QStringLiteral("source_id"),
-                          dataObj.value(QStringLiteral("source_id")).toVariant());
-        threadMeta.insert(QStringLiteral("music_title"),
-                          dataObj.value(QStringLiteral("music_title")).toString());
-        threadMeta.insert(QStringLiteral("artist"), dataObj.value(QStringLiteral("artist")).toString());
-        threadMeta.insert(
-            QStringLiteral("cover_art_url"),
-            rewriteServiceUrlToBase(dataObj.value(QStringLiteral("cover_art_url")).toString(),
-                                    m_baseUrl));
-        threadMeta.insert(QStringLiteral("root_comment_count"),
-                          dataObj.value(QStringLiteral("root_comment_count")).toInt());
-        threadMeta.insert(QStringLiteral("total_comment_count"),
-                          dataObj.value(QStringLiteral("total_comment_count")).toInt());
-        threadMeta.insert(QStringLiteral("page"), dataObj.value(QStringLiteral("page")).toInt(page));
-        threadMeta.insert(QStringLiteral("page_size"),
-                          dataObj.value(QStringLiteral("page_size")).toInt(pageSize));
-
-        QVariantList items;
-        const QJsonArray itemArray = dataObj.value(QStringLiteral("items")).toArray();
-        items.reserve(itemArray.size());
-        for (const QJsonValue& value : itemArray) {
-            if (!value.isObject()) {
-                continue;
+    m_networkService.get(
+        url, options,
+        [this, trimmedPath, page, pageSize](const Network::NetworkResponse& response) {
+            if (!response.isSuccess()) {
+                emit signalMusicCommentsResult(
+                    false, QVariantMap(), QVariantList(),
+                    extractCommentMessage(response, QStringLiteral("评论加载失败")),
+                    response.statusCode, trimmedPath, page, pageSize);
+                return;
             }
-            items.append(parseCommentItem(value.toObject(), m_baseUrl));
-        }
 
-        emit signalMusicCommentsResult(true, threadMeta, items, QString(), response.statusCode,
-                                       trimmedPath, page, pageSize);
-    });
+            const QJsonObject rootObj = Network::NetworkService::parseJsonObject(response);
+            const QJsonObject dataObj = unwrapDataObject(rootObj);
+
+            QVariantMap threadMeta;
+            threadMeta.insert(QStringLiteral("music_path"),
+                              dataObj.value(QStringLiteral("music_path")).toString());
+            threadMeta.insert(QStringLiteral("source"),
+                              dataObj.value(QStringLiteral("source")).toString());
+            threadMeta.insert(QStringLiteral("source_id"),
+                              dataObj.value(QStringLiteral("source_id")).toVariant());
+            threadMeta.insert(QStringLiteral("music_title"),
+                              dataObj.value(QStringLiteral("music_title")).toString());
+            threadMeta.insert(QStringLiteral("artist"),
+                              dataObj.value(QStringLiteral("artist")).toString());
+            threadMeta.insert(
+                QStringLiteral("cover_art_url"),
+                rewriteServiceUrlToBase(dataObj.value(QStringLiteral("cover_art_url")).toString(),
+                                        m_baseUrl));
+            threadMeta.insert(QStringLiteral("root_comment_count"),
+                              dataObj.value(QStringLiteral("root_comment_count")).toInt());
+            threadMeta.insert(QStringLiteral("total_comment_count"),
+                              dataObj.value(QStringLiteral("total_comment_count")).toInt());
+            threadMeta.insert(QStringLiteral("page"),
+                              dataObj.value(QStringLiteral("page")).toInt(page));
+            threadMeta.insert(QStringLiteral("page_size"),
+                              dataObj.value(QStringLiteral("page_size")).toInt(pageSize));
+
+            QVariantList items;
+            const QJsonArray itemArray = dataObj.value(QStringLiteral("items")).toArray();
+            items.reserve(itemArray.size());
+            for (const QJsonValue& value : itemArray) {
+                if (!value.isObject()) {
+                    continue;
+                }
+                items.append(parseCommentItem(value.toObject(), m_baseUrl));
+            }
+
+            emit signalMusicCommentsResult(true, threadMeta, items, QString(), response.statusCode,
+                                           trimmedPath, page, pageSize);
+        });
 }
 
 void HttpRequestV2::getMusicCommentReplies(qint64 rootCommentId, int page, int pageSize) {
     if (rootCommentId <= 0) {
         emit signalMusicCommentRepliesResult(false, rootCommentId, QVariantList(), 0,
-                                             QStringLiteral("评论 ID 无效"), 400, page,
-                                             pageSize);
+                                             QStringLiteral("评论 ID 无效"), 400, page, pageSize);
         return;
     }
 
@@ -1944,8 +1954,7 @@ void HttpRequestV2::getMusicCommentReplies(qint64 rootCommentId, int page, int p
     query.addQueryItem(QStringLiteral("page"), QString::number(qMax(1, page)));
     query.addQueryItem(QStringLiteral("page_size"), QString::number(qBound(1, pageSize, 100)));
 
-    QString url =
-        QStringLiteral("music/comments/%1/replies").arg(QString::number(rootCommentId));
+    QString url = QStringLiteral("music/comments/%1/replies").arg(QString::number(rootCommentId));
     const QString encodedQuery = query.toString(QUrl::FullyEncoded);
     if (!encodedQuery.isEmpty()) {
         url += QStringLiteral("?") + encodedQuery;
@@ -1954,34 +1963,35 @@ void HttpRequestV2::getMusicCommentReplies(qint64 rootCommentId, int page, int p
     auto options = Network::RequestOptions::withPriority(Network::RequestPriority::High);
     options.useCache = false;
 
-    m_networkService.get(url, options, [this, rootCommentId, page, pageSize](
-                                        const Network::NetworkResponse& response) {
-        if (!response.isSuccess()) {
-            emit signalMusicCommentRepliesResult(
-                false, rootCommentId, QVariantList(), 0,
-                extractCommentMessage(response, QStringLiteral("回复加载失败")),
-                response.statusCode, page, pageSize);
-            return;
-        }
-
-        const QJsonObject rootObj = Network::NetworkService::parseJsonObject(response);
-        const QJsonObject dataObj = unwrapDataObject(rootObj);
-
-        QVariantList items;
-        const QJsonArray itemArray = dataObj.value(QStringLiteral("items")).toArray();
-        items.reserve(itemArray.size());
-        for (const QJsonValue& value : itemArray) {
-            if (!value.isObject()) {
-                continue;
+    m_networkService.get(
+        url, options,
+        [this, rootCommentId, page, pageSize](const Network::NetworkResponse& response) {
+            if (!response.isSuccess()) {
+                emit signalMusicCommentRepliesResult(
+                    false, rootCommentId, QVariantList(), 0,
+                    extractCommentMessage(response, QStringLiteral("回复加载失败")),
+                    response.statusCode, page, pageSize);
+                return;
             }
-            items.append(parseCommentItem(value.toObject(), m_baseUrl));
-        }
 
-        emit signalMusicCommentRepliesResult(
-            true, rootCommentId, items, dataObj.value(QStringLiteral("total")).toInt(), QString(),
-            response.statusCode, dataObj.value(QStringLiteral("page")).toInt(page),
-            dataObj.value(QStringLiteral("page_size")).toInt(pageSize));
-    });
+            const QJsonObject rootObj = Network::NetworkService::parseJsonObject(response);
+            const QJsonObject dataObj = unwrapDataObject(rootObj);
+
+            QVariantList items;
+            const QJsonArray itemArray = dataObj.value(QStringLiteral("items")).toArray();
+            items.reserve(itemArray.size());
+            for (const QJsonValue& value : itemArray) {
+                if (!value.isObject()) {
+                    continue;
+                }
+                items.append(parseCommentItem(value.toObject(), m_baseUrl));
+            }
+
+            emit signalMusicCommentRepliesResult(
+                true, rootCommentId, items, dataObj.value(QStringLiteral("total")).toInt(),
+                QString(), response.statusCode, dataObj.value(QStringLiteral("page")).toInt(page),
+                dataObj.value(QStringLiteral("page_size")).toInt(pageSize));
+        });
 }
 
 void HttpRequestV2::createMusicComment(const QString& userAccount, const QString& sessionToken,
@@ -1999,34 +2009,30 @@ void HttpRequestV2::createMusicComment(const QString& userAccount, const QString
     options.useCache = false;
     options.maxRetries = 0;
 
-    m_networkService.postJson(QStringLiteral("music/comments"), json, options,
-                              [this, musicPath](const Network::NetworkResponse& response) {
-                                  if (!response.isSuccess()) {
-                                      emit signalCreateMusicCommentResult(
-                                          false, QVariantMap(),
-                                          extractCommentMessage(response,
-                                                                QStringLiteral("发表评论失败")),
-                                          response.statusCode, musicPath);
-                                      return;
-                                  }
+    m_networkService.postJson(
+        QStringLiteral("music/comments"), json, options,
+        [this, musicPath](const Network::NetworkResponse& response) {
+            if (!response.isSuccess()) {
+                emit signalCreateMusicCommentResult(
+                    false, QVariantMap(),
+                    extractCommentMessage(response, QStringLiteral("发表评论失败")),
+                    response.statusCode, musicPath);
+                return;
+            }
 
-                                  const QJsonObject rootObj =
-                                      Network::NetworkService::parseJsonObject(response);
-                                  const QJsonObject dataObj = unwrapDataObject(rootObj);
-                                  const QVariantMap comment =
-                                      parseCommentItem(dataObj.value(QStringLiteral("comment"))
-                                                           .toObject(),
-                                                       m_baseUrl);
-                                  emit signalCreateMusicCommentResult(
-                                      true, comment,
-                                      dataObj.value(QStringLiteral("message")).toString(),
-                                      response.statusCode, musicPath);
-                              });
+            const QJsonObject rootObj = Network::NetworkService::parseJsonObject(response);
+            const QJsonObject dataObj = unwrapDataObject(rootObj);
+            const QVariantMap comment =
+                parseCommentItem(dataObj.value(QStringLiteral("comment")).toObject(), m_baseUrl);
+            emit signalCreateMusicCommentResult(true, comment,
+                                                dataObj.value(QStringLiteral("message")).toString(),
+                                                response.statusCode, musicPath);
+        });
 }
 
 void HttpRequestV2::createMusicCommentReply(qint64 rootCommentId, const QString& userAccount,
-                                            const QString& sessionToken,
-                                            const QString& content, qint64 targetCommentId) {
+                                            const QString& sessionToken, const QString& content,
+                                            qint64 targetCommentId) {
     QJsonObject json;
     json.insert(QStringLiteral("user_account"), userAccount.trimmed());
     json.insert(QStringLiteral("session_token"), sessionToken.trimmed());
@@ -2041,30 +2047,25 @@ void HttpRequestV2::createMusicCommentReply(qint64 rootCommentId, const QString&
 
     const QString url =
         QStringLiteral("music/comments/%1/replies").arg(QString::number(rootCommentId));
-    m_networkService.postJson(url, json, options,
-                              [this, rootCommentId, targetCommentId](
-                                  const Network::NetworkResponse& response) {
-                                  if (!response.isSuccess()) {
-                                      emit signalCreateMusicCommentReplyResult(
-                                          false, rootCommentId, QVariantMap(),
-                                          extractCommentMessage(response,
-                                                                QStringLiteral("回复失败")),
-                                          response.statusCode, targetCommentId);
-                                      return;
-                                  }
+    m_networkService.postJson(
+        url, json, options,
+        [this, rootCommentId, targetCommentId](const Network::NetworkResponse& response) {
+            if (!response.isSuccess()) {
+                emit signalCreateMusicCommentReplyResult(
+                    false, rootCommentId, QVariantMap(),
+                    extractCommentMessage(response, QStringLiteral("回复失败")),
+                    response.statusCode, targetCommentId);
+                return;
+            }
 
-                                  const QJsonObject rootObj =
-                                      Network::NetworkService::parseJsonObject(response);
-                                  const QJsonObject dataObj = unwrapDataObject(rootObj);
-                                  const QVariantMap comment =
-                                      parseCommentItem(dataObj.value(QStringLiteral("comment"))
-                                                           .toObject(),
-                                                       m_baseUrl);
-                                  emit signalCreateMusicCommentReplyResult(
-                                      true, rootCommentId, comment,
-                                      dataObj.value(QStringLiteral("message")).toString(),
-                                      response.statusCode, targetCommentId);
-                              });
+            const QJsonObject rootObj = Network::NetworkService::parseJsonObject(response);
+            const QJsonObject dataObj = unwrapDataObject(rootObj);
+            const QVariantMap comment =
+                parseCommentItem(dataObj.value(QStringLiteral("comment")).toObject(), m_baseUrl);
+            emit signalCreateMusicCommentReplyResult(
+                true, rootCommentId, comment, dataObj.value(QStringLiteral("message")).toString(),
+                response.statusCode, targetCommentId);
+        });
 }
 
 void HttpRequestV2::deleteMusicComment(qint64 commentId, const QString& userAccount,
@@ -2078,22 +2079,22 @@ void HttpRequestV2::deleteMusicComment(qint64 commentId, const QString& userAcco
     options.maxRetries = 0;
 
     const QString url = QStringLiteral("music/comments/%1/delete").arg(QString::number(commentId));
-    m_networkService.postJson(url, json, options, [this, commentId](
-                                                   const Network::NetworkResponse& response) {
-        if (!response.isSuccess()) {
-            emit signalDeleteMusicCommentResult(
-                false, commentId,
-                extractCommentMessage(response, QStringLiteral("删除评论失败")),
-                response.statusCode);
-            return;
-        }
+    m_networkService.postJson(
+        url, json, options, [this, commentId](const Network::NetworkResponse& response) {
+            if (!response.isSuccess()) {
+                emit signalDeleteMusicCommentResult(
+                    false, commentId,
+                    extractCommentMessage(response, QStringLiteral("删除评论失败")),
+                    response.statusCode);
+                return;
+            }
 
-        const QJsonObject rootObj = Network::NetworkService::parseJsonObject(response);
-        const QJsonObject dataObj = unwrapDataObject(rootObj);
-        emit signalDeleteMusicCommentResult(
-            true, commentId, dataObj.value(QStringLiteral("message")).toString(),
-            response.statusCode);
-    });
+            const QJsonObject rootObj = Network::NetworkService::parseJsonObject(response);
+            const QJsonObject dataObj = unwrapDataObject(rootObj);
+            emit signalDeleteMusicCommentResult(true, commentId,
+                                                dataObj.value(QStringLiteral("message")).toString(),
+                                                response.statusCode);
+        });
 }
 
 void HttpRequestV2::addMusic(const QString& musicPath) {
@@ -2418,8 +2419,8 @@ QVariantMap HttpRequestV2::parsePlaylistDetailPayload(const Network::NetworkResp
     detail.insert(QStringLiteral("description"),
                   detailObj.value(QStringLiteral("description")).toString());
     detail.insert(QStringLiteral("cover_url"),
-                  rewriteServiceUrlToBase(
-                      detailObj.value(QStringLiteral("cover_url")).toString(), m_baseUrl));
+                  rewriteServiceUrlToBase(detailObj.value(QStringLiteral("cover_url")).toString(),
+                                          m_baseUrl));
     detail.insert(QStringLiteral("created_at"),
                   detailObj.value(QStringLiteral("created_at")).toString());
     detail.insert(QStringLiteral("updated_at"),
@@ -2468,8 +2469,8 @@ QVariantMap HttpRequestV2::parsePlaylistDetailPayload(const Network::NetworkResp
         QString coverArtUrl = rewriteServiceUrlToBase(
             obj.value(QStringLiteral("cover_art_url")).toString(), m_baseUrl);
         if (coverArtUrl.trimmed().isEmpty()) {
-            coverArtUrl = rewriteServiceUrlToBase(
-                obj.value(QStringLiteral("cover_url")).toString(), m_baseUrl);
+            coverArtUrl = rewriteServiceUrlToBase(obj.value(QStringLiteral("cover_url")).toString(),
+                                                  m_baseUrl);
         }
         if (coverArtUrl.trimmed().isEmpty()) {
             coverArtUrl = rewriteServiceUrlToBase(
@@ -2493,8 +2494,7 @@ QVariantMap HttpRequestV2::parsePlaylistDetailPayload(const Network::NetworkResp
         rememberCoverForSongMeta(obj.value(QStringLiteral("music_title")).toString(),
                                  readArtistFromObject(obj), coverArtUrl);
 
-        item.insert(QStringLiteral("id"),
-                    obj.value(QStringLiteral("id")).toVariant().toLongLong());
+        item.insert(QStringLiteral("id"), obj.value(QStringLiteral("id")).toVariant().toLongLong());
         item.insert(QStringLiteral("position"), obj.value(QStringLiteral("position")).toInt());
         item.insert(QStringLiteral("path"), musicPath);
         item.insert(QStringLiteral("music_path"), musicPath);
@@ -2508,8 +2508,7 @@ QVariantMap HttpRequestV2::parsePlaylistDetailPayload(const Network::NetworkResp
         item.insert(QStringLiteral("duration_sec"),
                     obj.value(QStringLiteral("duration_sec")).toInt());
         item.insert(QStringLiteral("is_local"), isLocal);
-        item.insert(QStringLiteral("added_at"),
-                    obj.value(QStringLiteral("added_at")).toString());
+        item.insert(QStringLiteral("added_at"), obj.value(QStringLiteral("added_at")).toString());
         item.insert(QStringLiteral("cover_art_url"), coverArtUrl);
 
         items.append(item);
@@ -2520,8 +2519,7 @@ QVariantMap HttpRequestV2::parsePlaylistDetailPayload(const Network::NetworkResp
         detailObj.value(QStringLiteral("total_duration_sec")).toInt(totalDurationSec);
     detail.insert(QStringLiteral("track_count"), trackCount);
     detail.insert(QStringLiteral("total_duration_sec"), serverDurationSec);
-    detail.insert(QStringLiteral("total_duration"),
-                  formatDurationFromSeconds(serverDurationSec));
+    detail.insert(QStringLiteral("total_duration"), formatDurationFromSeconds(serverDurationSec));
     detail.insert(QStringLiteral("items"), items);
 
     return detail;
@@ -2581,19 +2579,21 @@ void HttpRequestV2::getPlaylistDetailForCover(const QString& userAccount, qint64
         options.useCache = false;
     }
 
-    m_networkService.get(url, options, [this, playlistId](const Network::NetworkResponse& response) {
-        if (!response.isSuccess()) {
-            qWarning() << "[HttpRequestV2] Get playlist cover detail error:" << response.errorString;
-            QVariantMap failedDetail;
-            failedDetail.insert(QStringLiteral("id"), playlistId);
-            failedDetail.insert(QStringLiteral("_prefetch_failed"), true);
-            emit signalPlaylistCoverDetail(failedDetail);
-            return;
-        }
+    m_networkService.get(url, options,
+                         [this, playlistId](const Network::NetworkResponse& response) {
+                             if (!response.isSuccess()) {
+                                 qWarning() << "[HttpRequestV2] Get playlist cover detail error:"
+                                            << response.errorString;
+                                 QVariantMap failedDetail;
+                                 failedDetail.insert(QStringLiteral("id"), playlistId);
+                                 failedDetail.insert(QStringLiteral("_prefetch_failed"), true);
+                                 emit signalPlaylistCoverDetail(failedDetail);
+                                 return;
+                             }
 
-        const QVariantMap detail = parsePlaylistDetailPayload(response);
-        emit signalPlaylistCoverDetail(detail);
-    });
+                             const QVariantMap detail = parsePlaylistDetailPayload(response);
+                             emit signalPlaylistCoverDetail(detail);
+                         });
 }
 
 void HttpRequestV2::deletePlaylist(const QString& userAccount, qint64 playlistId) {

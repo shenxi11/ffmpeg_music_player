@@ -82,8 +82,8 @@ void MainShellViewModel::setupConnections() {
                                                       pageSize);
             });
     connect(&m_request, &HttpRequestV2::signalCreateMusicCommentResult, this,
-            [this](bool success, const QVariantMap& comment, const QString& message,
-                   int statusCode, const QString& musicPath) {
+            [this](bool success, const QVariantMap& comment, const QString& message, int statusCode,
+                   const QString& musicPath) {
                 if (!success && statusCode == 401) {
                     emit sessionExpired();
                 }
@@ -122,9 +122,9 @@ void MainShellViewModel::setupConnections() {
             const QString createdAt = profile.value(QStringLiteral("created_at")).toString();
             const QString updatedAt = profile.value(QStringLiteral("updated_at")).toString();
             const QString onlineToken = currentOnlineSessionToken();
-            const QString persistedUsername =
-                username.trimmed().isEmpty() ? SettingsManager::instance().cachedUsername()
-                                             : username;
+            const QString persistedUsername = username.trimmed().isEmpty()
+                                                  ? SettingsManager::instance().cachedUsername()
+                                                  : username;
 
             if (!username.trimmed().isEmpty()) {
                 User::getInstance()->setUsername(username);

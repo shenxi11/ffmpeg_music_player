@@ -152,9 +152,8 @@ class MainShellViewModel : public BaseViewModel {
                                        const QString& message, int statusCode,
                                        const QString& musicPath);
     void createMusicCommentReplyResultReady(bool success, qint64 rootCommentId,
-                                            const QVariantMap& comment,
-                                            const QString& message, int statusCode,
-                                            qint64 targetCommentId);
+                                            const QVariantMap& comment, const QString& message,
+                                            int statusCode, qint64 targetCommentId);
     void deleteMusicCommentResultReady(bool success, qint64 commentId, const QString& message,
                                        int statusCode);
     void userProfileReady(const QVariantMap& profile);
