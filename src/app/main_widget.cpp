@@ -486,11 +486,17 @@ MainWidget::MainWidget(bool localOnlyMode, QWidget* parent)
             &MainWidget::handleSearchResultsReady);
     connect(m_viewModel, &MainShellViewModel::recommendationListReady, recommendMusicWidget,
             &RecommendMusicWidget::loadRecommendations);
+    connect(m_viewModel, &MainShellViewModel::hotChartReady, recommendMusicWidget,
+            &RecommendMusicWidget::loadHotChart);
+    connect(m_viewModel, &MainShellViewModel::hotChartRequestFailed, recommendMusicWidget,
+            &RecommendMusicWidget::showHotChartError);
     connect(m_viewModel, &MainShellViewModel::similarRecommendationListReady, this,
             &MainWidget::handleSimilarRecommendationListReady);
 
-    connect(recommendMusicWidget, &RecommendMusicWidget::refreshRequested, this,
+    connect(recommendMusicWidget, &RecommendMusicWidget::requestRecommendations, this,
             &MainWidget::handleRecommendRefreshRequested);
+    connect(recommendMusicWidget, &RecommendMusicWidget::requestHotChart, this,
+            &MainWidget::handleRecommendHotChartRequested);
     connect(recommendMusicWidget, &RecommendMusicWidget::loginRequested, this,
             &MainWidget::handleRecommendLoginRequested);
     connect(recommendMusicWidget, &RecommendMusicWidget::playMusicWithMetadata, this,
@@ -741,13 +747,8 @@ void MainWidget::handleRecommendTabToggled(bool checked) {
 
     showContentPanel(recommendMusicWidget);
 
-    if (isUserLoggedIn()) {
-        const QString userAccount = m_viewModel ? m_viewModel->currentUserAccount() : QString();
-        if (m_viewModel) {
-            m_viewModel->requestRecommendations(userAccount, QStringLiteral("home"), 24, true);
-        }
-    } else if (recommendMusicWidget) {
-        recommendMusicWidget->setLoggedIn(false);
+    if (recommendMusicWidget) {
+        recommendMusicWidget->activateForEntry();
     }
 }
 
@@ -988,6 +989,13 @@ void MainWidget::handleRecommendRefreshRequested() {
         m_viewModel->requestRecommendations(m_viewModel->currentUserAccount(),
                                             QStringLiteral("home"), 24, true);
     }
+}
+
+void MainWidget::handleRecommendHotChartRequested(const QString& window) {
+    if (!m_viewModel) {
+        return;
+    }
+    m_viewModel->requestHotChart(window, 20);
 }
 
 void MainWidget::handleRecommendLoginRequested() {

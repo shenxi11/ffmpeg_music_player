@@ -20,6 +20,15 @@ void MainShellViewModel::setupConnections() {
             &MainShellViewModel::recommendationListReady);
     connect(&m_request, &HttpRequestV2::signalSimilarRecommendationList, this,
             &MainShellViewModel::similarRecommendationListReady);
+    connect(&m_request, &HttpRequestV2::signalHotChartResult, this,
+            [this](bool success, const QVariantMap& meta, const QVariantList& items,
+                   const QString& message, int statusCode, const QString& window) {
+                if (success) {
+                    emit hotChartReady(meta, items);
+                    return;
+                }
+                emit hotChartRequestFailed(message, statusCode, window);
+            });
     connect(&m_request, &HttpRequestV2::signalRecommendationFeedbackResult, this,
             &MainShellViewModel::recommendationFeedbackResultReady);
     connect(&m_request, &HttpRequestV2::signalHistoryList, this,

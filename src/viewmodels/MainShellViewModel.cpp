@@ -136,6 +136,10 @@ void MainShellViewModel::requestSimilarRecommendations(const QString& songId, in
     m_request.getSimilarRecommendations(songId, limit);
 }
 
+void MainShellViewModel::requestHotChart(const QString& window, int limit) {
+    m_request.getHotMusicChart(window, limit);
+}
+
 void MainShellViewModel::submitRecommendationFeedback(
     const QString& userId, const QString& songId, const QString& eventType, const QString& scene,
     const QString& requestId, const QString& modelVersion, qint64 playMs, qint64 durationMs) {

@@ -366,6 +366,7 @@ class MainWidget : public QWidget {
     void handleSimilarRecommendationListReady(const QVariantMap& meta, const QVariantList& items,
                                               const QString& anchorSongId);
     void handleRecommendRefreshRequested();
+    void handleRecommendHotChartRequested(const QString& window);
     void handleRecommendLoginRequested();
     void handleRecommendPlayMusicWithMetadata(const QString& filePath, const QString& musicPath,
                                               const QString& title, const QString& artist,

@@ -477,6 +477,9 @@ void MainWidget::handleUserLoginStateChanged(bool loggedIn) {
     favoriteMusicWidget->setUserAccount(userAccount);
     recommendMusicWidget->setLoggedIn(loggedIn, userAccount);
     playlistWidget->setLoggedIn(loggedIn, userAccount);
+    if (m_activeContentWidget == recommendMusicWidget) {
+        recommendMusicWidget->activateForEntry();
+    }
 
     if (favoriteButton) {
         favoriteButton->setVisible(loggedIn);
@@ -1245,6 +1248,19 @@ void MainWidget::playSongByAction(const QVariantMap& songData) {
     if (!isLocal && !cover.isEmpty()) {
         m_networkMusicArtist = artist;
         m_networkMusicCover = cover;
+    }
+    if (isLocal) {
+        clearCommentTrackContext();
+    } else {
+        QString commentMusicPath = songData.value(QStringLiteral("musicPath")).toString().trimmed();
+        if (commentMusicPath.isEmpty()) {
+            commentMusicPath =
+                songData.value(QStringLiteral("music_path")).toString().trimmed();
+        }
+        if (commentMusicPath.isEmpty()) {
+            commentMusicPath = songData.value(QStringLiteral("path")).toString().trimmed();
+        }
+        applyCommentTrackContext(commentMusicPath, title, artist, cover);
     }
     if (url.isValid() && !url.isEmpty()) {
         w->playbackViewModel()->rememberTrackMetadata(url, songData);
