@@ -3,8 +3,8 @@
 #include "VideoPlayerWindow.h"
 #include "playback_state_manager.h"
 #include "plugin_host_window.h"
-#include "search_history_popup.h"
 #include "plugin_manager.h"
+#include "search_history_popup.h"
 #include "searchbox_qml.h"
 #include "settings_manager.h"
 
@@ -486,11 +486,17 @@ MainWidget::MainWidget(bool localOnlyMode, QWidget* parent)
             &MainWidget::handleSearchResultsReady);
     connect(m_viewModel, &MainShellViewModel::recommendationListReady, recommendMusicWidget,
             &RecommendMusicWidget::loadRecommendations);
+    connect(m_viewModel, &MainShellViewModel::hotChartReady, recommendMusicWidget,
+            &RecommendMusicWidget::loadHotChart);
+    connect(m_viewModel, &MainShellViewModel::hotChartRequestFailed, recommendMusicWidget,
+            &RecommendMusicWidget::showHotChartError);
     connect(m_viewModel, &MainShellViewModel::similarRecommendationListReady, this,
             &MainWidget::handleSimilarRecommendationListReady);
 
-    connect(recommendMusicWidget, &RecommendMusicWidget::refreshRequested, this,
+    connect(recommendMusicWidget, &RecommendMusicWidget::requestRecommendations, this,
             &MainWidget::handleRecommendRefreshRequested);
+    connect(recommendMusicWidget, &RecommendMusicWidget::requestHotChart, this,
+            &MainWidget::handleRecommendHotChartRequested);
     connect(recommendMusicWidget, &RecommendMusicWidget::loginRequested, this,
             &MainWidget::handleRecommendLoginRequested);
     connect(recommendMusicWidget, &RecommendMusicWidget::playMusicWithMetadata, this,
@@ -551,9 +557,9 @@ void MainWidget::showContentPanel(QWidget* activeWidget) {
         activeWidget = localAndDownloadWidget;
     }
 
-    const bool leavingCommentContent =
-        commentPageWidget && m_activeContentWidget == commentPageWidget &&
-        activeWidget != commentPageWidget;
+    const bool leavingCommentContent = commentPageWidget &&
+                                       m_activeContentWidget == commentPageWidget &&
+                                       activeWidget != commentPageWidget;
     if (leavingCommentContent) {
         if (w) {
             w->setMainContentCommentVisible(false);
@@ -741,13 +747,8 @@ void MainWidget::handleRecommendTabToggled(bool checked) {
 
     showContentPanel(recommendMusicWidget);
 
-    if (isUserLoggedIn()) {
-        const QString userAccount = m_viewModel ? m_viewModel->currentUserAccount() : QString();
-        if (m_viewModel) {
-            m_viewModel->requestRecommendations(userAccount, QStringLiteral("home"), 24, true);
-        }
-    } else if (recommendMusicWidget) {
-        recommendMusicWidget->setLoggedIn(false);
+    if (recommendMusicWidget) {
+        recommendMusicWidget->activateForEntry();
     }
 }
 
@@ -990,14 +991,21 @@ void MainWidget::handleRecommendRefreshRequested() {
     }
 }
 
+void MainWidget::handleRecommendHotChartRequested(const QString& window) {
+    if (!m_viewModel) {
+        return;
+    }
+    m_viewModel->requestHotChart(window, 20);
+}
+
 void MainWidget::handleRecommendLoginRequested() {
     showLoginWindow();
 }
 
 void MainWidget::handleRecommendPlayMusicWithMetadata(
     const QString& filePath, const QString& musicPath, const QString& title, const QString& artist,
-    const QString& cover, const QString& duration, const QString& songId,
-    const QString& requestId, const QString& modelVersion, const QString& scene) {
+    const QString& cover, const QString& duration, const QString& songId, const QString& requestId,
+    const QString& modelVersion, const QString& scene) {
     Q_UNUSED(duration);
     Q_UNUSED(requestId);
     Q_UNUSED(modelVersion);

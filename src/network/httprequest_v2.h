@@ -99,6 +99,7 @@ class HttpRequestV2 : public QObject {
                                  const QString& scene = QStringLiteral("home"), int limit = 20,
                                  bool excludePlayed = true, const QString& cursor = QString());
     void getSimilarRecommendations(const QString& songId, int limit = 20);
+    void getHotMusicChart(const QString& window = QStringLiteral("30d"), int limit = 20);
 
     /**
      * @brief 上报推荐反馈事件
@@ -287,6 +288,8 @@ class HttpRequestV2 : public QObject {
     void signalRecommendationList(const QVariantMap& meta, const QVariantList& items);
     void signalSimilarRecommendationList(const QVariantMap& meta, const QVariantList& items,
                                          const QString& anchorSongId);
+    void signalHotChartResult(bool success, const QVariantMap& meta, const QVariantList& items,
+                              const QString& message, int statusCode, const QString& window);
     void signalRecommendationFeedbackResult(bool success, const QString& eventType,
                                             const QString& songId);
     void signalStreamurl(bool flag, QString url); // 音乐流 URL 信号
@@ -302,9 +305,8 @@ class HttpRequestV2 : public QObject {
                                         const QString& message, int statusCode,
                                         const QString& musicPath);
     void signalCreateMusicCommentReplyResult(bool success, qint64 rootCommentId,
-                                             const QVariantMap& comment,
-                                             const QString& message, int statusCode,
-                                             qint64 targetCommentId);
+                                             const QVariantMap& comment, const QString& message,
+                                             int statusCode, qint64 targetCommentId);
     void signalDeleteMusicCommentResult(bool success, qint64 commentId, const QString& message,
                                         int statusCode);
 

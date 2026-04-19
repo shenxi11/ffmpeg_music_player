@@ -44,6 +44,7 @@ class MainShellViewModel : public BaseViewModel {
                                 const QString& scene = QStringLiteral("home"), int limit = 24,
                                 bool excludePlayed = true);
     void requestSimilarRecommendations(const QString& songId, int limit = 12);
+    void requestHotChart(const QString& window = QStringLiteral("30d"), int limit = 20);
     void submitRecommendationFeedback(const QString& userId, const QString& songId,
                                       const QString& eventType, const QString& scene,
                                       const QString& requestId, const QString& modelVersion,
@@ -118,6 +119,8 @@ class MainShellViewModel : public BaseViewModel {
     void recommendationListReady(const QVariantMap& meta, const QVariantList& items);
     void similarRecommendationListReady(const QVariantMap& meta, const QVariantList& items,
                                         const QString& anchorSongId);
+    void hotChartReady(const QVariantMap& meta, const QVariantList& items);
+    void hotChartRequestFailed(const QString& message, int statusCode, const QString& window);
     void recommendationFeedbackResultReady(bool success, const QString& eventType,
                                            const QString& songId);
     void historyListReady(const QVariantList& history);
@@ -149,9 +152,8 @@ class MainShellViewModel : public BaseViewModel {
                                        const QString& message, int statusCode,
                                        const QString& musicPath);
     void createMusicCommentReplyResultReady(bool success, qint64 rootCommentId,
-                                            const QVariantMap& comment,
-                                            const QString& message, int statusCode,
-                                            qint64 targetCommentId);
+                                            const QVariantMap& comment, const QString& message,
+                                            int statusCode, qint64 targetCommentId);
     void deleteMusicCommentResultReady(bool success, qint64 commentId, const QString& message,
                                        int statusCode);
     void userProfileReady(const QVariantMap& profile);

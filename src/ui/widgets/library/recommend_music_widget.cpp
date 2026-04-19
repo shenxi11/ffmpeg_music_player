@@ -1,11 +1,9 @@
 #include "recommend_music_widget.h"
 
-#include <QMetaObject>
 #include <QDebug>
+#include <QMetaObject>
 
-RecommendMusicWidget::RecommendMusicWidget(QWidget* parent)
-    : QQuickWidget(parent)
-{
+RecommendMusicWidget::RecommendMusicWidget(QWidget* parent) : QQuickWidget(parent) {
     setResizeMode(QQuickWidget::SizeRootObjectToView);
     setSource(QUrl("qrc:/qml/components/library/RecommendMusicWidget.qml"));
     setAttribute(Qt::WA_TranslucentBackground);
@@ -16,20 +14,24 @@ RecommendMusicWidget::RecommendMusicWidget(QWidget* parent)
         return;
     }
 
-    connect(root, SIGNAL(playMusicWithMetadata(QString,QString,QString,QString,QString,QString,QString,QString,QString)),
-            this, SIGNAL(playMusicWithMetadata(QString,QString,QString,QString,QString,QString,QString,QString,QString)));
-    connect(root, SIGNAL(addToFavorite(QString,QString,QString,QString,bool)),
-            this, SIGNAL(addToFavorite(QString,QString,QString,QString,bool)));
-    connect(root, SIGNAL(feedbackEvent(QString,QString,int,int,QString,QString,QString)),
-            this, SIGNAL(feedbackEvent(QString,QString,int,int,QString,QString,QString)));
+    connect(root,
+            SIGNAL(playMusicWithMetadata(QString, QString, QString, QString, QString, QString,
+                                         QString, QString, QString, QString)),
+            this,
+            SIGNAL(playMusicWithMetadata(QString, QString, QString, QString, QString, QString,
+                                         QString, QString, QString, QString)));
+    connect(root, SIGNAL(addToFavorite(QString, QString, QString, QString, bool)), this,
+            SIGNAL(addToFavorite(QString, QString, QString, QString, bool)));
+    connect(root, SIGNAL(feedbackEvent(QString, QString, int, int, QString, QString, QString)),
+            this, SIGNAL(feedbackEvent(QString, QString, int, int, QString, QString, QString)));
+    connect(root, SIGNAL(requestRecommendations()), this, SIGNAL(requestRecommendations()));
+    connect(root, SIGNAL(requestHotChart(QString)), this, SIGNAL(requestHotChart(QString)));
     connect(root, SIGNAL(loginRequested()), this, SIGNAL(loginRequested()));
-    connect(root, SIGNAL(refreshRequested()), this, SIGNAL(refreshRequested()));
-    connect(root, SIGNAL(songActionRequested(QString,QVariant)),
-            this, SLOT(onSongActionRequested(QString,QVariant)));
+    connect(root, SIGNAL(songActionRequested(QString, QVariant)), this,
+            SLOT(onSongActionRequested(QString, QVariant)));
 }
 
-void RecommendMusicWidget::setLoggedIn(bool loggedIn, const QString& userAccount)
-{
+void RecommendMusicWidget::setLoggedIn(bool loggedIn, const QString& userAccount) {
     QQuickItem* root = rootObject();
     if (!root) {
         return;
@@ -38,8 +40,16 @@ void RecommendMusicWidget::setLoggedIn(bool loggedIn, const QString& userAccount
     root->setProperty("userAccount", userAccount);
 }
 
-void RecommendMusicWidget::loadRecommendations(const QVariantMap& meta, const QVariantList& recommendationData)
-{
+void RecommendMusicWidget::activateForEntry() {
+    QQuickItem* root = rootObject();
+    if (!root) {
+        return;
+    }
+    QMetaObject::invokeMethod(root, "activateForEntry");
+}
+
+void RecommendMusicWidget::loadRecommendations(const QVariantMap& meta,
+                                               const QVariantList& recommendationData) {
     m_lastRecommendationMeta = meta;
     m_lastRecommendationItems = recommendationData;
     QQuickItem* root = rootObject();
@@ -52,8 +62,30 @@ void RecommendMusicWidget::loadRecommendations(const QVariantMap& meta, const QV
                               Q_ARG(QVariant, QVariant::fromValue(recommendationData)));
 }
 
-void RecommendMusicWidget::setAvailablePlaylists(const QVariantList& playlists)
-{
+void RecommendMusicWidget::loadHotChart(const QVariantMap& meta, const QVariantList& hotChartData) {
+    QQuickItem* root = rootObject();
+    if (!root) {
+        return;
+    }
+
+    QMetaObject::invokeMethod(root, "loadHotChart", Q_ARG(QVariant, QVariant::fromValue(meta)),
+                              Q_ARG(QVariant, QVariant::fromValue(hotChartData)));
+}
+
+void RecommendMusicWidget::showHotChartError(const QString& message, int statusCode,
+                                             const QString& window) {
+    QQuickItem* root = rootObject();
+    if (!root) {
+        return;
+    }
+
+    QMetaObject::invokeMethod(root, "showHotChartError",
+                              Q_ARG(QVariant, QVariant::fromValue(message)),
+                              Q_ARG(QVariant, QVariant::fromValue(statusCode)),
+                              Q_ARG(QVariant, QVariant::fromValue(window)));
+}
+
+void RecommendMusicWidget::setAvailablePlaylists(const QVariantList& playlists) {
     QQuickItem* root = rootObject();
     if (!root) {
         return;
@@ -61,8 +93,7 @@ void RecommendMusicWidget::setAvailablePlaylists(const QVariantList& playlists)
     root->setProperty("availablePlaylists", QVariant::fromValue(playlists));
 }
 
-void RecommendMusicWidget::setFavoritePaths(const QStringList& favoritePaths)
-{
+void RecommendMusicWidget::setFavoritePaths(const QStringList& favoritePaths) {
     QQuickItem* root = rootObject();
     if (!root) {
         return;
@@ -70,8 +101,7 @@ void RecommendMusicWidget::setFavoritePaths(const QStringList& favoritePaths)
     root->setProperty("favoritePaths", QVariant::fromValue(favoritePaths));
 }
 
-void RecommendMusicWidget::setCurrentPlayingPath(const QString& filePath)
-{
+void RecommendMusicWidget::setCurrentPlayingPath(const QString& filePath) {
     QQuickItem* root = rootObject();
     if (!root) {
         return;
@@ -80,21 +110,18 @@ void RecommendMusicWidget::setCurrentPlayingPath(const QString& filePath)
     root->setProperty("currentPlayingPath", filePath);
 }
 
-void RecommendMusicWidget::setPlayingState(const QString& filePath, bool playing)
-{
+void RecommendMusicWidget::setPlayingState(const QString& filePath, bool playing) {
     QQuickItem* root = rootObject();
     if (!root) {
         return;
     }
     qDebug() << "[RecommendMusicWidget] Setting playing state - path:" << filePath
              << "playing:" << playing;
-    QMetaObject::invokeMethod(root, "setPlayingState",
-                              Q_ARG(QVariant, filePath),
+    QMetaObject::invokeMethod(root, "setPlayingState", Q_ARG(QVariant, filePath),
                               Q_ARG(QVariant, playing));
 }
 
-void RecommendMusicWidget::clearRecommendations()
-{
+void RecommendMusicWidget::clearRecommendations() {
     m_lastRecommendationMeta.clear();
     m_lastRecommendationItems.clear();
     QQuickItem* root = rootObject();
@@ -104,18 +131,15 @@ void RecommendMusicWidget::clearRecommendations()
     QMetaObject::invokeMethod(root, "clearRecommendations");
 }
 
-void RecommendMusicWidget::onSongActionRequested(const QString& action, const QVariant& payload)
-{
+void RecommendMusicWidget::onSongActionRequested(const QString& action, const QVariant& payload) {
     emit songActionRequested(action, payload.toMap());
 }
 
-QVariantMap RecommendMusicWidget::recommendationMetaSnapshot() const
-{
+QVariantMap RecommendMusicWidget::recommendationMetaSnapshot() const {
     return m_lastRecommendationMeta;
 }
 
-QVariantList RecommendMusicWidget::recommendationItemsSnapshot(int limit) const
-{
+QVariantList RecommendMusicWidget::recommendationItemsSnapshot(int limit) const {
     if (limit <= 0 || limit >= m_lastRecommendationItems.size()) {
         return m_lastRecommendationItems;
     }

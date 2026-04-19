@@ -173,11 +173,8 @@ QString derivePlaylistCoverFromDetailMap(const QVariantMap& detail) {
     }
 
     const QVariantMap firstItem = items.constFirst().toMap();
-    const QStringList candidateKeys = {
-        QStringLiteral("cover_art_url"),
-        QStringLiteral("cover_url"),
-        QStringLiteral("cover_art_path")
-    };
+    const QStringList candidateKeys = {QStringLiteral("cover_art_url"), QStringLiteral("cover_url"),
+                                       QStringLiteral("cover_art_path")};
     for (const QString& key : candidateKeys) {
         const QString cover = firstItem.value(key).toString().trimmed();
         if (!cover.isEmpty()) {
@@ -477,6 +474,9 @@ void MainWidget::handleUserLoginStateChanged(bool loggedIn) {
     favoriteMusicWidget->setUserAccount(userAccount);
     recommendMusicWidget->setLoggedIn(loggedIn, userAccount);
     playlistWidget->setLoggedIn(loggedIn, userAccount);
+    if (m_activeContentWidget == recommendMusicWidget) {
+        recommendMusicWidget->activateForEntry();
+    }
 
     if (favoriteButton) {
         favoriteButton->setVisible(loggedIn);
@@ -699,14 +699,13 @@ void MainWidget::handlePlaylistAddCurrentSongRequested(qint64 playlistId) {
     const QString title = trackSnapshot.value(QStringLiteral("title")).toString().trimmed();
     item.insert(QStringLiteral("music_title"),
                 title.isEmpty() ? QFileInfo(musicPath).completeBaseName() : title);
-    item.insert(QStringLiteral("artist"), normalizeArtistForHistory(
-                                               trackSnapshot.value(QStringLiteral("artist"))
-                                                   .toString()));
+    item.insert(
+        QStringLiteral("artist"),
+        normalizeArtistForHistory(trackSnapshot.value(QStringLiteral("artist")).toString()));
     item.insert(QStringLiteral("album"), QString());
-    item.insert(QStringLiteral("duration_sec"), static_cast<int>(qMax<qint64>(
-                                                  0, trackSnapshot.value(QStringLiteral("durationMs"))
-                                                         .toLongLong() /
-                                                         1000)));
+    item.insert(QStringLiteral("duration_sec"),
+                static_cast<int>(qMax<qint64>(
+                    0, trackSnapshot.value(QStringLiteral("durationMs")).toLongLong() / 1000)));
     const bool isLocal = trackSnapshot.value(QStringLiteral("isLocal")).toBool();
     item.insert(QStringLiteral("is_local"), isLocal);
 
@@ -737,13 +736,13 @@ void MainWidget::handlePlaylistsListReady(const QVariantList& playlists, int pag
         QVariantMap playlist = item.toMap();
         const qint64 playlistId = playlist.value(QStringLiteral("id")).toLongLong();
         if (playlistId > 0 && m_playlistDerivedCoverUrls.contains(playlistId)) {
-            playlist.insert(QStringLiteral("cover_url"), m_playlistDerivedCoverUrls.value(playlistId));
+            playlist.insert(QStringLiteral("cover_url"),
+                            m_playlistDerivedCoverUrls.value(playlistId));
         } else if (playlistId > 0) {
             bool cacheFound = false;
-            const QString cachedCover =
-                lookupPlaylistCoverCache(account, playlistId,
-                                         playlist.value(QStringLiteral("updated_at")).toString(),
-                                         &cacheFound);
+            const QString cachedCover = lookupPlaylistCoverCache(
+                account, playlistId, playlist.value(QStringLiteral("updated_at")).toString(),
+                &cacheFound);
             if (cacheFound) {
                 playlist.insert(QStringLiteral("cover_url"), cachedCover);
                 m_playlistDerivedCoverUrls.insert(playlistId, cachedCover);
@@ -935,12 +934,10 @@ void MainWidget::handleSongActionRequested(const QString& action, const QVariant
             (action == QStringLiteral("add_to_playlist") ||
              action == QStringLiteral("create_playlist_and_add") ||
              action == QStringLiteral("add_favorite") ||
-             action == QStringLiteral("remove_favorite") ||
-             action == QStringLiteral("download"));
-        const bool remotePlaybackAction =
-            !isLocal &&
-            (action == QStringLiteral("play") || action == QStringLiteral("play_next") ||
-             action == QStringLiteral("queue_append"));
+             action == QStringLiteral("remove_favorite") || action == QStringLiteral("download"));
+        const bool remotePlaybackAction = !isLocal && (action == QStringLiteral("play") ||
+                                                       action == QStringLiteral("play_next") ||
+                                                       action == QStringLiteral("queue_append"));
         if (serverOnlyAction || remotePlaybackAction) {
             showLocalOnlyUnavailableMessage();
             return;
@@ -1073,8 +1070,8 @@ void MainWidget::applyPlaylistCoverToUiCaches(qint64 playlistId, const QString& 
     m_playlistDerivedCoverUrls.insert(playlistId, normalizedCoverUrl);
     storePlaylistCoverCache(playlistId, normalizedUpdatedAt, normalizedCoverUrl);
 
-    auto patchCollection = [playlistId, &normalizedCoverUrl, &normalizedUpdatedAt](
-                               QVariantList& playlists) {
+    auto patchCollection = [playlistId, &normalizedCoverUrl,
+                            &normalizedUpdatedAt](QVariantList& playlists) {
         for (QVariant& value : playlists) {
             QVariantMap item = value.toMap();
             if (item.value(QStringLiteral("id")).toLongLong() != playlistId) {
@@ -1245,6 +1242,18 @@ void MainWidget::playSongByAction(const QVariantMap& songData) {
     if (!isLocal && !cover.isEmpty()) {
         m_networkMusicArtist = artist;
         m_networkMusicCover = cover;
+    }
+    if (isLocal) {
+        clearCommentTrackContext();
+    } else {
+        QString commentMusicPath = songData.value(QStringLiteral("musicPath")).toString().trimmed();
+        if (commentMusicPath.isEmpty()) {
+            commentMusicPath = songData.value(QStringLiteral("music_path")).toString().trimmed();
+        }
+        if (commentMusicPath.isEmpty()) {
+            commentMusicPath = songData.value(QStringLiteral("path")).toString().trimmed();
+        }
+        applyCommentTrackContext(commentMusicPath, title, artist, cover);
     }
     if (url.isValid() && !url.isEmpty()) {
         w->playbackViewModel()->rememberTrackMetadata(url, songData);
