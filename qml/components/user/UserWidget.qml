@@ -10,7 +10,7 @@ Rectangle {
     width: 150
     height: 40
     color: hoverArea.containsMouse ? Qt.rgba(0, 0.48, 0.8, 0.1) : "transparent"
-    radius: hoverArea.containsMouse ? 20 : 0
+    radius: 0
     border.width: hoverArea.containsMouse ? 1 : 0
     border.color: Qt.rgba(0, 0.48, 0.8, 0.3)
     clip: false  // 允许弹出菜单溢出显示
@@ -58,7 +58,7 @@ Rectangle {
                 maskSource: Rectangle {
                     width: avatarImage.width
                     height: avatarImage.height
-                    radius: width / 2
+                    radius: 0
                 }
             }
         }
@@ -131,7 +131,7 @@ Rectangle {
         y: root.height + 5
         x: root.width - width
         
-        radius: 12
+        radius: 0
         color: "white"
         border.width: 1
         border.color: "#DCDCDC"
@@ -142,7 +142,7 @@ Rectangle {
             transparentBorder: true
             horizontalOffset: 0
             verticalOffset: 3
-            radius: 12
+            radius: 0
             samples: 25
             color: Qt.rgba(0, 0, 0, 0.15)
         }
@@ -170,7 +170,7 @@ Rectangle {
                     maskSource: Rectangle {
                         width: popupAvatar.width
                         height: popupAvatar.height
-                        radius: width / 2
+                        radius: 0
                     }
                 }
             }
@@ -202,7 +202,7 @@ Rectangle {
 
                 background: Rectangle {
                     color: parent.hovered ? Qt.rgba(0, 0.48, 0.8, 0.1) : "transparent"
-                    radius: 14
+                    radius: 0
                     border.width: 1
                     border.color: Qt.rgba(0, 0.48, 0.8, 0.3)
                 }
@@ -244,7 +244,7 @@ Rectangle {
                                    (actionButton.pressed ? "#004d82" : actionButton.hovered ? "#006bb3" : "#005fa3")
                         }
                     }
-                    radius: 14
+                    radius: 0
                 }
                 
                 contentItem: Text {

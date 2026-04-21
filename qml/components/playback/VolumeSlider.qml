@@ -1,4 +1,4 @@
-﻿import QtQuick 2.14
+import QtQuick 2.14
 import QtQuick.Window 2.14
 import QtQuick.Controls 2.14
 import QtGraphicalEffects 1.14
@@ -49,7 +49,7 @@ Window {
 
     Rectangle {
         anchors.fill: parent
-        radius: 14
+        radius: 0
         color: "#DE10141C"
         border.width: 1
         border.color: "#44FFFFFF"
@@ -58,7 +58,7 @@ Window {
         layer.effect: DropShadow {
             horizontalOffset: 0
             verticalOffset: 4
-            radius: 14
+            radius: 0
             samples: 21
             color: "#70000000"
         }
@@ -100,7 +100,7 @@ Window {
                     y: volumeSlider.topPadding
                     width: 6
                     height: volumeSlider.availableHeight
-                    radius: 3
+                    radius: width / 2
                     color: "#33FFFFFF"
 
                     Rectangle {
@@ -108,7 +108,7 @@ Window {
                         width: parent.width
                         height: parent.height - y
                         color: Theme.accent
-                        radius: 3
+                        radius: parent.radius
                     }
                 }
 
@@ -117,7 +117,7 @@ Window {
                     y: volumeSlider.topPadding + volumeSlider.visualPosition * (volumeSlider.availableHeight - height)
                     width: 16
                     height: 16
-                    radius: 8
+                    radius: width / 2
                     color: volumeSlider.pressed ? Theme.accent : "#FFFFFF"
                     border.color: Theme.accent
                     border.width: 2

@@ -20,6 +20,7 @@ public:
     explicit SettingsWidget(QWidget* parent = nullptr);
 
 signals:
+    void settingsCloseRequested();
     void returnToWelcomeRequested();
 
 private slots:
@@ -27,6 +28,7 @@ private slots:
     void onChooseAudioCachePath();
     void onChooseLogPath();
     void onClearLocalCacheRequested();
+    void onSettingsClosedRequested();
     void onRefreshPresenceRequested();
     void onReturnToWelcomeRequested();
 

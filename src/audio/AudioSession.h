@@ -174,6 +174,7 @@ private:
         qint64 desiredTargetMs = 0;
         qint64 workingTargetMs = 0;
         qint64 firstPacketTimestampMs = -1;
+        bool seekIndexHit = false;
         int accuracyRetryCount = 0;
         int accuracyMaxRetries = 5;
         qint64 accuracyToleranceMs = 2500;

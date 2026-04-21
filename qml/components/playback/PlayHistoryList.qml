@@ -133,7 +133,7 @@ Rectangle {
             Rectangle {
                 width: 72
                 height: 72
-                radius: 36
+                radius: 0
                 color: Theme.accentSoft
                 anchors.horizontalCenter: parent.horizontalCenter
 
@@ -164,7 +164,7 @@ Rectangle {
             Rectangle {
                 width: 140
                 height: 36
-                radius: 18
+                radius: 0
                 anchors.horizontalCenter: parent.horizontalCenter
                 color: loginArea.containsMouse ? Theme.accent : "transparent"
                 border.width: 1
@@ -199,7 +199,7 @@ Rectangle {
             Layout.preferredHeight: 54
             Layout.leftMargin: root.sideMargin
             Layout.rightMargin: root.sideMargin
-            radius: 12
+            radius: 0
             color: Theme.glassLight
             border.width: 1
             border.color: Theme.glassBorder
@@ -221,7 +221,7 @@ Rectangle {
                 Rectangle {
                     width: 84
                     height: 32
-                    radius: 16
+                    radius: 0
                     color: refreshArea.containsMouse ? Theme.accent : "transparent"
                     border.width: 1
                     border.color: Theme.accent
@@ -249,7 +249,7 @@ Rectangle {
             Layout.preferredHeight: 38
             Layout.leftMargin: root.sideMargin
             Layout.rightMargin: root.sideMargin
-            radius: 10
+            radius: 0
             color: Theme.glassLight
             border.width: 1
             border.color: Theme.glassBorder
@@ -318,7 +318,7 @@ Rectangle {
                 id: itemRoot
                 width: listView.width
                 height: 62
-                radius: 10
+                radius: 0
                 property bool isCurrentTrack: root.isSameTrack(root.currentPlayingPath, model.path)
                 property bool playbackActive: isCurrentTrack && root.isPlaying
                 property bool rowVisualHovered: rowHoverArea.containsMouse
@@ -343,7 +343,7 @@ Rectangle {
                 Rectangle {
                     visible: itemRoot.isCurrentTrack
                     width: 3
-                    radius: 2
+                    radius: 0
                     color: Theme.accent
                     anchors.left: parent.left
                     anchors.top: parent.top
@@ -448,7 +448,7 @@ Rectangle {
                         Rectangle {
                             width: 32
                             height: 32
-                            radius: 16
+                            radius: width / 2
                             color: favBtnArea.containsMouse ? Theme.accentSoft : "transparent"
                             border.width: 1
                             border.color: favBtnArea.containsMouse ? Theme.accent : "#D6DCE8"
@@ -482,7 +482,7 @@ Rectangle {
                         Rectangle {
                             width: 32
                             height: 32
-                            radius: 16
+                            radius: width / 2
                             color: deleteBtnArea.containsMouse ? Theme.accentSoft : "transparent"
                             border.width: 1
                             border.color: deleteBtnArea.containsMouse ? Theme.accent : "#D6DCE8"

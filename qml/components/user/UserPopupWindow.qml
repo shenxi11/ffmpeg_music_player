@@ -32,7 +32,7 @@ Window {
     // 主容器
     Rectangle {
         anchors.fill: parent
-        radius: 12
+        radius: 0
         color: "white"
         border.width: 1
         border.color: "#DCDCDC"
@@ -43,7 +43,7 @@ Window {
             transparentBorder: true
             horizontalOffset: 0
             verticalOffset: 3
-            radius: 12
+            radius: 0
             samples: 25
             color: Qt.rgba(0, 0, 0, 0.15)
         }
@@ -64,7 +64,7 @@ Window {
                 Rectangle {
                     width: 50
                     height: 50
-                    radius: 25
+                    radius: 0
                     color: "#F0F0F0"
                     
                     Image {
@@ -80,7 +80,7 @@ Window {
                             maskSource: Rectangle {
                                 width: avatarImage.width
                                 height: avatarImage.height
-                                radius: width / 2
+                                radius: 0
                             }
                         }
                     }
@@ -123,7 +123,7 @@ Window {
 
                 background: Rectangle {
                     color: parent.hovered ? Qt.rgba(0, 0.48, 0.8, 0.1) : "transparent"
-                    radius: 8
+                    radius: 0
                     border.width: 1
                     border.color: Qt.rgba(0, 0.48, 0.8, 0.3)
                 }
@@ -149,7 +149,7 @@ Window {
 
                 background: Rectangle {
                     color: parent.hovered ? Qt.rgba(0, 0.48, 0.8, 0.1) : "transparent"
-                    radius: 8
+                    radius: 0
                     border.width: 1
                     border.color: Qt.rgba(0, 0.48, 0.8, 0.3)
                 }

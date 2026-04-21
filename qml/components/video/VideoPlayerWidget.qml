@@ -185,7 +185,7 @@ Rectangle {
                 anchors.top: parent.top
                 anchors.topMargin: 16
                 visible: false
-                radius: 10
+                radius: 0
                 color: "#DB2F353D"
                 border.width: 1
                 border.color: "#F46A6A"
@@ -255,13 +255,13 @@ Rectangle {
                             y: progressBar.topPadding + progressBar.availableHeight / 2 - height / 2
                             width: progressBar.availableWidth
                             height: 4
-                            radius: 2
+                            radius: 0
                             color: "#313948"
 
                             Rectangle {
                                 width: progressBar.visualPosition * parent.width
                                 height: parent.height
-                                radius: 2
+                                radius: 0
                                 color: "#D94747"
                             }
                         }
@@ -271,7 +271,7 @@ Rectangle {
                             y: progressBar.topPadding + progressBar.availableHeight / 2 - height / 2
                             width: 14
                             height: 14
-                            radius: 7
+                            radius: 0
                             color: progressBar.pressed ? "#FFFFFF" : "#F6F8FB"
                             border.width: 1
                             border.color: "#D94747"

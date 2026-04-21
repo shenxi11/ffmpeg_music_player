@@ -105,7 +105,14 @@ void MainWidget::handleMenuButtonClicked() {
         mainMenu->setPluginInfos(m_viewModel->pluginInfos());
     }
 
-    const QPoint globalPos = menuButton->mapToGlobal(QPoint(0, menuButton->height() + 5));
+    if (mainMenu->isVisible()) {
+        mainMenu->hide();
+        return;
+    }
+
+    const QPoint globalPos =
+        menuButton->mapToGlobal(QPoint(menuButton->width() - mainMenu->width(),
+                                       menuButton->height() + 8));
     qDebug() << "Menu button position:" << globalPos;
     qDebug() << "Showing main menu...";
     mainMenu->showMenu(globalPos);
@@ -123,6 +130,8 @@ void MainWidget::ensureMainMenuCreated() {
     connect(mainMenu, &MainMenu::pluginDiagnosticsRequested, this,
             &MainWidget::handleMainMenuPluginDiagnosticsRequested);
     connect(mainMenu, &MainMenu::aboutRequested, this, &MainWidget::handleMainMenuAboutRequested);
+    connect(mainMenu, &MainMenu::menuVisibilityChanged, this,
+            &MainWidget::updateMenuButtonOpenState);
 }
 
 void MainWidget::handleMainMenuPluginRequested(const QString& pluginId) {
@@ -168,9 +177,16 @@ void MainWidget::handleMainMenuSettingsRequested() {
         connect(settingsWidget, &QObject::destroyed, this, [this]() {
             settingsWidget = nullptr;
         });
+        connect(settingsWidget, &SettingsWidget::settingsCloseRequested, this,
+                &MainWidget::handleSettingsCloseRequested);
         connect(settingsWidget, &SettingsWidget::returnToWelcomeRequested, this,
                 &MainWidget::handleSettingsReturnToWelcomeRequested);
     }
+
+    if (m_activeContentWidget && m_activeContentWidget != settingsWidget) {
+        m_previousContentWidgetBeforeSettings = m_activeContentWidget;
+    }
+
     showContentPanel(settingsWidget);
     settingsWidget->setFocus(Qt::OtherFocusReason);
 }
@@ -230,9 +246,32 @@ void MainWidget::handleUserLogoutRequested() {
     userWidgetQml->setLoginState(false);
 }
 
+void MainWidget::handleSettingsCloseRequested() {
+    qDebug() << "[MainWidget] close settings requested";
+
+    QWidget* target = m_previousContentWidgetBeforeSettings;
+    if (!target || target == settingsWidget) {
+        target = m_localOnlyMode ? static_cast<QWidget*>(localAndDownloadWidget)
+                                 : static_cast<QWidget*>(recommendMusicWidget);
+    }
+    if (!target) {
+        target = static_cast<QWidget*>(main_list);
+    }
+
+    m_previousContentWidgetBeforeSettings = nullptr;
+
+    if (!target) {
+        return;
+    }
+
+    showContentPanel(target);
+    target->setFocus(Qt::OtherFocusReason);
+}
+
 void MainWidget::handleSettingsReturnToWelcomeRequested() {
     qDebug() << "[MainWidget] return to welcome requested";
     m_returningToWelcome = true;
+    m_previousContentWidgetBeforeSettings = nullptr;
 
     if (w && w->playbackViewModel()) {
         w->playbackViewModel()->stop();

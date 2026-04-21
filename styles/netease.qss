@@ -16,7 +16,7 @@ QMainWindow, QDialog {
 QFrame[card="true"], QWidget[card="true"] {
     background-color: #FFFFFF;
     border: 1px solid #ECECEC;
-    border-radius: 10px;
+    border-radius: 0px;
 }
 
 QLabel {
@@ -31,7 +31,7 @@ QPushButton {
     min-height: 30px;
     padding: 0 14px;
     border: 1px solid #E5E5E5;
-    border-radius: 8px;
+    border-radius: 10px;
     background-color: #FFFFFF;
     color: #1F1F1F;
 }
@@ -89,7 +89,7 @@ QPushButton[danger="true"]:pressed {
 
 QToolButton {
     border: none;
-    border-radius: 8px;
+    border-radius: 10px;
     background: transparent;
     color: #3C3F46;
 }
@@ -101,7 +101,7 @@ QToolButton:hover {
 
 QLineEdit, QTextEdit, QPlainTextEdit, QSpinBox, QDoubleSpinBox {
     border: 1px solid #E4E5EA;
-    border-radius: 8px;
+    border-radius: 0px;
     background-color: #FFFFFF;
     padding: 6px 10px;
     selection-background-color: #EC4141;
@@ -115,7 +115,7 @@ QSpinBox:focus, QDoubleSpinBox:focus {
 QComboBox {
     min-height: 30px;
     border: 1px solid #E4E5EA;
-    border-radius: 8px;
+    border-radius: 0px;
     background-color: #FFFFFF;
     padding: 0 30px 0 10px;
 }
@@ -135,7 +135,7 @@ QComboBox::drop-down {
 
 QComboBox QAbstractItemView {
     border: 1px solid #ECECEC;
-    border-radius: 8px;
+    border-radius: 0px;
     outline: none;
     background: #FFFFFF;
     padding: 6px;
@@ -145,7 +145,7 @@ QComboBox QAbstractItemView {
 
 QListWidget, QTreeWidget, QTableWidget, QTableView {
     border: 1px solid #ECECEC;
-    border-radius: 10px;
+    border-radius: 0px;
     background: #FFFFFF;
     alternate-background-color: #FAFAFC;
     outline: none;
@@ -154,7 +154,7 @@ QListWidget, QTreeWidget, QTableWidget, QTableView {
 
 QListView::item, QListWidget::item,
 QTreeView::item, QTableView::item {
-    border-radius: 6px;
+    border-radius: 0px;
     padding: 6px;
 }
 
@@ -179,7 +179,7 @@ QHeaderView::section {
 
 QTabWidget::pane {
     border: 1px solid #ECECEC;
-    border-radius: 10px;
+    border-radius: 0px;
     background: #FFFFFF;
     top: -1px;
 }
@@ -206,12 +206,12 @@ QTabBar::tab:selected {
 
 QSlider::groove:horizontal {
     height: 4px;
-    border-radius: 2px;
+    border-radius: 0px;
     background: #E4E5EA;
 }
 
 QSlider::sub-page:horizontal {
-    border-radius: 2px;
+    border-radius: 0px;
     background: #EC4141;
 }
 
@@ -219,7 +219,7 @@ QSlider::handle:horizontal {
     width: 12px;
     height: 12px;
     margin: -4px 0;
-    border-radius: 6px;
+    border-radius: 0px;
     border: 1px solid #EC4141;
     background: #FFFFFF;
 }
@@ -230,14 +230,14 @@ QSlider::handle:horizontal:hover {
 
 QProgressBar {
     border: 1px solid #ECECEC;
-    border-radius: 8px;
+    border-radius: 0px;
     text-align: center;
     background: #F2F3F7;
     color: #63666F;
 }
 
 QProgressBar::chunk {
-    border-radius: 7px;
+    border-radius: 0px;
     background: #EC4141;
 }
 
@@ -249,7 +249,7 @@ QScrollBar:vertical {
 
 QScrollBar::handle:vertical {
     min-height: 28px;
-    border-radius: 5px;
+    border-radius: 0px;
     background: #D9DBE3;
 }
 
@@ -273,7 +273,7 @@ QScrollBar:horizontal {
 
 QScrollBar::handle:horizontal {
     min-width: 28px;
-    border-radius: 5px;
+    border-radius: 0px;
     background: #D9DBE3;
 }
 
@@ -291,13 +291,13 @@ QScrollBar::sub-page:horizontal {
 
 QMenu {
     border: 1px solid #ECECEC;
-    border-radius: 8px;
+    border-radius: 0px;
     background: #FFFFFF;
     padding: 6px;
 }
 
 QMenu::item {
-    border-radius: 6px;
+    border-radius: 0px;
     padding: 6px 22px;
 }
 
@@ -312,7 +312,7 @@ QDialog#PluginHostWindow {
 
 QWidget#PluginHeaderCard {
     border: 1px solid #ECECEC;
-    border-radius: 10px;
+    border-radius: 0px;
     background: #FFFFFF;
 }
 
@@ -334,7 +334,7 @@ QPushButton#PluginHeaderHelpButton {
 
 QWidget#PluginContentCard {
     border: 1px solid #ECECEC;
-    border-radius: 10px;
+    border-radius: 0px;
     background: #FFFFFF;
 }
 
@@ -349,7 +349,7 @@ QWidget#TopBar {
 QWidget#MainLeftPanel {
     background: #FFFFFF;
     border: 1px solid #E8EBF1;
-    border-radius: 22px;
+    border-radius: 0px;
 }
 
 QWidget#SidebarPlaylistSection {
@@ -388,7 +388,7 @@ QPushButton#SidebarPlaylistTabButton:hover {
 
 QPushButton#SidebarPlaylistAddButton {
     border: none;
-    border-radius: 11px;
+    border-radius: 0px;
     background: transparent;
     color: #666B75;
     font-size: 16px;
@@ -411,7 +411,7 @@ QPushButton[sidePlaylistItem="true"] {
     max-height: 40px;
     padding: 0 12px;
     border: none;
-    border-radius: 12px;
+    border-radius: 0px;
     background: transparent;
     color: #23262D;
     text-align: left;
@@ -430,27 +430,33 @@ QPushButton[sidePlaylistItem="true"][selectedPlaylist="true"] {
 }
 
 QPushButton#MainMenuButton {
-    min-height: 42px;
-    min-width: 84px;
-    max-height: 42px;
-    padding: 0 14px;
+    min-height: 40px;
+    min-width: 94px;
+    max-height: 40px;
+    padding: 0 16px 0 14px;
     border: 1px solid #E7EAF0;
-    border-radius: 21px;
-    background: #FFFFFF;
-    color: #505664;
-    font-size: 14px;
+    border-radius: 20px;
+    background: #F4F5F7;
+    color: #4B5563;
+    font-size: 13px;
     font-weight: 600;
 }
 
 QPushButton#MainMenuButton:hover {
-    background: #FFF2F2;
-    border-color: #F1C8C8;
-    color: #EC4141;
+    background: #ECEFF4;
+    border-color: #DEE4EC;
+    color: #1F2937;
 }
 
 QPushButton#MainMenuButton:pressed {
-    background: #FDE5E5;
-    border-color: #EBB2B2;
+    background: #E6EAF1;
+    border-color: #D7DEE8;
+}
+
+QPushButton#MainMenuButton[menuOpen="true"] {
+    background: #ECEFF4;
+    border-color: #DEE4EC;
+    color: #111827;
 }
 
 QPushButton#TopAgentButton {
@@ -459,7 +465,7 @@ QPushButton#TopAgentButton {
     max-height: 36px;
     padding: 0 14px;
     border: 1px solid #F2CACA;
-    border-radius: 18px;
+    border-radius: 0px;
     background: #FFF7F7;
     color: #EC4141;
     font-size: 13px;
@@ -478,47 +484,73 @@ QPushButton#TopAgentButton:pressed {
     border-color: #E78C8C;
 }
 
-QPushButton#WindowToggleButton,
 QPushButton#WindowMinimizeButton,
+QPushButton#WindowMaximizeButton,
 QPushButton#WindowCloseButton {
-    min-height: 32px;
-    min-width: 32px;
-    max-height: 32px;
-    max-width: 32px;
-    border: 1px solid #E7EAF0;
-    border-radius: 16px;
+    min-height: 36px;
+    min-width: 36px;
+    max-height: 36px;
+    max-width: 36px;
+    border: 1px solid transparent;
+    border-radius: 18px;
     padding: 0;
-    background: #FFFFFF;
-}
-
-QPushButton#WindowToggleButton {
-    border-image: url(:/new/prefix1/icon/square_unselected.png);
+    background: transparent;
+    color: #6B7280;
+    font-size: 15px;
+    font-weight: 500;
+    font-family: "Microsoft YaHei UI", "Segoe UI Symbol", "Arial";
 }
 
 QPushButton#WindowMinimizeButton {
-    border-image: url(:/new/prefix1/icon/minus_sign.png);
+    font-size: 14px;
+}
+
+QPushButton#WindowMaximizeButton {
+    font-size: 13px;
 }
 
 QPushButton#WindowCloseButton {
-    border-image: url(:/new/prefix1/icon/close1.png);
+    font-size: 17px;
 }
 
-QPushButton#WindowToggleButton:hover,
-QPushButton#WindowMinimizeButton:hover {
-    background: #FFF2F2;
-    border-color: #F1C8C8;
+QPushButton#WindowMinimizeButton:hover,
+QPushButton#WindowMaximizeButton:hover {
+    background: #F1F4F8;
+    border-color: #E3E8F0;
+    color: #1F2937;
 }
 
 QPushButton#WindowCloseButton:hover {
-    background: #FFE7E7;
-    border-color: #F5B7B7;
+    background: #FFE9E9;
+    border-color: #F6C8C8;
+    color: #D93636;
+}
+
+QPushButton#WindowMinimizeButton:pressed,
+QPushButton#WindowMaximizeButton:pressed {
+    background: #E9EDF3;
+    border-color: #D9E0EA;
+}
+
+QPushButton#WindowCloseButton:pressed {
+    background: #FFDCDC;
+    border-color: #F0B7B7;
+    color: #C62828;
+}
+
+QToolTip {
+    color: #475467;
+    background: #FFFFFF;
+    border: 1px solid #E7EAF0;
+    padding: 6px 10px;
+    font-size: 12px;
 }
 
 QPushButton[sideNav="true"] {
     min-height: 46px;
     max-height: 46px;
     border: none;
-    border-radius: 14px;
+    border-radius: 0px;
     background: transparent;
     color: #303444;
     text-align: left;
@@ -601,30 +633,30 @@ QWidget#VideoTrailingControls {
     border: none;
 }
 
-QWidget#VideoControlBar {
+QWidget#VideoPlayerWindow QWidget#VideoControlBar {
     background: #12161D;
     border-top: 1px solid #202631;
 }
 
-QLabel#VideoFileNameLabel {
+QWidget#VideoPlayerWindow QLabel#VideoFileNameLabel {
     color: #F4F7FB;
     font-size: 15px;
     font-weight: 600;
 }
 
-QLabel#VideoMetaInfoLabel {
+QWidget#VideoPlayerWindow QLabel#VideoMetaInfoLabel {
     color: #7E8796;
     font-size: 11px;
 }
 
-QWidget#VideoControlBar QLabel,
-QLabel#VideoInlineLabel {
+QWidget#VideoPlayerWindow QWidget#VideoControlBar QLabel,
+QWidget#VideoPlayerWindow QLabel#VideoInlineLabel {
     color: #AAB4C3;
     font-size: 12px;
     font-weight: 500;
 }
 
-QLabel#VideoTimeLabel {
+QWidget#VideoPlayerWindow QLabel#VideoTimeLabel {
     color: #E6EBF3;
     font-size: 12px;
     font-weight: 500;
@@ -633,7 +665,7 @@ QLabel#VideoTimeLabel {
 QPushButton#VideoTitleCloseButton {
     min-height: 34px;
     min-width: 34px;
-    border-radius: 17px;
+    border-radius: 0px;
     border: none;
     color: #DDE3EC;
     background: transparent;
@@ -652,7 +684,7 @@ QPushButton#VideoTitleCloseButton:pressed {
 QPushButton#VideoPlayPauseButton {
     min-height: 44px;
     min-width: 44px;
-    border-radius: 22px;
+    border-radius: 0px;
     border: 1px solid #D84A4A;
     background: #D94747;
     color: #FFFFFF;
@@ -677,7 +709,7 @@ QPushButton#VideoPlayPauseButton:disabled {
 QPushButton#VideoRoundButton {
     min-height: 34px;
     min-width: 34px;
-    border-radius: 17px;
+    border-radius: 0px;
     border: 1px solid #2D3440;
     background: #191E26;
     color: #EAF0F8;
@@ -702,7 +734,7 @@ QPushButton#VideoRoundButton:disabled {
 
 QPushButton#VideoActionButton {
     min-height: 38px;
-    border-radius: 8px;
+    border-radius: 0px;
     border: 1px solid #2D3440;
     background: #181D25;
     color: #EAF0F8;
@@ -723,7 +755,7 @@ QPushButton#VideoActionButton:pressed {
 QPushButton#VideoActionButton[compact="true"] {
     min-height: 34px;
     padding: 0 14px;
-    border-radius: 17px;
+    border-radius: 0px;
     background: #171C23;
 }
 
@@ -731,18 +763,18 @@ QPushButton#VideoActionButton[iconOnly="true"] {
     min-width: 42px;
     max-width: 42px;
     padding: 0;
-    border-radius: 12px;
+    border-radius: 0px;
 }
 
 QPushButton#VideoActionButton[compact="true"][iconOnly="true"] {
     min-width: 34px;
     max-width: 34px;
-    border-radius: 17px;
+    border-radius: 0px;
 }
 
 QComboBox#VideoControlCombo {
     min-height: 36px;
-    border-radius: 8px;
+    border-radius: 0px;
     border: 1px solid #2D3440;
     background: #181D25;
     color: #EAF0F8;
@@ -755,34 +787,34 @@ QComboBox#VideoControlCombo:hover {
 
 QComboBox#VideoControlCombo QAbstractItemView {
     border: 1px solid #2D3440;
-    border-radius: 8px;
+    border-radius: 0px;
     background: #181D25;
     color: #EAF0F8;
     selection-background-color: #D94747;
     selection-color: #FFFFFF;
 }
 
-QSlider#VideoProgressSlider::groove:horizontal {
+QWidget#VideoPlayerWindow QSlider#VideoProgressSlider::groove:horizontal {
     height: 4px;
-    border-radius: 3px;
+    border-radius: 0px;
     background: #313948;
 }
 
-QSlider#VideoProgressSlider::sub-page:horizontal {
-    border-radius: 3px;
+QWidget#VideoPlayerWindow QSlider#VideoProgressSlider::sub-page:horizontal {
+    border-radius: 0px;
     background: #D94747;
 }
 
-QSlider#VideoProgressSlider::handle:horizontal {
+QWidget#VideoPlayerWindow QSlider#VideoProgressSlider::handle:horizontal {
     width: 14px;
     height: 14px;
     margin: -5px 0;
-    border-radius: 7px;
+    border-radius: 0px;
     border: 1px solid #D94747;
     background: #F6F8FB;
 }
 
-QSlider#VideoProgressSlider::handle:horizontal:hover {
+QWidget#VideoPlayerWindow QSlider#VideoProgressSlider::handle:horizontal:hover {
     border-color: #F28E8E;
     background: #FFFFFF;
 }

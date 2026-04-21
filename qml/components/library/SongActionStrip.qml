@@ -119,7 +119,7 @@ Item {
             visible: root.showFavoriteButton
             width: 32
             height: 32
-            radius: 16
+            radius: width / 2
             color: root.favoriteActive
                    ? (favoriteArea.containsMouse ? "#FDE3E3" : "#FFF1F1")
                    : (favoriteArea.containsMouse ? "#FFF1F1" : root.buttonBaseColor)
@@ -153,7 +153,7 @@ Item {
             visible: root.showDownloadButton
             width: 32
             height: 32
-            radius: 16
+            radius: width / 2
             color: downloadArea.containsMouse ? root.hoverAccentSoft : root.buttonBaseColor
             border.width: 1
             border.color: downloadArea.containsMouse ? root.hoverAccent : "#E5EAF2"
@@ -181,7 +181,7 @@ Item {
             visible: root.showAddButton
             width: 32
             height: 32
-            radius: 16
+            radius: width / 2
             color: addArea.containsMouse ? "#EEF5FF" : root.buttonBaseColor
             border.width: 1
             border.color: addArea.containsMouse ? "#79AFFF" : "#E5EAF2"
@@ -207,7 +207,7 @@ Item {
             visible: root.showMoreButton
             width: 32
             height: 32
-            radius: 16
+            radius: width / 2
             color: moreArea.containsMouse ? "#EEF2F7" : root.buttonBaseColor
             border.width: 1
             border.color: moreArea.containsMouse ? "#9AA4B2" : "#E5EAF2"
@@ -260,7 +260,7 @@ Item {
             Rectangle {
                 id: addPanel
                 anchors.fill: parent
-                radius: 14
+                radius: 0
                 color: "#FFFFFF"
                 border.width: 1
                 border.color: "#E9EEF5"
@@ -362,7 +362,7 @@ Item {
             Rectangle {
                 id: morePanel
                 anchors.fill: parent
-                radius: 14
+                radius: 0
                 color: "#FFFFFF"
                 border.width: 1
                 border.color: "#E9EEF5"

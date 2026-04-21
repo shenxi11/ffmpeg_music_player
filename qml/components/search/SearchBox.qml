@@ -22,7 +22,7 @@ Rectangle {
         anchors.fill: parent
         anchors.margins: 3
         color: searchInput.activeFocus ? "#FFFFFF" : "#FCFDFE"
-        radius: height / 2
+        radius: 0
         border.width: 1
         border.color: searchInput.activeFocus ? Theme.accent : "#E5E8EF"
 
@@ -83,7 +83,7 @@ Rectangle {
                 color: searchButtonArea.pressed
                        ? "#F6D8D8"
                        : (searchButtonArea.containsMouse ? Theme.accentSoft : "transparent")
-                radius: 17
+                radius: width / 2
 
                 Image {
                     anchors.centerIn: parent

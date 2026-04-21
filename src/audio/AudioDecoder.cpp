@@ -288,7 +288,7 @@ void AudioDecoder::decode()
                     && (m_filePath.startsWith("http://127.0.0.1", Qt::CaseInsensitive)
                         || m_filePath.startsWith("http://localhost", Qt::CaseInsensitive));
             const int seekDeadlineMs = localProxySource
-                    ? (likelyFlacNetwork ? 2400 : 1500)
+                    ? (likelyFlacNetwork ? 3200 : 2200)
                     : (likelyFlacNetwork ? 5000 : 1600);
             setIoDeadlineMs(seekDeadlineMs);
             int seekFlags = AVSEEK_FLAG_BACKWARD;
@@ -369,14 +369,14 @@ void AudioDecoder::decode()
                 && (m_filePath.startsWith("http://127.0.0.1", Qt::CaseInsensitive)
                     || m_filePath.startsWith("http://localhost", Qt::CaseInsensitive));
         int readTimeoutMs = localProxySource
-                ? (likelyFlacNetwork ? 1800 : 1400)
+                ? (likelyFlacNetwork ? 2200 : 1600)
                 : (likelyFlacNetwork ? 3000 : 2600);
         if (m_waitingFirstPacketAfterSeek.load()) {
             // HLS 切段后首包 RTT 通常显著高于裸文件 Range，避免误判 EOF。
             if (m_hlsSource.load()) {
                 readTimeoutMs = 4500;
             } else if (localProxySource) {
-                readTimeoutMs = likelyFlacNetwork ? 1800 : 1200;
+                readTimeoutMs = likelyFlacNetwork ? 2600 : 1800;
             } else if (likelyFlacNetwork) {
                 // 远端 FLAC seek 首包等待时间适度收敛，降低拖动后“长时间无声”。
                 readTimeoutMs = 3200;

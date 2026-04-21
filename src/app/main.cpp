@@ -15,7 +15,12 @@
 #include "logger.h"
 #include "settings_manager.h"
 #include "user.h"
+#include "AudioPlayer.h"
+#include "AudioService.h"
+#include "network/online_presence_manager.h"
+#include "network/network/network_service.h"
 #include <functional>
+#include <cstdio>
 
 #ifdef Q_OS_WIN
 #include <Windows.h>  // For SetDllDirectoryW, GetModuleFileNameW
@@ -36,6 +41,34 @@ QString resolvePrintLogPath()
     }
 
     return QDir::current().absoluteFilePath(QStringLiteral("打印日志.txt"));
+}
+
+void finalizeRuntimeForProcessExit(bool runtimeInitialized)
+{
+    qDebug() << "[AppShutdown] Main event loop exited, begin runtime finalization";
+
+    if (runtimeInitialized) {
+        qDebug() << "[AppShutdown] Runtime singletons cleanup begin";
+
+        OnlinePresenceManager::instance().logoutAndClear(false, 400);
+        Network::NetworkService::instance().cancelAllRequests();
+
+        AudioService::instance().stop();
+        AudioPlayer::instance().stop();
+        AudioPlayer::instance().clearWriteOwner();
+        AudioPlayer::instance().resetBuffer();
+
+        qDebug() << "[AppShutdown] Runtime singletons cleanup end";
+    } else {
+        qDebug() << "[AppShutdown] Runtime cleanup skipped because main window was never entered";
+    }
+
+    qDebug() << "[AppShutdown] Unloading plugins before logger shutdown";
+    PluginManager::instance().unloadAllPlugins();
+
+    qDebug() << "[AppShutdown] Waiting for global thread pool...";
+    QThreadPool::globalInstance()->waitForDone(5000);
+    qDebug() << "[AppShutdown] Global thread pool wait complete";
 }
 }
 
@@ -129,6 +162,7 @@ int main(int argc, char *argv[])
 
     MainWidget* mainWindow = nullptr;
     bool pendingReturnToWelcome = false;
+    bool runtimeInitialized = false;
 
     std::function<void(bool)> enterMainWindow;
     std::function<void(bool)> launchWelcomeFlow;
@@ -137,6 +171,8 @@ int main(int argc, char *argv[])
         if (mainWindow) {
             return;
         }
+
+        runtimeInitialized = true;
 
         if (localOnlyMode) {
             qDebug() << "Entering main window in local-only mode";
@@ -182,13 +218,18 @@ int main(int argc, char *argv[])
     });
 
     const int result = a.exec();
-    
-    // 应用退出前等待线程池任务收敛，减少资源竞争与崩溃概率
-    qDebug() << "Application exiting, ensuring cleanup...";
-    QThreadPool::globalInstance()->waitForDone(5000);  // 最多等待 5 秒
+
+    finalizeRuntimeForProcessExit(runtimeInitialized);
+
     qDebug() << "Application cleanup complete";
-    
+    qDebug() << "[AppShutdown] Logger cleanup begin";
     cleanupLogger();  // 释放日志资源并刷新缓冲
+
+#ifdef Q_OS_WIN
+    std::fflush(nullptr);
+    ExitProcess(static_cast<UINT>(result));
+#endif
+
     return result;
 }
 

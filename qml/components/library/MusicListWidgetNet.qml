@@ -1,4 +1,4 @@
-﻿import QtQuick 2.14
+import QtQuick 2.14
 import QtQuick.Controls 2.14
 
 Rectangle {
@@ -209,7 +209,7 @@ Rectangle {
         color: "#ffffff"
         anchors.top: topTitle.bottom
         anchors.topMargin: 10
-        radius: 4
+        radius: 0
         
         Row {
             anchors.fill: parent
@@ -317,7 +317,7 @@ Rectangle {
             width: listView.width
             height: 60
             color: rowHovered ? "#f0f0f0" : "#ffffff"
-            radius: 4
+            radius: 0
 
             HoverHandler {
                 id: rowHoverHandler

@@ -92,7 +92,7 @@ Rectangle {
                 
                 background: Rectangle {
                     color: parent.hovered ? "#66b1ff" : "#409EFF"
-                    radius: 4
+                    radius: 0
                 }
                 
                 contentItem: Text {
@@ -116,7 +116,7 @@ Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 40
             color: "#ffffff"
-            radius: 4
+            radius: 0
 
             RowLayout {
                 anchors.fill: parent
@@ -190,7 +190,7 @@ Rectangle {
                 color: currentTrack
                        ? "#FDECEC"
                        : (rowVisualHovered ? "#F8FAFF" : "#ffffff")
-                radius: 4
+                radius: 0
                 border.width: currentTrack ? 1 : 0
                 border.color: currentTrack ? "#EC4141" : "transparent"
 
@@ -204,7 +204,7 @@ Rectangle {
                 Rectangle {
                     visible: currentTrack
                     width: 3
-                    radius: 2
+                    radius: 0
                     color: "#EC4141"
                     anchors.left: parent.left
                     anchors.top: parent.top

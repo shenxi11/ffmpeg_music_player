@@ -60,6 +60,11 @@ void SettingsWidget::onClearLocalCacheRequested()
     m_viewModel->clearLocalCache(this);
 }
 
+void SettingsWidget::onSettingsClosedRequested()
+{
+    emit settingsCloseRequested();
+}
+
 void SettingsWidget::onRefreshPresenceRequested()
 {
     m_viewModel->refreshPresence();

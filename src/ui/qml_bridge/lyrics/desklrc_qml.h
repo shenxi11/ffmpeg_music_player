@@ -1,21 +1,23 @@
-﻿#ifndef DESKLRC_QML_H
+#ifndef DESKLRC_QML_H
 #define DESKLRC_QML_H
 
-#include <QObject>
-#include <QQuickWidget>
-#include <QQuickItem>
-#include <QDebug>
-#include <QMouseEvent>
-#include <QColor>
-#include <QFont>
-#include <QPoint>
-#include <QSize>
-#include <QSettings>
-#include <QGuiApplication>
-#include <QScreen>
-#include <QVariant>
-#include <QTimer>
 #include "process_slider_qml.h"
+#include "settings_manager.h"
+
+#include <QColor>
+#include <QDebug>
+#include <QFont>
+#include <QGuiApplication>
+#include <QMouseEvent>
+#include <QObject>
+#include <QPoint>
+#include <QQuickItem>
+#include <QQuickWidget>
+#include <QScreen>
+#include <QSettings>
+#include <QSize>
+#include <QTimer>
+#include <QVariant>
 
 class DeskLrcQml : public QQuickWidget
 {
@@ -31,19 +33,24 @@ signals:
     void signalCloseClicked();
 
 public:
-    explicit DeskLrcQml(QWidget *parent = nullptr)
+    explicit DeskLrcQml(QWidget* parent = nullptr)
         : QQuickWidget(parent)
-        , isDragging(false)
         , processSlider(nullptr)
         , qmlSignalsConnected(false)
-        , lastLyricText("")
-        , lastSongName("")
-        , lyricColor("#ffffff")
-        , lyricFontSize(18)
-        , lyricFontFamily("Microsoft YaHei")
-        , pendingPlayingState(false)
-        , hasPendingPlayingState(false)
+        , lastCurrentLyricText(QStringLiteral(u"\u2764 \u6682\u65e0\u6b4c\u8bcd \u2764"))
+        , lastNextLyricText(QString())
+        , lastSongName(QStringLiteral(u"\u6682\u65e0\u6b4c\u66f2"))
         , lastPlayingState(false)
+        , playedLyricColor(QStringLiteral("#ded93e"))
+        , unplayedLyricColor(QStringLiteral("#4ca6e8"))
+        , strokeLyricColor(QStringLiteral("#000000"))
+        , lyricFontSize(57)
+        , lyricFontFamily(QStringLiteral("Microsoft YaHei"))
+        , lyricLineMode(QStringLiteral("double"))
+        , lyricAlignment(QStringLiteral("split"))
+        , lyricOpacity(100)
+        , lyricBold(false)
+        , currentLineProgress(0.0)
     {
         setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint | Qt::Tool);
         setAttribute(Qt::WA_TranslucentBackground, true);
@@ -54,22 +61,23 @@ public:
         setAttribute(Qt::WA_AcceptTouchEvents, true);
         setMouseTracking(true);
 
-        resize(500, 120);
-        setMinimumSize(250, 100);
-        setMaximumSize(1600, 400);
+        resize(760, 190);
+        setMinimumSize(360, 132);
+        setMaximumSize(1800, 420);
 
-        loadPersistentSettings();
+        loadPersistentStyle();
+        loadPersistentGeometry();
 
-        connect(this, &QQuickWidget::statusChanged,
-                this, &DeskLrcQml::onQmlStatusChanged);
-
-        setSource(QUrl("qrc:/qml/components/lyrics/DeskLyric.qml"));
-        setResizeMode(QQuickWidget::SizeRootObjectToView);
+        connect(this, &QQuickWidget::statusChanged, this, &DeskLrcQml::onQmlStatusChanged);
+        connect(&geometrySaveTimer, &QTimer::timeout, this, &DeskLrcQml::onGeometrySaveTimeout);
+        connect(&SettingsManager::instance(), &SettingsManager::settingsCenterChanged, this,
+                &DeskLrcQml::onSettingsCenterChanged);
 
         geometrySaveTimer.setSingleShot(true);
         geometrySaveTimer.setInterval(220);
-        connect(&geometrySaveTimer, &QTimer::timeout,
-                this, &DeskLrcQml::onGeometrySaveTimeout);
+
+        setSource(QUrl(QStringLiteral("qrc:/qml/components/lyrics/DeskLyric.qml")));
+        setResizeMode(QQuickWidget::SizeRootObjectToView);
 
         if (status() == QQuickWidget::Error) {
             qWarning() << "Failed to load DeskLyric.qml:" << errors();
@@ -80,23 +88,22 @@ public:
         }
     }
 
-    void setLyricText(const QString &text)
+    void setLyricText(const QString& text)
     {
-        QString normalized = text.trimmed();
-        if (normalized.isEmpty()) {
-            normalized = QStringLiteral(u"\u2764 \u6682\u65e0\u6b4c\u8bcd \u2764");
-        }
-        if (normalized == lastLyricText) {
+        setLyricLines(text, QString());
+    }
+
+    void setLyricLines(const QString& currentText, const QString& nextText)
+    {
+        const QString normalizedCurrent = normalizePrimaryLyric(currentText);
+        const QString normalizedNext = normalizeSecondaryLyric(nextText);
+        if (normalizedCurrent == lastCurrentLyricText && normalizedNext == lastNextLyricText) {
             return;
         }
-        lastLyricText = normalized;
 
-        if (rootObject()) {
-            QMetaObject::invokeMethod(rootObject(), "setLyricText",
-                                      Q_ARG(QVariant, normalized));
-        } else {
-            pendingLyricText = normalized;
-        }
+        lastCurrentLyricText = normalizedCurrent;
+        lastNextLyricText = normalizedNext;
+        applyLyricContent();
     }
 
     void setPlayingState(bool isPlaying)
@@ -105,15 +112,17 @@ public:
             return;
         }
         lastPlayingState = isPlaying;
+        applyRuntimeState();
+    }
 
-        if (rootObject()) {
-            rootObject()->setProperty("isPlaying", isPlaying);
-            QMetaObject::invokeMethod(rootObject(), "setPlayButtonState",
-                                      Q_ARG(QVariant, isPlaying));
-        } else {
-            pendingPlayingState = isPlaying;
-            hasPendingPlayingState = true;
+    void setCurrentLineProgress(qreal progress)
+    {
+        const qreal normalized = qBound<qreal>(0.0, progress, 1.0);
+        if (qFuzzyCompare(currentLineProgress, normalized)) {
+            return;
         }
+        currentLineProgress = normalized;
+        applyLyricContent();
     }
 
     void showSettingsDialog()
@@ -123,39 +132,46 @@ public:
         }
     }
 
-    void setSongName(const QString &songName)
+    void setSongName(const QString& songName)
     {
-        QString normalized = songName.trimmed();
-        if (normalized.isEmpty()) {
-            normalized = QStringLiteral(u"\u6682\u65e0\u6b4c\u66f2");
-        }
+        const QString normalized = normalizeSongName(songName);
         if (normalized == lastSongName) {
             return;
         }
         lastSongName = normalized;
-
-        if (rootObject()) {
-            QMetaObject::invokeMethod(rootObject(), "setSongName",
-                                      Q_ARG(QVariant, normalized));
-        } else {
-            pendingSongName = normalized;
-        }
+        applyRuntimeState();
     }
 
-    void setLyricStyle(const QColor &color, int fontSize, const QFont &font)
+    void setLyricStyle(const QColor& primaryColor, const QColor& secondaryColor,
+                       const QColor& outlineColor, int fontSize, const QFont& font,
+                       const QString& lineMode = QString(), const QString& alignment = QString(),
+                       int opacity = -1, bool bold = false)
     {
-        lyricColor = color.isValid() ? color : QColor("#ffffff");
-        lyricFontSize = qBound(12, fontSize, 48);
-        lyricFontFamily = font.family().trimmed().isEmpty()
-                ? QStringLiteral("Microsoft YaHei")
-                : font.family();
+        playedLyricColor = primaryColor.isValid() ? primaryColor : QColor(QStringLiteral("#ded93e"));
+        unplayedLyricColor =
+            secondaryColor.isValid() ? secondaryColor : QColor(QStringLiteral("#4ca6e8"));
+        strokeLyricColor =
+            outlineColor.isValid() ? outlineColor : QColor(QStringLiteral("#000000"));
+        lyricFontSize = qBound(24, fontSize, 64);
+        lyricFontFamily = normalizeFontFamily(font.family());
+        lyricLineMode = normalizeLineMode(lineMode.isEmpty() ? lyricLineMode : lineMode);
+        lyricAlignment = normalizeAlignment(alignment.isEmpty() ? lyricAlignment : alignment);
+        lyricOpacity = opacity < 0 ? lyricOpacity : qBound(0, opacity, 100);
+        lyricBold = bold;
 
         applyPersistentStyle();
 
-        QSettings settings;
-        settings.setValue("DeskLrc/color", lyricColor);
-        settings.setValue("DeskLrc/fontSize", lyricFontSize);
-        settings.setValue("DeskLrc/fontFamily", lyricFontFamily);
+        SettingsManager& settings = SettingsManager::instance();
+        settings.setDesktopLyricColor(playedLyricColor);
+        settings.setDesktopLyricFontSize(lyricFontSize);
+        settings.setDesktopLyricFontFamily(lyricFontFamily);
+        settings.setDesktopLyricsPlayedColor(playedLyricColor);
+        settings.setDesktopLyricsUnplayedColor(unplayedLyricColor);
+        settings.setDesktopLyricsStrokeColor(strokeLyricColor);
+        settings.setDesktopLyricsLineMode(lyricLineMode);
+        settings.setDesktopLyricsAlignment(lyricAlignment);
+        settings.setDesktopLyricsOpacity(lyricOpacity);
+        settings.setDesktopLyricsBold(lyricBold);
     }
 
     void setProcessSlider(ProcessSliderQml* slider)
@@ -163,11 +179,21 @@ public:
         processSlider = slider;
     }
 
-    QString lyricText() const { return lastLyricText; }
+    QString lyricText() const { return lastCurrentLyricText; }
+    QString currentLyricText() const { return lastCurrentLyricText; }
+    QString nextLyricText() const { return lastNextLyricText; }
     QString songName() const { return lastSongName; }
-    QColor lyricStyleColor() const { return lyricColor; }
+    QColor lyricStyleColor() const { return playedLyricColor; }
+    QColor playedColor() const { return playedLyricColor; }
+    QColor unplayedColor() const { return unplayedLyricColor; }
+    QColor strokeColor() const { return strokeLyricColor; }
     int lyricStyleFontSize() const { return lyricFontSize; }
     QString lyricStyleFontFamily() const { return lyricFontFamily; }
+    QString lyricLineModeValue() const { return lyricLineMode; }
+    QString lyricAlignmentValue() const { return lyricAlignment; }
+    int lyricOpacityValue() const { return lyricOpacity; }
+    bool lyricBoldValue() const { return lyricBold; }
+    qreal currentLineProgressValue() const { return currentLineProgress; }
 
 private slots:
     void onQmlStatusChanged(QQuickWidget::Status status)
@@ -175,26 +201,11 @@ private slots:
         if (status != QQuickWidget::Ready) {
             return;
         }
+
         connectQmlSignals();
+        applyRuntimeState();
+        applyLyricContent();
         applyPersistentStyle();
-
-        if (!pendingLyricText.isEmpty()) {
-            QMetaObject::invokeMethod(rootObject(), "setLyricText",
-                                      Q_ARG(QVariant, pendingLyricText));
-            pendingLyricText.clear();
-        }
-
-        if (!pendingSongName.isEmpty()) {
-            QMetaObject::invokeMethod(rootObject(), "setSongName",
-                                      Q_ARG(QVariant, pendingSongName));
-            pendingSongName.clear();
-        }
-
-        if (hasPendingPlayingState) {
-            QMetaObject::invokeMethod(rootObject(), "setPlayButtonState",
-                                      Q_ARG(QVariant, pendingPlayingState));
-            hasPendingPlayingState = false;
-        }
     }
 
     void onPlayClicked(int state)
@@ -243,7 +254,7 @@ private slots:
         hide();
     }
 
-    void onWindowMoved(const QVariant &deltaVar)
+    void onWindowMoved(const QVariant& deltaVar)
     {
         const QPoint delta = deltaVar.toPoint();
         const QPoint targetPos = pos() + delta;
@@ -251,7 +262,7 @@ private slots:
         scheduleSaveWindowGeometry();
     }
 
-    void onWindowResized(const QVariant &requestedSizeVar)
+    void onWindowResized(const QVariant& requestedSizeVar)
     {
         QSize requestedSize = requestedSizeVar.toSize();
         if (!requestedSize.isValid()) {
@@ -263,6 +274,7 @@ private slots:
         if (!requestedSize.isValid()) {
             return;
         }
+
         QSize target = requestedSize;
         target.setWidth(qBound(minimumWidth(), target.width(), maximumWidth()));
         target.setHeight(qBound(minimumHeight(), target.height(), maximumHeight()));
@@ -271,28 +283,64 @@ private slots:
         scheduleSaveWindowGeometry();
     }
 
-    void onLyricStyleChanged(const QVariant& colorVar,
-                             int fontSize,
-                             const QString& fontFamily)
+    void onLyricStyleChanged(const QVariant& styleVar)
     {
-        const QColor parsedColor = colorVar.value<QColor>();
-        const int parsedSize = qBound(12, fontSize, 48);
-        const QString parsedFamily = fontFamily.trimmed();
-
-        const QColor nextColor = parsedColor.isValid() ? parsedColor : QColor("#ffffff");
-        const QString nextFamily = parsedFamily.isEmpty() ? QStringLiteral("Microsoft YaHei") : parsedFamily;
-        if (lyricColor == nextColor && lyricFontSize == parsedSize && lyricFontFamily == nextFamily) {
+        const QVariantMap styleMap = styleVar.toMap();
+        if (styleMap.isEmpty()) {
             return;
         }
 
-        lyricColor = nextColor;
-        lyricFontSize = parsedSize;
-        lyricFontFamily = nextFamily;
+        const QColor nextPrimary = colorFromMap(styleMap, QStringLiteral("playedColor"),
+                                                colorFromMap(styleMap, QStringLiteral("color"),
+                                                             playedLyricColor));
+        const QColor nextSecondary = colorFromMap(styleMap, QStringLiteral("unplayedColor"),
+                                                  unplayedLyricColor);
+        const QColor nextStroke =
+            colorFromMap(styleMap, QStringLiteral("strokeColor"), strokeLyricColor);
+        const int nextFontSize =
+            qBound(24, styleMap.value(QStringLiteral("fontSize"), lyricFontSize).toInt(), 64);
+        const QString nextFontFamily =
+            normalizeFontFamily(styleMap.value(QStringLiteral("fontFamily"), lyricFontFamily)
+                                    .toString());
+        const QString nextLineMode =
+            normalizeLineMode(styleMap.value(QStringLiteral("lineMode"), lyricLineMode).toString());
+        const QString nextAlignment = normalizeAlignment(
+            styleMap.value(QStringLiteral("alignment"), lyricAlignment).toString());
+        const int nextOpacity =
+            qBound(0, styleMap.value(QStringLiteral("opacity"), lyricOpacity).toInt(), 100);
+        const bool nextBold = styleMap.value(QStringLiteral("bold"), lyricBold).toBool();
 
-        QSettings settings;
-        settings.setValue("DeskLrc/color", lyricColor);
-        settings.setValue("DeskLrc/fontSize", lyricFontSize);
-        settings.setValue("DeskLrc/fontFamily", lyricFontFamily);
+        if (playedLyricColor == nextPrimary && unplayedLyricColor == nextSecondary &&
+            strokeLyricColor == nextStroke && lyricFontSize == nextFontSize &&
+            lyricFontFamily == nextFontFamily && lyricLineMode == nextLineMode &&
+            lyricAlignment == nextAlignment && lyricOpacity == nextOpacity &&
+            lyricBold == nextBold) {
+            return;
+        }
+
+        playedLyricColor = nextPrimary;
+        unplayedLyricColor = nextSecondary;
+        strokeLyricColor = nextStroke;
+        lyricFontSize = nextFontSize;
+        lyricFontFamily = nextFontFamily;
+        lyricLineMode = nextLineMode;
+        lyricAlignment = nextAlignment;
+        lyricOpacity = nextOpacity;
+        lyricBold = nextBold;
+
+        SettingsManager& settings = SettingsManager::instance();
+        settings.setDesktopLyricColor(playedLyricColor);
+        settings.setDesktopLyricFontSize(lyricFontSize);
+        settings.setDesktopLyricFontFamily(lyricFontFamily);
+        settings.setDesktopLyricsPlayedColor(playedLyricColor);
+        settings.setDesktopLyricsUnplayedColor(unplayedLyricColor);
+        settings.setDesktopLyricsStrokeColor(strokeLyricColor);
+        settings.setDesktopLyricsLineMode(lyricLineMode);
+        settings.setDesktopLyricsAlignment(lyricAlignment);
+        settings.setDesktopLyricsOpacity(lyricOpacity);
+        settings.setDesktopLyricsBold(lyricBold);
+
+        applyPersistentStyle();
     }
 
     void onGeometrySaveTimeout()
@@ -300,91 +348,181 @@ private slots:
         saveWindowGeometry();
     }
 
-protected:
-    void mousePressEvent(QMouseEvent *event) override
+    void onSettingsCenterChanged()
     {
-        if (event->button() == Qt::LeftButton) {
-            if (event->y() < 35) {
-                QQuickWidget::mousePressEvent(event);
-                return;
-            }
-            isDragging = true;
-            dragStartPos = event->globalPos() - frameGeometry().topLeft();
-            event->accept();
-            return;
+        const QString previousLineMode = lyricLineMode;
+        const QString previousAlignment = lyricAlignment;
+        const QColor previousPlayed = playedLyricColor;
+        const QColor previousUnplayed = unplayedLyricColor;
+        const QColor previousStroke = strokeLyricColor;
+        const int previousFontSize = lyricFontSize;
+        const QString previousFontFamily = lyricFontFamily;
+        const int previousOpacity = lyricOpacity;
+        const bool previousBold = lyricBold;
+
+        loadPersistentStyle();
+
+        if (previousLineMode != lyricLineMode || previousAlignment != lyricAlignment ||
+            previousPlayed != playedLyricColor || previousUnplayed != unplayedLyricColor ||
+            previousStroke != strokeLyricColor || previousFontSize != lyricFontSize ||
+            previousFontFamily != lyricFontFamily || previousOpacity != lyricOpacity ||
+            previousBold != lyricBold) {
+            applyPersistentStyle();
         }
+    }
+
+protected:
+    void mousePressEvent(QMouseEvent* event) override
+    {
         QQuickWidget::mousePressEvent(event);
     }
 
-    void mouseMoveEvent(QMouseEvent *event) override
+    void mouseMoveEvent(QMouseEvent* event) override
     {
-        if (isDragging && (event->buttons() & Qt::LeftButton)) {
-            const QPoint target = event->globalPos() - dragStartPos;
-            move(clampWindowPos(target, size()));
-            event->accept();
-            return;
-        }
         QQuickWidget::mouseMoveEvent(event);
     }
 
-    void mouseReleaseEvent(QMouseEvent *event) override
+    void mouseReleaseEvent(QMouseEvent* event) override
     {
-        if (event->button() == Qt::LeftButton) {
-            isDragging = false;
-            scheduleSaveWindowGeometry();
-        }
         QQuickWidget::mouseReleaseEvent(event);
     }
 
 private:
+    static QString normalizeFontFamily(const QString& family)
+    {
+        const QString trimmed = family.trimmed();
+        return trimmed.isEmpty() ? QStringLiteral("Microsoft YaHei") : trimmed;
+    }
+
+    static QString normalizeLineMode(const QString& mode)
+    {
+        return mode.compare(QStringLiteral("single"), Qt::CaseInsensitive) == 0
+                   ? QStringLiteral("single")
+                   : QStringLiteral("double");
+    }
+
+    static QString normalizeAlignment(const QString& alignment)
+    {
+        const QString normalized = alignment.trimmed().toLower();
+        if (normalized == QStringLiteral("left") || normalized == QStringLiteral("right") ||
+            normalized == QStringLiteral("split")) {
+            return normalized;
+        }
+        return QStringLiteral("center");
+    }
+
+    static QColor colorFromMap(const QVariantMap& styleMap, const QString& key,
+                               const QColor& fallback)
+    {
+        const QVariant rawValue = styleMap.value(key);
+        QColor parsed = rawValue.value<QColor>();
+        if (!parsed.isValid()) {
+            parsed = QColor(rawValue.toString().trimmed());
+        }
+        return parsed.isValid() ? parsed : fallback;
+    }
+
+    QString normalizePrimaryLyric(const QString& text) const
+    {
+        const QString trimmed = text.trimmed();
+        return trimmed.isEmpty() ? QStringLiteral(u"\u2764 \u6682\u65e0\u6b4c\u8bcd \u2764")
+                                 : trimmed;
+    }
+
+    QString normalizeSecondaryLyric(const QString& text) const
+    {
+        return text.trimmed();
+    }
+
+    QString normalizeSongName(const QString& text) const
+    {
+        const QString trimmed = text.trimmed();
+        return trimmed.isEmpty() ? QStringLiteral(u"\u6682\u65e0\u6b4c\u66f2") : trimmed;
+    }
+
     void connectQmlSignals()
     {
         if (qmlSignalsConnected || !rootObject()) {
             return;
         }
 
-        connect(rootObject(), SIGNAL(playClicked(int)),
-                this, SLOT(onPlayClicked(int)), Qt::UniqueConnection);
-        connect(rootObject(), SIGNAL(nextClicked()),
-                this, SLOT(onNextClicked()), Qt::UniqueConnection);
-        connect(rootObject(), SIGNAL(lastClicked()),
-                this, SLOT(onLastClicked()), Qt::UniqueConnection);
-        connect(rootObject(), SIGNAL(forwardClicked()),
-                this, SLOT(onForwardClicked()), Qt::UniqueConnection);
-        connect(rootObject(), SIGNAL(backwardClicked()),
-                this, SLOT(onBackwardClicked()), Qt::UniqueConnection);
-        connect(rootObject(), SIGNAL(settingsClicked()),
-                this, SLOT(onSettingsClicked()), Qt::UniqueConnection);
-        connect(rootObject(), SIGNAL(closeClicked()),
-                this, SLOT(onCloseClicked()), Qt::UniqueConnection);
-        connect(rootObject(), SIGNAL(windowMoved(QVariant)),
-                this, SLOT(onWindowMoved(QVariant)), Qt::UniqueConnection);
-        connect(rootObject(), SIGNAL(windowResized(QVariant)),
-                this, SLOT(onWindowResized(QVariant)), Qt::UniqueConnection);
-        connect(rootObject(), SIGNAL(lyricStyleChanged(QVariant,int,QString)),
-                this, SLOT(onLyricStyleChanged(QVariant,int,QString)), Qt::UniqueConnection);
+        connect(rootObject(), SIGNAL(playClicked(int)), this, SLOT(onPlayClicked(int)),
+                Qt::UniqueConnection);
+        connect(rootObject(), SIGNAL(nextClicked()), this, SLOT(onNextClicked()),
+                Qt::UniqueConnection);
+        connect(rootObject(), SIGNAL(lastClicked()), this, SLOT(onLastClicked()),
+                Qt::UniqueConnection);
+        connect(rootObject(), SIGNAL(forwardClicked()), this, SLOT(onForwardClicked()),
+                Qt::UniqueConnection);
+        connect(rootObject(), SIGNAL(backwardClicked()), this, SLOT(onBackwardClicked()),
+                Qt::UniqueConnection);
+        connect(rootObject(), SIGNAL(settingsClicked()), this, SLOT(onSettingsClicked()),
+                Qt::UniqueConnection);
+        connect(rootObject(), SIGNAL(closeClicked()), this, SLOT(onCloseClicked()),
+                Qt::UniqueConnection);
+        connect(rootObject(), SIGNAL(windowMoved(QVariant)), this, SLOT(onWindowMoved(QVariant)),
+                Qt::UniqueConnection);
+        connect(rootObject(), SIGNAL(windowResized(QVariant)), this,
+                SLOT(onWindowResized(QVariant)), Qt::UniqueConnection);
+        connect(rootObject(), SIGNAL(lyricStyleChanged(QVariant)), this,
+                SLOT(onLyricStyleChanged(QVariant)), Qt::UniqueConnection);
 
         qmlSignalsConnected = true;
         qDebug() << "DeskLrcQml: QML signals connected";
     }
 
-    void loadPersistentSettings()
+    void loadPersistentStyle()
+    {
+        SettingsManager& settings = SettingsManager::instance();
+        playedLyricColor = settings.desktopLyricsPlayedColor().isValid()
+                               ? settings.desktopLyricsPlayedColor()
+                               : QColor(QStringLiteral("#ded93e"));
+        unplayedLyricColor = settings.desktopLyricsUnplayedColor().isValid()
+                                 ? settings.desktopLyricsUnplayedColor()
+                                 : QColor(QStringLiteral("#4ca6e8"));
+        strokeLyricColor = settings.desktopLyricsStrokeColor().isValid()
+                               ? settings.desktopLyricsStrokeColor()
+                               : QColor(QStringLiteral("#000000"));
+        lyricFontSize = qBound(24, settings.desktopLyricFontSize(), 64);
+        lyricFontFamily = normalizeFontFamily(settings.desktopLyricFontFamily());
+        lyricLineMode = normalizeLineMode(settings.desktopLyricsLineMode());
+        lyricAlignment = normalizeAlignment(settings.desktopLyricsAlignment());
+        lyricOpacity = qBound(0, settings.desktopLyricsOpacity(), 100);
+        lyricBold = settings.desktopLyricsBold();
+    }
+
+    void loadPersistentGeometry()
     {
         QSettings settings;
-        lyricColor = settings.value("DeskLrc/color", QColor("#ffffff")).value<QColor>();
-        lyricFontSize = qBound(12, settings.value("DeskLrc/fontSize", 18).toInt(), 48);
-        lyricFontFamily = settings.value("DeskLrc/fontFamily", QStringLiteral("Microsoft YaHei")).toString().trimmed();
-        if (lyricFontFamily.isEmpty()) {
-            lyricFontFamily = QStringLiteral("Microsoft YaHei");
-        }
-
-        QSize savedSize = settings.value("DeskLrc/windowSize", QSize(500, 120)).toSize();
+        QSize savedSize = settings.value(QStringLiteral("DeskLrc/windowSize"), QSize(760, 190))
+                              .toSize();
         savedSize.setWidth(qBound(minimumWidth(), savedSize.width(), maximumWidth()));
         savedSize.setHeight(qBound(minimumHeight(), savedSize.height(), maximumHeight()));
         resize(savedSize);
 
-        QPoint savedPos = settings.value("DeskLrc/windowPos", QPoint(120, 120)).toPoint();
+        const QPoint savedPos =
+            settings.value(QStringLiteral("DeskLrc/windowPos"), QPoint(120, 120)).toPoint();
         move(clampWindowPos(savedPos, savedSize));
+    }
+
+    void applyRuntimeState()
+    {
+        if (!rootObject()) {
+            return;
+        }
+        rootObject()->setProperty("songName", lastSongName);
+        rootObject()->setProperty("isPlaying", lastPlayingState);
+    }
+
+    void applyLyricContent()
+    {
+        if (!rootObject()) {
+            return;
+        }
+        rootObject()->setProperty("currentLyricText", lastCurrentLyricText);
+        rootObject()->setProperty("nextLyricText", lastNextLyricText);
+        rootObject()->setProperty("currentLineProgress", currentLineProgress);
+        QMetaObject::invokeMethod(rootObject(), "scheduleAutoResize");
     }
 
     void applyPersistentStyle()
@@ -392,17 +530,23 @@ private:
         if (!rootObject()) {
             return;
         }
-        QMetaObject::invokeMethod(rootObject(), "setLyricStyle",
-                                  Q_ARG(QVariant, lyricColor),
-                                  Q_ARG(QVariant, lyricFontSize),
-                                  Q_ARG(QVariant, lyricFontFamily));
+        rootObject()->setProperty("playedLyricColor", playedLyricColor);
+        rootObject()->setProperty("unplayedLyricColor", unplayedLyricColor);
+        rootObject()->setProperty("strokeColor", strokeLyricColor);
+        rootObject()->setProperty("lyricFontSize", lyricFontSize);
+        rootObject()->setProperty("lyricFontFamily", lyricFontFamily);
+        rootObject()->setProperty("lineMode", lyricLineMode);
+        rootObject()->setProperty("alignment", lyricAlignment);
+        rootObject()->setProperty("lyricOpacity", lyricOpacity);
+        rootObject()->setProperty("lyricBold", lyricBold);
+        QMetaObject::invokeMethod(rootObject(), "scheduleAutoResize");
     }
 
     void saveWindowGeometry()
     {
         QSettings settings;
-        settings.setValue("DeskLrc/windowPos", pos());
-        settings.setValue("DeskLrc/windowSize", size());
+        settings.setValue(QStringLiteral("DeskLrc/windowPos"), pos());
+        settings.setValue(QStringLiteral("DeskLrc/windowSize"), size());
     }
 
     void scheduleSaveWindowGeometry()
@@ -428,24 +572,23 @@ private:
     }
 
 private:
-    bool isDragging;
-    QPoint dragStartPos;
     ProcessSliderQml* processSlider;
-
     bool qmlSignalsConnected;
-    QString pendingLyricText;
-    QString pendingSongName;
-    bool pendingPlayingState;
-    bool hasPendingPlayingState;
-    QString lastLyricText;
+    QString lastCurrentLyricText;
+    QString lastNextLyricText;
     QString lastSongName;
     bool lastPlayingState;
-
-    QColor lyricColor;
+    QColor playedLyricColor;
+    QColor unplayedLyricColor;
+    QColor strokeLyricColor;
     int lyricFontSize;
     QString lyricFontFamily;
+    QString lyricLineMode;
+    QString lyricAlignment;
+    int lyricOpacity;
+    bool lyricBold;
+    qreal currentLineProgress;
     QTimer geometrySaveTimer;
 };
 
 #endif // DESKLRC_QML_H
-

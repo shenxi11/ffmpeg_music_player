@@ -17,7 +17,7 @@ void SettingsWidget::setupRootConnections(QQuickItem* root)
     connect(root, SIGNAL(chooseAudioCachePath()), this, SLOT(onChooseAudioCachePath()));
     connect(root, SIGNAL(chooseLogPath()), this, SLOT(onChooseLogPath()));
     connect(root, SIGNAL(clearLocalCacheRequested()), this, SLOT(onClearLocalCacheRequested()));
-    connect(root, SIGNAL(settingsClosed()), this, SLOT(close()));
+    connect(root, SIGNAL(settingsClosed()), this, SLOT(onSettingsClosedRequested()));
     connect(root, SIGNAL(returnToWelcomeRequested()), this, SLOT(onReturnToWelcomeRequested()));
     connect(root, SIGNAL(refreshPresenceRequested()), this, SLOT(onRefreshPresenceRequested()));
 }

@@ -34,7 +34,7 @@ void DeskLrcSettings::setupUI()
     previewLabel = new QLabel("这是桌面歌词预览文字", this);
     previewLabel->setAlignment(Qt::AlignCenter);
     previewLabel->setMinimumHeight(60);
-    previewLabel->setStyleSheet("QLabel { background-color: #2d2d2d; border-radius: 5px; padding: 10px; }");
+    previewLabel->setStyleSheet("QLabel { background-color: #2d2d2d; border-radius: 0px; padding: 10px; }");
     previewLayout->addWidget(previewLabel);
     
     // 颜色设置
@@ -195,7 +195,7 @@ void DeskLrcSettings::onResetClicked()
 
 void DeskLrcSettings::updateColorButton()
 {
-    QString styleSheet = QString("QPushButton { background-color: %1; border: 1px solid #999; border-radius: 3px; }")
+    QString styleSheet = QString("QPushButton { background-color: %1; border: 1px solid #999; border-radius: 0px; }")
                          .arg(lrcColor.name());
     colorButton->setStyleSheet(styleSheet);
 }
@@ -203,7 +203,7 @@ void DeskLrcSettings::updateColorButton()
 void DeskLrcSettings::updatePreview()
 {
     previewLabel->setFont(lrcFont);
-    previewLabel->setStyleSheet(QString("QLabel { color: %1; background-color: #2d2d2d; border-radius: 5px; padding: 10px; }")
+    previewLabel->setStyleSheet(QString("QLabel { color: %1; background-color: #2d2d2d; border-radius: 0px; padding: 10px; }")
                                .arg(lrcColor.name()));
 }
 

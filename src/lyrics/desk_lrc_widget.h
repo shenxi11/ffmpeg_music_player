@@ -59,12 +59,12 @@ protected:
             
             painter.setBrush(QBrush(gradient));
             painter.setPen(QPen(QColor(255, 255, 255, 50), 1));
-            painter.drawRoundedRect(bgRect, 15, 15);
+            painter.drawRect(bgRect);
             
             // 添加内发光效果
             QPen glowPen(QColor(102, 126, 234, 100), 2);
             painter.setPen(glowPen);
-            painter.drawRoundedRect(bgRect.adjusted(1, 1, -1, -1), 14, 14);
+            painter.drawRect(bgRect.adjusted(1, 1, -1, -1));
             
             // 绘制拉伸提示
             const int resizeMargin = 10;

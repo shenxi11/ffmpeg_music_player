@@ -7,6 +7,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QFileInfoList>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QNetworkRequest>
@@ -44,9 +45,55 @@ bool hasSupportedAudioExtension(const QString& pathLower)
             || pathLower.endsWith(".aac");
 }
 
+bool hasSeekIndexSupportedAudioExtension(const QString& pathLower)
+{
+    return pathLower.endsWith(".mp3")
+            || pathLower.endsWith(".m4a")
+            || pathLower.endsWith(".aac");
+}
+
 bool isFlacUrl(const QUrl& url)
 {
     return url.path().toLower().endsWith(".flac");
+}
+
+bool isLocalProxyUrl(const QUrl& url)
+{
+    if (!url.isValid()) {
+        return false;
+    }
+
+    const QString scheme = url.scheme().toLower();
+    if (scheme != "http") {
+        return false;
+    }
+
+    const QString host = url.host().toLower();
+    return host == QStringLiteral("127.0.0.1") || host == QStringLiteral("localhost");
+}
+
+QUrl resolveSeekIndexSourceUrl(const QUrl& playbackUrl)
+{
+    if (isLocalProxyUrl(playbackUrl)) {
+        const QUrlQuery query(playbackUrl);
+        const QUrl sourceUrl(query.queryItemValue(QStringLiteral("src")));
+        if (sourceUrl.isValid() && !sourceUrl.isEmpty()) {
+            return sourceUrl;
+        }
+    }
+
+    return playbackUrl;
+}
+
+bool containsTraversalSegment(const QString& normalizedPath)
+{
+    const QStringList segments = normalizedPath.split('/', Qt::SkipEmptyParts);
+    for (const QString& segment : segments) {
+        if (segment == QStringLiteral("..")) {
+            return true;
+        }
+    }
+    return false;
 }
 
 bool isLikelyAudioResponse(const QNetworkReply* reply)
@@ -311,23 +358,43 @@ void AudioCacheManager::prefetchForSeek(const QUrl& originalUrl, qint64 targetMs
     if (durationMs > 0 && meta.durationMs <= 0) {
         meta.durationMs = durationMs;
     }
+    if (meta.contentLength <= 0 && meta.seekIndexFileSize > 0) {
+        meta.contentLength = meta.seekIndexFileSize;
+    }
     meta.lastAccessMs = currentEpochMs();
-    updateTrackMeta(cacheKey, meta.contentLength, meta.durationMs);
+    {
+        QMutexLocker locker(&m_metaMutex);
+        m_trackMetaCache.insert(cacheKey, meta);
+    }
+    persistTrackMeta(cacheKey, meta);
 
-    if (meta.contentLength <= 0 || meta.durationMs <= 0 || targetMs < 0) {
+    ensureSeekIndex(originalUrl, cacheKey, durationMs > 0 ? durationMs : meta.durationMs);
+
+    loadTrackMeta(cacheKey, &meta);
+    if (meta.contentLength <= 0 && meta.seekIndexFileSize > 0) {
+        meta.contentLength = meta.seekIndexFileSize;
+    }
+
+    const qint64 indexedCenterByte = estimateCenterByteFromSeekIndex(meta, targetMs);
+    const bool seekIndexHit = indexedCenterByte >= 0;
+
+    if (meta.contentLength <= 0 || (!seekIndexHit && meta.durationMs <= 0) || targetMs < 0) {
         // Unknown total length/duration: fallback to startup prefetch.
         warmupCache(originalUrl);
         return;
     }
 
-    const double ratio = qBound(0.0, static_cast<double>(targetMs) / static_cast<double>(meta.durationMs), 1.0);
-    qint64 centerByte = static_cast<qint64>(ratio * static_cast<double>(meta.contentLength - 1));
+    qint64 centerByte = indexedCenterByte;
+    if (!seekIndexHit) {
+        const double ratio = qBound(0.0, static_cast<double>(targetMs) / static_cast<double>(meta.durationMs), 1.0);
+        centerByte = static_cast<qint64>(ratio * static_cast<double>(meta.contentLength - 1));
+    }
     if (centerByte < 0) {
         centerByte = 0;
     }
     const qint64 centerChunk = centerByte / m_chunkSizeBytes;
     const bool flac = isFlacUrl(originalUrl);
-    const qint64 seekWindow = flac ? 4 : 2;
+    const qint64 seekWindow = flac ? 4 : (seekIndexHit ? 1 : 2);
 
     // 以“中心块优先，再向前后扩展”的顺序预取，降低首包等待。
     QVector<qint64> offsets;
@@ -359,6 +426,9 @@ void AudioCacheManager::prefetchForSeek(const QUrl& originalUrl, qint64 targetMs
     }
 
     qDebug() << "[AudioCache] Seek prefetch queued:"
+             << "seek_target_ms=" << targetMs
+             << "seek_index_hit=" << seekIndexHit
+             << "seek_prefetch_center_byte=" << centerByte
              << "targetMs=" << targetMs
              << "durationMs=" << meta.durationMs
              << "contentLength=" << meta.contentLength
@@ -385,9 +455,309 @@ void AudioCacheManager::noteTrackDuration(const QUrl& originalUrl, qint64 durati
     updateTrackMeta(cacheKey, meta.contentLength, meta.durationMs);
 }
 
+bool AudioCacheManager::hasResolvedSeekIndexForPlaybackUrl(const QUrl& playbackUrl) const
+{
+    const QUrl originalUrl = resolveSeekIndexSourceUrl(playbackUrl);
+    if (!canUseSeekIndexForUrl(originalUrl)) {
+        return false;
+    }
+
+    TrackMeta meta;
+    if (!loadTrackMeta(makeCacheKey(originalUrl), &meta)) {
+        return false;
+    }
+
+    return meta.seekIndexResolved
+            && meta.seekIndexSupported
+            && !meta.seekIndexPoints.isEmpty();
+}
+
+QString AudioCacheManager::musicPathForSeekIndexUrl(const QUrl& url) const
+{
+    if (!isRemoteHttpUrl(url)) {
+        return QString();
+    }
+
+    const QString path = url.path();
+    if (!path.startsWith(QStringLiteral("/uploads/"), Qt::CaseInsensitive)) {
+        return QString();
+    }
+
+    QString musicPath = QUrl::fromPercentEncoding(path.mid(QStringLiteral("/uploads/").size()).toUtf8()).trimmed();
+    musicPath.replace('\\', '/');
+    if (musicPath.isEmpty()
+            || musicPath == QStringLiteral(".")
+            || musicPath.startsWith('/')
+            || QDir::isAbsolutePath(musicPath)
+            || containsTraversalSegment(musicPath)) {
+        return QString();
+    }
+
+    musicPath = QDir::cleanPath(musicPath);
+    if (musicPath.isEmpty() || musicPath == QStringLiteral(".")) {
+        return QString();
+    }
+    if (musicPath.startsWith('/') || QDir::isAbsolutePath(musicPath) || containsTraversalSegment(musicPath)) {
+        return QString();
+    }
+
+    return musicPath;
+}
+
+bool AudioCacheManager::shouldRefreshSeekIndex(const TrackMeta& meta) const
+{
+    const qint64 nowMs = currentEpochMs();
+    if (meta.seekIndexMusicPath.isEmpty()) {
+        return true;
+    }
+
+    if (!meta.seekIndexResolved) {
+        return meta.seekIndexFetchedAtMs <= 0
+                || nowMs - meta.seekIndexFetchedAtMs >= 60 * 1000;
+    }
+
+    if (!meta.seekIndexSupported) {
+        return meta.seekIndexFetchedAtMs <= 0
+                || nowMs - meta.seekIndexFetchedAtMs >= 6LL * 60 * 60 * 1000;
+    }
+
+    if (meta.seekIndexPoints.isEmpty() || meta.seekIndexVersion.isEmpty() || meta.seekIndexFileSize <= 0) {
+        return true;
+    }
+
+    return nowMs - meta.seekIndexFetchedAtMs >= 24LL * 60 * 60 * 1000;
+}
+
+void AudioCacheManager::ensureSeekIndex(const QUrl& originalUrl, const QString& cacheKey, qint64 knownDurationMs)
+{
+    if (!canUseSeekIndexForUrl(originalUrl)) {
+        return;
+    }
+
+    TrackMeta meta;
+    loadTrackMeta(cacheKey, &meta);
+
+    const QString musicPath = musicPathForSeekIndexUrl(originalUrl);
+    if (musicPath.isEmpty()) {
+        return;
+    }
+
+    bool metaChanged = false;
+    if (knownDurationMs > 0 && meta.durationMs <= 0) {
+        meta.durationMs = knownDurationMs;
+        metaChanged = true;
+    }
+    if (meta.seekIndexMusicPath != musicPath) {
+        meta.seekIndexResolved = false;
+        meta.seekIndexSupported = false;
+        meta.seekIndexFetchedAtMs = 0;
+        meta.seekIndexFileSize = -1;
+        meta.seekIndexVersion.clear();
+        meta.seekIndexMusicPath = musicPath;
+        meta.seekIndexPoints.clear();
+        metaChanged = true;
+    }
+
+    if (metaChanged) {
+        meta.lastAccessMs = currentEpochMs();
+        {
+            QMutexLocker locker(&m_metaMutex);
+            m_trackMetaCache.insert(cacheKey, meta);
+        }
+        persistTrackMeta(cacheKey, meta);
+    }
+
+    if (!shouldRefreshSeekIndex(meta)) {
+        return;
+    }
+
+    for (auto it = m_seekIndexRequests.cbegin(); it != m_seekIndexRequests.cend(); ++it) {
+        if (it.value().cacheKey == cacheKey) {
+            return;
+        }
+    }
+
+    QUrl seekIndexUrl;
+    seekIndexUrl.setScheme(originalUrl.scheme());
+    seekIndexUrl.setHost(originalUrl.host());
+    if (originalUrl.port() > 0) {
+        seekIndexUrl.setPort(originalUrl.port());
+    }
+    seekIndexUrl.setPath(QStringLiteral("/music/local/seek-index"));
+    QUrlQuery query;
+    query.addQueryItem(QStringLiteral("music_path"), musicPath);
+    seekIndexUrl.setQuery(query);
+
+    QNetworkRequest request(seekIndexUrl);
+    request.setAttribute(QNetworkRequest::FollowRedirectsAttribute, true);
+    request.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("FFmpegMusicPlayer/1.0"));
+    request.setPriority(QNetworkRequest::HighPriority);
+
+    QNetworkReply* reply = m_networkManager.get(request);
+    m_seekIndexRequests.insert(reply, SeekIndexRequest{cacheKey, musicPath});
+    connect(reply, &QNetworkReply::finished,
+            this, &AudioCacheManager::onSeekIndexReplyFinished);
+
+    qDebug() << "[AudioCache] Request seek index:"
+             << "musicPath=" << musicPath
+             << "url=" << seekIndexUrl.toString();
+}
+
+qint64 AudioCacheManager::estimateCenterByteFromSeekIndex(const TrackMeta& meta, qint64 targetMs) const
+{
+    if (!meta.seekIndexResolved || !meta.seekIndexSupported || meta.seekIndexPoints.isEmpty() || targetMs < 0) {
+        return -1;
+    }
+
+    const auto& points = meta.seekIndexPoints;
+    qint64 centerByte = points.first().byteOffset;
+    if (targetMs <= points.first().timeMs) {
+        centerByte = points.first().byteOffset;
+    } else if (targetMs >= points.last().timeMs) {
+        centerByte = points.last().byteOffset;
+    } else {
+        for (int i = 1; i < points.size(); ++i) {
+            const TrackMeta::SeekIndexPoint& previous = points.at(i - 1);
+            const TrackMeta::SeekIndexPoint& next = points.at(i);
+            if (targetMs > next.timeMs) {
+                continue;
+            }
+
+            if (next.timeMs <= previous.timeMs || next.byteOffset <= previous.byteOffset) {
+                centerByte = previous.byteOffset;
+                break;
+            }
+
+            const double ratio = static_cast<double>(targetMs - previous.timeMs)
+                    / static_cast<double>(next.timeMs - previous.timeMs);
+            centerByte = previous.byteOffset
+                    + static_cast<qint64>(ratio * static_cast<double>(next.byteOffset - previous.byteOffset));
+            break;
+        }
+    }
+
+    const qint64 fileSize = qMax(meta.seekIndexFileSize, meta.contentLength);
+    if (fileSize <= 0) {
+        return -1;
+    }
+    const qint64 maxByte = qMax<qint64>(0, fileSize - 1);
+    return qBound<qint64>(0, centerByte, maxByte);
+}
+
+void AudioCacheManager::onSeekIndexReplyFinished()
+{
+    auto* reply = qobject_cast<QNetworkReply*>(sender());
+    if (!reply) {
+        return;
+    }
+
+    const auto it = m_seekIndexRequests.find(reply);
+    if (it == m_seekIndexRequests.end()) {
+        reply->deleteLater();
+        return;
+    }
+
+    const SeekIndexRequest request = it.value();
+    m_seekIndexRequests.erase(it);
+
+    TrackMeta meta;
+    loadTrackMeta(request.cacheKey, &meta);
+    const bool hadUsableIndex = meta.seekIndexResolved
+            && meta.seekIndexSupported
+            && !meta.seekIndexPoints.isEmpty();
+
+    const qint64 nowMs = currentEpochMs();
+    meta.lastAccessMs = nowMs;
+    meta.seekIndexFetchedAtMs = nowMs;
+    if (meta.seekIndexMusicPath.isEmpty()) {
+        meta.seekIndexMusicPath = request.musicPath;
+    }
+
+    bool parsedResponse = false;
+    const int statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+    if (reply->error() == QNetworkReply::NoError && statusCode == 200) {
+        QJsonParseError parseError;
+        const QJsonDocument doc = QJsonDocument::fromJson(reply->readAll(), &parseError);
+        if (parseError.error == QJsonParseError::NoError && doc.isObject()) {
+            const QJsonObject obj = doc.object();
+            const bool supported = obj.value(QStringLiteral("supported")).toBool(false);
+            const QString responseMusicPath = obj.value(QStringLiteral("music_path")).toString().trimmed();
+            const QString resolvedMusicPath = responseMusicPath.isEmpty() ? request.musicPath : responseMusicPath;
+            const qint64 fileSize = static_cast<qint64>(obj.value(QStringLiteral("file_size")).toDouble(-1));
+            const qint64 durationMs = static_cast<qint64>(obj.value(QStringLiteral("duration_ms")).toDouble(-1));
+            const QString version = obj.value(QStringLiteral("version")).toString().trimmed();
+
+            QVector<TrackMeta::SeekIndexPoint> points;
+            const QJsonArray pointsArray = obj.value(QStringLiteral("points")).toArray();
+            points.reserve(pointsArray.size());
+            for (const QJsonValue& value : pointsArray) {
+                const QJsonObject pointObj = value.toObject();
+                const qint64 timeMs = static_cast<qint64>(pointObj.value(QStringLiteral("time_ms")).toDouble(-1));
+                const qint64 byteOffset = static_cast<qint64>(pointObj.value(QStringLiteral("byte_offset")).toDouble(-1));
+                if (timeMs < 0 || byteOffset < 0) {
+                    continue;
+                }
+                points.push_back(TrackMeta::SeekIndexPoint{timeMs, byteOffset});
+            }
+            std::sort(points.begin(), points.end(), [](const TrackMeta::SeekIndexPoint& lhs,
+                                                       const TrackMeta::SeekIndexPoint& rhs) {
+                if (lhs.timeMs == rhs.timeMs) {
+                    return lhs.byteOffset < rhs.byteOffset;
+                }
+                return lhs.timeMs < rhs.timeMs;
+            });
+
+            meta.seekIndexResolved = true;
+            meta.seekIndexSupported = supported && !points.isEmpty();
+            meta.seekIndexMusicPath = resolvedMusicPath;
+            meta.seekIndexFileSize = fileSize;
+            meta.seekIndexVersion = version;
+            meta.seekIndexPoints = meta.seekIndexSupported ? points : QVector<TrackMeta::SeekIndexPoint>{};
+            if (durationMs > 0) {
+                meta.durationMs = durationMs;
+            }
+            if (fileSize > 0) {
+                meta.contentLength = fileSize;
+            }
+
+            parsedResponse = true;
+            qDebug() << "[AudioCache] Seek index response:"
+                     << "musicPath=" << meta.seekIndexMusicPath
+                     << "supported=" << meta.seekIndexSupported
+                     << "points=" << meta.seekIndexPoints.size()
+                     << "version=" << meta.seekIndexVersion;
+        }
+    }
+
+    if (!parsedResponse) {
+        if (!hadUsableIndex) {
+            meta.seekIndexResolved = false;
+            meta.seekIndexSupported = false;
+            meta.seekIndexFileSize = -1;
+            meta.seekIndexVersion.clear();
+            meta.seekIndexPoints.clear();
+        }
+        qWarning() << "[AudioCache] Seek index request failed:"
+                   << "musicPath=" << request.musicPath
+                   << "status=" << statusCode
+                   << "error=" << reply->errorString();
+    }
+
+    {
+        QMutexLocker locker(&m_metaMutex);
+        m_trackMetaCache.insert(request.cacheKey, meta);
+    }
+    persistTrackMeta(request.cacheKey, meta);
+    reply->deleteLater();
+}
+
 void AudioCacheManager::onDownloadFinished(QNetworkReply* reply)
 {
     if (!reply) {
+        return;
+    }
+
+    if (m_seekIndexRequests.contains(reply)) {
         return;
     }
 
@@ -980,6 +1350,23 @@ bool AudioCacheManager::canCacheUrl(const QUrl& url) const
     return true;
 }
 
+bool AudioCacheManager::canUseSeekIndexForUrl(const QUrl& url) const
+{
+    if (!isRemoteHttpUrl(url)) {
+        return false;
+    }
+
+    const QString pathLower = url.path().toLower();
+    if (!pathLower.startsWith(QStringLiteral("/uploads/"))) {
+        return false;
+    }
+    if (!hasSeekIndexSupportedAudioExtension(pathLower)) {
+        return false;
+    }
+
+    return !musicPathForSeekIndexUrl(url).isEmpty();
+}
+
 QString AudioCacheManager::makeCacheKey(const QUrl& url) const
 {
     const QByteArray raw = url.toString(QUrl::FullyEncoded).toUtf8();
@@ -1167,6 +1554,23 @@ bool AudioCacheManager::loadTrackMeta(const QString& cacheKey, TrackMeta* out) c
     meta.contentLength = static_cast<qint64>(obj.value(QStringLiteral("content_length")).toDouble(-1));
     meta.durationMs = static_cast<qint64>(obj.value(QStringLiteral("duration_ms")).toDouble(-1));
     meta.lastAccessMs = static_cast<qint64>(obj.value(QStringLiteral("last_access_ms")).toDouble(0));
+    meta.seekIndexResolved = obj.value(QStringLiteral("seek_index_resolved")).toBool(false);
+    meta.seekIndexSupported = obj.value(QStringLiteral("seek_index_supported")).toBool(false);
+    meta.seekIndexFetchedAtMs = static_cast<qint64>(obj.value(QStringLiteral("seek_index_fetched_at_ms")).toDouble(0));
+    meta.seekIndexFileSize = static_cast<qint64>(obj.value(QStringLiteral("seek_index_file_size")).toDouble(-1));
+    meta.seekIndexVersion = obj.value(QStringLiteral("seek_index_version")).toString();
+    meta.seekIndexMusicPath = obj.value(QStringLiteral("seek_index_music_path")).toString();
+    const QJsonArray pointsArray = obj.value(QStringLiteral("seek_index_points")).toArray();
+    meta.seekIndexPoints.reserve(pointsArray.size());
+    for (const QJsonValue& value : pointsArray) {
+        const QJsonObject pointObj = value.toObject();
+        const qint64 timeMs = static_cast<qint64>(pointObj.value(QStringLiteral("time_ms")).toDouble(-1));
+        const qint64 byteOffset = static_cast<qint64>(pointObj.value(QStringLiteral("byte_offset")).toDouble(-1));
+        if (timeMs < 0 || byteOffset < 0) {
+            continue;
+        }
+        meta.seekIndexPoints.push_back(TrackMeta::SeekIndexPoint{timeMs, byteOffset});
+    }
 
     {
         QMutexLocker locker(&m_metaMutex);
@@ -1189,6 +1593,21 @@ void AudioCacheManager::persistTrackMeta(const QString& cacheKey, const TrackMet
     obj.insert(QStringLiteral("content_length"), static_cast<double>(meta.contentLength));
     obj.insert(QStringLiteral("duration_ms"), static_cast<double>(meta.durationMs));
     obj.insert(QStringLiteral("last_access_ms"), static_cast<double>(meta.lastAccessMs));
+    obj.insert(QStringLiteral("seek_index_resolved"), meta.seekIndexResolved);
+    obj.insert(QStringLiteral("seek_index_supported"), meta.seekIndexSupported);
+    obj.insert(QStringLiteral("seek_index_fetched_at_ms"), static_cast<double>(meta.seekIndexFetchedAtMs));
+    obj.insert(QStringLiteral("seek_index_file_size"), static_cast<double>(meta.seekIndexFileSize));
+    obj.insert(QStringLiteral("seek_index_version"), meta.seekIndexVersion);
+    obj.insert(QStringLiteral("seek_index_music_path"), meta.seekIndexMusicPath);
+
+    QJsonArray pointsArray;
+    for (const TrackMeta::SeekIndexPoint& point : meta.seekIndexPoints) {
+        QJsonObject pointObj;
+        pointObj.insert(QStringLiteral("time_ms"), static_cast<double>(point.timeMs));
+        pointObj.insert(QStringLiteral("byte_offset"), static_cast<double>(point.byteOffset));
+        pointsArray.append(pointObj);
+    }
+    obj.insert(QStringLiteral("seek_index_points"), pointsArray);
 
     file.write(QJsonDocument(obj).toJson(QJsonDocument::Compact));
     file.close();

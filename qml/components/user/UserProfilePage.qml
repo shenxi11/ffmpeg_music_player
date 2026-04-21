@@ -227,7 +227,7 @@ Rectangle {
             Rectangle {
                 width: parent.width
                 height: visible ? statusRow.implicitHeight + 20 : 0
-                radius: 14
+                radius: 0
                 visible: sessionExpired || (statusKind === "error" && statusText.length > 0)
                 color: sessionExpired
                        ? "#FFF4F3"
@@ -248,7 +248,7 @@ Rectangle {
                     Rectangle {
                         width: 8
                         height: 8
-                        radius: 4
+                        radius: 0
                         color: sessionExpired
                                ? "#D33A31"
                                : (statusKind === "success" ? "#26A35E"
@@ -270,7 +270,7 @@ Rectangle {
                         visible: sessionExpired
                         implicitWidth: reloginText.implicitWidth + 22
                         height: 30
-                        radius: 15
+                        radius: 0
                         color: reloginArea.containsMouse ? Theme.accent : "transparent"
                         border.width: 1
                         border.color: Theme.accent
@@ -308,7 +308,7 @@ Rectangle {
 
                         Rectangle {
                             anchors.fill: parent
-                            radius: width / 2
+                            radius: 0
                             color: "#EDF3F8"
                             border.width: 1
                             border.color: "#E2EAF2"
@@ -330,7 +330,7 @@ Rectangle {
                                         maskSource: Rectangle {
                                             width: profileAvatarImage.width
                                             height: profileAvatarImage.height
-                                            radius: width / 2
+                                            radius: 0
                                         }
                                     }
                                 }
@@ -344,7 +344,7 @@ Rectangle {
                                 anchors.rightMargin: 16
                                 anchors.bottomMargin: 16
                                 height: 34
-                                radius: 17
+                                radius: 0
                                 color: avatarArea.containsMouse ? "#1A20263A" : "#1420263A"
                                 visible: true
 
@@ -367,7 +367,7 @@ Rectangle {
 
                             Rectangle {
                                 anchors.fill: parent
-                                radius: width / 2
+                                radius: 0
                                 color: avatarUploading ? Qt.rgba(1, 1, 1, 0.68) : "transparent"
                                 visible: avatarUploading
 
@@ -397,7 +397,7 @@ Rectangle {
                             Rectangle {
                                 width: editText.implicitWidth + 20
                                 height: 28
-                                radius: 14
+                                radius: 0
                                 color: editArea.containsMouse ? "#FFF6F5" : "#FFFFFF"
                                 border.width: 1
                                 border.color: editArea.containsMouse ? "#F2C9C5" : "#E6ECF3"
@@ -429,7 +429,7 @@ Rectangle {
                             Rectangle {
                                 width: refreshText.implicitWidth + 20
                                 height: 28
-                                radius: 14
+                                radius: 0
                                 color: refreshHeadArea.containsMouse ? Theme.accentSoft : "#FFFFFF"
                                 border.width: 1
                                 border.color: refreshHeadArea.containsMouse ? "#F2C9C5" : "#E6ECF3"
@@ -516,7 +516,7 @@ Rectangle {
                                     selectByMouse: true
 
                                     background: Rectangle {
-                                        radius: 12
+                                        radius: 0
                                         color: "#FFFFFF"
                                         border.width: 1
                                         border.color: usernameEdit.activeFocus ? Theme.accent : "#E2E8F0"
@@ -526,7 +526,7 @@ Rectangle {
                                 Rectangle {
                                     Layout.preferredWidth: 74
                                     height: 36
-                                    radius: 18
+                                    radius: 0
                                     color: saveArea.containsMouse ? Theme.accent : Theme.accentSoft
                                     border.width: 0
 
@@ -550,7 +550,7 @@ Rectangle {
                                 Rectangle {
                                     Layout.preferredWidth: 74
                                     height: 36
-                                    radius: 18
+                                    radius: 0
                                     color: cancelArea.containsMouse ? "#F1F5F9" : "transparent"
                                     border.width: 1
                                     border.color: "#D8E0EA"
@@ -627,7 +627,7 @@ Rectangle {
                             anchors.bottom: parent.bottom
                             width: parent.active ? Math.max(22, tabText.implicitWidth - 6) : 0
                             height: 3
-                            radius: 2
+                            radius: 0
                             color: Theme.accent
                         }
 
@@ -642,7 +642,7 @@ Rectangle {
 
             Rectangle {
                 width: parent.width
-                radius: 18
+                radius: 0
                 color: "#FFFFFF"
                 border.width: 1
                 border.color: "#EDF1F6"
@@ -676,7 +676,7 @@ Rectangle {
                         Rectangle {
                             width: 74
                             height: 30
-                            radius: 15
+                            radius: 0
                             color: viewAllArea.containsMouse ? Theme.accentSoft : "transparent"
                             border.width: 0
 
@@ -712,7 +712,7 @@ Rectangle {
                                 Rectangle {
                                     width: parent.width
                                     height: 40
-                                    radius: 10
+                                    radius: 0
                                     color: "#F8FAFD"
 
                                     Row {
@@ -753,7 +753,7 @@ Rectangle {
                                         width: favoritesColumn.width
                                         height: 62
                                         color: favoritesArea.containsMouse ? "#FAFCFE" : "transparent"
-                                        radius: 10
+                                        radius: 0
 
                                         Row {
                                             anchors.fill: parent
@@ -846,7 +846,7 @@ Rectangle {
                                     delegate: Rectangle {
                                         width: playlistsColumn.width
                                         height: 82
-                                        radius: 14
+                                        radius: 0
                                         color: playlistArea.containsMouse ? "#FAFCFE" : "#FFFFFF"
                                         border.width: 1
                                         border.color: playlistArea.containsMouse ? "#E4EBF4" : "#EDF1F6"
@@ -926,7 +926,7 @@ Rectangle {
                                 Rectangle {
                                     width: parent.width
                                     height: 40
-                                    radius: 10
+                                    radius: 0
                                     color: "#F8FAFD"
 
                                     Row {
@@ -967,7 +967,7 @@ Rectangle {
                                         width: historyColumn.width
                                         height: 62
                                         color: historyArea.containsMouse ? "#FAFCFE" : "transparent"
-                                        radius: 10
+                                        radius: 0
 
                                         Row {
                                             anchors.fill: parent

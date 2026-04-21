@@ -1,4 +1,4 @@
-﻿import QtQuick 2.14
+import QtQuick 2.14
 import QtQuick.Controls 2.14
 import QtQuick.Layouts 1.14
 import QtQuick.Dialogs 1.3
@@ -132,7 +132,7 @@ ApplicationWindow {
                                 color: settingsWindow.currentColor
                                 border.width: 1
                                 border.color: "#cccccc"
-                                radius: 4
+                                radius: 0
 
                                 MouseArea {
                                     anchors.fill: parent
@@ -170,7 +170,7 @@ ApplicationWindow {
                                     color: modelData
                                     border.width: settingsWindow.currentColor === modelData ? 3 : 1
                                     border.color: settingsWindow.currentColor === modelData ? "#333333" : "#cccccc"
-                                    radius: 4
+                                    radius: 0
 
                                     MouseArea {
                                         anchors.fill: parent
@@ -193,7 +193,7 @@ ApplicationWindow {
                     Rectangle {
                         anchors.fill: parent
                         color: "#2a2a2a"
-                        radius: 8
+                        radius: 0
                         implicitHeight: 80
 
                         Text {

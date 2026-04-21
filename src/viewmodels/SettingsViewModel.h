@@ -347,6 +347,9 @@ public slots:
     Q_INVOKABLE void resetDesktopLyricsSettings();
     Q_INVOKABLE void resetShortcutSettings();
     Q_INVOKABLE void resetAudioDeviceSettings();
+    Q_INVOKABLE bool isSettingFeatureAvailable(const QString& key) const;
+    Q_INVOKABLE bool isSettingsActionAvailable(const QString& actionId) const;
+    Q_INVOKABLE bool isSettingsTabAvailable(const QString& tabId) const;
 
 signals:
     void downloadPathChanged();

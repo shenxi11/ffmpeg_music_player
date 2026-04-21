@@ -5,7 +5,7 @@ import "../../theme/Theme.js" as Theme
 Rectangle {
     id: root
     color: "transparent"
-    radius: 14
+    radius: 0
 
     // 对外暴露属性
     property bool isNetMusic: false
@@ -39,7 +39,7 @@ Rectangle {
         anchors.rightMargin: root.sideMargin
         anchors.top: parent.top
         height: 54
-        radius: 12
+        radius: 0
         color: Theme.glassLight
         border.width: 1
         border.color: Theme.glassBorder
@@ -48,7 +48,7 @@ Rectangle {
             id: addButton
             width: 104
             height: 34
-            radius: 17
+            radius: 0
             anchors.left: parent.left
             anchors.leftMargin: 12
             anchors.verticalCenter: parent.verticalCenter
@@ -83,7 +83,7 @@ Rectangle {
         anchors.top: toolBar.bottom
         anchors.topMargin: 10
         height: 40
-        radius: 10
+        radius: 0
         color: Theme.glassLight
         border.width: 1
         border.color: Theme.glassBorder
@@ -182,7 +182,7 @@ Rectangle {
             id: itemRoot
             width: listView.width
             height: 62
-            radius: 10
+            radius: 0
             property bool containsMouse: false
             color: model.isPlaying
                    ? "#FDECEC"
@@ -193,7 +193,7 @@ Rectangle {
             Rectangle {
                 visible: model.isPlaying
                 width: 3
-                radius: 2
+                radius: 0
                 color: Theme.accent
                 anchors.left: parent.left
                 anchors.top: parent.top
@@ -219,7 +219,7 @@ Rectangle {
                     width: root.colCoverWidth
                     height: root.colCoverWidth
                     anchors.verticalCenter: parent.verticalCenter
-                    radius: 6
+                    radius: 0
                     color: "#E9ECF5"
                     border.width: 1
                     border.color: "#D9DFEA"
@@ -282,7 +282,7 @@ Rectangle {
                         id: playBtn
                         width: 32
                         height: 32
-                        radius: 16
+                        radius: 0
                         color: model.isPlaying ? Theme.accent : (playBtnArea.containsMouse ? "#ECEFF8" : "transparent")
                         border.width: 1
                         border.color: model.isPlaying ? Theme.accent : "#D6DCE8"
@@ -316,7 +316,7 @@ Rectangle {
                     Rectangle {
                         width: 32
                         height: 32
-                        radius: 16
+                        radius: 0
                         visible: !root.isNetMusic
                         opacity: itemRoot.containsMouse ? 1 : 0.02
                         color: removeArea.containsMouse ? Theme.accentSoft : "transparent"
@@ -349,7 +349,7 @@ Rectangle {
                     Rectangle {
                         width: 32
                         height: 32
-                        radius: 16
+                        radius: 0
                         visible: root.isNetMusic
                         opacity: itemRoot.containsMouse ? 1 : 0.02
                         color: downloadArea.containsMouse ? Theme.accentSoft : "transparent"

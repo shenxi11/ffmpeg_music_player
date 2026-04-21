@@ -1,4 +1,7 @@
-﻿#include "main_menu.h"
+#include "main_menu.h"
+
+#include <QGuiApplication>
+#include <QScreen>
 
 MainMenu::MainMenu(QWidget *parent)
     : QWidget(parent)
@@ -18,27 +21,25 @@ MainMenu::MainMenu(QWidget *parent)
 
     setupUI();
     createPluginButtons();
-
-    const int buttonCount = pluginButtons.size() + 4; // 插件 + 标题 + 诊断 + 设置 + 关于
-    setFixedSize(220, 60 + buttonCount * 48);
+    refreshPlugins();
 }
 
 void MainMenu::setupUI()
 {
     menuLayout = new QVBoxLayout(this);
-    menuLayout->setContentsMargins(15, 15, 15, 15);
-    menuLayout->setSpacing(8);
+    menuLayout->setContentsMargins(12, 12, 12, 12);
+    menuLayout->setSpacing(6);
 
     QLabel* titleLabel = new QLabel(QStringLiteral("工具菜单"), this);
     titleLabel->setStyleSheet(
         "QLabel {"
-        "    color: #333;"
-        "    font-size: 16px;"
-        "    font-weight: bold;"
-        "    padding: 5px 0px;"
+        "    color: #6F7785;"
+        "    font-size: 12px;"
+        "    font-weight: 600;"
+        "    padding: 2px 2px 8px 2px;"
         "}"
     );
-    titleLabel->setAlignment(Qt::AlignCenter);
+    titleLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     menuLayout->addWidget(titleLabel);
 }
 
@@ -80,10 +81,12 @@ void MainMenu::createPluginButtons()
             btn->setText(info.name);
         }
 
-        btn->setFixedHeight(40);
+        btn->setFixedHeight(38);
         btn->setStyleSheet(createButtonStyle());
         btn->setProperty("pluginId", info.id);
         btn->setProperty("pluginName", info.name);
+        btn->setCursor(Qt::PointingHandCursor);
+        btn->setFocusPolicy(Qt::NoFocus);
 
         connectPluginButton(btn);
 
@@ -97,23 +100,29 @@ void MainMenu::createPluginButtons()
         QFrame* line = new QFrame(this);
         line->setFrameShape(QFrame::HLine);
         line->setFrameShadow(QFrame::Sunken);
-        line->setStyleSheet("background-color: #ddd;");
+        line->setStyleSheet("background-color: #EEF1F5;");
         menuLayout->addWidget(line);
     }
 
     diagnosticsBtn = new QPushButton(QStringLiteral("插件诊断"), this);
-    diagnosticsBtn->setFixedHeight(40);
+    diagnosticsBtn->setFixedHeight(38);
     diagnosticsBtn->setStyleSheet(createButtonStyle());
+    diagnosticsBtn->setCursor(Qt::PointingHandCursor);
+    diagnosticsBtn->setFocusPolicy(Qt::NoFocus);
     menuLayout->addWidget(diagnosticsBtn);
 
     settingsBtn = new QPushButton(QStringLiteral("设置"), this);
-    settingsBtn->setFixedHeight(40);
+    settingsBtn->setFixedHeight(38);
     settingsBtn->setStyleSheet(createButtonStyle());
+    settingsBtn->setCursor(Qt::PointingHandCursor);
+    settingsBtn->setFocusPolicy(Qt::NoFocus);
     menuLayout->addWidget(settingsBtn);
 
     aboutBtn = new QPushButton(QStringLiteral("关于"), this);
-    aboutBtn->setFixedHeight(40);
+    aboutBtn->setFixedHeight(38);
     aboutBtn->setStyleSheet(createButtonStyle());
+    aboutBtn->setCursor(Qt::PointingHandCursor);
+    aboutBtn->setFocusPolicy(Qt::NoFocus);
     menuLayout->addWidget(aboutBtn);
 
     connectActionButtons();
@@ -125,24 +134,23 @@ QString MainMenu::createButtonStyle()
 {
     return QString(
         "QPushButton {"
-        "    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, "
-        "                              stop:0 #ffffff, stop:1 #f5f5f5);"
-        "    border: 1px solid #ddd;"
-        "    border-radius: 8px;"
-        "    padding: 8px 15px;"
-        "    font-size: 14px;"
-        "    color: #333;"
+        "    background: transparent;"
+        "    border: 1px solid transparent;"
+        "    border-radius: 0px;"
+        "    padding: 8px 12px;"
+        "    font-size: 13px;"
+        "    font-weight: 500;"
+        "    color: #2F3542;"
         "    text-align: left;"
         "}"
         "QPushButton:hover {"
-        "    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, "
-        "                              stop:0 #e8f4fd, stop:1 #d1e7f0);"
-        "    border: 1px solid #007acc;"
+        "    background: #F6F7FA;"
+        "    border: 1px solid #ECEFF5;"
+        "    color: #111827;"
         "}"
         "QPushButton:pressed {"
-        "    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, "
-        "                              stop:0 #d1e7f0, stop:1 #b3d9f2);"
-        "    border: 1px solid #005fa3;"
+        "    background: #F0F2F7;"
+        "    border: 1px solid #E2E7F0;"
         "}"
     );
 }
@@ -154,29 +162,27 @@ void MainMenu::paintEvent(QPaintEvent *event)
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
 
-    const QRect bgRect = rect().adjusted(5, 5, -5, -5);
+    const QRect bgRect = rect().adjusted(2, 2, -2, -2);
     QPainterPath path;
-    path.addRoundedRect(bgRect, 10, 10);
+    path.addRect(bgRect);
 
     QLinearGradient gradient(0, 0, 0, height());
-    gradient.setColorAt(0, QColor(255, 255, 255, 240));
-    gradient.setColorAt(1, QColor(245, 245, 245, 240));
+    gradient.setColorAt(0, QColor(255, 255, 255, 250));
+    gradient.setColorAt(1, QColor(250, 251, 253, 248));
 
     painter.fillPath(path, QBrush(gradient));
-    painter.setPen(QPen(QColor(200, 200, 200, 180), 1));
+    painter.setPen(QPen(QColor(228, 232, 239, 220), 1));
     painter.drawPath(path);
 }
 
 void MainMenu::enterEvent(QEvent *event)
 {
-    Q_UNUSED(event);
-    hideTimer->stop();
+    QWidget::enterEvent(event);
 }
 
 void MainMenu::leaveEvent(QEvent *event)
 {
-    Q_UNUSED(event);
-    hideTimer->start();
+    QWidget::leaveEvent(event);
 }
 
 void MainMenu::hideMenu()
@@ -222,9 +228,9 @@ void MainMenu::refreshPlugins()
 {
     qDebug() << "Refreshing plugin list...";
     createPluginButtons();
-
-    const int buttonCount = pluginButtons.size() + 4;
-    setFixedSize(220, 60 + buttonCount * 48);
+    setFixedWidth(268);
+    layout()->activate();
+    setFixedHeight(sizeHint().height());
 }
 
 void MainMenu::setPluginInfos(const QVector<PluginInfo>& plugins)
@@ -253,10 +259,28 @@ void MainMenu::showMenu(const QPoint& position)
 {
     qDebug() << "MainMenu::showMenu called with position:" << position;
 
-    move(position);
+    adjustSize();
+    const QScreen* screen = QGuiApplication::screenAt(position);
+    const QRect available =
+        screen ? screen->availableGeometry() : QGuiApplication::primaryScreen()->availableGeometry();
+    const QPoint boundedPos(qBound(available.left(), position.x(),
+                                   available.right() - width()),
+                            qBound(available.top(), position.y(),
+                                   available.bottom() - height()));
+    move(boundedPos);
     show();
     raise();
     activateWindow();
+}
 
-    hideTimer->start(5000);
+void MainMenu::showEvent(QShowEvent* event)
+{
+    QWidget::showEvent(event);
+    emit menuVisibilityChanged(true);
+}
+
+void MainMenu::hideEvent(QHideEvent* event)
+{
+    QWidget::hideEvent(event);
+    emit menuVisibilityChanged(false);
 }

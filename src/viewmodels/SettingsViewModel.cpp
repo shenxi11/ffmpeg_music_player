@@ -3,6 +3,7 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QMessageBox>
+#include <QSet>
 #include <QWidget>
 
 #include "AudioCacheManager.h"
@@ -32,6 +33,104 @@ QString formatBytes(qint64 bytes)
 SettingsManager& settings()
 {
     return SettingsManager::instance();
+}
+
+const QSet<QString>& unsupportedSettingKeys()
+{
+    static const QSet<QString> kKeys = {
+        QStringLiteral("launchAtStartup"),
+        QStringLiteral("autoPlayOnStartup"),
+        QStringLiteral("autoOpenLyrics"),
+        QStringLiteral("disableDpiScale"),
+        QStringLiteral("disableHardwareAcceleration"),
+        QStringLiteral("preventSystemSleep"),
+        QStringLiteral("listAutoSwitch"),
+        QStringLiteral("remoteControlComputerPlayback"),
+        QStringLiteral("autoBestVolume"),
+        QStringLiteral("enableFadeInOut"),
+        QStringLiteral("enableMultimediaKeys"),
+        QStringLiteral("autoPlayMvWhenAvailable"),
+        QStringLiteral("skipTrialTracks"),
+        QStringLiteral("syncRecentPlaylistToCloud"),
+        QStringLiteral("playbackAccelerationService"),
+        QStringLiteral("preferLocalDownloadedQuality"),
+        QStringLiteral("preferredPlaybackQuality"),
+        QStringLiteral("singleTrackQueueMode"),
+        QStringLiteral("showMessageCenterBadge"),
+        QStringLiteral("showSmtc"),
+        QStringLiteral("preferMp3Download"),
+        QStringLiteral("downloadFolderClassification"),
+        QStringLiteral("downloadSongNamingFormat"),
+        QStringLiteral("cacheSpaceMode"),
+        QStringLiteral("cacheSpaceLimitMb"),
+        QStringLiteral("mp3TagApeV2"),
+        QStringLiteral("mp3TagId3v1"),
+        QStringLiteral("mp3TagId3v2"),
+        QStringLiteral("desktopLyricsCoverTaskbar"),
+        QStringLiteral("globalShortcutsEnabled"),
+        QStringLiteral("shortcutPlayPause"),
+        QStringLiteral("shortcutPreviousTrack"),
+        QStringLiteral("shortcutNextTrack"),
+        QStringLiteral("shortcutVolumeUp"),
+        QStringLiteral("shortcutVolumeDown"),
+        QStringLiteral("shortcutLikeSong"),
+        QStringLiteral("shortcutMusicRecognition"),
+        QStringLiteral("shortcutToggleMainWindow"),
+        QStringLiteral("shortcutToggleDesktopLyrics"),
+        QStringLiteral("shortcutRewind"),
+        QStringLiteral("shortcutFastForward"),
+        QStringLiteral("audioEffectsEnabled"),
+        QStringLiteral("replayGainEnabled"),
+        QStringLiteral("volumeNormalizationEnabled"),
+        QStringLiteral("equalizerEnabled"),
+        QStringLiteral("effectPreset"),
+        QStringLiteral("effectPluginType"),
+        QStringLiteral("pluginDirectory"),
+        QStringLiteral("proxyEnabled"),
+        QStringLiteral("proxyType"),
+        QStringLiteral("proxyHost"),
+        QStringLiteral("proxyPort"),
+        QStringLiteral("proxyUsername"),
+        QStringLiteral("proxyPassword"),
+        QStringLiteral("followSystemAudioDevice"),
+        QStringLiteral("exclusiveAudioDeviceMode"),
+        QStringLiteral("lowLatencyAudioMode"),
+        QStringLiteral("audioOutputDevice"),
+        QStringLiteral("audioOutputFormat"),
+        QStringLiteral("audioFrequencyConversion"),
+        QStringLiteral("audioOutputChannels"),
+        QStringLiteral("audioLocalFileMemoryMode"),
+        QStringLiteral("audioGaplessPlayback"),
+        QStringLiteral("audioDsdMode"),
+        QStringLiteral("audioCacheSizeMs")
+    };
+    return kKeys;
+}
+
+const QSet<QString>& unsupportedActionIds()
+{
+    static const QSet<QString> kActionIds = {
+        QStringLiteral("resetShortcutSettings"),
+        QStringLiteral("resetAudioDeviceSettings"),
+        QStringLiteral("configurePlugin"),
+        QStringLiteral("deletePlugin"),
+        QStringLiteral("movePluginUp"),
+        QStringLiteral("movePluginDown"),
+        QStringLiteral("addPlugin"),
+        QStringLiteral("testProxy")
+    };
+    return kActionIds;
+}
+
+const QSet<QString>& unsupportedTabIds()
+{
+    static const QSet<QString> kTabIds = {
+        QStringLiteral("shortcuts"),
+        QStringLiteral("plugins"),
+        QStringLiteral("network"),
+        QStringLiteral("audio")
+    };
+    return kTabIds;
 }
 
 } // namespace
@@ -502,6 +601,21 @@ QString SettingsViewModel::audioDsdMode() const
 int SettingsViewModel::audioCacheSizeMs() const
 {
     return settings().audioCacheSizeMs();
+}
+
+bool SettingsViewModel::isSettingFeatureAvailable(const QString& key) const
+{
+    return !unsupportedSettingKeys().contains(key.trimmed());
+}
+
+bool SettingsViewModel::isSettingsActionAvailable(const QString& actionId) const
+{
+    return !unsupportedActionIds().contains(actionId.trimmed());
+}
+
+bool SettingsViewModel::isSettingsTabAvailable(const QString& tabId) const
+{
+    return !unsupportedTabIds().contains(tabId.trimmed());
 }
 
 void SettingsViewModel::chooseDownloadPath(QWidget* parent)

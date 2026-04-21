@@ -29,11 +29,6 @@ void PlayWidget::setupCoreConnections()
             lrc.get(), &LrcAnalyze::begin_take_lrc);
     connect(lrc.get(), &LrcAnalyze::send_lrc,
             this, &PlayWidget::onLrcSendLrc);
-    connect(lyricDisplay, &LyricDisplayQml::signalCurrentLrc,
-            this, &PlayWidget::signalDeskLrc);
-    connect(this, &PlayWidget::signalDeskLrc,
-            desk, &DeskLrcQml::setLyricText);
-
     lyricUpdateConnection = connect(m_playbackViewModel, &PlaybackViewModel::positionChanged,
                                     this, &PlayWidget::handleLyricPositionChanged);
 

@@ -182,7 +182,7 @@ Rectangle {
                     Rectangle {
                         Layout.preferredWidth: root.pageMode ? 124 : 88
                         Layout.preferredHeight: root.pageMode ? 124 : 88
-                        radius: root.pageMode ? 18 : 14
+                        radius: 0
                         color: "#FFFFFF"
                         border.width: 1
                         border.color: "#ECECEC"
@@ -253,7 +253,7 @@ Rectangle {
                         Layout.alignment: Qt.AlignTop
                         Layout.preferredWidth: 68
                         Layout.preferredHeight: 30
-                        radius: 15
+                        radius: height / 2
                         color: "#F0F0F0"
                         border.width: 1
                         border.color: "#E4E4E4"
@@ -360,7 +360,7 @@ Rectangle {
                 Rectangle {
                     width: parent.width
                     color: "#F2F2F2"
-                    radius: 12
+                    radius: 0
                     implicitHeight: composerColumn.implicitHeight + 24
 
                     Column {
@@ -375,7 +375,7 @@ Rectangle {
                             visible: root.replyTargetUsername.length > 0
                             width: parent.width
                             height: visible ? 32 : 0
-                            radius: 16
+                            radius: 0
                             color: "#FFFFFF"
                             border.width: 1
                             border.color: "#E1E1E1"
@@ -438,7 +438,7 @@ Rectangle {
                             Rectangle {
                                 width: 76
                                 height: 34
-                                radius: 17
+                                radius: height / 2
                                 color: root.commentEnabled ? "#FFFFFF" : "#F7F7F7"
                                 border.width: 1
                                 border.color: "#E0E0E0"
@@ -507,7 +507,7 @@ Rectangle {
                                     Rectangle {
                                         width: 40
                                         height: 40
-                                        radius: 20
+                                        radius: 0
                                         color: "#F1F1F1"
                                         clip: true
 
@@ -614,7 +614,7 @@ Rectangle {
                                     width: parent.width - 52
                                     x: 52
                                     color: "#F5F5F5"
-                                    radius: 12
+                                    radius: 0
                                     border.width: 1
                                     border.color: "#EBEBEB"
                                     implicitHeight: repliesColumn.implicitHeight + 20

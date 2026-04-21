@@ -52,7 +52,7 @@ Window {
 
     Rectangle {
         anchors.fill: parent
-        radius: 12
+        radius: 0
         color: Theme.glassStrong
         border.width: 1
         border.color: Theme.glassBorder
@@ -61,7 +61,7 @@ Window {
         layer.effect: DropShadow {
             horizontalOffset: 0
             verticalOffset: 5
-            radius: 16
+            radius: 0
             samples: 25
             color: "#36000000"
         }
@@ -77,7 +77,7 @@ Window {
             delegate: Rectangle {
                 width: ListView.view.width
                 height: 44
-                radius: 9
+                radius: 0
                 color: modeArea.containsMouse ? Theme.accentSoft : "transparent"
                 border.width: root.currentMode === mode ? 1 : 0
                 border.color: Theme.accent

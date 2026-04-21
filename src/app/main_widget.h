@@ -1,6 +1,5 @@
 ﻿#ifndef TEST_WIDGET_H
 #define TEST_WIDGET_H
-#include "VideoPlayerWindow.h"
 #include "favorite_music_widget.h"
 #include "local_and_download_widget.h"
 #include "loginwidget_qml.h"
@@ -94,6 +93,9 @@ class MainWidget : public QWidget {
     QWidget* brandWidget = nullptr;
     MainMenu* mainMenu;
     QPushButton* menuButton;
+    QPushButton* m_minimizeButton = nullptr;
+    QPushButton* m_maximizeButton = nullptr;
+    QPushButton* m_closeButton = nullptr;
     QPushButton* recommendButton = nullptr;
     QPushButton* localButton = nullptr;
     QPushButton* netButton = nullptr;
@@ -109,7 +111,6 @@ class MainWidget : public QWidget {
     QWidget* sidebarPlaylistListContainer = nullptr;
     QVBoxLayout* sidebarPlaylistListLayout = nullptr;
     QLabel* sidebarPlaylistEmptyLabel = nullptr;
-    VideoPlayerWindow* videoPlayerWindow;
     VideoListWidget* videoListWidget; // 在线视频列表窗口
     SettingsWidget* settingsWidget;   // 设置主内容页
     CommentPanelQml* commentPageWidget = nullptr;
@@ -149,6 +150,7 @@ class MainWidget : public QWidget {
     QSet<QString> m_sidebarCoverRequestsInFlight;
     bool m_localOnlyMode = false;
     QWidget* m_activeContentWidget = nullptr;
+    QWidget* m_previousContentWidgetBeforeSettings = nullptr;
     QWidget* m_previousContentWidgetBeforeComment = nullptr;
     bool m_commentContentOpening = false;
 
@@ -174,6 +176,7 @@ class MainWidget : public QWidget {
     void mousePressEvent(QMouseEvent* event) override;
     void mouseReleaseEvent(QMouseEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
+    void changeEvent(QEvent* event) override;
     void closeEvent(QCloseEvent* event) override;
 
   private:
@@ -254,9 +257,12 @@ class MainWidget : public QWidget {
     void handleMainMenuSettingsRequested();
     void handleMainMenuPluginDiagnosticsRequested();
     void handleMainMenuAboutRequested();
+    void updateMenuButtonOpenState(bool open);
+    void updateWindowControlButtons();
     void handleUserLoginRequested();
     void handleUserProfileRequested();
     void handleUserLogoutRequested();
+    void handleSettingsCloseRequested();
     void handleSettingsReturnToWelcomeRequested();
     void handleSessionExpired();
     void handleLoginWidgetSuccess(const QString& username, const QString& avatarUrl,
@@ -354,7 +360,6 @@ class MainWidget : public QWidget {
     void handleVideoTabToggled(bool checked);
     void handleAiAssistantClicked();
     void handlePlayStateChanged(ProcessSliderQml::State state);
-    void handleVideoPlayerWindowReady(VideoPlayerWindow* window);
     void handleVideoPlaybackStateChanged(bool isPlaying);
     void handleSearchBoxActivated();
     void handleSearchBoxTextEdited(const QString& text);
@@ -366,6 +371,7 @@ class MainWidget : public QWidget {
     void handleSimilarRecommendationListReady(const QVariantMap& meta, const QVariantList& items,
                                               const QString& anchorSongId);
     void handleRecommendRefreshRequested();
+    void handleRecommendHotChartRequested(const QString& window);
     void handleRecommendLoginRequested();
     void handleRecommendPlayMusicWithMetadata(const QString& filePath, const QString& musicPath,
                                               const QString& title, const QString& artist,

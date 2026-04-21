@@ -1,4 +1,4 @@
-﻿#include "user_widget.h"
+#include "user_widget.h"
 
 // UserPopupWidget 实现
 UserPopupWidget::UserPopupWidget(QWidget *parent)
@@ -61,7 +61,7 @@ void UserPopupWidget::setupUI()
         "                              stop:0 #007acc, stop:1 #005fa3);"
         "    color: white;"
         "    border: none;"
-        "    border-radius: 16px;"
+        "    border-radius: 0px;"
         "    font-size: 12px;"
         "    font-weight: bold;"
         "    padding: 6px 12px;"
@@ -117,7 +117,7 @@ void UserPopupWidget::updateContent()
             "                              stop:0 #dc3545, stop:1 #c82333);"
             "    color: white;"
             "    border: none;"
-            "    border-radius: 16px;"
+            "    border-radius: 0px;"
             "    font-size: 12px;"
             "    font-weight: bold;"
             "    padding: 6px 12px;"
@@ -141,7 +141,7 @@ void UserPopupWidget::updateContent()
             "                              stop:0 #007acc, stop:1 #005fa3);"
             "    color: white;"
             "    border: none;"
-            "    border-radius: 16px;"
+            "    border-radius: 0px;"
             "    font-size: 12px;"
             "    font-weight: bold;"
             "    padding: 6px 12px;"
@@ -174,7 +174,7 @@ void UserPopupWidget::paintEvent(QPaintEvent *event)
     // 绘制背景
     QRect bgRect = rect().adjusted(5, 5, -5, -5);
     QPainterPath path;
-    path.addRoundedRect(bgRect, 12, 12);
+    path.addRect(bgRect);
     
     QLinearGradient gradient(0, 0, 0, height());
     gradient.setColorAt(0, QColor(255, 255, 255, 250));
@@ -319,7 +319,7 @@ QPixmap UserWidget::createCircularAvatar(const QPixmap &source, int size)
     painter.setRenderHint(QPainter::SmoothPixmapTransform);
     
     QPainterPath path;
-    path.addEllipse(0, 0, size, size);
+    path.addRect(0, 0, size, size);
     painter.setClipPath(path);
     
     // 居中绘制
@@ -343,7 +343,7 @@ void UserWidget::enterEvent(QEvent *event)
         "                              stop:0 rgba(0, 122, 204, 0.1), "
         "                              stop:1 rgba(0, 122, 204, 0.05));"
         "    border: 1px solid rgba(0, 122, 204, 0.3);"
-        "    border-radius: 20px;"
+        "    border-radius: 0px;"
         "}"
     );
 }
@@ -363,7 +363,7 @@ void UserWidget::leaveEvent(QEvent *event)
         "}"
         "UserWidget:hover {"
         "    background: rgba(0, 122, 204, 0.1);"
-        "    border-radius: 10px;"
+        "    border-radius: 0px;"
         "}"
     );
 }

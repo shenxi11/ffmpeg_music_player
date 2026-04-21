@@ -53,7 +53,7 @@ Rectangle {
                         id: tabButton
                         width: root.tabButtonWidth
                         height: 40
-                        radius: 12
+                        radius: 0
                         color: tabBar.currentIndex === index
                                ? Theme.accent
                                : (tabArea.containsMouse ? Theme.glassHover : "transparent")

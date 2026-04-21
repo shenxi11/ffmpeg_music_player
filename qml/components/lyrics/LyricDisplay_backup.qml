@@ -1,4 +1,4 @@
-﻿import QtQuick 2.14
+import QtQuick 2.14
 import QtQuick.Controls 2.14
 import QtGraphicalEffects 1.14
 
@@ -177,7 +177,7 @@ Item {
                         anchors.centerIn: parent
                         width: 32
                         height: 32
-                        radius: 16
+                        radius: 0
                         color: playButtonMouseArea.containsMouse ? Qt.rgba(0.1, 0.7, 0.3, 0.9) : Qt.rgba(0.1, 0.6, 0.3, 0.8)
                         border.color: Qt.rgba(1, 1, 1, 0.6)
                         border.width: 1.5

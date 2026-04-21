@@ -11,7 +11,7 @@ Item {
     property string fallbackSource: "qrc:/qml/assets/ai/icons/default-music-cover.svg"
     property string playerIconPrefix: "qrc:/design/design_exports/netease_ui_pack_20260309/icon/ui/player/"
     property int coverSize: 44
-    property int cornerRadius: 6
+    property int cornerRadius: 0
     property bool rowHovered: false
     property bool isCurrentTrack: false
     property bool isPlaying: false
@@ -32,7 +32,7 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        radius: root.cornerRadius
+        radius: 0
         color: "#E9ECF5"
         border.width: 1
         border.color: "#D9DFEA"
@@ -65,14 +65,14 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        radius: root.cornerRadius
+        radius: 0
         visible: root.coverActionMode === "play" || root.coverActionMode === "pause"
         color: "#66000000"
 
         Rectangle {
             width: 24
             height: 24
-            radius: 12
+            radius: width / 2
             anchors.centerIn: parent
             color: "#FDFDFD"
             opacity: 0.96
@@ -106,7 +106,7 @@ Item {
     Rectangle {
         width: 20
         height: 20
-        radius: 10
+        radius: 0
         anchors.centerIn: parent
         visible: root.coverActionMode === "playing_indicator"
         color: "#66000000"
@@ -125,7 +125,7 @@ Item {
                 Rectangle {
                     width: 3
                     height: modelData.height
-                    radius: 1.5
+                    radius: 0
                     anchors.verticalCenter: parent.verticalCenter
                     color: Theme.accent
                 }

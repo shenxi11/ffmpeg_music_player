@@ -89,7 +89,7 @@ Item {
         anchors.topMargin: root.isUp ? 36 : 0
         width: root.isUp ? Math.round(280 * root.styleSpec.decorScale) : 0
         height: root.isUp ? Math.round(280 * root.styleSpec.decorScale) : 0
-        radius: width / 2
+        radius: 0
         visible: root.isUp && root.playerPageStyle !== 3 && root.styleSpec.enableDecor !== false
         color: root.styleSpec.previewPrimary
         opacity: root.playerPageStyle === 4 ? root.styleSpec.decorOpacity * 0.75 : root.styleSpec.decorOpacity
@@ -118,7 +118,7 @@ Item {
         anchors.bottomMargin: root.isUp ? 90 : 0
         width: root.isUp ? 220 : 0
         height: root.isUp ? 220 : 0
-        radius: width / 2
+        radius: 0
         visible: root.isUp && root.styleSpec.enableDecor !== false
         color: root.styleSpec.previewSecondary
         opacity: root.playerPageStyle === 2 ? root.styleSpec.decorOpacity * 0.55 : root.styleSpec.decorOpacity * 0.38
@@ -138,7 +138,7 @@ Item {
         anchors.topMargin: root.isUp ? 72 : 0
         width: root.isUp ? Math.min(parent.width * 0.52, 520) : 0
         height: root.isUp ? 160 : 0
-        radius: height / 2
+        radius: 0
         visible: root.isUp && root.styleSpec.enableDecor !== false
         color: root.styleSpec.previewPrimary
         opacity: root.styleSpec.glowOpacity
@@ -164,7 +164,7 @@ Item {
 
         Rectangle {
             anchors.fill: parent
-            radius: root.styleSpec.panelRadius
+            radius: 0
             color: "transparent"
             border.width: root.isUp ? 1 : 0
             border.color: root.isUp ? root.styleSpec.lyricsBorderColor : "transparent"
@@ -178,7 +178,7 @@ Item {
         Rectangle {
             anchors.fill: parent
             anchors.margins: root.styleSpec.panelInsetMargin || 2
-            radius: Math.max(0, root.styleSpec.panelRadius - (root.styleSpec.panelInsetMargin || 2))
+            radius: 0
             visible: root.isUp
             color: root.styleSpec.lyricsPanelInsetColor || "transparent"
         }
@@ -189,7 +189,7 @@ Item {
             anchors.top: parent.top
             anchors.margins: 1
             height: root.isUp ? (root.styleSpec.panelHighlightHeight || 36) : 0
-            radius: Math.max(0, root.styleSpec.panelRadius - 2)
+            radius: 0
             visible: root.isUp
             color: "transparent"
 
@@ -260,7 +260,7 @@ Item {
             anchors.topMargin: root.isUp ? 62 : 8
             width: 96
             height: 30
-            radius: 15
+            radius: 0
             color: root.styleSpec.dragBubbleColor
             visible: root.draggingLyric && root.dragPreviewTimeMs >= 0
 
@@ -455,7 +455,7 @@ Item {
         anchors.left: lyricsPanel.right
         anchors.right: similarPanel.left
         color: root.styleSpec.panelGapColor || "transparent"
-        radius: Math.max(0, root.styleSpec.panelRadius - 6)
+        radius: 0
     }
 
     Rectangle {
@@ -470,7 +470,7 @@ Item {
                : Math.min(320, Math.max(220, parent.width * 0.30))
         visible: root.isUp && root.styleSpec.showSimilarPanel && !root.similarPanelCollapsed
         color: root.styleSpec.similarPanelColor
-        radius: root.styleSpec.panelRadius
+        radius: 0
         border.color: root.styleSpec.lyricsBorderColor
         border.width: 1
 
@@ -492,7 +492,7 @@ Item {
                 id: similarCloseButton
                 width: 24
                 height: 24
-                radius: 12
+                radius: 0
                 anchors.verticalCenter: similarTitle.verticalCenter
                 anchors.right: parent.right
                 color: closeMouse.containsMouse ? root.styleSpec.similarHoverColor : "transparent"
@@ -539,7 +539,7 @@ Item {
                 delegate: Rectangle {
                     width: similarList.width
                     height: 58
-                    radius: 8
+                    radius: 0
                     color: rowMouse.containsMouse ? root.styleSpec.similarHoverColor : root.styleSpec.similarItemColor
                     border.color: rowMouse.containsMouse ? root.styleSpec.similarBorderColor : "transparent"
 
@@ -552,7 +552,7 @@ Item {
                         Rectangle {
                             width: 40
                             height: 40
-                            radius: 4
+                            radius: 0
                             anchors.verticalCenter: parent.verticalCenter
                             color: "#2F3743"
 
@@ -640,7 +640,7 @@ Item {
         visible: root.isUp && root.styleSpec.showSimilarPanel && root.similarPanelCollapsed
         width: 38
         height: 92
-        radius: 19
+        radius: 0
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
         color: root.styleSpec.similarPanelColor

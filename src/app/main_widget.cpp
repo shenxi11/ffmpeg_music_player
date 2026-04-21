@@ -1,6 +1,5 @@
 #include "main_widget.h"
 
-#include "VideoPlayerWindow.h"
 #include "playback_state_manager.h"
 #include "plugin_host_window.h"
 #include "search_history_popup.h"
@@ -27,6 +26,7 @@
 #include <QPixmap>
 #include <QSaveFile>
 #include <QScrollArea>
+#include <QStyle>
 #include <QStandardPaths>
 #include <QTimer>
 #include <QUrl>
@@ -161,8 +161,8 @@ void savePlaylistCoverCacheIndex(const QJsonObject& index) {
 } // namespace
 
 MainWidget::MainWidget(bool localOnlyMode, QWidget* parent)
-    : QWidget(parent), w(nullptr), list(nullptr), videoPlayerWindow(nullptr),
-      videoListWidget(nullptr), settingsWidget(nullptr), recommendMusicWidget(nullptr),
+    : QWidget(parent), w(nullptr), list(nullptr), videoListWidget(nullptr),
+      settingsWidget(nullptr), recommendMusicWidget(nullptr),
       playlistWidget(nullptr), m_localOnlyMode(localOnlyMode) {
     resize(1180, 760);
     setMinimumSize(1000, 640);
@@ -200,21 +200,31 @@ MainWidget::MainWidget(bool localOnlyMode, QWidget* parent)
     topWidget = new QWidget(this);
     topWidget->setObjectName("TopBar");
 
-    QPushButton* minimizeButton = new QPushButton(topWidget);
-    minimizeButton->setObjectName("WindowToggleButton");
-    minimizeButton->setFixedSize(30, 30);
+    m_minimizeButton = new QPushButton(topWidget);
+    m_minimizeButton->setObjectName("WindowMinimizeButton");
+    m_minimizeButton->setFixedSize(36, 36);
+    m_minimizeButton->setCursor(Qt::PointingHandCursor);
+    m_minimizeButton->setFocusPolicy(Qt::NoFocus);
+    m_minimizeButton->setText(QStringLiteral("—"));
+    m_minimizeButton->setToolTip(QStringLiteral("最小化"));
 
-    QPushButton* maximizeButton = new QPushButton(topWidget);
-    maximizeButton->setObjectName("WindowMinimizeButton");
-    maximizeButton->setFixedSize(30, 30);
+    m_maximizeButton = new QPushButton(topWidget);
+    m_maximizeButton->setObjectName("WindowMaximizeButton");
+    m_maximizeButton->setFixedSize(36, 36);
+    m_maximizeButton->setCursor(Qt::PointingHandCursor);
+    m_maximizeButton->setFocusPolicy(Qt::NoFocus);
 
-    QPushButton* closeButton = new QPushButton(topWidget);
-    closeButton->setObjectName("WindowCloseButton");
-    closeButton->setFixedSize(30, 30);
+    m_closeButton = new QPushButton(topWidget);
+    m_closeButton->setObjectName("WindowCloseButton");
+    m_closeButton->setFixedSize(36, 36);
+    m_closeButton->setCursor(Qt::PointingHandCursor);
+    m_closeButton->setFocusPolicy(Qt::NoFocus);
+    m_closeButton->setText(QStringLiteral("×"));
+    m_closeButton->setToolTip(QStringLiteral("关闭"));
 
-    connect(minimizeButton, &QPushButton::clicked, this, &MainWidget::handleWindowToggleRequested);
-    connect(maximizeButton, &QPushButton::clicked, this, &MainWidget::showMinimized);
-    connect(closeButton, &QPushButton::clicked, this, &MainWidget::close);
+    connect(m_minimizeButton, &QPushButton::clicked, this, &MainWidget::showMinimized);
+    connect(m_maximizeButton, &QPushButton::clicked, this, &MainWidget::handleWindowToggleRequested);
+    connect(m_closeButton, &QPushButton::clicked, this, &MainWidget::close);
 
     searchBox = new SearchBoxQml(this);
     searchBox->setFixedHeight(46);
@@ -229,12 +239,15 @@ MainWidget::MainWidget(bool localOnlyMode, QWidget* parent)
     userWidgetQml->setMinimumWidth(120);
     userWidgetQml->setMaximumWidth(150);
 
-    menuButton = new QPushButton(QStringLiteral(u"\u83dc\u5355"), this);
-    menuButton->setFixedHeight(50);
-    menuButton->setMinimumWidth(92);
+    menuButton = new QPushButton(QStringLiteral(u"\u83dc\u5355"), topWidget);
+    menuButton->setFixedHeight(40);
+    menuButton->setMinimumWidth(94);
     menuButton->setObjectName("MainMenuButton");
     menuButton->setIcon(QIcon(QStringLiteral(":/qml/assets/ai/icons/main-menu.svg")));
-    menuButton->setIconSize(QSize(18, 18));
+    menuButton->setIconSize(QSize(16, 16));
+    menuButton->setCursor(Qt::PointingHandCursor);
+    menuButton->setFocusPolicy(Qt::NoFocus);
+    menuButton->setProperty("menuOpen", false);
 
     mainMenu = nullptr;
 
@@ -243,11 +256,11 @@ MainWidget::MainWidget(bool localOnlyMode, QWidget* parent)
     widget_op_layout->addWidget(searchBox);
     widget_op_layout->addStretch();
     widget_op_layout->addWidget(menuButton);
-    widget_op_layout->addWidget(maximizeButton);
-    widget_op_layout->addWidget(minimizeButton);
-    widget_op_layout->addWidget(closeButton);
-    widget_op_layout->setSpacing(10);
-    widget_op_layout->setContentsMargins(220, 5, 10, 5);
+    widget_op_layout->addWidget(m_minimizeButton);
+    widget_op_layout->addWidget(m_maximizeButton);
+    widget_op_layout->addWidget(m_closeButton);
+    widget_op_layout->setSpacing(8);
+    widget_op_layout->setContentsMargins(220, 8, 12, 8);
 
     topWidget->setLayout(widget_op_layout);
     topWidget->setGeometry(0, 0, this->width(), 60);
@@ -466,11 +479,9 @@ MainWidget::MainWidget(bool localOnlyMode, QWidget* parent)
 
     qDebug() << "[MainWidget] Creating VideoListWidget...";
 
-    videoListWidget = new VideoListWidget(w, this);
+    videoListWidget = new VideoListWidget(this);
     videoListWidget->hide();
     videoListWidget->setObjectName("videoList");
-    connect(videoListWidget, &VideoListWidget::videoPlayerWindowReady, this,
-            &MainWidget::handleVideoPlayerWindowReady);
     connect(videoListWidget, &VideoListWidget::videoPlaybackStateChanged, this,
             &MainWidget::handleVideoPlaybackStateChanged);
 
@@ -486,11 +497,17 @@ MainWidget::MainWidget(bool localOnlyMode, QWidget* parent)
             &MainWidget::handleSearchResultsReady);
     connect(m_viewModel, &MainShellViewModel::recommendationListReady, recommendMusicWidget,
             &RecommendMusicWidget::loadRecommendations);
+    connect(m_viewModel, &MainShellViewModel::hotChartReady, recommendMusicWidget,
+            &RecommendMusicWidget::loadHotChart);
+    connect(m_viewModel, &MainShellViewModel::hotChartRequestFailed, recommendMusicWidget,
+            &RecommendMusicWidget::showHotChartError);
     connect(m_viewModel, &MainShellViewModel::similarRecommendationListReady, this,
             &MainWidget::handleSimilarRecommendationListReady);
 
-    connect(recommendMusicWidget, &RecommendMusicWidget::refreshRequested, this,
+    connect(recommendMusicWidget, &RecommendMusicWidget::requestRecommendations, this,
             &MainWidget::handleRecommendRefreshRequested);
+    connect(recommendMusicWidget, &RecommendMusicWidget::requestHotChart, this,
+            &MainWidget::handleRecommendHotChartRequested);
     connect(recommendMusicWidget, &RecommendMusicWidget::loginRequested, this,
             &MainWidget::handleRecommendLoginRequested);
     connect(recommendMusicWidget, &RecommendMusicWidget::playMusicWithMetadata, this,
@@ -522,8 +539,6 @@ void MainWidget::handlePlaybackPauseAudioRequested() {
 void MainWidget::handlePlaybackPauseVideoRequested() {
     if (videoListWidget) {
         videoListWidget->pauseVideoPlayback();
-    } else if (videoPlayerWindow) {
-        videoPlayerWindow->pausePlayback();
     }
 }
 
@@ -543,6 +558,35 @@ void MainWidget::handleWindowToggleRequested() {
     } else {
         showMaximized();
     }
+}
+
+void MainWidget::changeEvent(QEvent* event) {
+    QWidget::changeEvent(event);
+    if (event && event->type() == QEvent::WindowStateChange) {
+        updateWindowControlButtons();
+    }
+}
+
+void MainWidget::updateMenuButtonOpenState(bool open) {
+    if (!menuButton) {
+        return;
+    }
+    if (menuButton->property("menuOpen").toBool() == open) {
+        return;
+    }
+    menuButton->setProperty("menuOpen", open);
+    menuButton->style()->unpolish(menuButton);
+    menuButton->style()->polish(menuButton);
+    menuButton->update();
+}
+
+void MainWidget::updateWindowControlButtons() {
+    if (!m_maximizeButton) {
+        return;
+    }
+    const bool maximized = isMaximized();
+    m_maximizeButton->setText(maximized ? QStringLiteral("❐") : QStringLiteral("□"));
+    m_maximizeButton->setToolTip(maximized ? QStringLiteral("还原") : QStringLiteral("最大化"));
 }
 
 void MainWidget::showContentPanel(QWidget* activeWidget) {
@@ -740,14 +784,8 @@ void MainWidget::handleRecommendTabToggled(bool checked) {
     }
 
     showContentPanel(recommendMusicWidget);
-
-    if (isUserLoggedIn()) {
-        const QString userAccount = m_viewModel ? m_viewModel->currentUserAccount() : QString();
-        if (m_viewModel) {
-            m_viewModel->requestRecommendations(userAccount, QStringLiteral("home"), 24, true);
-        }
-    } else if (recommendMusicWidget) {
-        recommendMusicWidget->setLoggedIn(false);
+    if (recommendMusicWidget) {
+        recommendMusicWidget->activateForEntry();
     }
 }
 
@@ -863,11 +901,6 @@ void MainWidget::handlePlayStateChanged(ProcessSliderQml::State state) {
     } else if (state == ProcessSliderQml::Stop) {
         m_playbackStateManager->onAudioInactive();
     }
-}
-
-void MainWidget::handleVideoPlayerWindowReady(VideoPlayerWindow* window) {
-    videoPlayerWindow = window;
-    qDebug() << "[MainWidget] VideoPlayerWindow linked from VideoListWidget:" << window;
 }
 
 void MainWidget::handleVideoPlaybackStateChanged(bool isPlaying) {
@@ -988,6 +1021,13 @@ void MainWidget::handleRecommendRefreshRequested() {
         m_viewModel->requestRecommendations(m_viewModel->currentUserAccount(),
                                             QStringLiteral("home"), 24, true);
     }
+}
+
+void MainWidget::handleRecommendHotChartRequested(const QString& window) {
+    if (!m_viewModel) {
+        return;
+    }
+    m_viewModel->requestHotChart(window, 20);
 }
 
 void MainWidget::handleRecommendLoginRequested() {
@@ -1644,6 +1684,7 @@ void MainWidget::updateAdaptiveLayout() {
     if (userWidgetQml) {
         userWidgetQml->raise();
     }
+    updateWindowControlButtons();
 }
 
 void MainWidget::updatePaint() {
@@ -1694,9 +1735,6 @@ void MainWidget::closeEvent(QCloseEvent* event) {
     if (loginWidget) {
         loginWidget->close();
     }
-    if (videoPlayerWindow) {
-        videoPlayerWindow->close();
-    }
     if (w) {
         w->close();
     }
@@ -1718,9 +1756,6 @@ MainWidget::~MainWidget() {
     if (videoListWidget) {
         videoListWidget->pauseVideoPlayback();
     }
-    if (videoPlayerWindow) {
-        videoPlayerWindow->pausePlayback();
-    }
     if (m_viewModel) {
         m_viewModel->shutdownAudioPipeline();
     }
@@ -1740,13 +1775,6 @@ MainWidget::~MainWidget() {
         loginWidget->close();
         delete loginWidget;
         loginWidget = nullptr;
-    }
-
-    if (videoPlayerWindow) {
-        qDebug() << "MainWidget: Deleting VideoPlayerWindow...";
-        videoPlayerWindow->close();
-        delete videoPlayerWindow;
-        videoPlayerWindow = nullptr;
     }
 
     if (videoListWidget) {

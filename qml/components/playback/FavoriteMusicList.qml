@@ -1,4 +1,4 @@
-﻿import QtQuick 2.15
+import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import "../../theme/Theme.js" as Theme
@@ -107,7 +107,7 @@ Rectangle {
             Layout.preferredHeight: 54
             Layout.leftMargin: root.sideMargin
             Layout.rightMargin: root.sideMargin
-            radius: 12
+            radius: 0
             color: Theme.glassLight
             border.width: 1
             border.color: Theme.glassBorder
@@ -129,7 +129,7 @@ Rectangle {
                 Rectangle {
                     width: 84
                     height: 32
-                    radius: 16
+                    radius: 0
                     color: refreshArea.containsMouse ? Theme.accent : "transparent"
                     border.width: 1
                     border.color: Theme.accent
@@ -157,7 +157,7 @@ Rectangle {
             Layout.preferredHeight: 38
             Layout.leftMargin: root.sideMargin
             Layout.rightMargin: root.sideMargin
-            radius: 10
+            radius: 0
             color: Theme.glassLight
             border.width: 1
             border.color: Theme.glassBorder
@@ -226,7 +226,7 @@ Rectangle {
                 id: itemRoot
                 width: listView.width
                 height: 62
-                radius: 10
+                radius: 0
                 property bool rowHovered: rowHoverHandler.hovered
                                            || coverAction.interactionActive
                                            || actionStrip.interactionActive
@@ -246,7 +246,7 @@ Rectangle {
                 Rectangle {
                     visible: itemRoot.currentTrack
                     width: 3
-                    radius: 2
+                    radius: 0
                     color: Theme.accent
                     anchors.left: parent.left
                     anchors.top: parent.top

@@ -61,7 +61,7 @@ SearchHistoryPopup::SearchHistoryPopup(QWidget* parent)
         "QFrame#SearchHistoryPopup {"
         "    background: #ffffff;"
         "    border: 1px solid #E7ECF3;"
-        "    border-radius: 14px;"
+        "    border-radius: 0px;"
         "}"
         "QLabel#SearchHistoryTitle {"
         "    color: #223047;"

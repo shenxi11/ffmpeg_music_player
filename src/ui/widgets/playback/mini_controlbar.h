@@ -1,4 +1,4 @@
-﻿#ifndef MINICONTROLBAR_H
+#ifndef MINICONTROLBAR_H
 #define MINICONTROLBAR_H
 
 #include <QObject>
@@ -29,7 +29,7 @@ public:
             "                              stop:0 #4a4a4a, stop:1 #2a2a2a);"
             "    color: white;"
             "    border: 1px solid #666;"
-            "    border-radius: 8px;"
+            "    border-radius: 0px;"
             "    padding: 4px 8px;"
             "    font-size: 11px;"
             "    font-weight: bold;"

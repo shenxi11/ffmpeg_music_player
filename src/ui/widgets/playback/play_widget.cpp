@@ -11,6 +11,8 @@
 #include <QTime>
 #include <QUrl>
 
+#include <iterator>
+
 namespace {
 
 constexpr int kLyricLeadTimeMs = 1000;
@@ -193,6 +195,230 @@ StageLayoutSpec stageLayoutSpecForStyle(int styleId) {
     return spec;
 }
 
+struct StageThemeSpec {
+    qreal startLightness = 0.82;
+    qreal midLightness = 0.76;
+    qreal endLightness = 0.68;
+    qreal saturationScale = 0.42;
+    int blurMaskAlpha = 36;
+    qreal blurOpacity = 0.16;
+};
+
+struct StageThemeColors {
+    QColor start;
+    QColor mid;
+    QColor end;
+    bool backgroundIsLight = false;
+    qreal blurOpacity = 0.16;
+};
+
+StageThemeSpec stageThemeSpecForStyle(int styleId) {
+    StageThemeSpec spec;
+    switch (styleId) {
+        case 1:
+            spec.startLightness = 0.30;
+            spec.midLightness = 0.23;
+            spec.endLightness = 0.16;
+            spec.saturationScale = 0.46;
+            spec.blurMaskAlpha = 92;
+            spec.blurOpacity = 0.20;
+            break;
+        case 2:
+            spec.startLightness = 0.91;
+            spec.midLightness = 0.85;
+            spec.endLightness = 0.78;
+            spec.saturationScale = 0.36;
+            spec.blurMaskAlpha = 18;
+            spec.blurOpacity = 0.20;
+            break;
+        case 3:
+            spec.startLightness = 0.25;
+            spec.midLightness = 0.19;
+            spec.endLightness = 0.13;
+            spec.saturationScale = 0.30;
+            spec.blurMaskAlpha = 104;
+            spec.blurOpacity = 0.12;
+            break;
+        case 4:
+            spec.startLightness = 0.28;
+            spec.midLightness = 0.21;
+            spec.endLightness = 0.15;
+            spec.saturationScale = 0.48;
+            spec.blurMaskAlpha = 78;
+            spec.blurOpacity = 0.28;
+            break;
+        case 0:
+        default:
+            spec.startLightness = 0.86;
+            spec.midLightness = 0.80;
+            spec.endLightness = 0.72;
+            spec.saturationScale = 0.38;
+            spec.blurMaskAlpha = 30;
+            spec.blurOpacity = 0.18;
+            break;
+    }
+    return spec;
+}
+
+qreal colorPerceivedLuminance(const QColor& color) {
+    const qreal red = color.redF();
+    const qreal green = color.greenF();
+    const qreal blue = color.blueF();
+    return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+}
+
+QColor fallbackThemeSeedColor(int styleId) {
+    switch (styleId) {
+        case 1:
+            return QColor(QStringLiteral("#2B3A46"));
+        case 2:
+            return QColor(QStringLiteral("#D7F6FA"));
+        case 3:
+            return QColor(QStringLiteral("#223742"));
+        case 4:
+            return QColor(QStringLiteral("#31414D"));
+        case 0:
+        default:
+            return QColor(QStringLiteral("#B7DCE7"));
+    }
+}
+
+QColor normalizedThemeSeed(const QColor& color, int styleId) {
+    QColor hsl = color.toHsl();
+    qreal hue = hsl.hslHueF();
+    if (hue < 0.0) {
+        hue = fallbackThemeSeedColor(styleId).toHsl().hslHueF();
+        if (hue < 0.0) {
+            hue = 0.58;
+        }
+    }
+
+    qreal saturation = hsl.hslSaturationF();
+    if (saturation < 0.0) {
+        saturation = 0.0;
+    }
+    saturation = qBound(0.08, saturation, 0.62);
+
+    qreal lightness = hsl.lightnessF();
+    if (lightness < 0.0) {
+        lightness = 0.5;
+    }
+    lightness = qBound(0.24, lightness, 0.74);
+
+    return QColor::fromHslF(hue, saturation, lightness, 1.0);
+}
+
+QColor themedStageColor(const QColor& seedColor, int styleId, qreal targetLightness,
+                        qreal saturationMultiplier) {
+    const QColor normalized = normalizedThemeSeed(seedColor, styleId);
+    QColor hsl = normalized.toHsl();
+    qreal hue = hsl.hslHueF();
+    if (hue < 0.0) {
+        hue = 0.58;
+    }
+
+    qreal saturation = hsl.hslSaturationF();
+    saturation = qBound(0.04, saturation * saturationMultiplier, 0.58);
+
+    return QColor::fromHslF(hue, saturation, qBound(0.0, targetLightness, 1.0), 1.0);
+}
+
+StageThemeColors stageThemeColorsFor(int styleId, const QColor& seedColor, bool hasSeedColor) {
+    const StageThemeSpec spec = stageThemeSpecForStyle(styleId);
+    const QColor effectiveSeed = hasSeedColor ? seedColor : fallbackThemeSeedColor(styleId);
+
+    StageThemeColors colors;
+    colors.start =
+        themedStageColor(effectiveSeed, styleId, spec.startLightness, spec.saturationScale * 0.92);
+    colors.mid = themedStageColor(effectiveSeed, styleId, spec.midLightness, spec.saturationScale);
+    colors.end = themedStageColor(effectiveSeed, styleId, spec.endLightness,
+                                  qMin(0.60, spec.saturationScale * 1.08 + 0.02));
+    colors.backgroundIsLight =
+        (colorPerceivedLuminance(colors.start) + colorPerceivedLuminance(colors.mid) +
+         colorPerceivedLuminance(colors.end)) /
+            3.0 >=
+        0.62;
+    colors.blurOpacity = spec.blurOpacity;
+    return colors;
+}
+
+QColor extractAlbumThemeColor(const QImage& sourceImage) {
+    if (sourceImage.isNull()) {
+        return QColor();
+    }
+
+    const QImage sampleImage =
+        sourceImage.scaled(48, 48, Qt::KeepAspectRatio, Qt::SmoothTransformation)
+            .convertToFormat(QImage::Format_ARGB32_Premultiplied);
+    if (sampleImage.isNull()) {
+        return QColor();
+    }
+
+    struct Bucket {
+        qreal score = 0.0;
+        qreal red = 0.0;
+        qreal green = 0.0;
+        qreal blue = 0.0;
+    };
+
+    Bucket buckets[24];
+    Bucket grayscaleBucket;
+
+    for (int y = 0; y < sampleImage.height(); ++y) {
+        const QRgb* line = reinterpret_cast<const QRgb*>(sampleImage.constScanLine(y));
+        for (int x = 0; x < sampleImage.width(); ++x) {
+            const QColor pixel = QColor::fromRgb(line[x]);
+            const qreal alpha = pixel.alphaF();
+            if (alpha < 0.08) {
+                continue;
+            }
+
+            const QColor hsl = pixel.toHsl();
+            qreal saturation = hsl.hslSaturationF();
+            if (saturation < 0.0) {
+                saturation = 0.0;
+            }
+            qreal lightness = hsl.lightnessF();
+            if (lightness < 0.0) {
+                lightness = 0.5;
+            }
+
+            const qreal toneWeight = 1.0 - qAbs(lightness - 0.52);
+            const qreal score = alpha * (0.22 + saturation * 0.78) * qMax(0.18, toneWeight);
+
+            if (saturation < 0.08 || hsl.hslHueF() < 0.0) {
+                grayscaleBucket.score += score;
+                grayscaleBucket.red += pixel.redF() * score;
+                grayscaleBucket.green += pixel.greenF() * score;
+                grayscaleBucket.blue += pixel.blueF() * score;
+                continue;
+            }
+
+            const int bucketIndex = qBound(0, static_cast<int>(hsl.hslHueF() * 24.0), 23);
+            Bucket& bucket = buckets[bucketIndex];
+            bucket.score += score;
+            bucket.red += pixel.redF() * score;
+            bucket.green += pixel.greenF() * score;
+            bucket.blue += pixel.blueF() * score;
+        }
+    }
+
+    const Bucket* bestBucket = &grayscaleBucket;
+    for (const Bucket& bucket : buckets) {
+        if (bucket.score > bestBucket->score) {
+            bestBucket = &bucket;
+        }
+    }
+
+    if (bestBucket->score <= 0.0) {
+        return QColor();
+    }
+
+    return QColor::fromRgbF(bestBucket->red / bestBucket->score,
+                            bestBucket->green / bestBucket->score,
+                            bestBucket->blue / bestBucket->score, 1.0);
+}
+
 } // namespace
 
 PlayWidget::PlayWidget(QWidget* parent, QWidget* mainWidget)
@@ -274,7 +500,7 @@ PlayWidget::PlayWidget(QWidget* parent, QWidget* mainWidget)
     squareCoverHost->setAutoFillBackground(false);
     squareCoverHost->setStyleSheet("background: rgba(255,255,255,0.18);"
                                    "border: 1px solid rgba(255,255,255,0.28);"
-                                   "border-radius: 22px;");
+                                   "border-radius: 0px;");
     squareCoverShadow = new QGraphicsDropShadowEffect(squareCoverHost);
     squareCoverShadow->setBlurRadius(54);
     squareCoverShadow->setOffset(0, 20);
@@ -459,12 +685,68 @@ qreal PlayWidget::resolveCurrentLyricProgress(qint64 positionMs) const {
 
     const auto current = (upper == lyrics.end()) ? std::prev(lyrics.end()) : std::prev(upper);
     const int currentStartMs = current->first;
-    const int nextStartMs =
-        (upper == lyrics.end()) ? (currentStartMs + kLastLyricFallbackMs) : qMax(currentStartMs + 1, upper->first);
+    const int nextStartMs = (upper == lyrics.end()) ? (currentStartMs + kLastLyricFallbackMs)
+                                                    : qMax(currentStartMs + 1, upper->first);
     const int lineDurationMs = qMax(1, nextStartMs - currentStartMs);
     const qreal progress =
         static_cast<qreal>(qMax(0, timeInMs - currentStartMs)) / static_cast<qreal>(lineDurationMs);
     return qBound<qreal>(0.0, progress, 1.0);
+}
+
+QPair<QString, QString> PlayWidget::resolveDesktopLyricLines(qint64 positionMs) const {
+    auto isMeaningfulLyric = [](const QString& text) {
+        return !text.trimmed().isEmpty();
+    };
+
+    if (lyrics.empty()) {
+        return {QStringLiteral(u"\u2764 \u6682\u65e0\u6b4c\u8bcd \u2764"), QString()};
+    }
+
+    const qint64 safePositionMs = qMax<qint64>(0, positionMs);
+    const int timeInMs = static_cast<int>(safePositionMs) + kLyricLeadTimeMs;
+
+    auto findFirstVisible = [&](std::map<int, std::string>::const_iterator start) {
+        for (auto it = start; it != lyrics.end(); ++it) {
+            const QString text = QString::fromStdString(it->second).trimmed();
+            if (isMeaningfulLyric(text)) {
+                return it;
+            }
+        }
+        return lyrics.end();
+    };
+
+    auto current = lyrics.begin();
+    if (timeInMs > lyrics.begin()->first) {
+        const auto upper = lyrics.upper_bound(timeInMs);
+        if (upper != lyrics.begin()) {
+            current = (upper == lyrics.end()) ? std::prev(lyrics.end()) : std::prev(upper);
+        }
+    }
+
+    auto primary = findFirstVisible(current);
+    if (primary == lyrics.end()) {
+        primary = findFirstVisible(lyrics.begin());
+    }
+    if (primary == lyrics.end()) {
+        return {QStringLiteral(u"\u2764 \u6682\u65e0\u6b4c\u8bcd \u2764"), QString()};
+    }
+
+    const QString currentText = QString::fromStdString(primary->second).trimmed();
+    auto secondary = findFirstVisible(std::next(primary));
+    const QString nextText = (secondary == lyrics.end())
+                                 ? QString()
+                                 : QString::fromStdString(secondary->second).trimmed();
+    return {currentText, nextText};
+}
+
+void PlayWidget::syncDesktopLyricLines(qint64 positionMs) {
+    if (!desk) {
+        return;
+    }
+
+    const auto lines = resolveDesktopLyricLines(positionMs);
+    desk->setLyricLines(lines.first, lines.second);
+    desk->setCurrentLineProgress(resolveCurrentLyricProgress(positionMs));
 }
 
 void PlayWidget::refreshCurrentLyricHighlight(bool forceRecenter) {
@@ -476,6 +758,10 @@ void PlayWidget::refreshCurrentLyricHighlight(bool forceRecenter) {
     const int targetLine = resolveTargetLyricLine(positionMs);
     if (targetLine < 0) {
         lyricDisplay->setCurrentLineProgress(0.0);
+        syncDesktopLyricLines(positionMs);
+        if (desk) {
+            desk->setCurrentLineProgress(0.0);
+        }
         return;
     }
 
@@ -486,6 +772,7 @@ void PlayWidget::refreshCurrentLyricHighlight(bool forceRecenter) {
     }
 
     lyricDisplay->setCurrentLineProgress(resolveCurrentLyricProgress(positionMs));
+    syncDesktopLyricLines(positionMs);
 
     if (changed || forceRecenter) {
         lyricDisplay->scrollToLine(targetLine);
@@ -575,6 +862,9 @@ void PlayWidget::shutdownQuickWidget(QQuickWidget* widget) {
 void PlayWidget::onDeskToggled(bool checked) {
     if (checked) {
         desk->show();
+        desk->raise();
+        desk->activateWindow();
+        syncDesktopLyricLines(m_playbackViewModel ? m_playbackViewModel->position() : 0);
     } else {
         desk->hide();
     }
@@ -658,45 +948,18 @@ void PlayWidget::rebuildStageBackgroundCache() {
     painter.setRenderHint(QPainter::Antialiasing, true);
 
     if (isUp) {
-        if (m_playerPageStyle == 4 && !m_originalBackgroundPixmap.isNull()) {
-            painter.drawPixmap(QRect(QPoint(0, 0), targetSize), m_originalBackgroundPixmap);
-            painter.fillRect(QRect(QPoint(0, 0), targetSize), QColor(8, 10, 14, 86));
-        } else {
-            QLinearGradient gradient(0, 0, targetSize.width(), targetSize.height());
-            switch (m_playerPageStyle) {
-                case 0:
-                    gradient.setColorAt(0.0, QColor("#D7F6FA"));
-                    gradient.setColorAt(0.52, QColor("#D9F7FA"));
-                    gradient.setColorAt(1.0, QColor("#D2F1F6"));
-                    break;
-                case 1:
-                    gradient.setColorAt(0.0, QColor("#1A353C"));
-                    gradient.setColorAt(0.55, QColor("#19343B"));
-                    gradient.setColorAt(1.0, QColor("#173038"));
-                    break;
-                case 2:
-                    gradient.setColorAt(0.0, QColor("#ECECF0"));
-                    gradient.setColorAt(0.50, QColor("#ECECF0"));
-                    gradient.setColorAt(1.0, QColor("#EFEFF2"));
-                    break;
-                case 3:
-                    gradient.setColorAt(0.0, QColor("#19343B"));
-                    gradient.setColorAt(0.5, QColor("#173038"));
-                    gradient.setColorAt(1.0, QColor("#152D34"));
-                    break;
-                default:
-                    gradient.setColorAt(0.0, QColor("#F5F5F7"));
-                    gradient.setColorAt(0.5, QColor("#FAFAFA"));
-                    gradient.setColorAt(1.0, QColor("#F0F0F2"));
-                    break;
-            }
-            painter.fillRect(QRect(QPoint(0, 0), targetSize), gradient);
-            if ((m_playerPageStyle == 0 || m_playerPageStyle == 2) && backgroundLabel->pixmap() &&
-                !backgroundLabel->pixmap()->isNull()) {
-                painter.setOpacity(m_playerPageStyle == 2 ? 0.16 : 0.10);
-                painter.drawPixmap(QRect(QPoint(0, 0), targetSize), *backgroundLabel->pixmap());
-                painter.setOpacity(1.0);
-            }
+        const StageThemeColors themeColors =
+            stageThemeColorsFor(m_playerPageStyle, m_albumThemeColor, m_hasAlbumThemeColor);
+        QLinearGradient gradient(0, 0, targetSize.width(), targetSize.height());
+        gradient.setColorAt(0.0, themeColors.start);
+        gradient.setColorAt(0.5, themeColors.mid);
+        gradient.setColorAt(1.0, themeColors.end);
+        painter.fillRect(QRect(QPoint(0, 0), targetSize), gradient);
+
+        if (backgroundLabel->pixmap() && !backgroundLabel->pixmap()->isNull()) {
+            painter.setOpacity(themeColors.blurOpacity);
+            painter.drawPixmap(QRect(QPoint(0, 0), targetSize), *backgroundLabel->pixmap());
+            painter.setOpacity(1.0);
         }
 
     } else {
@@ -720,7 +983,9 @@ void PlayWidget::applyPlayerPageStyle() {
         lyricDisplay->setPlayerPageStyle(m_playerPageStyle);
     }
 
-    const bool lightThemeStage = (m_playerPageStyle == 0 || m_playerPageStyle == 2);
+    const StageThemeColors themeColors =
+        stageThemeColorsFor(m_playerPageStyle, m_albumThemeColor, m_hasAlbumThemeColor);
+    const bool lightThemeStage = themeColors.backgroundIsLight;
     const QString titleColor =
         lightThemeStage ? QStringLiteral("#11181F") : QStringLiteral("#F5F8FD");
     const QString artistColor = lightThemeStage ? QStringLiteral("rgba(66,78,92,0.76)")
@@ -764,21 +1029,21 @@ void PlayWidget::applyPlayerPageStyle() {
         if (m_playerPageStyle == 1) {
             squareCoverHost->setStyleSheet("background: transparent;"
                                            "border: 0;"
-                                           "border-radius: 18px;");
+                                           "border-radius: 0px;");
             if (squareCoverShadow) {
                 squareCoverShadow->setEnabled(false);
             }
         } else if (m_playerPageStyle == 4) {
             squareCoverHost->setStyleSheet("background: rgba(12,16,22,0.28);"
                                            "border: 1px solid rgba(255,255,255,0.22);"
-                                           "border-radius: 28px;");
+                                           "border-radius: 0px;");
             if (squareCoverShadow) {
                 squareCoverShadow->setEnabled(false);
             }
         } else {
             squareCoverHost->setStyleSheet("background: rgba(255,255,255,0.28);"
                                            "border: 1px solid rgba(255,255,255,0.38);"
-                                           "border-radius: 24px;");
+                                           "border-radius: 0px;");
             if (squareCoverShadow) {
                 squareCoverShadow->setEnabled(false);
             }
@@ -843,8 +1108,8 @@ QPixmap PlayWidget::defaultCoverPixmapForSize(const QSize& requestedSize) const 
     const qreal dpr = devicePixelRatioF();
     const QSize deviceSize(qMax(1, qRound(safeSize.width() * dpr)),
                            qMax(1, qRound(safeSize.height() * dpr)));
-    QPixmap cover = QIcon(QStringLiteral(":/qml/assets/ai/icons/default-music-cover.svg"))
-                        .pixmap(deviceSize);
+    QPixmap cover =
+        QIcon(QStringLiteral(":/qml/assets/ai/icons/default-music-cover.svg")).pixmap(deviceSize);
     if (!cover.isNull()) {
         cover.setDevicePixelRatio(dpr);
     }
@@ -864,9 +1129,19 @@ QVariantMap PlayWidget::desktopLyricSnapshot() const {
             {QStringLiteral("visible"), desk->isVisible()},
             {QStringLiteral("songName"), desk->songName()},
             {QStringLiteral("lyricText"), desk->lyricText()},
+            {QStringLiteral("currentLyricText"), desk->currentLyricText()},
+            {QStringLiteral("nextLyricText"), desk->nextLyricText()},
             {QStringLiteral("color"), desk->lyricStyleColor().name(QColor::HexRgb)},
+            {QStringLiteral("playedColor"), desk->playedColor().name(QColor::HexRgb)},
+            {QStringLiteral("unplayedColor"), desk->unplayedColor().name(QColor::HexRgb)},
+            {QStringLiteral("strokeColor"), desk->strokeColor().name(QColor::HexRgb)},
             {QStringLiteral("fontSize"), desk->lyricStyleFontSize()},
-            {QStringLiteral("fontFamily"), desk->lyricStyleFontFamily()}};
+            {QStringLiteral("fontFamily"), desk->lyricStyleFontFamily()},
+            {QStringLiteral("lineMode"), desk->lyricLineModeValue()},
+            {QStringLiteral("alignment"), desk->lyricAlignmentValue()},
+            {QStringLiteral("opacity"), desk->lyricOpacityValue()},
+            {QStringLiteral("bold"), desk->lyricBoldValue()},
+            {QStringLiteral("currentLineProgress"), desk->currentLineProgressValue()}};
 }
 
 bool PlayWidget::setDesktopLyricVisible(bool visible) {
@@ -878,6 +1153,7 @@ bool PlayWidget::setDesktopLyricVisible(bool visible) {
         desk->show();
         desk->raise();
         desk->activateWindow();
+        syncDesktopLyricLines(m_playbackViewModel ? m_playbackViewModel->position() : 0);
     } else {
         desk->hide();
     }
@@ -889,15 +1165,35 @@ bool PlayWidget::setDesktopLyricStyleFromMap(const QVariantMap& style) {
         return false;
     }
 
-    QColor color(style.value(QStringLiteral("color")).toString().trimmed());
-    if (!color.isValid()) {
-        color = QColor(QStringLiteral("#FFFFFF"));
+    QColor playedColor(style.value(QStringLiteral("playedColor")).toString().trimmed());
+    if (!playedColor.isValid()) {
+        playedColor = QColor(style.value(QStringLiteral("color")).toString().trimmed());
+    }
+    if (!playedColor.isValid()) {
+        playedColor = QColor(QStringLiteral("#ded93e"));
     }
 
-    const int fontSize = qBound(12, style.value(QStringLiteral("fontSize"), 18).toInt(), 48);
+    QColor unplayedColor(style.value(QStringLiteral("unplayedColor")).toString().trimmed());
+    if (!unplayedColor.isValid()) {
+        unplayedColor = QColor(QStringLiteral("#4ca6e8"));
+    }
+
+    QColor strokeColor(style.value(QStringLiteral("strokeColor")).toString().trimmed());
+    if (!strokeColor.isValid()) {
+        strokeColor = QColor(QStringLiteral("#000000"));
+    }
+
+    const int fontSize = qBound(24, style.value(QStringLiteral("fontSize"), 57).toInt(), 64);
     const QString family = style.value(QStringLiteral("fontFamily")).toString().trimmed();
+    const QString lineMode =
+        style.value(QStringLiteral("lineMode"), QStringLiteral("double")).toString().trimmed();
+    const QString alignment =
+        style.value(QStringLiteral("alignment"), QStringLiteral("split")).toString().trimmed();
+    const int opacity = qBound(0, style.value(QStringLiteral("opacity"), 100).toInt(), 100);
+    const bool bold = style.value(QStringLiteral("bold"), false).toBool();
     QFont font(family.isEmpty() ? QStringLiteral("Microsoft YaHei") : family);
-    desk->setLyricStyle(color, fontSize, font);
+    desk->setLyricStyle(playedColor, unplayedColor, strokeColor, fontSize, font, lineMode,
+                        alignment, opacity, bold);
     return true;
 }
 
@@ -1113,25 +1409,7 @@ void PlayWidget::onLrcSendLrc(const std::map<int, std::string> lyrics) {
         refreshCurrentLyricHighlight(true);
     });
 
-    // 获取第一句歌词并传给桌面歌词
-    if (!lyrics.empty()) {
-        auto firstLyric = lyrics.begin();
-        QString firstLyricText = QString::fromStdString(firstLyric->second);
-        if (!firstLyricText.isEmpty() && firstLyricText.trimmed() != "") {
-            qDebug() << "Sending first lyric to desktop:" << firstLyricText;
-            desk->setLyricText(firstLyricText);
-        } else {
-            // 如果第一句是空的，找到第一句非空歌
-            for (const auto& [time, text] : lyrics) {
-                QString lyricText = QString::fromStdString(text);
-                if (!lyricText.isEmpty() && lyricText.trimmed() != "") {
-                    qDebug() << "Sending first non-empty lyric to desktop:" << lyricText;
-                    desk->setLyricText(lyricText);
-                    break;
-                }
-            }
-        }
-    }
+    syncDesktopLyricLines(m_playbackViewModel ? m_playbackViewModel->position() : 0);
 
     // 设置歌曲名字到桌面歌
     if (!fileName.isEmpty() || !currentSongTitle.trimmed().isEmpty()) {
@@ -1416,6 +1694,8 @@ PlayWidget::~PlayWidget() {
 
 void PlayWidget::onUpdateBackground(QString picPath) {
     qDebug() << "onUpdateBackground called with:" << picPath;
+    m_albumThemeColor = QColor();
+    m_hasAlbumThemeColor = false;
 
     // 如果file:/// URL 格式，转换为本地路径
     QString localPath = picPath;
@@ -1438,6 +1718,7 @@ void PlayWidget::onUpdateBackground(QString picPath) {
                              .pixmap(QSize(256, 256));
         if (originalPixmap.isNull()) {
             qDebug() << "Failed to load default background image, skipping";
+            applyPlayerPageStyle();
             return;
         }
     }
@@ -1459,6 +1740,8 @@ void PlayWidget::onUpdateBackground(QString picPath) {
     qDebug() << "Cropped pixmap size:" << croppedPixmap.size();
 
     m_originalBackgroundPixmap = croppedPixmap;
+    m_albumThemeColor = extractAlbumThemeColor(croppedPixmap.toImage());
+    m_hasAlbumThemeColor = m_albumThemeColor.isValid();
 
     // 3. 创建强模糊效果的图片 - 多次缩放模拟高斯模糊
     QImage image = croppedPixmap.toImage();
@@ -1478,16 +1761,7 @@ void PlayWidget::onUpdateBackground(QString picPath) {
     // 4. 根据当前样式添加遮罩，控制沉浸感与歌词可读性。
     QPainter maskPainter(&blurredImage);
     maskPainter.setCompositionMode(QPainter::CompositionMode_SourceOver);
-    int overlayAlpha = 140;
-    if (m_playerPageStyle == 0) {
-        overlayAlpha = 38;
-    } else if (m_playerPageStyle == 2) {
-        overlayAlpha = 18;
-    } else if (m_playerPageStyle == 3) {
-        overlayAlpha = 118;
-    } else if (m_playerPageStyle == 4) {
-        overlayAlpha = 152;
-    }
+    const int overlayAlpha = stageThemeSpecForStyle(m_playerPageStyle).blurMaskAlpha;
     maskPainter.fillRect(blurredImage.rect(), QColor(0, 0, 0, overlayAlpha));
     maskPainter.end();
 
@@ -1497,6 +1771,7 @@ void PlayWidget::onUpdateBackground(QString picPath) {
 
     // 触发重绘，让 paintEvent 使用新的背景
     invalidateStageBackgroundCache();
+    applyPlayerPageStyle();
     update();
 
     qDebug() << "Background updated successfully, pixmap size:" << blurredPixmap.size();
@@ -1733,9 +2008,8 @@ bool PlayWidget::isCommentableMusicPath(const QString& musicPath) const {
 }
 
 QString PlayWidget::resolveCommentMusicPath() const {
-    const QString explicitPath =
-        normalizeCommentMusicPathCandidate(m_commentTrackContext.value(QStringLiteral("music_path"))
-                                               .toString());
+    const QString explicitPath = normalizeCommentMusicPathCandidate(
+        m_commentTrackContext.value(QStringLiteral("music_path")).toString());
     if (!explicitPath.isEmpty()) {
         return explicitPath;
     }
@@ -1991,10 +2265,12 @@ void PlayWidget::connectCommentSignals() {
             &PlayWidget::handleCreateMusicCommentReplyResultReady);
     connect(m_shellViewModel, &MainShellViewModel::deleteMusicCommentResultReady, this,
             &PlayWidget::handleDeleteMusicCommentResultReady);
-    connect(m_shellViewModel, &MainShellViewModel::accountCacheChanged, this,
-            [this]() { syncCommentPanelAuthState(); });
-    connect(m_shellViewModel, &MainShellViewModel::sessionExpired, this,
-            [this]() { syncCommentPanelAuthState(); });
+    connect(m_shellViewModel, &MainShellViewModel::accountCacheChanged, this, [this]() {
+        syncCommentPanelAuthState();
+    });
+    connect(m_shellViewModel, &MainShellViewModel::sessionExpired, this, [this]() {
+        syncCommentPanelAuthState();
+    });
 }
 
 void PlayWidget::connectCommentPanel(CommentPanelQml* panel) {
@@ -2002,8 +2278,8 @@ void PlayWidget::connectCommentPanel(CommentPanelQml* panel) {
         return;
     }
 
-    connect(panel, &CommentPanelQml::closeRequested, this, &PlayWidget::handleCommentPanelCloseRequested,
-            Qt::UniqueConnection);
+    connect(panel, &CommentPanelQml::closeRequested, this,
+            &PlayWidget::handleCommentPanelCloseRequested, Qt::UniqueConnection);
     connect(panel, &CommentPanelQml::loadMoreCommentsRequested, this,
             &PlayWidget::handleCommentPanelLoadMoreRequested, Qt::UniqueConnection);
     connect(panel, &CommentPanelQml::toggleRepliesRequested, this,
@@ -2018,8 +2294,8 @@ void PlayWidget::connectCommentPanel(CommentPanelQml* panel) {
             &PlayWidget::handleCommentPanelDeleteRequested, Qt::UniqueConnection);
     connect(panel, &CommentPanelQml::startReplyRequested, this,
             &PlayWidget::handleCommentPanelStartReplyRequested, Qt::UniqueConnection);
-    connect(panel, &CommentPanelQml::loginRequested, this, &PlayWidget::handleCommentPanelLoginRequested,
-            Qt::UniqueConnection);
+    connect(panel, &CommentPanelQml::loginRequested, this,
+            &PlayWidget::handleCommentPanelLoginRequested, Qt::UniqueConnection);
 }
 
 void PlayWidget::handleCommentToggled(bool show) {
@@ -2112,9 +2388,9 @@ void PlayWidget::handleCommentPanelSubmitMainRequested(const QString& content) {
     }
     m_commentSubmitting = true;
     syncCommentPanelComments();
-    m_shellViewModel->createMusicComment(musicPath, context.value(QStringLiteral("title")).toString(),
-                                         context.value(QStringLiteral("artist")).toString(),
-                                         content.trimmed());
+    m_shellViewModel->createMusicComment(
+        musicPath, context.value(QStringLiteral("title")).toString(),
+        context.value(QStringLiteral("artist")).toString(), content.trimmed());
 }
 
 void PlayWidget::handleCommentPanelSubmitReplyRequested(qint64 rootCommentId,
@@ -2139,8 +2415,7 @@ void PlayWidget::handleCommentPanelDeleteRequested(qint64 commentId) {
     m_shellViewModel->deleteMusicComment(commentId);
 }
 
-void PlayWidget::handleCommentPanelStartReplyRequested(qint64 rootCommentId,
-                                                       qint64 targetCommentId,
+void PlayWidget::handleCommentPanelStartReplyRequested(qint64 rootCommentId, qint64 targetCommentId,
                                                        const QString& username) {
     if (!m_shellViewModel || !m_shellViewModel->hasLoggedInUser()) {
         emit signalCommentLoginRequired();

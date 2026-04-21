@@ -1486,6 +1486,108 @@ void HttpRequestV2::getSimilarRecommendations(const QString& songId, int limit) 
         });
 }
 
+void HttpRequestV2::getHotMusicChart(const QString& window, int limit) {
+    QString normalizedWindow = window.trimmed().toLower();
+    if (normalizedWindow != QStringLiteral("7d") && normalizedWindow != QStringLiteral("30d") &&
+        normalizedWindow != QStringLiteral("all")) {
+        normalizedWindow = QStringLiteral("30d");
+    }
+
+    const int safeLimit = qBound(1, limit, 100);
+
+    QUrlQuery query;
+    query.addQueryItem(QStringLiteral("window"), normalizedWindow);
+    query.addQueryItem(QStringLiteral("limit"), QString::number(safeLimit));
+
+    QString url = QStringLiteral("music/charts/hot");
+    const QString encodedQuery = query.toString(QUrl::FullyEncoded);
+    if (!encodedQuery.isEmpty()) {
+        url += QStringLiteral("?") + encodedQuery;
+    }
+
+    auto options = Network::RequestOptions::withPriority(Network::RequestPriority::High);
+    options.useCache = false;
+
+    qDebug() << "[HttpRequestV2] Getting hot chart, window:" << normalizedWindow
+             << "limit:" << safeLimit;
+
+    m_networkService.get(url, options, [this, normalizedWindow](const Network::NetworkResponse& response) {
+        if (!response.isSuccess()) {
+            emit signalHotChartResult(false, QVariantMap(), QVariantList(),
+                                      extractErrorMessage(response, QStringLiteral("热歌榜加载失败")),
+                                      response.statusCode, normalizedWindow);
+            return;
+        }
+
+        const QJsonObject rootObj = Network::NetworkService::parseJsonObject(response);
+        const QJsonObject dataObj = unwrapDataObject(rootObj);
+
+        QVariantMap meta;
+        meta.insert(QStringLiteral("chart_id"),
+                    dataObj.value(QStringLiteral("chart_id")).toString());
+        meta.insert(QStringLiteral("title"),
+                    dataObj.value(QStringLiteral("title")).toString());
+        meta.insert(QStringLiteral("window"),
+                    dataObj.value(QStringLiteral("window")).toString());
+        meta.insert(QStringLiteral("generated_at"),
+                    dataObj.value(QStringLiteral("generated_at")).toString());
+
+        QVariantList items;
+        const QJsonArray itemArray = dataObj.value(QStringLiteral("items")).toArray();
+        items.reserve(itemArray.size());
+        for (const QJsonValue& value : itemArray) {
+            if (!value.isObject()) {
+                continue;
+            }
+
+            const QJsonObject itemObj = value.toObject();
+            const QString rawPath = itemObj.value(QStringLiteral("path")).toString().trimmed();
+            const QString musicPath =
+                itemObj.value(QStringLiteral("music_path")).toString().trimmed().isEmpty()
+                    ? rawPath
+                    : itemObj.value(QStringLiteral("music_path")).toString().trimmed();
+
+            const double durationSec = itemObj.value(QStringLiteral("duration_sec")).toDouble(0.0);
+            QString durationText = formatDurationFromSeconds(static_cast<int>(durationSec + 0.5));
+            if (durationText.isEmpty()) {
+                durationText = readDurationFromObject(itemObj);
+            }
+
+            QString coverArtUrl = rewriteServiceUrlToBase(
+                itemObj.value(QStringLiteral("cover_art_url")).toString(), m_baseUrl);
+            if (coverArtUrl.trimmed().isEmpty()) {
+                coverArtUrl = queryCoverForMusicPath(musicPath);
+            }
+
+            QVariantMap item;
+            item.insert(QStringLiteral("rank"), itemObj.value(QStringLiteral("rank")).toInt());
+            item.insert(QStringLiteral("music_path"), musicPath);
+            item.insert(QStringLiteral("path"), rawPath.isEmpty() ? musicPath : rawPath);
+            item.insert(QStringLiteral("play_path"), rawPath.isEmpty() ? musicPath : rawPath);
+            item.insert(QStringLiteral("title"), itemObj.value(QStringLiteral("title")).toString());
+            item.insert(QStringLiteral("artist"), readArtistFromObject(itemObj));
+            item.insert(QStringLiteral("album"), itemObj.value(QStringLiteral("album")).toString());
+            item.insert(QStringLiteral("duration_sec"), durationSec);
+            item.insert(QStringLiteral("duration"), durationText);
+            item.insert(QStringLiteral("cover_art_url"), coverArtUrl);
+            item.insert(QStringLiteral("source"), itemObj.value(QStringLiteral("source")).toString());
+            item.insert(QStringLiteral("source_id"),
+                        itemObj.value(QStringLiteral("source_id")).toString());
+            item.insert(QStringLiteral("play_count"),
+                        itemObj.value(QStringLiteral("play_count")).toVariant());
+
+            rememberCoverForMusicPath(musicPath, coverArtUrl);
+            rememberCoverForMusicPath(rawPath, coverArtUrl);
+            rememberCoverForSongMeta(item.value(QStringLiteral("title")).toString(),
+                                     item.value(QStringLiteral("artist")).toString(), coverArtUrl);
+            items.append(item);
+        }
+
+        emit signalHotChartResult(true, meta, items, QString(), response.statusCode,
+                                  normalizedWindow);
+    });
+}
+
 void HttpRequestV2::postRecommendationFeedback(const QString& userId, const QString& songId,
                                                const QString& eventType, const QString& scene,
                                                const QString& requestId,

@@ -206,7 +206,7 @@ Rectangle {
         layer.effect: DropShadow {
             horizontalOffset: -10
             verticalOffset: 0
-            radius: 24
+            radius: 0
             samples: 49
             color: "#18000000"
         }
@@ -256,7 +256,7 @@ Rectangle {
                             id: clearButton
                             Layout.preferredWidth: 72
                             Layout.preferredHeight: 30
-                            radius: 15
+                            radius: 0
                             color: clearMouse.containsMouse && playlistModel.count > 0 ? "#F3F5F8" : "transparent"
                             border.width: 1
                             border.color: playlistModel.count > 0 ? "#E4E8EE" : "#EDF0F4"
@@ -347,7 +347,7 @@ Rectangle {
                             anchors.topMargin: 4
                             anchors.bottom: parent.bottom
                             anchors.bottomMargin: 4
-                            radius: 16
+                            radius: 0
                             color: currentRow ? "#FFF5F5" : (rowMouse.containsMouse ? "#F6F8FA" : (index % 2 === 0 ? "#FCFCFD" : "#FFFFFF"))
                             border.width: currentRow ? 1 : 0
                             border.color: currentRow ? "#F7D2D2" : "transparent"
@@ -359,7 +359,7 @@ Rectangle {
                                 anchors.topMargin: 18
                                 width: 3
                                 height: parent.height - 36
-                                radius: 2
+                                radius: 0
                                 color: currentRow ? accentColor : "transparent"
                             }
 
@@ -373,7 +373,7 @@ Rectangle {
                                     id: coverFrame
                                     Layout.preferredWidth: 48
                                     Layout.preferredHeight: 48
-                                    radius: 12
+                                    radius: 0
                                     color: "#EDEFF3"
                                     clip: true
 
@@ -455,7 +455,7 @@ Rectangle {
 
                                         Rectangle {
                                             visible: delegateRoot.currentRow
-                                            radius: 9
+                                            radius: 0
                                             color: root.stateBadgeColor(model)
                                             Layout.preferredHeight: 20
                                             Layout.preferredWidth: badgeLabel.implicitWidth + 14
@@ -490,7 +490,7 @@ Rectangle {
                                     Rectangle {
                                         width: 28
                                         height: 28
-                                        radius: 14
+                                        radius: 0
                                         color: linkMouse.containsMouse ? "#F1F4F8" : "#FFFFFF"
                                         border.width: 1
                                         border.color: "#E5E9F0"
@@ -530,7 +530,7 @@ Rectangle {
                                         id: moreButton
                                         width: 28
                                         height: 28
-                                        radius: 14
+                                        radius: 0
                                         color: moreMouse.containsMouse || (root.menuVisible && root.menuPayload.filePath === model.filePath) ? "#F1F4F8" : "#FFFFFF"
                                         border.width: 1
                                         border.color: "#E5E9F0"
@@ -582,7 +582,7 @@ Rectangle {
                         policy: ScrollBar.AsNeeded
                         background: Item { }
                         contentItem: Rectangle {
-                            radius: width / 2
+                            radius: 0
                             color: "#D9DEE6"
                         }
                     }
@@ -597,7 +597,7 @@ Rectangle {
                         anchors.horizontalCenter: parent.horizontalCenter
                         width: 54
                         height: 54
-                        radius: 27
+                        radius: 0
                         color: "#F4F6F9"
                         border.width: 1
                         border.color: "#E7EBF1"
@@ -657,7 +657,7 @@ Rectangle {
         visible: root.menuVisible
         z: 21
         width: 204
-        radius: 14
+        radius: 0
         color: "#FFFFFF"
         border.width: 1
         border.color: "#EFF2F6"
@@ -667,7 +667,7 @@ Rectangle {
         layer.effect: DropShadow {
             horizontalOffset: 0
             verticalOffset: 8
-            radius: 20
+            radius: 0
             samples: 41
             color: "#24000000"
         }

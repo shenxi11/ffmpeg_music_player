@@ -1,4 +1,4 @@
-﻿import QtQuick 2.14
+import QtQuick 2.14
 import QtQuick.Controls 2.14
 import QtGraphicalEffects 1.14
 
@@ -23,7 +23,7 @@ Rectangle {
     Rectangle {
         id: background
         anchors.fill: parent
-        radius: 4
+        radius: 0
         color: hoverArea.containsMouse ? "#E8F4FF" : "#FFFFFF"
         border.width: hoverArea.containsMouse ? 1 : 0
         border.color: "#4A90E2"
@@ -40,7 +40,7 @@ Rectangle {
             width: 44
             height: 44
             anchors.verticalCenter: parent.verticalCenter
-            radius: 22
+            radius: 0
             color: "#E0E0E0"
             
             Image {
@@ -59,7 +59,7 @@ Rectangle {
             Rectangle {
                 id: mask
                 anchors.fill: coverImg
-                radius: width / 2
+                radius: 0
                 visible: false
             }
             
@@ -116,7 +116,7 @@ Rectangle {
             Rectangle {
                 width: 32
                 height: 32
-                radius: 16
+                radius: 0
                 color: playBtnArea.containsMouse ? "#4A90E2" : "#DDDDDD"
                 
                 Text {
@@ -139,7 +139,7 @@ Rectangle {
             Rectangle {
                 width: 60
                 height: 28
-                radius: 4
+                radius: 0
                 color: removeBtnArea.containsMouse ? "#FF6B6B" : "#F0F0F0"
                 visible: !root.isNet
                 
@@ -163,7 +163,7 @@ Rectangle {
             Rectangle {
                 width: 60
                 height: 28
-                radius: 4
+                radius: 0
                 color: downloadBtnArea.containsMouse ? "#51CF66" : "#F0F0F0"
                 visible: root.isNet
                 

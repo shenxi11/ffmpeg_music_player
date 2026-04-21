@@ -7,7 +7,9 @@
 #include <QPushButton>
 #include <QLabel>
 #include <QGraphicsDropShadowEffect>
+#include <QHideEvent>
 #include <QPropertyAnimation>
+#include <QShowEvent>
 #include <QTimer>
 #include <QDebug>
 #include <QVector>
@@ -29,12 +31,15 @@ protected:
     void paintEvent(QPaintEvent *event) override;
     void enterEvent(QEvent *event) override;
     void leaveEvent(QEvent *event) override;
+    void hideEvent(QHideEvent* event) override;
+    void showEvent(QShowEvent* event) override;
 
 signals:
     void pluginRequested(const QString& pluginId);
     void pluginDiagnosticsRequested();
     void settingsRequested();
     void aboutRequested();
+    void menuVisibilityChanged(bool visible);
 
 private slots:
     void onPluginButtonClicked();

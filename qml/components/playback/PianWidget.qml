@@ -14,7 +14,7 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        radius: 10
+        radius: 0
         color: Theme.glassLight
         border.width: 1
         border.color: Theme.glassBorder
@@ -27,7 +27,7 @@ Item {
             Rectangle {
                 width: 58
                 height: 58
-                radius: 6
+                radius: 0
                 clip: true
                 border.width: 1
                 border.color: "#D8DFEA"

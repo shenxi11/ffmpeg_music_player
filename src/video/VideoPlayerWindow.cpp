@@ -77,7 +77,7 @@ void VideoPlayerWindow::setupUI()
         "  background: transparent;"
         "  border: none;"
         "  color: #F4F6FA;"
-        "  border-radius: 12px;"
+        "  border-radius: 0px;"
         "  font-size: 16px;"
         "}"
         "QPushButton:hover {"
@@ -109,10 +109,10 @@ void VideoPlayerWindow::setupUI()
     m_progressSlider->setValue(0);
     m_progressSlider->setObjectName("VideoProgressSlider");
     m_progressSlider->setStyleSheet(
-        "QSlider::groove:horizontal { height: 4px; border-radius: 2px; background: #3A414E; }"
-        "QSlider::sub-page:horizontal { border-radius: 2px; background: #EC4141; }"
+        "QSlider::groove:horizontal { height: 4px; border-radius: 0px; background: #3A414E; }"
+        "QSlider::sub-page:horizontal { border-radius: 0px; background: #EC4141; }"
         "QSlider::handle:horizontal { width: 12px; height: 12px; margin: -4px 0;"
-        "border-radius: 6px; border: 1px solid #EC4141; background: #FFFFFF; }"
+        "border-radius: 0px; border: 1px solid #EC4141; background: #FFFFFF; }"
     );
 
 
@@ -127,7 +127,7 @@ void VideoPlayerWindow::setupUI()
     m_playPauseBtn->setStyleSheet(
         "QPushButton {"
         "  min-width: 50px; min-height: 50px; max-width: 50px; max-height: 50px;"
-        "  border-radius: 25px; border: 1px solid #DE3B3B; background: #EC4141; color: #FFFFFF;"
+        "  border-radius: 0px; border: 1px solid #DE3B3B; background: #EC4141; color: #FFFFFF;"
         "  font-size: 18px; font-weight: 700;"
         "}"
         "QPushButton:hover { background: #FF5757; border-color: #EC4141; }"
@@ -139,7 +139,7 @@ void VideoPlayerWindow::setupUI()
     m_openFileBtn->setFixedHeight(40);
     m_openFileBtn->setObjectName("VideoActionButton");
     m_openFileBtn->setStyleSheet(
-        "QPushButton { border: 1px solid #3A414E; border-radius: 8px; background: #262B33; color: #EDF1F7; padding: 0 14px; }"
+        "QPushButton { border: 1px solid #3A414E; border-radius: 0px; background: #262B33; color: #EDF1F7; padding: 0 14px; }"
         "QPushButton:hover { border-color: #EC4141; background: #2D3440; }"
         "QPushButton:pressed { background: #232830; }"
     );
@@ -149,7 +149,7 @@ void VideoPlayerWindow::setupUI()
     m_displayModeBtn->setFixedHeight(40);
     m_displayModeBtn->setObjectName("VideoActionButton");
     m_displayModeBtn->setStyleSheet(
-        "QPushButton { border: 1px solid #3A414E; border-radius: 8px; background: #262B33; color: #EDF1F7; padding: 0 14px; }"
+        "QPushButton { border: 1px solid #3A414E; border-radius: 0px; background: #262B33; color: #EDF1F7; padding: 0 14px; }"
         "QPushButton:hover { border-color: #EC4141; background: #2D3440; }"
         "QPushButton:pressed { background: #232830; }"
     );
@@ -158,7 +158,7 @@ void VideoPlayerWindow::setupUI()
     m_fullScreenBtn->setFixedHeight(40);
     m_fullScreenBtn->setObjectName("VideoActionButton");
     m_fullScreenBtn->setStyleSheet(
-        "QPushButton { border: 1px solid #3A414E; border-radius: 8px; background: #262B33; color: #EDF1F7; padding: 0 14px; }"
+        "QPushButton { border: 1px solid #3A414E; border-radius: 0px; background: #262B33; color: #EDF1F7; padding: 0 14px; }"
         "QPushButton:hover { border-color: #EC4141; background: #2D3440; }"
         "QPushButton:pressed { background: #232830; }"
     );
@@ -177,10 +177,10 @@ void VideoPlayerWindow::setupUI()
     m_qualityPresetBox->setMinimumWidth(qualityTextWidth + 56);
     m_qualityPresetBox->setObjectName("VideoControlCombo");
     m_qualityPresetBox->setStyleSheet(
-        "QComboBox { border: 1px solid #3A414E; border-radius: 8px; background: #262B33; color: #EDF1F7; padding: 0 28px 0 10px; }"
+        "QComboBox { border: 1px solid #3A414E; border-radius: 0px; background: #262B33; color: #EDF1F7; padding: 0 28px 0 10px; }"
         "QComboBox:hover { border-color: #EC4141; }"
         "QComboBox::drop-down { border: none; width: 22px; }"
-        "QComboBox QAbstractItemView { border: 1px solid #3A414E; border-radius: 8px; background: #262B33; color: #EDF1F7;"
+        "QComboBox QAbstractItemView { border: 1px solid #3A414E; border-radius: 0px; background: #262B33; color: #EDF1F7;"
         "selection-background-color: #EC4141; selection-color: #FFFFFF; }"
     );
 
@@ -199,10 +199,10 @@ void VideoPlayerWindow::setupUI()
     m_playbackRateBox->setFixedHeight(36);
     m_playbackRateBox->setObjectName("VideoControlCombo");
     m_playbackRateBox->setStyleSheet(
-        "QComboBox { border: 1px solid #3A414E; border-radius: 8px; background: #262B33; color: #EDF1F7; padding: 0 28px 0 10px; }"
+        "QComboBox { border: 1px solid #3A414E; border-radius: 0px; background: #262B33; color: #EDF1F7; padding: 0 28px 0 10px; }"
         "QComboBox:hover { border-color: #EC4141; }"
         "QComboBox::drop-down { border: none; width: 22px; }"
-        "QComboBox QAbstractItemView { border: 1px solid #3A414E; border-radius: 8px; background: #262B33; color: #EDF1F7;"
+        "QComboBox QAbstractItemView { border: 1px solid #3A414E; border-radius: 0px; background: #262B33; color: #EDF1F7;"
         "selection-background-color: #EC4141; selection-color: #FFFFFF; }"
     );
 

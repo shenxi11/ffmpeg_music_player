@@ -53,7 +53,7 @@ Window {
 
     Rectangle {
         anchors.fill: parent
-        radius: 18
+        radius: 0
         color: "#F8FFFFFF"
         border.width: 1
         border.color: "#2E20263A"
@@ -62,7 +62,7 @@ Window {
         layer.effect: DropShadow {
             horizontalOffset: 0
             verticalOffset: 8
-            radius: 22
+            radius: 0
             samples: 29
             color: "#2A000000"
         }
@@ -86,7 +86,7 @@ Window {
                         Layout.preferredHeight: 26
                         width: 26
                         height: 26
-                        radius: 13
+                        radius: 0
                         color: Theme.accentSoft
                         border.width: 1
                         border.color: "#22D33A31"
@@ -123,7 +123,7 @@ Window {
             Rectangle {
                 width: parent.width
                 height: 1
-                radius: 1
+                radius: 0
                 color: Theme.divider
                 opacity: 0.8
             }
@@ -140,7 +140,7 @@ Window {
                                              : "写真背景与沉浸舞台"
                     width: parent.width
                     height: 56
-                    radius: 14
+                    radius: 0
                     color: {
                         if (root.currentStyle === styleId) {
                             return Theme.accentSoft
@@ -159,7 +159,7 @@ Window {
                         Rectangle {
                             width: 58
                             height: parent.height
-                            radius: 12
+                            radius: 0
                             color: styleSpec.previewSecondary
                             border.width: 1
                             border.color: "#1A20263A"
@@ -185,7 +185,7 @@ Window {
                                 visible: styleId === 0 || styleId === 2
                                 width: styleId === 2 ? 24 : 22
                                 height: width
-                                radius: width / 2
+                                radius: 0
                                 x: styleId === 2 ? 26 : 28
                                 y: styleId === 2 ? 6 : 7
                                 color: styleSpec.previewDiscColor
@@ -197,7 +197,7 @@ Window {
                                     anchors.centerIn: parent
                                     width: 9
                                     height: 9
-                                    radius: 4.5
+                                    radius: 0
                                     color: styleSpec.previewPrimary
                                 }
                             }
@@ -206,7 +206,7 @@ Window {
                                 visible: styleId === 1 || styleId === 4
                                 width: 18
                                 height: 18
-                                radius: 6
+                                radius: 0
                                 x: styleId === 4 ? 6 : 8
                                 y: 8
                                 color: styleSpec.previewDiscColor
@@ -229,7 +229,7 @@ Window {
                                 y: 10
                                 width: parent.width - 16
                                 height: 2
-                                radius: 1
+                                radius: 0
                                 color: "#D8FFFFFF"
                                 opacity: 0.86
                             }
@@ -240,7 +240,7 @@ Window {
                                 y: 17
                                 width: parent.width - 24
                                 height: 2
-                                radius: 1
+                                radius: 0
                                 color: "#8FFFFFFF"
                                 opacity: 0.72
                             }
@@ -251,7 +251,7 @@ Window {
                                 y: 24
                                 width: parent.width - 20
                                 height: 2
-                                radius: 1
+                                radius: 0
                                 color: "#B8FFFFFF"
                                 opacity: 0.78
                             }
@@ -262,7 +262,7 @@ Window {
                                 y: styleId === 1 ? 10 : 12
                                 width: styleId === 4 ? 18 : 16
                                 height: 2
-                                radius: 1
+                                radius: 0
                                 color: styleSpec.lyricsTitleColor
                                 opacity: 0.95
                             }
@@ -273,7 +273,7 @@ Window {
                                 y: styleId === 1 ? 16 : 18
                                 width: styleId === 4 ? 14 : 18
                                 height: 2
-                                radius: 1
+                                radius: 0
                                 color: styleSpec.lyricsArtistColor
                                 opacity: 0.82
                             }
@@ -312,7 +312,7 @@ Window {
                             y: Math.round((parent.height - height) / 2)
                             width: root.currentStyle === styleId ? 38 : 18
                             height: 20
-                            radius: 10
+                            radius: 0
                             color: root.currentStyle === styleId ? Theme.accent : "transparent"
                             border.width: root.currentStyle === styleId ? 0 : 1
                             border.color: "#1A20263A"

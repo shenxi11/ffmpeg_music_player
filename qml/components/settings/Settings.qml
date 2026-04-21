@@ -22,6 +22,7 @@ Rectangle {
     readonly property color textColor: "#303133"
     readonly property color hintColor: "#909399"
     readonly property color inputColor: "#f7f7f7"
+    readonly property color disabledTextColor: "#9ca3af"
 
     property string activeTab: "general"
     property var tabs: [
@@ -134,6 +135,37 @@ Rectangle {
         { "value": "native", "label": "优先原生DSD" }
     ]
     property string pendingColorKey: ""
+
+    function tabAvailable(tabId) {
+        return settingsViewModel ? settingsViewModel.isSettingsTabAvailable(tabId) : false
+    }
+
+    function settingAvailable(key) {
+        return settingsViewModel ? settingsViewModel.isSettingFeatureAvailable(key) : false
+    }
+
+    function actionAvailable(actionId) {
+        return settingsViewModel ? settingsViewModel.isSettingsActionAvailable(actionId) : false
+    }
+
+    function availabilityOpacity(available) {
+        return available ? 1.0 : 0.42
+    }
+
+    function settingsUnavailableHint(tabId) {
+        switch (tabId) {
+        case "shortcuts":
+            return "快捷键只保留配置界面，当前版本还没有接入全局热键和运行时绑定。"
+        case "plugins":
+            return "音效插件管理仍是占位界面，当前版本没有接入插件扫描、排序和配置能力。"
+        case "network":
+            return "代理设置目前不会驱动客户端网络栈，因此本页暂时只保留展示。"
+        case "audio":
+            return "音频设备页当前没有接入真实设备发现与运行时切换，所有控件已禁用。"
+        default:
+            return "当前版本暂未接入这些设置对应的运行时能力，已按不可操作样式展示。"
+        }
+    }
 
     function normalizePath(path) {
         return (path || "").toString().split("\\").join("/")
@@ -395,7 +427,7 @@ Rectangle {
         color: root.panelColor
         border.color: "#f0f0f0"
         border.width: 1
-        radius: 10
+        radius: 0
 
         Column {
             anchors.fill: parent
@@ -405,7 +437,7 @@ Rectangle {
                 width: parent.width
                 height: 122
                 color: "#f5f5f5"
-                radius: 10
+                radius: 0
 
                 Column {
                     anchors.fill: parent
@@ -436,7 +468,9 @@ Rectangle {
                                     anchors.horizontalCenter: parent.horizontalCenter
                                     anchors.top: parent.top
                                     text: modelData.label
-                                    color: root.activeTab === modelData.id ? root.accentColor : "#4b5563"
+                                    color: root.activeTab === modelData.id
+                                           ? (root.tabAvailable(modelData.id) ? root.accentColor : "#7b8794")
+                                           : (root.tabAvailable(modelData.id) ? "#4b5563" : root.disabledTextColor)
                                     font.pixelSize: 14
                                 }
 
@@ -445,7 +479,7 @@ Rectangle {
                                     anchors.bottom: parent.bottom
                                     width: 24
                                     height: 2
-                                    radius: 1
+                                    radius: 0
                                     color: root.accentColor
                                     visible: root.activeTab === modelData.id
                                 }
@@ -464,7 +498,7 @@ Rectangle {
             Flickable {
                 id: contentFlickable
                 width: parent.width
-                height: parent.height - 122
+                height: parent.height - 122 - footerBar.height
                 contentWidth: width
                 contentHeight: contentColumn.implicitHeight + 24
                 clip: true
@@ -482,6 +516,17 @@ Rectangle {
                     anchors.topMargin: 18
                     spacing: 0
 
+                    Text {
+                        width: parent.width
+                        visible: !root.tabAvailable(root.activeTab)
+                        text: root.settingsUnavailableHint(root.activeTab)
+                        color: root.hintColor
+                        font.pixelSize: 12
+                        wrapMode: Text.WordWrap
+                        topPadding: 4
+                        bottomPadding: 12
+                    }
+
                     Loader {
                         width: parent.width
                         sourceComponent: {
@@ -495,6 +540,34 @@ Rectangle {
                             default: return generalPage
                             }
                         }
+                    }
+                }
+            }
+
+            Rectangle {
+                id: footerBar
+                width: parent.width
+                height: 72
+                color: "#ffffff"
+                border.width: 1
+                border.color: root.lineColor
+
+                Row {
+                    anchors.right: parent.right
+                    anchors.rightMargin: 32
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 12
+
+                    Button {
+                        text: "返回欢迎页"
+                        enabled: root.actionAvailable("returnToWelcome")
+                        onClicked: root.returnToWelcomeRequested()
+                    }
+
+                    Button {
+                        text: "关闭设置"
+                        enabled: root.actionAvailable("closeSettings")
+                        onClicked: root.settingsClosed()
                     }
                 }
             }
@@ -520,6 +593,8 @@ Rectangle {
                 Item {
                     width: parent.width
                     height: generalStartupGrid.implicitHeight + 48
+                    enabled: root.settingAvailable("launchAtStartup")
+                    opacity: root.availabilityOpacity(enabled)
 
                     Text {
                         x: 0
@@ -553,7 +628,7 @@ Rectangle {
                                     Rectangle {
                                         width: 18
                                         height: 18
-                                        radius: 9
+                                        radius: 0
                                         border.width: 1
                                         border.color: root.boolSetting(modelData.key) ? root.accentColor : "#cfcfcf"
                                         color: root.boolSetting(modelData.key) ? root.accentColor : "#ffffff"
@@ -589,6 +664,8 @@ Rectangle {
                 Item {
                     width: parent.width
                     height: generalPlaybackBlock.implicitHeight + 58
+                    enabled: root.settingAvailable("listAutoSwitch")
+                    opacity: root.availabilityOpacity(enabled)
 
                     Text {
                         x: 0
@@ -626,7 +703,7 @@ Rectangle {
                                         Rectangle {
                                             width: 18
                                             height: 18
-                                            radius: 9
+                                            radius: 0
                                             border.width: 1
                                             border.color: root.boolSetting(modelData.key) ? root.accentColor : "#cfcfcf"
                                             color: root.boolSetting(modelData.key) ? root.accentColor : "#ffffff"
@@ -667,7 +744,7 @@ Rectangle {
                                 Rectangle {
                                     width: 18
                                     height: 18
-                                    radius: 9
+                                    radius: 0
                                     border.width: 1
                                     border.color: root.boolSetting("skipTrialTracks") ? root.accentColor : "#cfcfcf"
                                     color: root.boolSetting("skipTrialTracks") ? root.accentColor : "#ffffff"
@@ -729,7 +806,7 @@ Rectangle {
                                             Rectangle {
                                                 width: 18
                                                 height: 18
-                                                radius: 9
+                                                radius: 0
                                                 border.width: 1
                                                 border.color: root.boolSetting(modelData.key) ? root.accentColor : "#cfcfcf"
                                                 color: root.boolSetting(modelData.key) ? root.accentColor : "#ffffff"
@@ -784,7 +861,7 @@ Rectangle {
                                     Rectangle {
                                         width: 18
                                         height: 18
-                                        radius: 9
+                                        radius: 0
                                         border.width: 1
                                         border.color: root.boolSetting("preferLocalDownloadedQuality") ? root.accentColor : "#cfcfcf"
                                         color: root.boolSetting("preferLocalDownloadedQuality") ? root.accentColor : "#ffffff"
@@ -848,7 +925,7 @@ Rectangle {
                                             Rectangle {
                                                 width: 18
                                                 height: 18
-                                                radius: 9
+                                                radius: 0
                                                 border.width: 1
                                                 border.color: root.stringSetting("preferredPlaybackQuality") === modelData.value ? root.accentColor : "#cfcfcf"
                                                 color: "#ffffff"
@@ -857,7 +934,7 @@ Rectangle {
                                                     anchors.centerIn: parent
                                                     width: 10
                                                     height: 10
-                                                    radius: 5
+                                                    radius: 0
                                                     color: root.accentColor
                                                     visible: root.stringSetting("preferredPlaybackQuality") === modelData.value
                                                 }
@@ -911,7 +988,7 @@ Rectangle {
                                                 Layout.preferredHeight: 18
                                                 width: 18
                                                 height: 18
-                                                radius: 9
+                                                radius: 0
                                                 border.width: 1
                                                 border.color: root.stringSetting("singleTrackQueueMode") === modelData.value ? root.accentColor : "#cfcfcf"
                                                 color: "#ffffff"
@@ -920,7 +997,7 @@ Rectangle {
                                                     anchors.centerIn: parent
                                                     width: 10
                                                     height: 10
-                                                    radius: 5
+                                                    radius: 0
                                                     color: root.accentColor
                                                     visible: root.stringSetting("singleTrackQueueMode") === modelData.value
                                                 }
@@ -953,6 +1030,8 @@ Rectangle {
                 Item {
                     width: parent.width
                     height: 64
+                    enabled: root.settingAvailable("showMessageCenterBadge")
+                    opacity: root.availabilityOpacity(enabled)
 
                     Text {
                         x: 0
@@ -982,7 +1061,7 @@ Rectangle {
                                     Rectangle {
                                         width: 18
                                         height: 18
-                                        radius: 9
+                                        radius: 0
                                         border.width: 1
                                         border.color: root.boolSetting(modelData.key) ? root.accentColor : "#cfcfcf"
                                         color: root.boolSetting(modelData.key) ? root.accentColor : "#ffffff"
@@ -1009,6 +1088,103 @@ Rectangle {
                                     onClicked: root.setBoolSetting(modelData.key, !root.boolSetting(modelData.key))
                                 }
                             }
+                        }
+                    }
+                }
+
+                Rectangle { width: parent.width; height: 1; color: root.lineColor }
+
+                Item {
+                    width: parent.width
+                    height: 244
+
+                    Text {
+                        x: 0
+                        y: 28
+                        width: 110
+                        text: "在线状态"
+                        color: "#6b7280"
+                        font.pixelSize: 14
+                    }
+
+                    Column {
+                        x: 110
+                        y: 20
+                        width: parent.width - 110
+                        spacing: 12
+
+                        Row {
+                            spacing: 12
+
+                            Rectangle {
+                                width: 68
+                                height: 28
+                                color: settingsViewModel.presenceOnline ? "#ecfdf3" : "#fef2f2"
+                                border.width: 1
+                                border.color: settingsViewModel.presenceOnline ? "#74c08d" : "#e2a5a5"
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: settingsViewModel.presenceOnline ? "在线" : "离线"
+                                    color: settingsViewModel.presenceOnline ? "#2f7d46" : "#b24747"
+                                    font.pixelSize: 12
+                                    font.weight: Font.DemiBold
+                                }
+                            }
+
+                            Button {
+                                text: "刷新状态"
+                                enabled: root.actionAvailable("refreshPresence")
+                                onClicked: root.refreshPresenceRequested()
+                            }
+                        }
+
+                        Rectangle { width: parent.width; height: 1; color: root.lineColor }
+
+                        Text {
+                            width: parent.width
+                            text: "服务器：" + (settingsViewModel.serverHost || "-") +
+                                  (settingsViewModel.serverPort > 0 ? (":" + settingsViewModel.serverPort) : "")
+                            color: root.textColor
+                            font.pixelSize: 13
+                            elide: Text.ElideMiddle
+                        }
+                        Text {
+                            width: parent.width
+                            text: "账号：" + (settingsViewModel.presenceAccount || "-")
+                            color: root.textColor
+                            font.pixelSize: 13
+                        }
+                        Text {
+                            width: parent.width
+                            text: "Token：" + (settingsViewModel.presenceSessionToken || "-")
+                            color: root.hintColor
+                            font.pixelSize: 12
+                            elide: Text.ElideMiddle
+                        }
+                        Text {
+                            text: "心跳间隔：" + settingsViewModel.presenceHeartbeatIntervalSec + "s"
+                            color: root.textColor
+                            font.pixelSize: 13
+                        }
+                        Text {
+                            text: "在线 TTL：" + settingsViewModel.presenceOnlineTtlSec + "s / 剩余：" +
+                                  settingsViewModel.presenceTtlRemainingSec + "s"
+                            color: root.textColor
+                            font.pixelSize: 13
+                        }
+                        Text {
+                            width: parent.width
+                            text: "最近上报：" + (settingsViewModel.presenceLastSeenText || "未上报")
+                            color: root.textColor
+                            font.pixelSize: 13
+                        }
+                        Text {
+                            width: parent.width
+                            text: "状态说明：" + (settingsViewModel.presenceStatusMessage || "-")
+                            color: root.hintColor
+                            font.pixelSize: 12
+                            wrapMode: Text.WordWrap
                         }
                     }
                 }
@@ -1059,7 +1235,7 @@ Rectangle {
                             background: Rectangle {
                                 color: "#ffffff"
                                 border.color: root.borderColor
-                                radius: 2
+                                radius: 0
                             }
                         }
 
@@ -1113,7 +1289,7 @@ Rectangle {
                                     anchors.verticalCenter: parent.verticalCenter
                                     spacing: 8
                                     Rectangle {
-                                        width: 18; height: 18; radius: 9
+                                        width: 18; height: 18; radius: 0
                                         border.width: 1
                                         border.color: root.boolSetting(modelData.key) ? root.accentColor : "#cfcfcf"
                                         color: root.boolSetting(modelData.key) ? root.accentColor : "#ffffff"
@@ -1132,6 +1308,8 @@ Rectangle {
                     }
 
                     Column {
+                        enabled: root.settingAvailable("preferMp3Download")
+                        opacity: root.availabilityOpacity(enabled)
                         spacing: 6
 
                         Item {
@@ -1142,7 +1320,7 @@ Rectangle {
                                 anchors.verticalCenter: parent.verticalCenter
                                 spacing: 8
                                 Rectangle {
-                                    width: 18; height: 18; radius: 9
+                                    width: 18; height: 18; radius: 0
                                     border.width: 1
                                     border.color: root.boolSetting("preferMp3Download") ? root.accentColor : "#cfcfcf"
                                     color: root.boolSetting("preferMp3Download") ? root.accentColor : "#ffffff"
@@ -1173,6 +1351,8 @@ Rectangle {
             Item {
                 width: parent.width
                 height: 74
+                enabled: root.settingAvailable("downloadFolderClassification")
+                opacity: root.availabilityOpacity(enabled)
 
                 Text { x: 0; y: 28; width: 110; text: "文件智能分类"; color: "#6b7280"; font.pixelSize: 14 }
 
@@ -1190,12 +1370,12 @@ Rectangle {
                                 anchors.verticalCenter: parent.verticalCenter
                                 spacing: 8
                                 Rectangle {
-                                    width: 18; height: 18; radius: 9; border.width: 1
+                                    width: 18; height: 18; radius: 0; border.width: 1
                                     border.color: root.stringSetting("downloadFolderClassification") === modelData.value ? root.accentColor : "#cfcfcf"
                                     color: "#ffffff"
                                     Rectangle {
                                         anchors.centerIn: parent
-                                        width: 10; height: 10; radius: 5
+                                        width: 10; height: 10; radius: 0
                                         color: root.accentColor
                                         visible: root.stringSetting("downloadFolderClassification") === modelData.value
                                     }
@@ -1217,6 +1397,8 @@ Rectangle {
             Item {
                 width: parent.width
                 height: 74
+                enabled: root.settingAvailable("downloadSongNamingFormat")
+                opacity: root.availabilityOpacity(enabled)
 
                 Text { x: 0; y: 28; width: 110; text: "歌曲命名格式"; color: "#6b7280"; font.pixelSize: 14 }
 
@@ -1234,12 +1416,12 @@ Rectangle {
                                 anchors.verticalCenter: parent.verticalCenter
                                 spacing: 8
                                 Rectangle {
-                                    width: 18; height: 18; radius: 9; border.width: 1
+                                    width: 18; height: 18; radius: 0; border.width: 1
                                     border.color: root.stringSetting("downloadSongNamingFormat") === modelData.value ? root.accentColor : "#cfcfcf"
                                     color: "#ffffff"
                                     Rectangle {
                                         anchors.centerIn: parent
-                                        width: 10; height: 10; radius: 5
+                                        width: 10; height: 10; radius: 0
                                         color: root.accentColor
                                         visible: root.stringSetting("downloadSongNamingFormat") === modelData.value
                                     }
@@ -1281,7 +1463,7 @@ Rectangle {
                             readOnly: true
                             font.pixelSize: 13
                             color: root.textColor
-                            background: Rectangle { color: "#ffffff"; border.color: root.borderColor; radius: 2 }
+                            background: Rectangle { color: "#ffffff"; border.color: root.borderColor; radius: 0}
                         }
 
                         Button { text: "更改目录"; onClicked: root.chooseAudioCachePath() }
@@ -1290,6 +1472,8 @@ Rectangle {
                     }
 
                     Row {
+                        enabled: root.settingAvailable("cacheSpaceMode")
+                        opacity: root.availabilityOpacity(enabled)
                         spacing: 14
                         Text { text: "缓存占用空间"; color: "#6b7280"; font.pixelSize: 14; width: 92 }
 
@@ -1307,12 +1491,12 @@ Rectangle {
                                     anchors.verticalCenter: parent.verticalCenter
                                     spacing: 8
                                     Rectangle {
-                                        width: 18; height: 18; radius: 9; border.width: 1
+                                        width: 18; height: 18; radius: 0; border.width: 1
                                         border.color: root.stringSetting("cacheSpaceMode") === modelData.value ? root.accentColor : "#cfcfcf"
                                         color: "#ffffff"
                                         Rectangle {
                                             anchors.centerIn: parent
-                                            width: 10; height: 10; radius: 5
+                                            width: 10; height: 10; radius: 0
                                             color: root.accentColor
                                             visible: root.stringSetting("cacheSpaceMode") === modelData.value
                                         }
@@ -1331,7 +1515,7 @@ Rectangle {
                                         font.pixelSize: 13
                                         color: root.textColor
                                         horizontalAlignment: Text.AlignHCenter
-                                        background: Rectangle { color: "#ffffff"; border.color: root.borderColor; radius: 2 }
+                                        background: Rectangle { color: "#ffffff"; border.color: root.borderColor; radius: 0}
                                         onEditingFinished: root.setIntSetting("cacheSpaceLimitMb", parseInt(text || "0"))
                                     }
                                     Text {
@@ -1358,6 +1542,8 @@ Rectangle {
             Item {
                 width: parent.width
                 height: 90
+                enabled: root.settingAvailable("mp3TagApeV2")
+                opacity: root.availabilityOpacity(enabled)
 
                 Text { x: 0; y: 28; width: 110; text: "MP3标签设置"; color: "#6b7280"; font.pixelSize: 14 }
 
@@ -1386,7 +1572,7 @@ Rectangle {
                                     anchors.verticalCenter: parent.verticalCenter
                                     spacing: 8
                                     Rectangle {
-                                        width: 18; height: 18; radius: 9
+                                        width: 18; height: 18; radius: 0
                                         border.width: 1
                                         border.color: root.boolSetting(modelData.key) ? root.accentColor : "#cfcfcf"
                                         color: root.boolSetting(modelData.key) ? root.accentColor : "#ffffff"
@@ -1445,10 +1631,10 @@ Rectangle {
                                 anchors.verticalCenter: parent.verticalCenter
                                 spacing: 8
                                 Rectangle {
-                                    width: 18; height: 18; radius: 9; border.width: 1
+                                    width: 18; height: 18; radius: 0; border.width: 1
                                     border.color: root.stringSetting("desktopLyricsLineMode") === modelData.value ? root.accentColor : "#cfcfcf"
                                     color: "#ffffff"
-                                    Rectangle { anchors.centerIn: parent; width: 10; height: 10; radius: 5; color: root.accentColor; visible: root.stringSetting("desktopLyricsLineMode") === modelData.value }
+                                    Rectangle { anchors.centerIn: parent; width: 10; height: 10; radius: 0; color: root.accentColor; visible: root.stringSetting("desktopLyricsLineMode") === modelData.value }
                                 }
                                 Text { text: modelData.label; color: root.textColor; font.pixelSize: 14 }
                             }
@@ -1475,10 +1661,10 @@ Rectangle {
                                 anchors.verticalCenter: parent.verticalCenter
                                 spacing: 8
                                 Rectangle {
-                                    width: 18; height: 18; radius: 9; border.width: 1
+                                    width: 18; height: 18; radius: 0; border.width: 1
                                     border.color: root.stringSetting("desktopLyricsAlignment") === modelData.value ? root.accentColor : "#cfcfcf"
                                     color: "#ffffff"
-                                    Rectangle { anchors.centerIn: parent; width: 10; height: 10; radius: 5; color: root.accentColor; visible: root.stringSetting("desktopLyricsAlignment") === modelData.value }
+                                    Rectangle { anchors.centerIn: parent; width: 10; height: 10; radius: 0; color: root.accentColor; visible: root.stringSetting("desktopLyricsAlignment") === modelData.value }
                                 }
                                 Text { text: modelData.label; color: root.textColor; font.pixelSize: 14 }
                             }
@@ -1533,6 +1719,8 @@ Rectangle {
                             width: 180
                             model: [ "自定义" ]
                             currentIndex: 0
+                            enabled: root.settingAvailable("desktopLyricsColorPreset")
+                            opacity: root.availabilityOpacity(enabled)
                         }
 
                         Row {
@@ -1570,12 +1758,14 @@ Rectangle {
                                 { "key": "desktopLyricsBold", "label": "粗体" }
                             ]
                             delegate: Item {
+                                enabled: root.settingAvailable(modelData.key)
+                                opacity: root.availabilityOpacity(enabled)
                                 width: 120; height: 24
                                 Row {
                                     anchors.verticalCenter: parent.verticalCenter
                                     spacing: 8
                                     Rectangle {
-                                        width: 18; height: 18; radius: 9
+                                        width: 18; height: 18; radius: 0
                                         border.width: 1
                                         border.color: root.boolSetting(modelData.key) ? root.accentColor : "#cfcfcf"
                                         color: root.boolSetting(modelData.key) ? root.accentColor : "#ffffff"
@@ -1583,7 +1773,12 @@ Rectangle {
                                     }
                                     Text { text: modelData.label; color: root.textColor; font.pixelSize: 14 }
                                 }
-                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.setBoolSetting(modelData.key, !root.boolSetting(modelData.key)) }
+                                MouseArea {
+                                    anchors.fill: parent
+                                    enabled: parent.enabled
+                                    cursorShape: parent.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                    onClicked: root.setBoolSetting(modelData.key, !root.boolSetting(modelData.key))
+                                }
                             }
                         }
                     }
@@ -1629,7 +1824,7 @@ Rectangle {
                     width: Math.min(parent.width - 110, 620)
                     height: 150
                     color: "#f0f0f0"
-                    radius: 4
+                    radius: 0
 
                     Column {
                         anchors.centerIn: parent
@@ -1666,11 +1861,14 @@ Rectangle {
             Item {
                 width: parent.width
                 height: 68
+                enabled: root.actionAvailable("resetShortcutSettings")
+                opacity: root.availabilityOpacity(enabled)
                 Text { x: 0; y: 24; width: 110; text: "快捷键"; color: "#6b7280"; font.pixelSize: 14 }
                 Button {
                     x: 110
                     y: 18
                     text: "恢复默认"
+                    enabled: parent.enabled
                     onClicked: settingsViewModel.resetShortcutSettings()
                 }
             }
@@ -1682,6 +1880,8 @@ Rectangle {
 
         Column {
             width: contentColumn.width
+            enabled: root.tabAvailable("shortcuts")
+            opacity: root.availabilityOpacity(enabled)
 
             Item {
                 width: parent.width
@@ -1702,7 +1902,7 @@ Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: 8
                         Rectangle {
-                            width: 18; height: 18; radius: 9; border.width: 1
+                            width: 18; height: 18; radius: 0; border.width: 1
                             border.color: root.boolSetting("globalShortcutsEnabled") ? root.accentColor : "#cfcfcf"
                             color: root.boolSetting("globalShortcutsEnabled") ? root.accentColor : "#ffffff"
                             Text { anchors.centerIn: parent; text: root.boolSetting("globalShortcutsEnabled") ? "✓" : ""; color: "#ffffff"; font.pixelSize: 11; font.weight: Font.Bold }
@@ -1762,7 +1962,7 @@ Rectangle {
                                         text: root.stringSetting(modelData.key)
                                         font.pixelSize: 13
                                         color: root.textColor
-                                        background: Rectangle { color: "#ffffff"; border.color: root.borderColor; radius: 2 }
+                                        background: Rectangle { color: "#ffffff"; border.color: root.borderColor; radius: 0}
                                         onEditingFinished: root.setStringSetting(modelData.key, text)
                                     }
 
@@ -1788,6 +1988,8 @@ Rectangle {
 
         Column {
             width: contentColumn.width
+            enabled: root.tabAvailable("plugins")
+            opacity: root.availabilityOpacity(enabled)
 
             Item {
                 width: parent.width
@@ -1888,7 +2090,7 @@ Rectangle {
                         text: root.stringSetting("pluginDirectory")
                         font.pixelSize: 13
                         color: root.textColor
-                        background: Rectangle { color: "#ffffff"; border.color: root.borderColor; radius: 2 }
+                        background: Rectangle { color: "#ffffff"; border.color: root.borderColor; radius: 0}
                         onEditingFinished: root.setStringSetting("pluginDirectory", text)
                     }
 
@@ -1903,6 +2105,8 @@ Rectangle {
 
         Column {
             width: contentColumn.width
+            enabled: root.tabAvailable("network")
+            opacity: root.availabilityOpacity(enabled)
 
             Item {
                 width: parent.width
@@ -1954,7 +2158,7 @@ Rectangle {
                                 text: root.stringSetting("proxyHost")
                                 font.pixelSize: 13
                                 color: root.textColor
-                                background: Rectangle { color: "#ffffff"; border.color: root.borderColor; radius: 2 }
+                                background: Rectangle { color: "#ffffff"; border.color: root.borderColor; radius: 0}
                                 onEditingFinished: root.setStringSetting("proxyHost", text)
                             }
                         }
@@ -1967,7 +2171,7 @@ Rectangle {
                                 text: String(root.intSetting("proxyPort"))
                                 font.pixelSize: 13
                                 color: root.textColor
-                                background: Rectangle { color: "#ffffff"; border.color: root.borderColor; radius: 2 }
+                                background: Rectangle { color: "#ffffff"; border.color: root.borderColor; radius: 0}
                                 onEditingFinished: root.setIntSetting("proxyPort", parseInt(text || "0"))
                             }
                         }
@@ -1984,7 +2188,7 @@ Rectangle {
                                 text: root.stringSetting("proxyUsername")
                                 font.pixelSize: 13
                                 color: root.textColor
-                                background: Rectangle { color: "#ffffff"; border.color: root.borderColor; radius: 2 }
+                                background: Rectangle { color: "#ffffff"; border.color: root.borderColor; radius: 0}
                                 onEditingFinished: root.setStringSetting("proxyUsername", text)
                             }
                         }
@@ -1998,7 +2202,7 @@ Rectangle {
                                 text: root.stringSetting("proxyPassword")
                                 font.pixelSize: 13
                                 color: root.textColor
-                                background: Rectangle { color: "#ffffff"; border.color: root.borderColor; radius: 2 }
+                                background: Rectangle { color: "#ffffff"; border.color: root.borderColor; radius: 0}
                                 onEditingFinished: root.setStringSetting("proxyPassword", text)
                             }
                         }
@@ -2028,6 +2232,8 @@ Rectangle {
 
         Column {
             width: contentColumn.width
+            enabled: root.tabAvailable("audio")
+            opacity: root.availabilityOpacity(enabled)
 
             Item {
                 width: parent.width
@@ -2116,7 +2322,7 @@ Rectangle {
                                     }
 
                                     background: Rectangle {
-                                        radius: 2
+                                        radius: 0
                                         color: "#ffffff"
                                         border.color: root.borderColor
                                     }
@@ -2148,7 +2354,7 @@ Rectangle {
                                         Layout.topMargin: 1
                                         Layout.preferredWidth: 18
                                         Layout.preferredHeight: 18
-                                        width: 18; height: 18; radius: 9
+                                        width: 18; height: 18; radius: 0
                                         border.width: 1
                                         border.color: root.boolSetting(modelData.key) ? root.accentColor : "#cfcfcf"
                                         color: root.boolSetting(modelData.key) ? root.accentColor : "#ffffff"

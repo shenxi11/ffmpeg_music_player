@@ -9,6 +9,7 @@
 #include <QUrl>
 #include <QMutex>
 #include <QPointer>
+#include <QVector>
 
 class QTcpServer;
 class QTcpSocket;
@@ -38,8 +39,11 @@ public:
     // Save known duration to improve byte-range estimation.
     void noteTrackDuration(const QUrl& originalUrl, qint64 durationMs);
 
+    bool hasResolvedSeekIndexForPlaybackUrl(const QUrl& playbackUrl) const;
+
 private slots:
     void onDownloadFinished(QNetworkReply* reply);
+    void onSeekIndexReplyFinished();
     void onProxySocketReadyRead();
     void onProxySocketDisconnected();
     void onProxySocketDestroyed(QObject* obj);
@@ -61,6 +65,22 @@ private:
         qint64 contentLength = -1;
         qint64 durationMs = -1;
         qint64 lastAccessMs = 0;
+        bool seekIndexResolved = false;
+        bool seekIndexSupported = false;
+        qint64 seekIndexFetchedAtMs = 0;
+        qint64 seekIndexFileSize = -1;
+        QString seekIndexVersion;
+        QString seekIndexMusicPath;
+        struct SeekIndexPoint {
+            qint64 timeMs = 0;
+            qint64 byteOffset = 0;
+        };
+        QVector<SeekIndexPoint> seekIndexPoints;
+    };
+
+    struct SeekIndexRequest {
+        QString cacheKey;
+        QString musicPath;
     };
 
     struct ProxyStreamState {
@@ -79,8 +99,13 @@ private:
     AudioCacheManager& operator=(const AudioCacheManager&) = delete;
 
     bool canCacheUrl(const QUrl& url) const;
+    bool canUseSeekIndexForUrl(const QUrl& url) const;
     QString makeCacheKey(const QUrl& url) const;
     QString ensureCacheDirectory(const QString& requestedPath) const;
+    QString musicPathForSeekIndexUrl(const QUrl& url) const;
+    bool shouldRefreshSeekIndex(const TrackMeta& meta) const;
+    void ensureSeekIndex(const QUrl& originalUrl, const QString& cacheKey, qint64 knownDurationMs);
+    qint64 estimateCenterByteFromSeekIndex(const TrackMeta& meta, qint64 targetMs) const;
 
     QString legacyFullCachePathForUrl(const QUrl& url) const;
 
@@ -123,11 +148,12 @@ private:
     QString m_chunkRootDirectory;
     QNetworkAccessManager m_networkManager;
     QHash<QNetworkReply*, DownloadTask> m_downloadTasks;
+    QHash<QNetworkReply*, SeekIndexRequest> m_seekIndexRequests;
     QSet<QString> m_inflightChunkKeys;
     QHash<QString, TrackMeta> m_trackMetaCache;
 
-    qint64 m_chunkSizeBytes = 512 * 1024;      // 512 KB
-    int m_startupPrefetchChunks = 4;           // 2 MB warmup
+    qint64 m_chunkSizeBytes = 128 * 1024;      // 128 KB，降低大幅 seek 的字节定位误差
+    int m_startupPrefetchChunks = 6;           // 768 KB warmup
     qint64 m_maxCacheBytes = 512LL * 1024 * 1024; // 512 MB
     qint64 m_lruLastRunMs = 0;
     mutable QTcpServer* m_proxyServer = nullptr;

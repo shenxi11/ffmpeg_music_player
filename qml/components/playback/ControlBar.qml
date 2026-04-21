@@ -27,7 +27,7 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        radius: 18
+        radius: 0
         color: Theme.glassLight
         border.width: 1
         border.color: Theme.glassBorder
@@ -40,7 +40,7 @@ Item {
         Rectangle {
             width: 34
             height: 34
-            radius: 17
+            radius: 0
             color: loopArea.containsMouse ? Theme.glassHover : "transparent"
             border.width: 1
             border.color: Theme.glassBorder
@@ -65,7 +65,7 @@ Item {
         Rectangle {
             width: 34
             height: 34
-            radius: 17
+            radius: 0
             color: lastArea.containsMouse ? Theme.glassHover : "transparent"
             border.width: 1
             border.color: Theme.glassBorder
@@ -87,7 +87,7 @@ Item {
         Rectangle {
             width: 42
             height: 42
-            radius: 21
+            radius: 0
             color: playArea.containsMouse ? "#C8342C" : Theme.accent
             Text {
                 anchors.centerIn: parent
@@ -107,7 +107,7 @@ Item {
         Rectangle {
             width: 34
             height: 34
-            radius: 17
+            radius: 0
             color: nextArea.containsMouse ? Theme.glassHover : "transparent"
             border.width: 1
             border.color: Theme.glassBorder
@@ -129,7 +129,7 @@ Item {
         Rectangle {
             width: 34
             height: 34
-            radius: 17
+            radius: 0
             color: volumeArea.containsMouse ? Theme.glassHover : "transparent"
             border.width: 1
             border.color: Theme.glassBorder
@@ -155,7 +155,7 @@ Item {
                 anchors.bottom: parent.top
                 anchors.bottomMargin: 8
                 anchors.horizontalCenter: parent.horizontalCenter
-                radius: 12
+                radius: 0
                 color: Theme.glassStrong
                 border.width: 1
                 border.color: Theme.glassBorder
@@ -179,7 +179,7 @@ Item {
         Rectangle {
             width: 34
             height: 34
-            radius: 17
+            radius: 0
             color: deskArea.containsMouse ? Theme.glassHover : "transparent"
             border.width: 1
             border.color: Theme.glassBorder
@@ -205,7 +205,7 @@ Item {
         Rectangle {
             width: 34
             height: 34
-            radius: 17
+            radius: 0
             color: listArea.containsMouse ? Theme.glassHover : "transparent"
             border.width: 1
             border.color: Theme.glassBorder

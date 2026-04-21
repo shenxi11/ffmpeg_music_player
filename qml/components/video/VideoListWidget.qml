@@ -33,7 +33,7 @@ Rectangle {
         anchors.rightMargin: root.pageMargin
         anchors.top: parent.top
         height: root.topBarHeight
-        radius: 12
+        radius: 0
         color: Theme.glassLight
         border.width: 1
         border.color: Theme.glassBorder
@@ -61,7 +61,7 @@ Rectangle {
             id: refreshButton
             width: root.refreshButtonWidth
             height: root.refreshButtonHeight
-            radius: 16
+            radius: 0
             anchors.right: parent.right
             anchors.rightMargin: 12
             anchors.verticalCenter: parent.verticalCenter
@@ -104,7 +104,7 @@ Rectangle {
             id: videoItem
             width: videoListView.width
             height: root.itemHeight
-            radius: 10
+            radius: 0
             property bool hovered: mouseArea.containsMouse
 
             color: index === root.currentSelectedIndex
@@ -121,7 +121,7 @@ Rectangle {
                 Rectangle {
                     width: root.iconSize
                     height: root.iconSize
-                    radius: 8
+                    radius: 0
                     anchors.verticalCenter: parent.verticalCenter
                     color: "#EEF2FA"
                     border.width: 1

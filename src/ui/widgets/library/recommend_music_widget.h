@@ -14,7 +14,10 @@ public:
     explicit RecommendMusicWidget(QWidget* parent = nullptr);
 
     void setLoggedIn(bool loggedIn, const QString& userAccount = QString());
+    void activateForEntry();
     void loadRecommendations(const QVariantMap& meta, const QVariantList& recommendationData);
+    void loadHotChart(const QVariantMap& meta, const QVariantList& hotChartData);
+    void showHotChartError(const QString& message, int statusCode, const QString& window);
     void setAvailablePlaylists(const QVariantList& playlists);
     void setFavoritePaths(const QStringList& favoritePaths);
     void setCurrentPlayingPath(const QString& filePath);
@@ -46,8 +49,9 @@ signals:
                        const QString& scene,
                        const QString& requestId,
                        const QString& modelVersion);
+    void requestRecommendations();
+    void requestHotChart(const QString& window);
     void loginRequested();
-    void refreshRequested();
     void songActionRequested(const QString& action, const QVariantMap& songData);
 
 private slots:

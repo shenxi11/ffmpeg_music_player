@@ -251,7 +251,7 @@ Item {
         anchors.leftMargin: root.floatingBarMargin
         anchors.rightMargin: root.floatingBarMargin
         anchors.bottomMargin: root.floatingBarBottomMargin
-        radius: root.isUp ? root.styleSpec.controlRadius : 24
+        radius: 0
         color: root.barBackgroundColor
         border.width: 1
         border.color: root.barBorderColor
@@ -314,14 +314,14 @@ Item {
                             y: progressSlider.topPadding + progressSlider.availableHeight / 2 - height / 2
                             width: progressSlider.availableWidth
                             height: 4
-                            radius: 2
+                            radius: height / 2
                             color: root.sliderTrackColor
                             opacity: root.isUp ? 0.60 : 0.90
 
                             Rectangle {
                                 width: progressSlider.visualPosition * parent.width
                                 height: parent.height
-                                radius: 2
+                                radius: parent.radius
                                 color: Theme.accent
                             }
                         }
@@ -331,7 +331,7 @@ Item {
                             y: progressSlider.topPadding + progressSlider.availableHeight / 2 - height / 2
                             width: 12
                             height: 12
-                            radius: 6
+                            radius: width / 2
                             color: progressSlider.pressed ? Theme.accent : "#FFFFFF"
                             border.width: 2
                             border.color: Theme.accent
@@ -371,7 +371,7 @@ Item {
                             Rectangle {
                                 width: 42
                                 height: 42
-                                radius: 12
+                                radius: 0
                                 border.width: 1
                                 border.color: root.isUp ? root.styleSpec.controlBarBorderColor : "#D7DCE8"
                                 color: "transparent"

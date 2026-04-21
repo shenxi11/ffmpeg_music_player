@@ -36,7 +36,7 @@ Window {
         id: shell
         anchors.fill: parent
         anchors.margins: 10
-        radius: 16
+        radius: 0
         color: "#FFFFFF"
         border.width: 1
         border.color: borderColor
@@ -46,7 +46,7 @@ Window {
             transparentBorder: true
             horizontalOffset: 0
             verticalOffset: 8
-            radius: 20
+            radius: 0
             samples: 40
             color: Qt.rgba(0, 0, 0, 0.18)
         }
@@ -55,7 +55,7 @@ Window {
             id: headBg
             width: parent.width
             height: 178
-            radius: shell.radius
+            radius: 0
             color: "transparent"
 
             gradient: Gradient {
@@ -90,7 +90,7 @@ Window {
                 id: closeBtnBg
                 width: 32
                 height: 32
-                radius: 16
+                radius: 0
                 anchors.top: parent.top
                 anchors.right: parent.right
                 anchors.topMargin: 16
@@ -131,7 +131,7 @@ Window {
                 Rectangle {
                     width: 50
                     height: 50
-                    radius: 14
+                    radius: 0
                     color: brandRed
 
                     Image {
@@ -168,7 +168,7 @@ Window {
             Rectangle {
                 width: 88
                 height: 24
-                radius: 12
+                radius: 0
                 anchors.left: parent.left
                 anchors.leftMargin: 24
                 anchors.bottom: parent.bottom
@@ -232,7 +232,7 @@ Window {
                     color: textPrimary
 
                     background: Rectangle {
-                        radius: 12
+                        radius: 0
                         color: panelBg
                         border.width: accountInput.activeFocus ? 2 : 1
                         border.color: accountInput.activeFocus ? brandRed : borderColor
@@ -264,7 +264,7 @@ Window {
                     color: textPrimary
 
                     background: Rectangle {
-                        radius: 12
+                        radius: 0
                         color: panelBg
                         border.width: passwordInput.activeFocus ? 2 : 1
                         border.color: passwordInput.activeFocus ? brandRed : borderColor
@@ -330,7 +330,7 @@ Window {
                     Rectangle {
                         width: parent.width
                         height: 64
-                        radius: 12
+                        radius: 0
                         visible: savedAccount.length > 0
                         color: "#FFF4F4"
                         border.width: 1
@@ -351,7 +351,7 @@ Window {
                                 anchors.verticalCenter: parent.verticalCenter
                                 width: 34
                                 height: 34
-                                radius: 17
+                                radius: 0
                                 color: brandRed
 
                                 Text {
@@ -398,7 +398,7 @@ Window {
                                 }
 
                                 background: Rectangle {
-                                    radius: 10
+                                    radius: 12
                                     color: quickLoginBtn.pressed ? brandRedDark : (quickLoginBtn.hovered ? "#F15A5A" : brandRed)
                                     Behavior on color {
                                         ColorAnimation { duration: 120 }
@@ -472,7 +472,7 @@ Window {
                         color: textPrimary
 
                         background: Rectangle {
-                            radius: 12
+                            radius: 0
                             color: panelBg
                             border.width: usernameInput.activeFocus ? 2 : 1
                             border.color: usernameInput.activeFocus ? brandRed : borderColor
@@ -499,7 +499,7 @@ Window {
                 }
 
                 background: Rectangle {
-                    radius: 12
+                    radius: 14
                     color: loginButton.pressed ? brandRedDark : (loginButton.hovered ? "#F15A5A" : brandRed)
                     Behavior on color {
                         ColorAnimation { duration: 120 }
@@ -604,7 +604,7 @@ Window {
         }
 
         background: Rectangle {
-            radius: 14
+            radius: 0
             color: "#FFFFFF"
             border.width: 1
             border.color: borderColor
@@ -614,7 +614,7 @@ Window {
                 transparentBorder: true
                 horizontalOffset: 0
                 verticalOffset: 6
-                radius: 14
+                radius: 0
                 samples: 28
                 color: Qt.rgba(0, 0, 0, 0.22)
             }
@@ -648,7 +648,7 @@ Window {
                 color: textPrimary
                 background: Rectangle {
                     color: panelBg
-                    radius: 10
+                    radius: 0
                     border.width: 1
                     border.color: borderColor
                 }
@@ -665,7 +665,7 @@ Window {
                 color: textPrimary
                 background: Rectangle {
                     color: panelBg
-                    radius: 10
+                    radius: 0
                     border.width: 1
                     border.color: borderColor
                 }
@@ -696,7 +696,7 @@ Window {
                     }
 
                     background: Rectangle {
-                        radius: 10
+                        radius: 12
                         color: resetCancelBtn.pressed ? "#F3F3F3" : (resetCancelBtn.hovered ? "#F8F8F8" : "#FFFFFF")
                         border.width: 1
                         border.color: "#E1E1E1"
@@ -729,7 +729,7 @@ Window {
                     }
 
                     background: Rectangle {
-                        radius: 10
+                        radius: 12
                         color: resetConfirmBtn.pressed ? brandRedDark : (resetConfirmBtn.hovered ? "#F15A5A" : brandRed)
                         Behavior on color {
                             ColorAnimation { duration: 120 }
