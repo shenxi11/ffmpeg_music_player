@@ -61,7 +61,7 @@ void UserPopupWidget::setupUI()
         "                              stop:0 #007acc, stop:1 #005fa3);"
         "    color: white;"
         "    border: none;"
-        "    border-radius: 0px;"
+        "    border-radius: 14px;"
         "    font-size: 12px;"
         "    font-weight: bold;"
         "    padding: 6px 12px;"
@@ -117,7 +117,7 @@ void UserPopupWidget::updateContent()
             "                              stop:0 #dc3545, stop:1 #c82333);"
             "    color: white;"
             "    border: none;"
-            "    border-radius: 0px;"
+            "    border-radius: 14px;"
             "    font-size: 12px;"
             "    font-weight: bold;"
             "    padding: 6px 12px;"
@@ -141,7 +141,7 @@ void UserPopupWidget::updateContent()
             "                              stop:0 #007acc, stop:1 #005fa3);"
             "    color: white;"
             "    border: none;"
-            "    border-radius: 0px;"
+            "    border-radius: 14px;"
             "    font-size: 12px;"
             "    font-weight: bold;"
             "    padding: 6px 12px;"
@@ -343,7 +343,7 @@ void UserWidget::enterEvent(QEvent *event)
         "                              stop:0 rgba(0, 122, 204, 0.1), "
         "                              stop:1 rgba(0, 122, 204, 0.05));"
         "    border: 1px solid rgba(0, 122, 204, 0.3);"
-        "    border-radius: 0px;"
+        "    border-radius: 14px;"
         "}"
     );
 }
@@ -363,7 +363,7 @@ void UserWidget::leaveEvent(QEvent *event)
         "}"
         "UserWidget:hover {"
         "    background: rgba(0, 122, 204, 0.1);"
-        "    border-radius: 0px;"
+        "    border-radius: 14px;"
         "}"
     );
 }

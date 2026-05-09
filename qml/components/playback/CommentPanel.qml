@@ -6,7 +6,7 @@ import "../../theme/Theme.js" as Theme
 Rectangle {
     id: root
     color: "#FAFAFA"
-    radius: 0
+    radius: displayMode === "page" ? Theme.radiusMd : 0
 
     property var trackContext: ({})
     property var threadMeta: ({})
@@ -182,7 +182,7 @@ Rectangle {
                     Rectangle {
                         Layout.preferredWidth: root.pageMode ? 124 : 88
                         Layout.preferredHeight: root.pageMode ? 124 : 88
-                        radius: 0
+                        radius: Theme.radiusMd
                         color: "#FFFFFF"
                         border.width: 1
                         border.color: "#ECECEC"
@@ -360,7 +360,7 @@ Rectangle {
                 Rectangle {
                     width: parent.width
                     color: "#F2F2F2"
-                    radius: 0
+                    radius: Theme.radiusMd
                     implicitHeight: composerColumn.implicitHeight + 24
 
                     Column {
@@ -375,7 +375,7 @@ Rectangle {
                             visible: root.replyTargetUsername.length > 0
                             width: parent.width
                             height: visible ? 32 : 0
-                            radius: 0
+                            radius: Theme.radiusMd
                             color: "#FFFFFF"
                             border.width: 1
                             border.color: "#E1E1E1"
@@ -507,7 +507,7 @@ Rectangle {
                                     Rectangle {
                                         width: 40
                                         height: 40
-                                        radius: 0
+                                        radius: Theme.radiusMd
                                         color: "#F1F1F1"
                                         clip: true
 
@@ -614,7 +614,7 @@ Rectangle {
                                     width: parent.width - 52
                                     x: 52
                                     color: "#F5F5F5"
-                                    radius: 0
+                                    radius: Theme.radiusMd
                                     border.width: 1
                                     border.color: "#EBEBEB"
                                     implicitHeight: repliesColumn.implicitHeight + 20

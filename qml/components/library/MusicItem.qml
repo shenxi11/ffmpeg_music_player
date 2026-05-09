@@ -23,7 +23,7 @@ Rectangle {
     Rectangle {
         id: background
         anchors.fill: parent
-        radius: 0
+        radius: 14
         color: hoverArea.containsMouse ? "#E8F4FF" : "#FFFFFF"
         border.width: hoverArea.containsMouse ? 1 : 0
         border.color: "#4A90E2"
@@ -40,7 +40,7 @@ Rectangle {
             width: 44
             height: 44
             anchors.verticalCenter: parent.verticalCenter
-            radius: 0
+            radius: 14
             color: "#E0E0E0"
             
             Image {
@@ -59,7 +59,7 @@ Rectangle {
             Rectangle {
                 id: mask
                 anchors.fill: coverImg
-                radius: 0
+                radius: width / 2
                 visible: false
             }
             
@@ -116,7 +116,7 @@ Rectangle {
             Rectangle {
                 width: 32
                 height: 32
-                radius: 0
+                radius: 14
                 color: playBtnArea.containsMouse ? "#4A90E2" : "#DDDDDD"
                 
                 Text {
@@ -139,7 +139,7 @@ Rectangle {
             Rectangle {
                 width: 60
                 height: 28
-                radius: 0
+                radius: 14
                 color: removeBtnArea.containsMouse ? "#FF6B6B" : "#F0F0F0"
                 visible: !root.isNet
                 
@@ -163,7 +163,7 @@ Rectangle {
             Rectangle {
                 width: 60
                 height: 28
-                radius: 0
+                radius: 14
                 color: downloadBtnArea.containsMouse ? "#51CF66" : "#F0F0F0"
                 visible: root.isNet
                 

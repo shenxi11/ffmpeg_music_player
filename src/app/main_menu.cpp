@@ -136,7 +136,7 @@ QString MainMenu::createButtonStyle()
         "QPushButton {"
         "    background: transparent;"
         "    border: 1px solid transparent;"
-        "    border-radius: 0px;"
+        "    border-radius: 12px;"
         "    padding: 8px 12px;"
         "    font-size: 13px;"
         "    font-weight: 500;"

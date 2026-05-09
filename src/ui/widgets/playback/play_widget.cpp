@@ -500,7 +500,7 @@ PlayWidget::PlayWidget(QWidget* parent, QWidget* mainWidget)
     squareCoverHost->setAutoFillBackground(false);
     squareCoverHost->setStyleSheet("background: rgba(255,255,255,0.18);"
                                    "border: 1px solid rgba(255,255,255,0.28);"
-                                   "border-radius: 0px;");
+                                   "border-radius: 18px;");
     squareCoverShadow = new QGraphicsDropShadowEffect(squareCoverHost);
     squareCoverShadow->setBlurRadius(54);
     squareCoverShadow->setOffset(0, 20);
@@ -920,6 +920,7 @@ void PlayWidget::setIsUp(bool flag) {
     update();
 
     updateAdaptiveLayout();
+    raiseRightOverlayIfVisible();
 
     emit signalIsUpChanged(isUp);
 }
@@ -1029,21 +1030,21 @@ void PlayWidget::applyPlayerPageStyle() {
         if (m_playerPageStyle == 1) {
             squareCoverHost->setStyleSheet("background: transparent;"
                                            "border: 0;"
-                                           "border-radius: 0px;");
+                                           "border-radius: 18px;");
             if (squareCoverShadow) {
                 squareCoverShadow->setEnabled(false);
             }
         } else if (m_playerPageStyle == 4) {
             squareCoverHost->setStyleSheet("background: rgba(12,16,22,0.28);"
                                            "border: 1px solid rgba(255,255,255,0.22);"
-                                           "border-radius: 0px;");
+                                           "border-radius: 18px;");
             if (squareCoverShadow) {
                 squareCoverShadow->setEnabled(false);
             }
         } else {
             squareCoverHost->setStyleSheet("background: rgba(255,255,255,0.28);"
                                            "border: 1px solid rgba(255,255,255,0.38);"
-                                           "border-radius: 0px;");
+                                           "border-radius: 18px;");
             if (squareCoverShadow) {
                 squareCoverShadow->setEnabled(false);
             }
@@ -1066,6 +1067,7 @@ void PlayWidget::applyPlayerPageStyle() {
 
     refreshStageTexts();
     updateAdaptiveLayout();
+    raiseRightOverlayIfVisible();
     invalidateStageBackgroundCache();
     update();
 }
@@ -1117,7 +1119,7 @@ QPixmap PlayWidget::defaultCoverPixmapForSize(const QSize& requestedSize) const 
 }
 
 int PlayWidget::collapsedPlaybackHeight() const {
-    return process_slider ? process_slider->height() : 90;
+    return process_slider ? process_slider->height() : 92;
 }
 
 QVariantMap PlayWidget::desktopLyricSnapshot() const {
@@ -1202,7 +1204,7 @@ void PlayWidget::updateAdaptiveLayout() {
     const int wHeight = qMax(1, height());
     const StageLayoutSpec layoutSpec = stageLayoutSpecForStyle(m_playerPageStyle);
 
-    const int controlHeight = qBound(72, wHeight / 8, 108);
+    const int controlHeight = qBound(86, wHeight / 8, 104);
     if (process_slider) {
         process_slider->setGeometry(0, wHeight - controlHeight, wWidth, controlHeight);
     }
@@ -1944,20 +1946,20 @@ void PlayWidget::syncCommentOverlayGeometry() {
     }
 
     const int panelWidth = m_rightOverlayPage == RightOverlayPage::Playlist
-                               ? qBound(344, mainWidget->width() / 4, 372)
-                               : qBound(420, mainWidget->width() / 3, 500);
+                               ? qBound(344, width() / 4, 372)
+                               : qBound(420, width() / 3, 500);
     const int topBarHeight = isUp ? 0 : 60;
-    const int bottomPadding = qMax(10, collapsedPlaybackHeight() + 8);
-    const int panelHeight = qMax(280, mainWidget->height() - topBarHeight - bottomPadding);
-    m_rightOverlayHost->setGeometry(mainWidget->width() - panelWidth, topBarHeight, panelWidth,
+    const int fallbackControlTop = height() - collapsedPlaybackHeight();
+    const int sliderTop = process_slider ? process_slider->geometry().top() : 0;
+    const int controlTop = sliderTop > 0 ? sliderTop : fallbackControlTop;
+    const int bottomBoundary = isUp ? controlTop : height() - collapsedPlaybackHeight();
+    const int panelHeight = qMax(1, bottomBoundary - topBarHeight);
+    const QPoint hostTopLeft =
+        mapTo(mainWidget, QPoint(qMax(0, width() - panelWidth), topBarHeight));
+    m_rightOverlayHost->setGeometry(hostTopLeft.x(), hostTopLeft.y(), panelWidth,
                                     panelHeight);
     updateRightOverlayChildLayout();
-    m_rightOverlayHost->raise();
-
-    QWidget* topBar = mainWidget->findChild<QWidget*>(QStringLiteral("TopBar"));
-    if (topBar && !isUp) {
-        topBar->raise();
-    }
+    raiseRightOverlayIfVisible();
 }
 
 void PlayWidget::closePlaylistHistoryPanel() {
@@ -2132,6 +2134,25 @@ void PlayWidget::syncPlaylistToggleState() {
     process_slider->setPlaylistChecked(m_rightOverlayPage == RightOverlayPage::Playlist);
 }
 
+void PlayWidget::raiseRightOverlayIfVisible() {
+    if (!m_rightOverlayHost || !m_rightOverlayHost->isVisible()) {
+        return;
+    }
+
+    m_rightOverlayHost->raise();
+    if (m_rightOverlayPage == RightOverlayPage::Comments && commentPanel) {
+        commentPanel->raise();
+    } else if (m_rightOverlayPage == RightOverlayPage::Playlist && playlistHistory) {
+        playlistHistory->raise();
+    }
+
+    QWidget* mainWidget = m_rightOverlayHost->parentWidget();
+    QWidget* topBar = mainWidget ? mainWidget->findChild<QWidget*>(QStringLiteral("TopBar")) : nullptr;
+    if (topBar && !isUp) {
+        topBar->raise();
+    }
+}
+
 void PlayWidget::showRightOverlayPage(RightOverlayPage page) {
     if (!m_rightOverlayHost || page == RightOverlayPage::None) {
         return;
@@ -2148,6 +2169,7 @@ void PlayWidget::showRightOverlayPage(RightOverlayPage page) {
     updateRightOverlayChildLayout();
     m_rightOverlayHost->show();
     syncCommentOverlayGeometry();
+    raiseRightOverlayIfVisible();
     syncCommentToggleState();
     syncPlaylistToggleState();
 }
@@ -2179,6 +2201,7 @@ void PlayWidget::updateRightOverlayChildLayout() {
     if (commentPanel) {
         commentPanel->setGeometry(hostRect);
     }
+    raiseRightOverlayIfVisible();
 }
 
 void PlayWidget::refreshCommentAvailability() {
@@ -2304,6 +2327,11 @@ void PlayWidget::handleCommentToggled(bool show) {
         return;
     }
 
+    if (isUp && m_rightOverlayPage == RightOverlayPage::Comments) {
+        closeRightOverlay();
+        return;
+    }
+
     if (show) {
         closePlaylistHistoryPanel();
 
@@ -2313,6 +2341,7 @@ void PlayWidget::handleCommentToggled(bool show) {
         }
 
         if (!commentPanel) {
+            syncCommentToggleState();
             return;
         }
         commentPanel->setDisplayMode(QStringLiteral("drawer"));

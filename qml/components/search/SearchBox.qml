@@ -22,7 +22,7 @@ Rectangle {
         anchors.fill: parent
         anchors.margins: 3
         color: searchInput.activeFocus ? "#FFFFFF" : "#FCFDFE"
-        radius: 0
+        radius: Theme.radiusMd
         border.width: 1
         border.color: searchInput.activeFocus ? Theme.accent : "#E5E8EF"
 
@@ -69,10 +69,6 @@ Rectangle {
                 Keys.onReturnPressed: { onSearchTriggered() }
                 Keys.onEnterPressed: { onSearchTriggered() }
 
-                TapHandler {
-                    acceptedButtons: Qt.LeftButton
-                    onTapped: root.inputActivated()
-                }
             }
 
             Rectangle {

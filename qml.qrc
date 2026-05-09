@@ -89,6 +89,9 @@
         <file>qml/assets/ai/icons/player-control/player_btn_volume_active.svg</file>
         <file>qml/assets/ai/icons/player-control/player_btn_mute_default.svg</file>
         <file>qml/assets/ai/icons/player-control/player_btn_mute_active.svg</file>
+        <file>qml/assets/ai/icons/player-control/player_btn_style_default.svg</file>
+        <file>qml/assets/ai/icons/player-control/player_btn_style_hover.svg</file>
+        <file>qml/assets/ai/icons/player-control/player_btn_style_active.svg</file>
         <file>qml/assets/ai/icons/player-control/player_btn_desktop_lyrics_default.svg</file>
         <file>qml/assets/ai/icons/player-control/player_btn_desktop_lyrics_hover.svg</file>
         <file>qml/assets/ai/icons/player-control/player_btn_desktop_lyrics_active.svg</file>
@@ -97,6 +100,7 @@
         <file>qml/assets/ai/icons/player-control/player_btn_playlist_active.svg</file>
         <file>qml/assets/ai/icons/default-user-avatar.svg</file>
         <file>qml/assets/ai/icons/main-menu.svg</file>
+        <file>qml/assets/ai/icons/sidebar-settings-gear.svg</file>
         <file>qml/assets/ai/icons/default-music-cover.svg</file>
         <file>qml/assets/ai/icons/welcome-server.svg</file>
         <file>qml/assets/ai/icons/welcome-offline.svg</file>

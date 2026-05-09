@@ -34,7 +34,7 @@ Item {
         Rectangle {
             width: 65
             height: 65
-            radius: 0
+            radius: 16
             color: "#34495e"
             anchors.verticalCenter: parent.verticalCenter
             clip: true
@@ -95,7 +95,7 @@ Item {
             Rectangle {
                 width: 40
                 height: 40
-                radius: 0
+                radius: width / 2
                 color: prevBtn.containsMouse ? "#40FFFFFF" : "transparent"
                 
                 Text {
@@ -117,7 +117,7 @@ Item {
             Rectangle {
                 width: 50
                 height: 50
-                radius: 0
+                radius: width / 2
                 color: playBtn.containsMouse ? "#F2FFFFFF" : "#D9FFFFFF"
                 
                 Text {
@@ -142,7 +142,7 @@ Item {
             Rectangle {
                 width: 40
                 height: 40
-                radius: 0
+                radius: width / 2
                 color: nextBtn.containsMouse ? "#40FFFFFF" : "transparent"
                 
                 Text {
@@ -174,7 +174,7 @@ Item {
                     width: parent.width
                     height: 4
                     anchors.verticalCenter: parent.verticalCenter
-                    radius: 0
+                    radius: height / 2
                     color: "#4DFFFFFF"
                 }
                 
@@ -182,14 +182,14 @@ Item {
                     width: parent.width * root.progress
                     height: 4
                     anchors.verticalCenter: parent.verticalCenter
-                    radius: 0
+                    radius: height / 2
                     color: "white"
                 }
                 
                 Rectangle {
                     width: 14
                     height: 14
-                    radius: 0
+                    radius: width / 2
                     x: Math.max(0, Math.min(parent.width - width, parent.width * root.progress - width/2))
                     anchors.verticalCenter: parent.verticalCenter
                     color: "white"
@@ -248,7 +248,7 @@ Item {
         Rectangle {
             width: 36
             height: 36
-            radius: 0
+            radius: width / 2
             color: loopBtn.containsMouse ? "#40FFFFFF" : "transparent"
             anchors.verticalCenter: parent.verticalCenter
             
@@ -270,7 +270,7 @@ Item {
         Rectangle {
             width: 36
             height: 36
-            radius: 0
+            radius: width / 2
             color: deskLrcBtn.containsMouse ? "#40FFFFFF" : "transparent"
             anchors.verticalCenter: parent.verticalCenter
             
@@ -311,7 +311,7 @@ Item {
                     width: parent.width
                     height: 4
                     anchors.verticalCenter: parent.verticalCenter
-                    radius: 0
+                    radius: height / 2
                     color: "#4DFFFFFF"
                 }
                 
@@ -319,14 +319,14 @@ Item {
                     width: parent.width * root.volume
                     height: 4
                     anchors.verticalCenter: parent.verticalCenter
-                    radius: 0
+                    radius: height / 2
                     color: "white"
                 }
                 
                 Rectangle {
                     width: 12
                     height: 12
-                    radius: 0
+                    radius: width / 2
                     x: Math.max(0, Math.min(parent.width - width, parent.width * root.volume - width/2))
                     anchors.verticalCenter: parent.verticalCenter
                     color: "white"
@@ -357,7 +357,7 @@ Item {
         Rectangle {
             width: 36
             height: 36
-            radius: 0
+            radius: width / 2
             color: listBtn.containsMouse ? "#40FFFFFF" : "transparent"
             anchors.verticalCenter: parent.verticalCenter
             

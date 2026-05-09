@@ -28,7 +28,7 @@ public:
         setAttribute(Qt::WA_TranslucentBackground, true);
         setAttribute(Qt::WA_NoSystemBackground, true);
         setAttribute(Qt::WA_OpaquePaintEvent, false);
-        setAttribute(Qt::WA_AlwaysStackOnTop, true);
+        // Keep normal QWidget stacking so playback overlays can appear above lyrics.
         setStyleSheet("background: transparent; border: 0;");
         setAutoFillBackground(false);
         setClearColor(Qt::transparent);

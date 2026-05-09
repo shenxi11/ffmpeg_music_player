@@ -33,7 +33,7 @@ Rectangle {
     Rectangle {
         width: Math.max(260, parent.width * 0.34)
         height: width
-        radius: 0
+        radius: width / 2
         x: -width * 0.32
         y: -width * 0.3
         color: Theme.accentSoft
@@ -42,7 +42,7 @@ Rectangle {
     Rectangle {
         width: Math.max(220, parent.width * 0.24)
         height: width
-        radius: 0
+        radius: width / 2
         x: parent.width - width * 0.62
         y: parent.height - width * 0.52
         color: Theme.blueSoft
@@ -75,13 +75,13 @@ Rectangle {
                     Rectangle {
                         width: 42
                         height: 42
-                        radius: 0
+                        radius: width / 2
                         color: Theme.accent
 
                         Rectangle {
                             width: 24
                             height: 24
-                            radius: 0
+                            radius: width / 2
                             anchors.centerIn: parent
                             color: "#ffffff"
                             opacity: 0.16
@@ -124,7 +124,7 @@ Rectangle {
                 id: menuBubble
                 Layout.preferredWidth: 40
                 Layout.preferredHeight: 40
-                radius: 0
+                radius: width / 2
                 color: menuMouse.containsMouse ? Theme.glassHover : "transparent"
                 border.width: 1
                 border.color: Theme.glassBorder
@@ -156,7 +156,7 @@ Rectangle {
                 Rectangle {
                     width: 36
                     height: 36
-                    radius: 0
+                    radius: width / 2
                     color: minBtn.containsMouse ? Theme.glassHover : "transparent"
                     border.width: 1
                     border.color: Theme.glassBorder
@@ -178,7 +178,7 @@ Rectangle {
                 Rectangle {
                     width: 36
                     height: 36
-                    radius: 0
+                    radius: width / 2
                     color: maxBtn.containsMouse ? Theme.glassHover : "transparent"
                     border.width: 1
                     border.color: Theme.glassBorder
@@ -200,7 +200,7 @@ Rectangle {
                 Rectangle {
                     width: 36
                     height: 36
-                    radius: 0
+                    radius: width / 2
                     color: closeBtn.containsMouse ? Theme.accent : "transparent"
                     border.width: 1
                     border.color: Theme.glassBorder
@@ -252,7 +252,7 @@ Rectangle {
                     anchors.leftMargin: 12
                     anchors.rightMargin: 12
                     height: 46
-                    radius: 0
+                    radius: Theme.radiusMd
                     color: root.currentView === "local" ? Theme.accent : (localMusicBtn.containsMouse ? Theme.glassHover : "transparent")
                     border.width: root.currentView === "local" ? 0 : 1
                     border.color: Theme.glassBorder
@@ -281,7 +281,7 @@ Rectangle {
                     anchors.leftMargin: 12
                     anchors.rightMargin: 12
                     height: 46
-                    radius: 0
+                    radius: Theme.radiusMd
                     color: root.currentView === "online" ? Theme.accent : (onlineMusicBtn.containsMouse ? Theme.glassHover : "transparent")
                     border.width: root.currentView === "online" ? 0 : 1
                     border.color: Theme.glassBorder
@@ -310,7 +310,7 @@ Rectangle {
                     anchors.leftMargin: 12
                     anchors.rightMargin: 12
                     height: 46
-                    radius: 0
+                    radius: Theme.radiusMd
                     color: root.currentView === "history" ? Theme.accent : (historyBtn.containsMouse ? Theme.glassHover : "transparent")
                     border.width: root.currentView === "history" ? 0 : 1
                     border.color: Theme.glassBorder
@@ -340,7 +340,7 @@ Rectangle {
                     anchors.leftMargin: 12
                     anchors.rightMargin: 12
                     height: 46
-                    radius: 0
+                    radius: Theme.radiusMd
                     color: root.currentView === "favorite" ? Theme.accent : (favoriteBtn.containsMouse ? Theme.glassHover : "transparent")
                     border.width: root.currentView === "favorite" ? 0 : 1
                     border.color: Theme.glassBorder

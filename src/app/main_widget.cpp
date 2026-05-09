@@ -239,12 +239,13 @@ MainWidget::MainWidget(bool localOnlyMode, QWidget* parent)
     userWidgetQml->setMinimumWidth(120);
     userWidgetQml->setMaximumWidth(150);
 
-    menuButton = new QPushButton(QStringLiteral(u"\u83dc\u5355"), topWidget);
-    menuButton->setFixedHeight(40);
-    menuButton->setMinimumWidth(94);
+    menuButton = new QPushButton(this);
+    menuButton->setFixedHeight(44);
+    menuButton->setMinimumWidth(44);
     menuButton->setObjectName("MainMenuButton");
-    menuButton->setIcon(QIcon(QStringLiteral(":/qml/assets/ai/icons/main-menu.svg")));
-    menuButton->setIconSize(QSize(16, 16));
+    menuButton->setIcon(QIcon(QStringLiteral(":/qml/assets/ai/icons/sidebar-settings-gear.svg")));
+    menuButton->setIconSize(QSize(20, 20));
+    menuButton->setToolTip(QStringLiteral("菜单"));
     menuButton->setCursor(Qt::PointingHandCursor);
     menuButton->setFocusPolicy(Qt::NoFocus);
     menuButton->setProperty("menuOpen", false);
@@ -255,7 +256,6 @@ MainWidget::MainWidget(bool localOnlyMode, QWidget* parent)
 
     widget_op_layout->addWidget(searchBox);
     widget_op_layout->addStretch();
-    widget_op_layout->addWidget(menuButton);
     widget_op_layout->addWidget(m_minimizeButton);
     widget_op_layout->addWidget(m_maximizeButton);
     widget_op_layout->addWidget(m_closeButton);
@@ -316,6 +316,7 @@ MainWidget::MainWidget(bool localOnlyMode, QWidget* parent)
 
     leftWidget = new QWidget(this);
     leftWidget->setObjectName("MainLeftPanel");
+    menuButton->setParent(leftWidget);
 
     recommendButton = new QPushButton(QStringLiteral(u"\u63a8\u8350\u97f3\u4e50"), leftWidget);
     recommendButton->setCheckable(true);
@@ -364,28 +365,6 @@ MainWidget::MainWidget(bool localOnlyMode, QWidget* parent)
     leftButtons->addButton(playlistButton);
     leftButtons->addButton(videoButton);
     leftButtons->setExclusive(true);
-
-    brandWidget = new QWidget(leftWidget);
-
-    QLabel* icolabel = new QLabel(brandWidget);
-    icolabel->setPixmap(QPixmap(":/new/prefix1/icon/netease.ico"));
-    icolabel->setScaledContents(true);
-    icolabel->setFixedSize(40, 40);
-
-    QLabel* textLabel = new QLabel(QStringLiteral(u"\u4e91\u97f3\u4e50"), brandWidget);
-    QFont font;
-    font.setFamily("Microsoft YaHei");
-    font.setPointSize(16);
-    font.setBold(true);
-    textLabel->setFont(font);
-    textLabel->setObjectName("BrandTitleLabel");
-    textLabel->adjustSize();
-
-    QHBoxLayout* layout_text = new QHBoxLayout(brandWidget);
-    layout_text->addWidget(icolabel);
-    layout_text->addWidget(textLabel);
-
-    brandWidget->setLayout(layout_text);
 
     sidebarPlaylistSection = new QWidget(leftWidget);
     sidebarPlaylistSection->setObjectName("SidebarPlaylistSection");
@@ -464,8 +443,9 @@ MainWidget::MainWidget(bool localOnlyMode, QWidget* parent)
 
     w = new PlayWidget(this, this);
     w->setMainShellViewModel(m_viewModel);
-    w->setGeometry(rect());
-    w->setMask(QRegion(0, height() - w->collapsedPlaybackHeight(), qMax(1, width()),
+    const int initialLeftWidth = qBound(190, width() / 5, 240);
+    w->setGeometry(initialLeftWidth, 0, qMax(1, width() - initialLeftWidth), height());
+    w->setMask(QRegion(0, height() - w->collapsedPlaybackHeight(), qMax(1, w->width()),
                        w->collapsedPlaybackHeight()));
 
     qDebug() << "[MainWidget] PlayWidget created successfully";
@@ -490,6 +470,7 @@ MainWidget::MainWidget(bool localOnlyMode, QWidget* parent)
     connect(searchBox, &SearchBoxQml::search, this, &MainWidget::handleSearchRequested);
     connect(searchBox, &SearchBoxQml::inputActivated, this, &MainWidget::handleSearchBoxActivated);
     connect(searchBox, &SearchBoxQml::textEdited, this, &MainWidget::handleSearchBoxTextEdited);
+    ensureSearchHistoryPopup();
 
     connect(m_viewModel, &MainShellViewModel::searchResultsReady, net_list,
             &MusicListWidgetNet::signalAddSonglist);
@@ -683,16 +664,26 @@ void MainWidget::ensureSearchHistoryPopup() {
 
     m_searchHistoryPopup = new SearchHistoryPopup(this);
     m_searchHistoryPopup->setAnchorWidget(searchBox);
+    m_searchHistoryPopup->setHistoryItems(SettingsManager::instance().searchHistoryKeywords());
+    m_searchHistoryPopup->setFilterText(searchBox ? searchBox->text() : QString());
     connect(m_searchHistoryPopup, &SearchHistoryPopup::historyActivated, this,
             &MainWidget::handleSearchHistoryActivated);
     connect(m_searchHistoryPopup, &SearchHistoryPopup::historyDeleteRequested, this,
             &MainWidget::handleSearchHistoryDeleteRequested);
     connect(m_searchHistoryPopup, &SearchHistoryPopup::clearAllRequested, this,
             &MainWidget::handleClearSearchHistoryRequested);
+    connect(&SettingsManager::instance(), &SettingsManager::searchHistoryChanged, this, [this]() {
+        if (!m_searchHistoryPopup || !m_searchHistoryPopup->isVisible()) {
+            return;
+        }
+        m_searchHistoryPopup->setHistoryItems(SettingsManager::instance().searchHistoryKeywords());
+        m_searchHistoryPopup->setFilterText(searchBox ? searchBox->text() : QString());
+        repositionSearchHistoryPopup();
+    });
 }
 
 void MainWidget::repositionSearchHistoryPopup() {
-    if (!m_searchHistoryPopup || !m_searchHistoryPopup->isVisible() || !searchBox) {
+    if (!m_searchHistoryPopup || !searchBox) {
         return;
     }
 
@@ -703,14 +694,18 @@ void MainWidget::repositionSearchHistoryPopup() {
     QPoint anchorPoint = searchBox->mapTo(this, QPoint(0, searchBox->height() + 6));
     int x = anchorPoint.x();
     int y = anchorPoint.y();
+    const int leftWidth = leftWidget ? leftWidget->width() : qBound(190, width() / 5, 240);
+    const int rightEdge = width() - 12;
     if (x + popupWidth > width() - 12) {
-        x = qMax(12, width() - popupWidth - 12);
+        x = qMax(leftWidth + 12, rightEdge - popupWidth);
     }
 
     const int maxHeight = qMax(120, height() - y - 24);
     const int popupHeight = qMin(m_searchHistoryPopup->sizeHint().height(), maxHeight);
     m_searchHistoryPopup->setGeometry(x, y, popupWidth, popupHeight);
-    m_searchHistoryPopup->raise();
+    if (m_searchHistoryPopup->isVisible()) {
+        m_searchHistoryPopup->raise();
+    }
 }
 
 void MainWidget::showSearchHistoryPopup(const QString& filterText) {
@@ -1253,27 +1248,33 @@ void MainWidget::showPluginDiagnosticsDialog() {
 QRect MainWidget::computeContentRect() const {
     const int topBarHeight = 60;
     const int leftWidth = leftWidget ? leftWidget->width() : 210;
-    const int bottomReserved = (w && !w->isUp) ? (w->collapsedPlaybackHeight() + 8) : 100;
+    const int bottomReserved = (w && !w->isUp) ? w->collapsedPlaybackHeight() : 100;
 
     const int x = leftWidth;
     const int y = topBarHeight;
-    const int widthValue = qMax(300, width() - x);
+    const int widthValue = qMax(300, width() - leftWidth);
     const int heightValue = qMax(180, height() - y - bottomReserved);
     return QRect(x, y, widthValue, heightValue);
 }
 
 void MainWidget::updateSideNavLayout() {
-    if (!leftWidget || !brandWidget) {
+    if (!leftWidget) {
         return;
     }
 
     const int panelWidth = leftWidget->width();
     const int itemHeight = 50;
-    const int brandTop = 10;
-    const int brandHeight = 50;
-    brandWidget->setGeometry(8, brandTop, panelWidth - 16, brandHeight);
+    const int accountTop = 12;
+    const int accountHeight = 40;
+    const int menuMargin = 14;
+    const int menuButtonHeight = 44;
+    const int menuBottomMargin = 14;
+    if (userWidgetQml) {
+        userWidgetQml->setGeometry(14, accountTop, qMax(120, panelWidth - 28), accountHeight);
+        userWidgetQml->raise();
+    }
 
-    const int navStartY = brandTop + brandHeight + 14;
+    const int navStartY = accountTop + accountHeight + 18;
     int row = 0;
     row = placeSideNavButton(row, recommendButton, navStartY, itemHeight, panelWidth);
     row = placeSideNavButton(row, localButton, navStartY, itemHeight, panelWidth);
@@ -1290,10 +1291,20 @@ void MainWidget::updateSideNavLayout() {
 
     if (sidebarPlaylistSection) {
         const int desiredSectionTop = navStartY + row * itemHeight + 18;
-        const int maxSectionTop = qMax(0, leftWidget->height() - 18);
+        const int menuReservedHeight = menuButtonHeight + menuBottomMargin + 12;
+        const int maxSectionTop = qMax(0, leftWidget->height() - menuReservedHeight);
         const int sectionTop = qMin(desiredSectionTop, maxSectionTop);
-        const int sectionHeight = qMax(0, leftWidget->height() - sectionTop - 18);
+        const int sectionHeight =
+            qMax(0, leftWidget->height() - sectionTop - menuReservedHeight);
         sidebarPlaylistSection->setGeometry(14, sectionTop, panelWidth - 28, sectionHeight);
+    }
+
+    if (menuButton) {
+        menuButton->setGeometry(menuMargin,
+                                qMax(menuBottomMargin,
+                                     leftWidget->height() - menuButtonHeight - menuBottomMargin),
+                                qMax(44, panelWidth - menuMargin * 2), menuButtonHeight);
+        menuButton->raise();
     }
 }
 
@@ -1594,19 +1605,15 @@ void MainWidget::syncSidebarPlaylistSelection(qint64 playlistId) {
 void MainWidget::updateAdaptiveLayout() {
     const int topBarHeight = 60;
     const int leftWidth = qBound(190, width() / 5, 240);
+    const int rightX = leftWidth;
+    const int rightWidth = qMax(1, width() - rightX);
 
     if (topWidget) {
-        topWidget->setGeometry(0, 0, width(), topBarHeight);
+        topWidget->setGeometry(rightX, 0, rightWidth, topBarHeight);
         topWidget->raise();
         if (auto* layout = qobject_cast<QHBoxLayout*>(topWidget->layout())) {
-            layout->setContentsMargins(leftWidth + 10, 5, 10, 5);
+            layout->setContentsMargins(18, 5, 10, 5);
         }
-    }
-
-    if (userWidgetQml) {
-        const int avatarWidth = qMin(150, qMax(120, leftWidth - 20));
-        userWidgetQml->setGeometry(10, 10, avatarWidth, 40);
-        userWidgetQml->raise();
     }
 
     if (searchBox) {
@@ -1616,18 +1623,19 @@ void MainWidget::updateAdaptiveLayout() {
     }
 
     if (leftWidget) {
-        leftWidget->setGeometry(0, topBarHeight, leftWidth, qMax(200, height() - topBarHeight));
+        leftWidget->setGeometry(0, 0, leftWidth, qMax(200, height()));
     }
 
     if (w) {
-        w->setGeometry(rect());
         if (!w->isUp) {
+            w->setGeometry(rightX, 0, rightWidth, height());
             const int playbackHeight = w->collapsedPlaybackHeight();
-            w->setMask(
-                QRegion(0, qMax(0, height() - playbackHeight), qMax(1, width()), playbackHeight));
+            w->setMask(QRegion(0, qMax(0, w->height() - playbackHeight), qMax(1, w->width()),
+                               playbackHeight));
             // 收起时仅显示底部区域，但仍需要保证底部控件可交互。
             w->raise();
         } else {
+            w->setGeometry(rect());
             w->clearMask();
             w->raise();
         }
@@ -1668,8 +1676,8 @@ void MainWidget::updateAdaptiveLayout() {
         videoListWidget->setGeometry(contentRect);
     }
     if (list) {
-        const int popupWidth = qBound(240, width() / 4, 360);
-        const int bottomReserved = (w && !w->isUp) ? (w->collapsedPlaybackHeight() + 8) : 20;
+        const int popupWidth = qBound(240, rightWidth / 4, 360);
+        const int bottomReserved = (w && !w->isUp) ? w->collapsedPlaybackHeight() : 20;
         const int popupHeight = qMax(220, height() - topBarHeight - bottomReserved);
         list->setGeometry(width() - popupWidth, topBarHeight, popupWidth, popupHeight);
     }

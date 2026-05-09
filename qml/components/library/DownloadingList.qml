@@ -57,7 +57,7 @@ Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 40
             color: "#ffffff"
-            radius: 0
+            radius: 14
 
             RowLayout {
                 anchors.fill: parent
@@ -121,7 +121,7 @@ Rectangle {
                 width: listView.width
                 height: 80
                 color: "#ffffff"
-                radius: 0
+                radius: 14
 
                 RowLayout {
                     anchors.fill: parent
@@ -167,7 +167,7 @@ Rectangle {
                                 implicitWidth: root.colProgressWidth
                                 implicitHeight: 20
                                 color: "#e0e0e0"
-                                radius: 0
+                                radius: 14
                             }
 
                             contentItem: Item {
@@ -177,7 +177,7 @@ Rectangle {
                                 Rectangle {
                                     width: parent.width * (parent.parent.visualPosition)
                                     height: parent.height
-                                    radius: 0
+                                    radius: 14
                                     color: "#409EFF"
                                 }
                             }
@@ -220,7 +220,7 @@ Rectangle {
                             
                             background: Rectangle {
                                 color: parent.hovered ? "#66b1ff" : "#409EFF"
-                                radius: 0
+                                radius: 14
                             }
 
                             contentItem: Text {
@@ -252,7 +252,7 @@ Rectangle {
 
                             background: Rectangle {
                                 color: parent.hovered ? "#f78989" : "#f56c6c"
-                                radius: 0
+                                radius: 14
                             }
 
                             contentItem: Text {
@@ -278,7 +278,7 @@ Rectangle {
 
                             background: Rectangle {
                                 color: parent.hovered ? "#85ce61" : "#67c23a"
-                                radius: 0
+                                radius: 14
                             }
 
                             contentItem: Text {

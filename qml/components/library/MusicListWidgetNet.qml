@@ -209,7 +209,7 @@ Rectangle {
         color: "#ffffff"
         anchors.top: topTitle.bottom
         anchors.topMargin: 10
-        radius: 0
+        radius: 14
         
         Row {
             anchors.fill: parent
@@ -317,7 +317,7 @@ Rectangle {
             width: listView.width
             height: 60
             color: rowHovered ? "#f0f0f0" : "#ffffff"
-            radius: 0
+            radius: 14
 
             HoverHandler {
                 id: rowHoverHandler

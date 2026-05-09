@@ -2,7 +2,6 @@
 
 #include <QApplication>
 #include <QEvent>
-#include <QGraphicsDropShadowEffect>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QMouseEvent>
@@ -51,17 +50,11 @@ SearchHistoryPopup::SearchHistoryPopup(QWidget* parent)
     setFrameShape(QFrame::NoFrame);
     hide();
 
-    auto* shadow = new QGraphicsDropShadowEffect(this);
-    shadow->setBlurRadius(28);
-    shadow->setOffset(0, 10);
-    shadow->setColor(QColor(20, 28, 40, 45));
-    setGraphicsEffect(shadow);
-
     setStyleSheet(
         "QFrame#SearchHistoryPopup {"
         "    background: #ffffff;"
         "    border: 1px solid #E7ECF3;"
-        "    border-radius: 0px;"
+        "    border-radius: 16px;"
         "}"
         "QLabel#SearchHistoryTitle {"
         "    color: #223047;"

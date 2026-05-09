@@ -190,6 +190,7 @@ class PlayWidget : public QWidget {
     void connectCommentPanel(CommentPanelQml* panel);
     void syncCommentToggleState();
     void syncPlaylistToggleState();
+    void raiseRightOverlayIfVisible();
     void showRightOverlayPage(RightOverlayPage page);
     void closeRightOverlay();
     void updateRightOverlayChildLayout();

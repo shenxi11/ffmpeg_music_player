@@ -128,6 +128,7 @@ void MainWidget::handlePlayWidgetBigClicked(bool checked) {
             userWidgetQml->hide();
         }
 
+        w->setGeometry(rect());
         w->raise();
         w->clearMask();
         w->setIsUp(true);

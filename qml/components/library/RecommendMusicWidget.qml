@@ -467,7 +467,7 @@ Rectangle {
                 Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
                 implicitWidth: tabRow.implicitWidth + 8
                 implicitHeight: 40
-                radius: 0
+                radius: 14
                 color: "#FFFFFF"
                 border.width: 1
                 border.color: "#E7E7E7"
@@ -520,7 +520,7 @@ Rectangle {
 
                 Rectangle {
                     anchors.fill: parent
-                    radius: 0
+                    radius: 14
                     color: "#FFFFFF"
                     border.width: 1
                     border.color: "#ECECEC"
@@ -645,7 +645,7 @@ Rectangle {
                                 id: card
                                 width: gridView.cellWidth
                                 height: gridView.cellHeight
-                                radius: 0
+                                radius: 14
                                 color: hovered ? "#FFFFFF" : "#FAFAFA"
                                 border.color: hovered ? "#FFD1D1" : "#ECECEC"
                                 border.width: 1
@@ -661,7 +661,7 @@ Rectangle {
                                     anchors.right: parent.right
                                     anchors.top: parent.top
                                     height: gridView.cellWidth
-                                    radius: 0
+                                    radius: 14
                                     color: "#E8E8E8"
                                     clip: true
 
@@ -711,7 +711,7 @@ Rectangle {
                                         anchors.bottom: parent.bottom
                                         anchors.margins: 8
                                         height: 22
-                                        radius: 0
+                                        radius: 14
                                         color: "#99000000"
                                         visible: (model.duration || "").length > 0
                                         width: timeText.width + 14
@@ -846,7 +846,7 @@ Rectangle {
 
                 Rectangle {
                     anchors.fill: parent
-                    radius: 0
+                    radius: 14
                     color: "#FFFFFF"
                     border.width: 1
                     border.color: "#ECECEC"
@@ -878,7 +878,7 @@ Rectangle {
                         Rectangle {
                             width: parent.width
                             height: Math.max(228, Math.max(184, hotChartHeroContent.implicitHeight) + 44)
-                            radius: 0
+                            radius: 14
                             color: "#F6F6F6"
 
                             RowLayout {
@@ -892,7 +892,7 @@ Rectangle {
                                     Layout.alignment: Qt.AlignTop
                                     width: 184
                                     height: 184
-                                    radius: 0
+                                    radius: 14
                                     color: "#E1E1E1"
                                     clip: true
 
@@ -1075,7 +1075,7 @@ Rectangle {
                         Rectangle {
                             width: parent.width
                             height: 42
-                            radius: 0
+                            radius: 14
                             color: "#FAFAFA"
 
                             Row {
@@ -1134,7 +1134,7 @@ Rectangle {
                         id: hotRow
                         width: hotChartListView.width
                         height: 68
-                        radius: 0
+                        radius: 14
                         color: hotRow.rowHovered ? "#F0F0F0" : "#FFFFFF"
 
                         property bool currentTrack: root.isSameTrack(root.currentPlayingPath,
@@ -1309,7 +1309,7 @@ Rectangle {
 
                 Rectangle {
                     anchors.fill: parent
-                    radius: 0
+                    radius: 14
                     visible: root.hotChartLoading
                     color: "#65FFFFFF"
 

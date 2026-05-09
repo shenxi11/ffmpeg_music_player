@@ -106,7 +106,7 @@ Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 40
             color: "#ffffff"
-            radius: 0
+            radius: 14
 
             RowLayout {
                 anchors.fill: parent
@@ -180,7 +180,7 @@ Rectangle {
                 color: currentTrack
                        ? "#FDECEC"
                        : (rowVisualHovered ? "#F8FAFF" : "#ffffff")
-                radius: 0
+                radius: 14
                 border.width: currentTrack ? 1 : 0
                 border.color: currentTrack ? "#EC4141" : "transparent"
 
@@ -194,7 +194,7 @@ Rectangle {
                 Rectangle {
                     visible: currentTrack
                     width: 3
-                    radius: 0
+                    radius: 14
                     color: "#EC4141"
                     anchors.left: parent.left
                     anchors.top: parent.top

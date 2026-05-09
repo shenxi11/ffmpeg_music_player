@@ -51,14 +51,18 @@ Item {
     property bool narrow: width < 860
     property int sidePadding: compact ? 14 : 18
     property int songBlockWidth: narrow ? 210 : (compact ? 250 : 290)
+    property int toolBlockWidth: compact ? 178 : 204
+    property int controlsBlockWidth: Math.min(narrow ? 360 : (compact ? 460 : 540),
+                                              Math.max(narrow ? 300 : 360,
+                                                       width - root.songBlockWidth - root.toolBlockWidth - root.sidePadding * 2 - 80))
     property int controlGap: compact ? 12 : 16
     property int iconButtonSize: compact ? 32 : 34
     property int playButtonSize: compact ? 40 : 46
     property int floatingBarMargin: root.isUp ? 0 : 16
     property int floatingBarBottomMargin: root.isUp ? 0 : 10
 
-    property color barBackgroundColor: root.isUp ? styleSpec.controlBarColor : "#FCFDFE"
-    property color barBorderColor: root.isUp ? styleSpec.controlBarBorderColor : "#E4E9F1"
+    property color barBackgroundColor: root.isUp ? "transparent" : "#FCFDFE"
+    property color barBorderColor: root.isUp ? "transparent" : "#E4E9F1"
     property color secondaryTextColor: root.isUp ? styleSpec.controlSecondaryTextColor : "#7A7D85"
     property color sliderTrackColor: root.isUp ? styleSpec.sliderTrackColor : "#D9E0EA"
     property color idleButtonFillColor: root.isUp
@@ -251,166 +255,85 @@ Item {
         anchors.leftMargin: root.floatingBarMargin
         anchors.rightMargin: root.floatingBarMargin
         anchors.bottomMargin: root.floatingBarBottomMargin
-        radius: 0
+        radius: root.isUp ? 0 : Theme.radiusMd
         color: root.barBackgroundColor
-        border.width: 1
+        border.width: root.isUp ? 0 : 1
         border.color: root.barBorderColor
 
-        Column {
+        RowLayout {
             anchors.fill: parent
             anchors.leftMargin: root.sidePadding
             anchors.rightMargin: root.sidePadding
+            anchors.topMargin: 8
+            anchors.bottomMargin: 8
             spacing: 0
 
             Item {
-                width: parent.width
-                height: 22
+                Layout.preferredWidth: root.songBlockWidth
+                Layout.minimumWidth: root.songBlockWidth
+                Layout.fillHeight: true
 
                 Row {
-                    anchors.fill: parent
-                    spacing: 8
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 10
 
-                    Text {
+                    Rectangle {
                         width: 42
-                        height: parent.height
-                        text: root.formatTime(root.currentTime)
-                        verticalAlignment: Text.AlignVCenter
-                        horizontalAlignment: Text.AlignRight
-                        font.pixelSize: 11
-                        color: root.secondaryTextColor
-                    }
+                        height: 42
+                        radius: Theme.radiusMd
+                        border.width: 1
+                        border.color: root.isUp ? root.styleSpec.controlBarBorderColor : "#D7DCE8"
+                        color: "transparent"
+                        clip: true
 
-                    Slider {
-                        id: progressSlider
-                        width: parent.width - 92
-                        height: parent.height
-                        from: 0
-                        to: root.maxTime > 0 ? root.maxTime : 100
-                        value: root.currentTime
-
-                        onPressedChanged: {
-                            root.sliderPressed = pressed
-                            if (pressed) {
-                                root.sliderPressedSignal()
-                            } else {
-                                var seekSeconds = Math.floor(value)
-                                root.setSeekPending(seekSeconds)
-                                root.seekTo(seekSeconds)
-                                root.sliderReleasedSignal()
-                            }
+                        Image {
+                            anchors.fill: parent
+                            source: root.picPath
+                            fillMode: Image.PreserveAspectCrop
+                            smooth: true
+                            asynchronous: true
+                            cache: true
                         }
 
-                        Connections {
-                            target: root
-                            function onCurrentTimeChanged() {
-                                if (!progressSlider.pressed) {
-                                    progressSlider.value = root.currentTime
-                                }
-                            }
-                        }
-
-                        background: Rectangle {
-                            x: progressSlider.leftPadding
-                            y: progressSlider.topPadding + progressSlider.availableHeight / 2 - height / 2
-                            width: progressSlider.availableWidth
-                            height: 4
-                            radius: height / 2
-                            color: root.sliderTrackColor
-                            opacity: root.isUp ? 0.60 : 0.90
-
-                            Rectangle {
-                                width: progressSlider.visualPosition * parent.width
-                                height: parent.height
-                                radius: parent.radius
-                                color: Theme.accent
-                            }
-                        }
-
-                        handle: Rectangle {
-                            x: progressSlider.leftPadding + progressSlider.visualPosition * (progressSlider.availableWidth - width)
-                            y: progressSlider.topPadding + progressSlider.availableHeight / 2 - height / 2
-                            width: 12
-                            height: 12
-                            radius: width / 2
-                            color: progressSlider.pressed ? Theme.accent : "#FFFFFF"
-                            border.width: 2
-                            border.color: Theme.accent
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.upClicked()
                         }
                     }
 
                     Text {
-                        width: 42
-                        height: parent.height
-                        text: root.formatTime(root.maxTime)
+                        width: root.songBlockWidth - 56
+                        height: 42
+                        text: root.songName
                         verticalAlignment: Text.AlignVCenter
-                        horizontalAlignment: Text.AlignLeft
-                        font.pixelSize: 11
-                        color: root.secondaryTextColor
+                        font.pixelSize: root.compact ? 13 : 14
+                        font.weight: Font.Medium
+                        color: root.isUp ? root.styleSpec.controlTitleColor : "#2A3040"
+                        elide: Text.ElideRight
                     }
                 }
             }
 
+            Item { Layout.fillWidth: true }
+
             Item {
-                width: parent.width
-                height: 50
+                Layout.preferredWidth: root.controlsBlockWidth
+                Layout.minimumWidth: root.narrow ? 300 : 360
+                Layout.maximumWidth: root.narrow ? 360 : (root.compact ? 460 : 540)
+                Layout.fillHeight: true
 
-                RowLayout {
-                    anchors.fill: parent
-                    spacing: 0
-
-                    Item {
-                        Layout.preferredWidth: root.songBlockWidth
-                        Layout.minimumWidth: root.songBlockWidth
-                        Layout.fillHeight: true
-
-                        Row {
-                            anchors.left: parent.left
-                            anchors.verticalCenter: parent.verticalCenter
-                            spacing: 10
-
-                            Rectangle {
-                                width: 42
-                                height: 42
-                                radius: 0
-                                border.width: 1
-                                border.color: root.isUp ? root.styleSpec.controlBarBorderColor : "#D7DCE8"
-                                color: "transparent"
-                                clip: true
-
-                                Image {
-                                    anchors.fill: parent
-                                    source: root.picPath
-                                    fillMode: Image.PreserveAspectCrop
-                                    smooth: true
-                                    asynchronous: true
-                                    cache: true
-                                }
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: root.upClicked()
-                                }
-                            }
-
-                            Text {
-                                width: root.songBlockWidth - 56
-                                height: 42
-                                text: root.songName
-                                verticalAlignment: Text.AlignVCenter
-                                font.pixelSize: root.compact ? 13 : 14
-                                font.weight: Font.Medium
-                                color: root.isUp ? root.styleSpec.controlTitleColor : "#2A3040"
-                                elide: Text.ElideRight
-                            }
-                        }
-                    }
-
-                    Item { Layout.fillWidth: true }
+                Column {
+                    anchors.centerIn: parent
+                    width: parent.width
+                    height: controlButtonsRow.height + progressRow.height + spacing
+                    spacing: 4
 
                     Row {
+                        id: controlButtonsRow
+                        anchors.horizontalCenter: parent.horizontalCenter
                         spacing: root.controlGap
-                        Layout.alignment: Qt.AlignVCenter
 
                         Rectangle {
                             id: modeButton
@@ -632,33 +555,171 @@ Item {
                             }
                         }
 
+                    }
+
+                    Row {
+                        id: progressRow
+                        width: parent.width
+                        height: 22
+                        spacing: 8
+
+                        Text {
+                            width: 42
+                            height: parent.height
+                            text: root.formatTime(root.currentTime)
+                            verticalAlignment: Text.AlignVCenter
+                            horizontalAlignment: Text.AlignRight
+                            font.pixelSize: 11
+                            color: root.secondaryTextColor
+                        }
+
+                        Slider {
+                            id: progressSlider
+                            width: parent.width - 92
+                            height: parent.height
+                            from: 0
+                            to: root.maxTime > 0 ? root.maxTime : 100
+                            value: root.currentTime
+
+                            onPressedChanged: {
+                                root.sliderPressed = pressed
+                                if (pressed) {
+                                    root.sliderPressedSignal()
+                                } else {
+                                    var seekSeconds = Math.floor(value)
+                                    root.setSeekPending(seekSeconds)
+                                    root.seekTo(seekSeconds)
+                                    root.sliderReleasedSignal()
+                                }
+                            }
+
+                            Connections {
+                                target: root
+                                function onCurrentTimeChanged() {
+                                    if (!progressSlider.pressed) {
+                                        progressSlider.value = root.currentTime
+                                    }
+                                }
+                            }
+
+                            background: Rectangle {
+                                x: progressSlider.leftPadding
+                                y: progressSlider.topPadding + progressSlider.availableHeight / 2 - height / 2
+                                width: progressSlider.availableWidth
+                                height: 4
+                                radius: height / 2
+                                color: root.sliderTrackColor
+                                opacity: root.isUp ? 0.60 : 0.90
+
+                                Rectangle {
+                                    width: progressSlider.visualPosition * parent.width
+                                    height: parent.height
+                                    radius: parent.radius
+                                    color: Theme.accent
+                                }
+                            }
+
+                            handle: Rectangle {
+                                x: progressSlider.leftPadding + progressSlider.visualPosition * (progressSlider.availableWidth - width)
+                                y: progressSlider.topPadding + progressSlider.availableHeight / 2 - height / 2
+                                width: 12
+                                height: 12
+                                radius: width / 2
+                                color: progressSlider.pressed ? Theme.accent : "#FFFFFF"
+                                border.width: 2
+                                border.color: Theme.accent
+                            }
+                        }
+
+                        Text {
+                            width: 42
+                            height: parent.height
+                            text: root.formatTime(root.maxTime)
+                            verticalAlignment: Text.AlignVCenter
+                            horizontalAlignment: Text.AlignLeft
+                            font.pixelSize: 11
+                            color: root.secondaryTextColor
+                        }
+                    }
+                }
+            }
+
+            Item { Layout.fillWidth: true }
+
+            Item {
+                Layout.preferredWidth: root.toolBlockWidth
+                Layout.minimumWidth: root.toolBlockWidth
+                Layout.fillHeight: true
+
+                Row {
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: root.compact ? 10 : 14
+
                         Rectangle {
-                            id: styleButton
-                            width: root.isUp ? (root.compact ? 74 : 86) : 0
+                            width: root.compact ? 52 : 60
                             height: root.iconButtonSize
                             radius: height / 2
+                            color: !root.commentEnabled
+                                   ? "#F2F4F8"
+                                   : (commentArea.containsMouse || root.commentChecked
+                                      ? Theme.accentSoft
+                                      : root.idleButtonFillColor)
+                            border.width: 1
+                            border.color: root.commentChecked ? Theme.accent : root.idleButtonBorderColor
+                            opacity: root.commentEnabled ? 1.0 : 0.65
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "评论"
+                                font.pixelSize: 12
+                                font.weight: Font.DemiBold
+                                color: !root.commentEnabled
+                                       ? "#A0A9B8"
+                                       : (root.commentChecked ? Theme.accent : root.secondaryTextColor)
+                            }
+
+                            MouseArea {
+                                id: commentArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                enabled: root.commentEnabled
+                                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ForbiddenCursor
+                                onClicked: {
+                                    root.commentChecked = !root.commentChecked
+                                    root.commentToggled(root.commentChecked)
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            id: styleButton
+                            width: root.isUp ? root.iconButtonSize : 0
+                            height: root.iconButtonSize
+                            radius: width / 2
                             visible: root.isUp
                             color: styleButtonArea.containsMouse || stylePopupLoader.active ? Theme.accentSoft : root.idleButtonFillColor
                             border.width: 1
                             border.color: stylePopupLoader.active ? Theme.accent : root.idleButtonBorderColor
 
-                            Row {
+                            Image {
                                 anchors.centerIn: parent
-                                spacing: 6
-
-                                Text {
-                                    text: "\u98ce\u683c"
-                                    color: root.isUp ? root.styleSpec.controlTitleColor : "#2F3440"
-                                    font.pixelSize: 12
-                                    font.weight: Font.DemiBold
+                                width: 18
+                                height: 18
+                                source: {
+                                    if (stylePopupLoader.active) {
+                                        return root.playerIconPrefix + "player_btn_style_active.svg"
+                                    }
+                                    if (styleButtonArea.containsMouse || root.isUp) {
+                                        return root.playerIconPrefix + "player_btn_style_hover.svg"
+                                    }
+                                    return root.playerIconPrefix + "player_btn_style_default.svg"
                                 }
-
-                                Text {
-                                    text: stylePopupLoader.active ? "\u25B2" : "\u25BC"
-                                    color: root.secondaryTextColor
-                                    font.pixelSize: 10
-                                }
+                                fillMode: Image.PreserveAspectFit
                             }
+
+                            ToolTip.visible: styleButtonArea.containsMouse
+                            ToolTip.text: "\u5207\u6362\u64ad\u653e\u9875\u98ce\u683c"
 
                             MouseArea {
                                 id: styleButtonArea
@@ -699,49 +760,6 @@ Item {
                                             stylePopupLoader.active = false
                                         }
                                     }
-                                }
-                            }
-                        }
-                    }
-
-                    Item { Layout.fillWidth: true }
-
-                    Row {
-                        spacing: root.compact ? 10 : 14
-                        Layout.alignment: Qt.AlignVCenter
-
-                        Rectangle {
-                            width: root.compact ? 52 : 60
-                            height: root.iconButtonSize
-                            radius: height / 2
-                            color: !root.commentEnabled
-                                   ? "#F2F4F8"
-                                   : (commentArea.containsMouse || root.commentChecked
-                                      ? Theme.accentSoft
-                                      : root.idleButtonFillColor)
-                            border.width: 1
-                            border.color: root.commentChecked ? Theme.accent : root.idleButtonBorderColor
-                            opacity: root.commentEnabled ? 1.0 : 0.65
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: "评论"
-                                font.pixelSize: 12
-                                font.weight: Font.DemiBold
-                                color: !root.commentEnabled
-                                       ? "#A0A9B8"
-                                       : (root.commentChecked ? Theme.accent : root.secondaryTextColor)
-                            }
-
-                            MouseArea {
-                                id: commentArea
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                enabled: root.commentEnabled
-                                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ForbiddenCursor
-                                onClicked: {
-                                    root.commentChecked = !root.commentChecked
-                                    root.commentToggled(root.commentChecked)
                                 }
                             }
                         }
@@ -816,7 +834,6 @@ Item {
                     }
                 }
             }
-        }
     }
 
 }

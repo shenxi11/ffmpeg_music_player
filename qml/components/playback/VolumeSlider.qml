@@ -49,7 +49,7 @@ Window {
 
     Rectangle {
         anchors.fill: parent
-        radius: 0
+        radius: Theme.radiusMd
         color: "#DE10141C"
         border.width: 1
         border.color: "#44FFFFFF"
@@ -58,7 +58,7 @@ Window {
         layer.effect: DropShadow {
             horizontalOffset: 0
             verticalOffset: 4
-            radius: 0
+            radius: Theme.radiusMd
             samples: 21
             color: "#70000000"
         }

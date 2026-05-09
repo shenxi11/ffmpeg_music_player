@@ -90,7 +90,6 @@ class MainWidget : public QWidget {
     SearchHistoryPopup* m_searchHistoryPopup = nullptr;
     QWidget* topWidget;
     QWidget* leftWidget = nullptr;
-    QWidget* brandWidget = nullptr;
     MainMenu* mainMenu;
     QPushButton* menuButton;
     QPushButton* m_minimizeButton = nullptr;

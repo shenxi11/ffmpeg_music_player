@@ -135,10 +135,15 @@ class UserWidgetQml : public QQuickWidget {
         popupWindow->setProperty("username", username_);
         popupWindow->setProperty("avatarSource", avatarSource_);
 
-        // 计算弹出窗口位置（在主控件右下方）
+        // 计算弹出窗口位置，头像入口可能在左侧栏或顶部栏，需避免越出屏幕。
         QPoint globalPos = mapToGlobal(QPoint(0, height()));
-        int popupX = globalPos.x() + width() - 180; // 右对齐
+        int popupX = globalPos.x() + width() - 180;
         int popupY = globalPos.y() + 5;
+        if (QScreen* screen = QGuiApplication::screenAt(globalPos)) {
+            const QRect availableRect = screen->availableGeometry();
+            popupX = qBound(availableRect.left() + 8, popupX, availableRect.right() - 180);
+            popupY = qBound(availableRect.top() + 8, popupY, availableRect.bottom() - 220);
+        }
 
         qDebug() << "UserWidgetQml: Setting popup position to" << popupX << popupY;
 

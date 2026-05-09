@@ -16,7 +16,7 @@ QMainWindow, QDialog {
 QFrame[card="true"], QWidget[card="true"] {
     background-color: #FFFFFF;
     border: 1px solid #ECECEC;
-    border-radius: 0px;
+    border-radius: 16px;
 }
 
 QLabel {
@@ -101,7 +101,7 @@ QToolButton:hover {
 
 QLineEdit, QTextEdit, QPlainTextEdit, QSpinBox, QDoubleSpinBox {
     border: 1px solid #E4E5EA;
-    border-radius: 0px;
+    border-radius: 12px;
     background-color: #FFFFFF;
     padding: 6px 10px;
     selection-background-color: #EC4141;
@@ -115,7 +115,7 @@ QSpinBox:focus, QDoubleSpinBox:focus {
 QComboBox {
     min-height: 30px;
     border: 1px solid #E4E5EA;
-    border-radius: 0px;
+    border-radius: 12px;
     background-color: #FFFFFF;
     padding: 0 30px 0 10px;
 }
@@ -135,7 +135,7 @@ QComboBox::drop-down {
 
 QComboBox QAbstractItemView {
     border: 1px solid #ECECEC;
-    border-radius: 0px;
+    border-radius: 12px;
     outline: none;
     background: #FFFFFF;
     padding: 6px;
@@ -145,7 +145,7 @@ QComboBox QAbstractItemView {
 
 QListWidget, QTreeWidget, QTableWidget, QTableView {
     border: 1px solid #ECECEC;
-    border-radius: 0px;
+    border-radius: 14px;
     background: #FFFFFF;
     alternate-background-color: #FAFAFC;
     outline: none;
@@ -154,7 +154,7 @@ QListWidget, QTreeWidget, QTableWidget, QTableView {
 
 QListView::item, QListWidget::item,
 QTreeView::item, QTableView::item {
-    border-radius: 0px;
+    border-radius: 10px;
     padding: 6px;
 }
 
@@ -179,7 +179,7 @@ QHeaderView::section {
 
 QTabWidget::pane {
     border: 1px solid #ECECEC;
-    border-radius: 0px;
+    border-radius: 14px;
     background: #FFFFFF;
     top: -1px;
 }
@@ -206,12 +206,12 @@ QTabBar::tab:selected {
 
 QSlider::groove:horizontal {
     height: 4px;
-    border-radius: 0px;
+    border-radius: 2px;
     background: #E4E5EA;
 }
 
 QSlider::sub-page:horizontal {
-    border-radius: 0px;
+    border-radius: 2px;
     background: #EC4141;
 }
 
@@ -219,7 +219,7 @@ QSlider::handle:horizontal {
     width: 12px;
     height: 12px;
     margin: -4px 0;
-    border-radius: 0px;
+    border-radius: 6px;
     border: 1px solid #EC4141;
     background: #FFFFFF;
 }
@@ -230,14 +230,14 @@ QSlider::handle:horizontal:hover {
 
 QProgressBar {
     border: 1px solid #ECECEC;
-    border-radius: 0px;
+    border-radius: 10px;
     text-align: center;
     background: #F2F3F7;
     color: #63666F;
 }
 
 QProgressBar::chunk {
-    border-radius: 0px;
+    border-radius: 10px;
     background: #EC4141;
 }
 
@@ -249,7 +249,7 @@ QScrollBar:vertical {
 
 QScrollBar::handle:vertical {
     min-height: 28px;
-    border-radius: 0px;
+    border-radius: 5px;
     background: #D9DBE3;
 }
 
@@ -273,7 +273,7 @@ QScrollBar:horizontal {
 
 QScrollBar::handle:horizontal {
     min-width: 28px;
-    border-radius: 0px;
+    border-radius: 5px;
     background: #D9DBE3;
 }
 
@@ -291,13 +291,13 @@ QScrollBar::sub-page:horizontal {
 
 QMenu {
     border: 1px solid #ECECEC;
-    border-radius: 0px;
+    border-radius: 14px;
     background: #FFFFFF;
     padding: 6px;
 }
 
 QMenu::item {
-    border-radius: 0px;
+    border-radius: 10px;
     padding: 6px 22px;
 }
 
@@ -312,7 +312,7 @@ QDialog#PluginHostWindow {
 
 QWidget#PluginHeaderCard {
     border: 1px solid #ECECEC;
-    border-radius: 0px;
+    border-radius: 16px;
     background: #FFFFFF;
 }
 
@@ -334,7 +334,7 @@ QPushButton#PluginHeaderHelpButton {
 
 QWidget#PluginContentCard {
     border: 1px solid #ECECEC;
-    border-radius: 0px;
+    border-radius: 16px;
     background: #FFFFFF;
 }
 
@@ -349,14 +349,10 @@ QWidget#TopBar {
 QWidget#MainLeftPanel {
     background: #FFFFFF;
     border: 1px solid #E8EBF1;
-    border-radius: 0px;
+    border-radius: 18px;
 }
 
 QWidget#SidebarPlaylistSection {
-    background: transparent;
-}
-
-QWidget#SidebarBrandWidget {
     background: transparent;
 }
 
@@ -388,7 +384,7 @@ QPushButton#SidebarPlaylistTabButton:hover {
 
 QPushButton#SidebarPlaylistAddButton {
     border: none;
-    border-radius: 0px;
+    border-radius: 14px;
     background: transparent;
     color: #666B75;
     font-size: 16px;
@@ -411,7 +407,7 @@ QPushButton[sidePlaylistItem="true"] {
     max-height: 40px;
     padding: 0 12px;
     border: none;
-    border-radius: 0px;
+    border-radius: 12px;
     background: transparent;
     color: #23262D;
     text-align: left;
@@ -430,33 +426,30 @@ QPushButton[sidePlaylistItem="true"][selectedPlaylist="true"] {
 }
 
 QPushButton#MainMenuButton {
-    min-height: 40px;
-    min-width: 94px;
-    max-height: 40px;
-    padding: 0 16px 0 14px;
+    min-height: 44px;
+    max-height: 44px;
+    padding: 0;
     border: 1px solid #E7EAF0;
-    border-radius: 20px;
+    border-radius: 16px;
     background: #F4F5F7;
     color: #4B5563;
-    font-size: 13px;
-    font-weight: 600;
 }
 
 QPushButton#MainMenuButton:hover {
-    background: #ECEFF4;
-    border-color: #DEE4EC;
-    color: #1F2937;
+    background: #FFF2F2;
+    border-color: #F3D2D2;
+    color: #EC4141;
 }
 
 QPushButton#MainMenuButton:pressed {
-    background: #E6EAF1;
-    border-color: #D7DEE8;
+    background: #FDECEC;
+    border-color: #F0C5C5;
 }
 
 QPushButton#MainMenuButton[menuOpen="true"] {
-    background: #ECEFF4;
-    border-color: #DEE4EC;
-    color: #111827;
+    background: #FDECEC;
+    border-color: #F0C5C5;
+    color: #EC4141;
 }
 
 QPushButton#TopAgentButton {
@@ -465,7 +458,7 @@ QPushButton#TopAgentButton {
     max-height: 36px;
     padding: 0 14px;
     border: 1px solid #F2CACA;
-    border-radius: 0px;
+    border-radius: 18px;
     background: #FFF7F7;
     color: #EC4141;
     font-size: 13px;
@@ -550,7 +543,7 @@ QPushButton[sideNav="true"] {
     min-height: 46px;
     max-height: 46px;
     border: none;
-    border-radius: 0px;
+    border-radius: 14px;
     background: transparent;
     color: #303444;
     text-align: left;
@@ -573,12 +566,6 @@ QPushButton[sideNav="true"]:checked {
 
 QPushButton[sideNav="true"]:checked:hover {
     background: #FCE4E4;
-}
-
-QLabel#BrandTitleLabel {
-    color: #1C212B;
-    font-size: 18px;
-    font-weight: 700;
 }
 
 QWidget#VideoPlayerWindow {

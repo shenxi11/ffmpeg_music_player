@@ -7,6 +7,7 @@
 #include <QQmlEngine>
 #include <QQuickItem>
 #include <QDebug>
+#include <QMouseEvent>
 
 /**
  * QML 搜索框桥接控件，负责加载 SearchBox.qml 并转发搜索信号。
@@ -127,6 +128,14 @@ public slots:
         if (rootItem) {
             QMetaObject::invokeMethod(rootItem, "focusInput");
         }
+    }
+
+protected:
+    void mousePressEvent(QMouseEvent* event) override {
+        if (event && event->button() == Qt::LeftButton) {
+            emit inputActivated();
+        }
+        QQuickWidget::mousePressEvent(event);
     }
 };
 

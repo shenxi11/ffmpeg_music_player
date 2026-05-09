@@ -110,9 +110,10 @@ void MainWidget::handleMenuButtonClicked() {
         return;
     }
 
+    mainMenu->adjustSize();
     const QPoint globalPos =
-        menuButton->mapToGlobal(QPoint(menuButton->width() - mainMenu->width(),
-                                       menuButton->height() + 8));
+        menuButton->mapToGlobal(QPoint(menuButton->width() + 8,
+                                       menuButton->height() - mainMenu->height()));
     qDebug() << "Menu button position:" << globalPos;
     qDebug() << "Showing main menu...";
     mainMenu->showMenu(globalPos);

@@ -1494,6 +1494,7 @@ void SettingsManager::addSearchHistoryKeyword(const QString& keyword) {
 
     m_searchHistoryKeywords = updated;
     m_settings.setValue("search/history/keywords", m_searchHistoryKeywords);
+    m_settings.sync();
     emit searchHistoryChanged();
 }
 
@@ -1510,6 +1511,7 @@ void SettingsManager::removeSearchHistoryKeyword(const QString& keyword) {
 
     m_searchHistoryKeywords = updated;
     m_settings.setValue("search/history/keywords", m_searchHistoryKeywords);
+    m_settings.sync();
     emit searchHistoryChanged();
 }
 
@@ -1520,5 +1522,6 @@ void SettingsManager::clearSearchHistoryKeywords() {
 
     m_searchHistoryKeywords.clear();
     m_settings.setValue("search/history/keywords", m_searchHistoryKeywords);
+    m_settings.sync();
     emit searchHistoryChanged();
 }

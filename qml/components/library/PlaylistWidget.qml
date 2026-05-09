@@ -328,7 +328,7 @@ Rectangle {
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
         background: Rectangle {
-            radius: 0
+            radius: Theme.radiusMd
             color: "#FFFFFF"
             border.width: 1
             border.color: Theme.glassBorder
@@ -354,7 +354,7 @@ Rectangle {
                 color: Theme.textPrimary
                 selectByMouse: true
                 background: Rectangle {
-                    radius: 0
+                    radius: Theme.radiusMd
                     border.width: 1
                     border.color: nameField.activeFocus ? Theme.accent : Theme.glassBorder
                     color: "#FFFFFF"
@@ -371,7 +371,7 @@ Rectangle {
                 color: Theme.textPrimary
                 selectByMouse: true
                 background: Rectangle {
-                    radius: 0
+                    radius: Theme.radiusMd
                     border.width: 1
                     border.color: descField.activeFocus ? Theme.accent : Theme.glassBorder
                     color: "#FFFFFF"
@@ -386,7 +386,7 @@ Rectangle {
                 Rectangle {
                     width: 88
                     height: 34
-                    radius: 0
+                    radius: Theme.radiusMd
                     border.width: 1
                     border.color: Theme.glassBorder
                     color: cancelArea.containsMouse ? Theme.glassHover : "transparent"
@@ -410,7 +410,7 @@ Rectangle {
                 Rectangle {
                     width: 88
                     height: 34
-                    radius: 0
+                    radius: Theme.radiusMd
                     color: confirmArea.containsMouse ? "#ff5757" : Theme.accent
 
                     Text {
@@ -457,7 +457,7 @@ Rectangle {
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
         background: Rectangle {
-            radius: 0
+            radius: Theme.radiusMd
             color: "#FFFFFF"
             border.width: 1
             border.color: Theme.glassBorder
@@ -483,7 +483,7 @@ Rectangle {
                 color: Theme.textPrimary
                 selectByMouse: true
                 background: Rectangle {
-                    radius: 0
+                    radius: Theme.radiusMd
                     border.width: 1
                     border.color: editNameField.activeFocus ? Theme.accent : Theme.glassBorder
                     color: "#FFFFFF"
@@ -500,7 +500,7 @@ Rectangle {
                 color: Theme.textPrimary
                 selectByMouse: true
                 background: Rectangle {
-                    radius: 0
+                    radius: Theme.radiusMd
                     border.width: 1
                     border.color: editDescField.activeFocus ? Theme.accent : Theme.glassBorder
                     color: "#FFFFFF"
@@ -515,7 +515,7 @@ Rectangle {
                 Rectangle {
                     width: 88
                     height: 34
-                    radius: 0
+                    radius: Theme.radiusMd
                     border.width: 1
                     border.color: Theme.glassBorder
                     color: editCancelArea.containsMouse ? Theme.glassHover : "transparent"
@@ -539,7 +539,7 @@ Rectangle {
                 Rectangle {
                     width: 88
                     height: 34
-                    radius: 0
+                    radius: Theme.radiusMd
                     color: editConfirmArea.containsMouse ? "#ff5757" : Theme.accent
 
                     Text {
@@ -576,7 +576,7 @@ Rectangle {
         Rectangle {
             width: ListView.view ? ListView.view.width : 0
             height: 54
-            radius: 0
+            radius: Theme.radiusMd
             property bool selected: Number(model.id) === Number(root.selectedPlaylistId)
             property bool hover: playlistArea.containsMouse
             color: selected ? "#E5E7EB" : (hover ? "#F1F3F5" : "transparent")
@@ -591,7 +591,7 @@ Rectangle {
                 Rectangle {
                     Layout.preferredWidth: 34
                     Layout.preferredHeight: 34
-                    radius: 0
+                    radius: Theme.radiusMd
                     color: "#ECEFF4"
                     border.width: 1
                     border.color: "#DCE3EE"
@@ -672,7 +672,7 @@ Rectangle {
             Rectangle {
                 width: 140
                 height: 38
-                radius: 0
+                radius: Theme.radiusMd
                 anchors.horizontalCenter: parent.horizontalCenter
                 color: loginArea.containsMouse ? Theme.accent : "transparent"
                 border.width: 1
@@ -705,7 +705,7 @@ Rectangle {
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 172
-            radius: 0
+            radius: Theme.radiusMd
             color: Theme.glassLight
             border.width: 1
             border.color: Theme.glassBorder
@@ -718,7 +718,7 @@ Rectangle {
                 Rectangle {
                     Layout.preferredWidth: 130
                     Layout.preferredHeight: 130
-                    radius: 0
+                    radius: Theme.radiusMd
                     color: "#ECEFF4"
                     border.width: 1
                     border.color: "#DCE3EE"
@@ -790,7 +790,7 @@ Rectangle {
                         Rectangle {
                             width: 90
                             height: 34
-                            radius: 0
+                            radius: Theme.radiusMd
                             border.width: 1
                             border.color: Theme.glassBorder
                             color: editPlaylistArea.containsMouse ? Theme.glassHover : "transparent"
@@ -821,7 +821,7 @@ Rectangle {
                         Rectangle {
                             width: 90
                             height: 34
-                            radius: 0
+                            radius: Theme.radiusMd
                             color: playAllArea.containsMouse ? "#d93636" : Theme.accent
                             enabled: songModel.count > 0
                             opacity: enabled ? 1.0 : 0.45
@@ -854,7 +854,7 @@ Rectangle {
                         Rectangle {
                             width: 116
                             height: 34
-                            radius: 0
+                            radius: Theme.radiusMd
                             border.width: 1
                             border.color: Theme.glassBorder
                             color: addCurrentArea.containsMouse ? Theme.glassHover : "transparent"
@@ -881,7 +881,7 @@ Rectangle {
                         Rectangle {
                             width: 90
                             height: 34
-                            radius: 0
+                            radius: Theme.radiusMd
                             border.width: 1
                             border.color: Theme.glassBorder
                             color: refreshArea.containsMouse ? Theme.glassHover : "transparent"
@@ -905,7 +905,7 @@ Rectangle {
                         Rectangle {
                             width: 90
                             height: 34
-                            radius: 0
+                            radius: Theme.radiusMd
                             border.width: 1
                             border.color: "#F0B8B8"
                             color: deletePlaylistArea.containsMouse ? "#FDECEC" : "transparent"
@@ -941,7 +941,7 @@ Rectangle {
             Rectangle {
                 Layout.preferredWidth: root.leftPanelWidth
                 Layout.fillHeight: true
-                radius: 0
+                radius: Theme.radiusMd
                 color: Theme.glassLight
                 border.width: 1
                 border.color: Theme.glassBorder
@@ -965,7 +965,7 @@ Rectangle {
                         Rectangle {
                             width: 28
                             height: 28
-                            radius: 0
+                            radius: Theme.radiusMd
                             color: createArea.containsMouse ? "#EEF1F5" : "transparent"
                             border.width: 1
                             border.color: createArea.containsMouse ? "#D8DCE3" : "transparent"
@@ -991,7 +991,7 @@ Rectangle {
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        radius: 0
+                        radius: Theme.radiusMd
                         color: "#FAFBFC"
                         border.width: 1
                         border.color: "#E7EAF0"
@@ -1141,7 +1141,7 @@ Rectangle {
             Rectangle {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                radius: 0
+                radius: Theme.radiusMd
                 color: Theme.glassLight
                 border.width: 1
                 border.color: Theme.glassBorder
@@ -1154,7 +1154,7 @@ Rectangle {
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 36
-                        radius: 0
+                        radius: Theme.radiusMd
                         color: Theme.glassHover
 
                         Row {
@@ -1214,7 +1214,7 @@ Rectangle {
                             id: songRow
                             width: songListView.width
                             height: 62
-                            radius: 0
+                            radius: Theme.radiusMd
                             property bool rowHovered: rowHoverHandler.hovered
                                                        || coverAction.interactionActive
                                                        || actionStrip.interactionActive

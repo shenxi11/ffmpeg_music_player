@@ -17,3 +17,10 @@ var textPrimary = "#1F2430";
 var textMuted = "#7A7D85";
 var textSecondary = "#7A7D85";
 var divider = "#14DCE2EC";
+
+var radiusXs = 6;
+var radiusSm = 10;
+var radiusMd = 14;
+var radiusLg = 18;
+var radiusXl = 24;
+var radiusPill = 999;

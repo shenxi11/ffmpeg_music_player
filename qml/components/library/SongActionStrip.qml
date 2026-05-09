@@ -260,7 +260,7 @@ Item {
             Rectangle {
                 id: addPanel
                 anchors.fill: parent
-                radius: 0
+                radius: 14
                 color: "#FFFFFF"
                 border.width: 1
                 border.color: "#E9EEF5"
@@ -362,7 +362,7 @@ Item {
             Rectangle {
                 id: morePanel
                 anchors.fill: parent
-                radius: 0
+                radius: 14
                 color: "#FFFFFF"
                 border.width: 1
                 border.color: "#E9EEF5"
