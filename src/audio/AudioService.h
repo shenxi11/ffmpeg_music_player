@@ -1,38 +1,38 @@
 ﻿#ifndef AUDIOSERVICE_H
 #define AUDIOSERVICE_H
 
-#include <QObject>
-#include <QMap>
+#include "AudioSession.h"
+
 #include <QHash>
+#include <QMap>
+#include <QObject>
 #include <QQueue>
 #include <QRandomGenerator>
 #include <QSet>
 #include <QTimer>
-#include "AudioSession.h"
 
 /**
  * @brief 音频服务协调模块
  * 职责：管理音频会话、播放队列与全局播放状态，并向 UI 提供统一信号。
  */
-class AudioService : public QObject
-{
+class AudioService : public QObject {
     Q_OBJECT
-public:
+  public:
     static AudioService& instance();
-    
+
     // 会话管理
     QString createSession();
     bool destroySession(const QString& sessionId);
     AudioSession* getSession(const QString& sessionId);
     AudioSession* currentSession();
-    
+
     // 当前会话播放控制
     bool play(const QUrl& url);
     void pause();
     void resume();
     void stop();
     void seekTo(qint64 positionMs);
-    
+
     // 播放列表管理
     void setPlaylist(const QList<QUrl>& urls);
     void addToPlaylist(const QUrl& url);
@@ -40,70 +40,80 @@ public:
     void insertNextToQueue(const QUrl& url);
     void removeFromPlaylist(int index);
     void clearPlaylist();
-    QList<QUrl> playlist() const { return m_playlist; }
-    int playlistSize() const { return m_playlist.size(); }
-    
+    QList<QUrl> playlist() const {
+        return m_playlist;
+    }
+    int playlistSize() const {
+        return m_playlist.size();
+    }
+
     // 批量编辑操作
     void insertToPlaylist(int index, const QUrl& url);
     void moveInPlaylist(int from, int to);
-    
+
     // 播放模式
     enum PlayMode {
-        Sequential,     // 顺序播放
-        RepeatOne,      // 单曲循环
-        RepeatAll,      // 列表循环
-        Shuffle         // 随机播放
+        Sequential, // 顺序播放
+        RepeatOne,  // 单曲循环
+        RepeatAll,  // 列表循环
+        Shuffle     // 随机播放
     };
     void setPlayMode(PlayMode mode);
-    PlayMode playMode() const { return m_playMode; }
-    
+    PlayMode playMode() const {
+        return m_playMode;
+    }
+
     // 列表切歌控制
     void playNext();
     void playPrevious();
     void playAtIndex(int index);
-    void playPlaylist();  // 从列表第一个条目开始播放
-    
+    void playPlaylist(); // 从列表第一个条目开始播放
+
     // 全局音量
     void setVolume(int volume);
-    int volume() const { return m_globalVolume; }
-    
+    int volume() const {
+        return m_globalVolume;
+    }
+
     // 状态查询
     bool isPlaying() const;
     bool isPaused() const;
-    int currentIndex() const { return m_currentIndex; }
+    int currentIndex() const {
+        return m_currentIndex;
+    }
     QUrl currentUrl() const;
-    
-signals:
+
+  signals:
     // 播放状态信号
     void playbackStarted(const QString& sessionId, const QUrl& url);
     void playbackPaused();
     void playbackResumed();
     void playbackStopped();
-    
+
     // 当前会话变化
     void currentSessionChanged(const QString& sessionId);
-    
+
     // 播放列表变化
     void playlistChanged();
     void currentIndexChanged(int index);
-    
+
     // 元数据
     void currentTrackChanged(const QString& title, const QString& artist, qint64 duration);
     void albumArtChanged(const QString& imagePath);
-    
+
     // 播放进度
     void positionChanged(qint64 positionMs);
     void durationChanged(qint64 durationMs);
-    
+
     // 缓冲状态（网络音频）
     void bufferingStarted();
     void bufferingProgress(int percent);
     void bufferingFinished();
-    
+
     // 错误信号
     void serviceError(const QString& error);
 
-private slots:
+  private slots:
     void onAudioCachePathChanged();
     void onSessionStarted();
     void onSessionPaused();
@@ -120,7 +130,7 @@ private slots:
     void onSeekDispatchTimeout();
     void onFullFileCacheReady(const QUrl& originalUrl, const QUrl& localFileUrl);
 
-private:
+  private:
     AudioService(QObject* parent = nullptr);
     ~AudioService();
     AudioService(const AudioService&) = delete;
@@ -128,29 +138,28 @@ private:
 
     void setupServiceConnections();
     void connectSessionSignals(AudioSession* session);
-    
+
     void switchToSession(const QString& sessionId);
-    bool switchCurrentProxySessionToLocalCache(const QUrl& originalUrl,
-                                               const QUrl& localFileUrl,
+    bool switchCurrentProxySessionToLocalCache(const QUrl& originalUrl, const QUrl& localFileUrl,
                                                qint64 targetMs = -1);
     void playCurrentIndex();
     void cleanupOldSessions();
     int getNextIndex();
     int getPreviousIndex();
-    
+
     // 会话池
     QMap<QString, AudioSession*> m_sessions;
     QString m_currentSessionId;
     int m_sessionCounter;
-    
+
     // 播放列表
     QList<QUrl> m_playlist;
     int m_currentIndex;
     PlayMode m_playMode;
-    
+
     // 全局配置
     int m_globalVolume;
-    
+
     // 随机播放历史
     QQueue<int> m_shuffleHistory;
     QHash<QString, QUrl> m_sessionOriginalSource;
@@ -166,6 +175,3 @@ private:
 };
 
 #endif // AUDIOSERVICE_H
-
-
-

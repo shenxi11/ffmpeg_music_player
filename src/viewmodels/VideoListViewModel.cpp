@@ -1,26 +1,21 @@
 #include "VideoListViewModel.h"
 
-VideoListViewModel::VideoListViewModel(QObject* parent)
-    : BaseViewModel(parent)
-    , m_request(this)
-{
-    connect(&m_request, &HttpRequestV2::signalVideoList,
-            this, &VideoListViewModel::onVideoListReceived);
-    connect(&m_request, &HttpRequestV2::signalVideoStreamUrl,
-            this, &VideoListViewModel::onVideoStreamUrlReceived);
-    connect(&m_request, &HttpRequestV2::signalVideoPlaybackInfo,
-            this, &VideoListViewModel::onVideoPlaybackInfoReceived);
+VideoListViewModel::VideoListViewModel(QObject* parent) : BaseViewModel(parent), m_request(this) {
+    connect(&m_request, &HttpRequestV2::signalVideoList, this,
+            &VideoListViewModel::onVideoListReceived);
+    connect(&m_request, &HttpRequestV2::signalVideoStreamUrl, this,
+            &VideoListViewModel::onVideoStreamUrlReceived);
+    connect(&m_request, &HttpRequestV2::signalVideoPlaybackInfo, this,
+            &VideoListViewModel::onVideoPlaybackInfoReceived);
 }
 
-void VideoListViewModel::refresh()
-{
+void VideoListViewModel::refresh() {
     clearError();
     setIsBusy(true);
     m_request.getVideoList();
 }
 
-void VideoListViewModel::resolveVideoStream(const QString& videoPath, const QString& videoName)
-{
+void VideoListViewModel::resolveVideoStream(const QString& videoPath, const QString& videoName) {
     clearError();
     setIsBusy(true);
     m_selectedVideoPath = videoPath;
@@ -28,14 +23,12 @@ void VideoListViewModel::resolveVideoStream(const QString& videoPath, const QStr
     m_request.getVideoPlaybackInfo(videoPath);
 }
 
-void VideoListViewModel::onVideoListReceived(const QVariantList& videoList)
-{
+void VideoListViewModel::onVideoListReceived(const QVariantList& videoList) {
     setIsBusy(false);
     emit videoListUpdated(videoList);
 }
 
-void VideoListViewModel::onVideoStreamUrlReceived(const QString& videoUrl)
-{
+void VideoListViewModel::onVideoStreamUrlReceived(const QString& videoUrl) {
     setIsBusy(false);
     QVariantMap source;
     source.insert(QStringLiteral("id"), QStringLiteral("direct"));
@@ -45,8 +38,7 @@ void VideoListViewModel::onVideoStreamUrlReceived(const QString& videoUrl)
     emit videoStreamResolved(videoUrl, m_selectedVideoName, QVariantList{source});
 }
 
-void VideoListViewModel::onVideoPlaybackInfoReceived(const QVariantMap& playbackInfo)
-{
+void VideoListViewModel::onVideoPlaybackInfoReceived(const QVariantMap& playbackInfo) {
     const QString directUrl = playbackInfo.value(QStringLiteral("direct_url")).toString().trimmed();
     if (playbackInfo.isEmpty() || directUrl.isEmpty()) {
         m_request.getVideoStreamUrl(m_selectedVideoPath);
@@ -60,8 +52,7 @@ void VideoListViewModel::onVideoPlaybackInfoReceived(const QVariantMap& playback
     emit videoStreamResolved(selectedUrl, m_selectedVideoName, sources);
 }
 
-QVariantList VideoListViewModel::buildPlaybackSources(const QVariantMap& playbackInfo) const
-{
+QVariantList VideoListViewModel::buildPlaybackSources(const QVariantMap& playbackInfo) const {
     QVariantList sources;
 
     const QString directUrl = playbackInfo.value(QStringLiteral("direct_url")).toString().trimmed();
@@ -85,7 +76,8 @@ QVariantList VideoListViewModel::buildPlaybackSources(const QVariantMap& playbac
             }
             QVariantMap source;
             source.insert(QStringLiteral("id"), variant.value(QStringLiteral("id")).toString());
-            source.insert(QStringLiteral("label"), variant.value(QStringLiteral("label")).toString());
+            source.insert(QStringLiteral("label"),
+                          variant.value(QStringLiteral("label")).toString());
             source.insert(QStringLiteral("url"), url);
             source.insert(QStringLiteral("direct"), false);
             sources.append(source);

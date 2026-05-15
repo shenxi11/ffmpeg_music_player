@@ -1,42 +1,36 @@
 #include "AudioService.h"
+
 #include "AudioCacheManager.h"
 #include "settings_manager.h"
+
 #include <QDebug>
 #include <chrono>
 
 namespace {
-bool isNetworkUrl(const QUrl& url)
-{
+bool isNetworkUrl(const QUrl& url) {
     const QString scheme = url.scheme().toLower();
     return scheme == "http" || scheme == "https";
 }
 
-bool isAudioFilePath(const QString& pathLower)
-{
-    return pathLower.endsWith(".mp3")
-            || pathLower.endsWith(".flac")
-            || pathLower.endsWith(".wav")
-            || pathLower.endsWith(".ogg")
-            || pathLower.endsWith(".m4a")
-            || pathLower.endsWith(".aac");
+bool isAudioFilePath(const QString& pathLower) {
+    return pathLower.endsWith(".mp3") || pathLower.endsWith(".flac") ||
+           pathLower.endsWith(".wav") || pathLower.endsWith(".ogg") || pathLower.endsWith(".m4a") ||
+           pathLower.endsWith(".aac");
 }
 
-bool isHlsPlaylistUrl(const QUrl& url)
-{
+bool isHlsPlaylistUrl(const QUrl& url) {
     const QString lower = url.toString().toLower();
     return lower.endsWith(".m3u8") || lower.contains("/hls/");
 }
 
-bool isRemoteFlacUrl(const QUrl& url)
-{
+bool isRemoteFlacUrl(const QUrl& url) {
     if (!isNetworkUrl(url)) {
         return false;
     }
     return url.path().toLower().endsWith(".flac");
 }
 
-bool isLocalProxyPlaybackUrl(const QUrl& url)
-{
+bool isLocalProxyPlaybackUrl(const QUrl& url) {
     if (!isNetworkUrl(url)) {
         return false;
     }
@@ -46,8 +40,7 @@ bool isLocalProxyPlaybackUrl(const QUrl& url)
 
 constexpr int kRemoteFlacBufferCapacityBytes = 6 * 1024 * 1024;
 
-QUrl buildHlsCandidate(const QUrl& original)
-{
+QUrl buildHlsCandidate(const QUrl& original) {
     if (!isNetworkUrl(original)) {
         return QUrl();
     }
@@ -78,11 +71,8 @@ QUrl buildHlsCandidate(const QUrl& original)
     return candidate;
 }
 
-bool loadSessionSourcePreferHls(AudioSession* session,
-                                const QUrl& original,
-                                bool forceOriginal,
-                                QUrl* loadedSource)
-{
+bool loadSessionSourcePreferHls(AudioSession* session, const QUrl& original, bool forceOriginal,
+                                QUrl* loadedSource) {
     if (!session) {
         return false;
     }
@@ -104,7 +94,8 @@ bool loadSessionSourcePreferHls(AudioSession* session,
             }
             return true;
         }
-        qWarning() << "AudioService: HLS source unavailable, fallback to original URL:" << original.toString();
+        qWarning() << "AudioService: HLS source unavailable, fallback to original URL:"
+                   << original.toString();
     }
 
     const bool ok = session->loadSource(original);
@@ -113,24 +104,17 @@ bool loadSessionSourcePreferHls(AudioSession* session,
     }
     return ok;
 }
-}
+} // namespace
 
-AudioService& AudioService::instance()
-{
+AudioService& AudioService::instance() {
     static AudioService instance;
     return instance;
 }
 
 AudioService::AudioService(QObject* parent)
-    : QObject(parent),
-      m_sessionCounter(0),
-      m_currentIndex(-1),
-      m_playMode(Sequential),
-      m_globalVolume(50),
-      m_disableHlsGlobally(false),
-      m_hasPendingSeek(false),
-      m_pendingSeekPositionMs(0)
-{
+    : QObject(parent), m_sessionCounter(0), m_currentIndex(-1), m_playMode(Sequential),
+      m_globalVolume(50), m_disableHlsGlobally(false), m_hasPendingSeek(false),
+      m_pendingSeekPositionMs(0) {
     // 预热 AudioPlayer 单例，尽量避免首次播放时的设备启动延迟
     qDebug() << "AudioService: Pre-warming AudioPlayer singleton...";
     auto& player = AudioPlayer::instance();
@@ -141,8 +125,7 @@ AudioService::AudioService(QObject* parent)
     setupServiceConnections();
 }
 
-AudioService::~AudioService()
-{
+AudioService::~AudioService() {
     // 统一释放所有会话实例
     for (auto session : m_sessions) {
         delete session;
@@ -150,23 +133,20 @@ AudioService::~AudioService()
     m_sessions.clear();
 }
 
-QString AudioService::createSession()
-{
+QString AudioService::createSession() {
     QString sessionId = QString("session_%1").arg(++m_sessionCounter);
     AudioSession* session = new AudioSession(sessionId, this);
     connectSessionSignals(session);
-    
+
     m_sessions[sessionId] = session;
     return sessionId;
 }
 
-void AudioService::onAudioCachePathChanged()
-{
+void AudioService::onAudioCachePathChanged() {
     AudioCacheManager::instance().setCacheDirectory(SettingsManager::instance().audioCachePath());
 }
 
-void AudioService::onSessionStarted()
-{
+void AudioService::onSessionStarted() {
     const auto* session = qobject_cast<AudioSession*>(sender());
     const QString sessionId = session ? session->id() : QString();
 
@@ -180,20 +160,18 @@ void AudioService::onSessionStarted()
     emit playbackStarted(sessionId, currentUrl);
 }
 
-void AudioService::onSessionPaused()
-{
+void AudioService::onSessionPaused() {
     emit playbackPaused();
 }
 
-void AudioService::onSessionResumed()
-{
+void AudioService::onSessionResumed() {
     emit playbackResumed();
 }
 
-bool AudioService::destroySession(const QString& sessionId)
-{
-    if (!m_sessions.contains(sessionId)) return false;
-    
+bool AudioService::destroySession(const QString& sessionId) {
+    if (!m_sessions.contains(sessionId))
+        return false;
+
     AudioSession* session = m_sessions.take(sessionId);
     delete session;
     m_sessionOriginalSource.remove(sessionId);
@@ -201,47 +179,45 @@ bool AudioService::destroySession(const QString& sessionId)
     return true;
 }
 
-AudioSession* AudioService::getSession(const QString& sessionId)
-{
+AudioSession* AudioService::getSession(const QString& sessionId) {
     return m_sessions.value(sessionId, nullptr);
 }
 
-AudioSession* AudioService::currentSession()
-{
+AudioSession* AudioService::currentSession() {
     return getSession(m_currentSessionId);
 }
 
-bool AudioService::play(const QUrl& url)
-{
+bool AudioService::play(const QUrl& url) {
     auto t0 = std::chrono::high_resolution_clock::now();
     m_hasPendingSeek = false;
     m_pendingSeekSessionId.clear();
     m_seekDispatchTimer.stop();
-    
+
     // URL 已存在则复用索引，否则追加到播放历史尾部
     int foundIndex = m_playlist.indexOf(url);
     if (foundIndex >= 0) {
         m_currentIndex = foundIndex;
-        qDebug() << "AudioService: Using existing playlist index" << foundIndex
-                 << "total" << m_playlist.size();
+        qDebug() << "AudioService: Using existing playlist index" << foundIndex << "total"
+                 << m_playlist.size();
     } else {
         m_playlist.append(url);
         m_currentIndex = m_playlist.size() - 1;
-        qDebug() << "AudioService: Added to playlist tail at index" << m_currentIndex
-                 << "total" << m_playlist.size();
+        qDebug() << "AudioService: Added to playlist tail at index" << m_currentIndex << "total"
+                 << m_playlist.size();
     }
     emit currentIndexChanged(m_currentIndex);
-    
+
     // 为本次播放创建独立会话
     QString sessionId = createSession();
     auto t1 = std::chrono::high_resolution_clock::now();
-    qDebug() << "[TIMING] AudioService::play - createSession:" 
+    qDebug() << "[TIMING] AudioService::play - createSession:"
              << std::chrono::duration<double, std::milli>(t1 - t0).count() << "ms";
-    
+
     AudioSession* session = getSession(sessionId);
-    
-    if (!session) return false;
-    
+
+    if (!session)
+        return false;
+
     QUrl playbackSource = url;
     if (isRemoteFlacUrl(url)) {
         AudioPlayer::instance().ensureBufferCapacity(kRemoteFlacBufferCapacityBytes);
@@ -253,51 +229,48 @@ bool AudioService::play(const QUrl& url)
     }
 
     QUrl loadedSource;
-    const bool forceOriginal = m_disableHlsGlobally
-            || m_disableHlsForTrack.contains(url.toString());
-    if (loadSessionSourcePreferHls(session, playbackSource, forceOriginal, &loadedSource)
-            || (playbackSource != url
-                && loadSessionSourcePreferHls(session, url, forceOriginal, &loadedSource))) {
+    const bool forceOriginal =
+        m_disableHlsGlobally || m_disableHlsForTrack.contains(url.toString());
+    if (loadSessionSourcePreferHls(session, playbackSource, forceOriginal, &loadedSource) ||
+        (playbackSource != url &&
+         loadSessionSourcePreferHls(session, url, forceOriginal, &loadedSource))) {
         if (loadedSource == url && playbackSource != url) {
             qWarning() << "AudioService: proxy source unavailable, fallback to direct URL.";
         }
         m_sessionOriginalSource[sessionId] = url;
         m_sessionLoadedSource[sessionId] = loadedSource;
         auto t2 = std::chrono::high_resolution_clock::now();
-        qDebug() << "[TIMING] AudioService::play - loadSource:" 
+        qDebug() << "[TIMING] AudioService::play - loadSource:"
                  << std::chrono::duration<double, std::milli>(t2 - t1).count() << "ms";
-        
+
         switchToSession(sessionId);
         session->play();
-        
+
         auto t3 = std::chrono::high_resolution_clock::now();
-        qDebug() << "[TIMING] AudioService::play - play() call:" 
+        qDebug() << "[TIMING] AudioService::play - play() call:"
                  << std::chrono::duration<double, std::milli>(t3 - t2).count() << "ms";
-        qDebug() << "[TIMING] AudioService::play - TOTAL:" 
+        qDebug() << "[TIMING] AudioService::play - TOTAL:"
                  << std::chrono::duration<double, std::milli>(t3 - t0).count() << "ms";
         return true;
     }
-    
+
     destroySession(sessionId);
     return false;
 }
 
-void AudioService::pause()
-{
+void AudioService::pause() {
     if (auto session = currentSession()) {
         session->pause();
     }
 }
 
-void AudioService::resume()
-{
+void AudioService::resume() {
     if (auto session = currentSession()) {
         session->resume();
     }
 }
 
-void AudioService::stop()
-{
+void AudioService::stop() {
     m_hasPendingSeek = false;
     m_pendingSeekSessionId.clear();
     m_seekDispatchTimer.stop();
@@ -307,8 +280,7 @@ void AudioService::stop()
     }
 }
 
-void AudioService::seekTo(qint64 positionMs)
-{
+void AudioService::seekTo(qint64 positionMs) {
     AudioSession* session = currentSession();
     if (!session) {
         return;
@@ -321,25 +293,22 @@ void AudioService::seekTo(qint64 positionMs)
     const qint64 jumpDistance = qAbs(targetMs - currentPos);
     const bool largeJump = jumpDistance >= 45 * 1000;
 
-    bool shouldPrefetchForSeek = originalSource.isValid() && !originalSource.isEmpty()
-                                 && !loadedSource.isLocalFile();
+    bool shouldPrefetchForSeek =
+        originalSource.isValid() && !originalSource.isEmpty() && !loadedSource.isLocalFile();
     if (shouldPrefetchForSeek) {
         shouldPrefetchForSeek = !AudioCacheManager::instance().hasCompleteFileCache(originalSource);
     }
     if (shouldPrefetchForSeek) {
-        AudioCacheManager::instance().prefetchForSeek(originalSource, targetMs, session->duration());
+        AudioCacheManager::instance().prefetchForSeek(originalSource, targetMs,
+                                                      session->duration());
     }
 
     // 对 HLS 的首次大跨度跳转做主动优化：直接切换到可随机访问更稳定的直链。
-    if (!m_disableHlsGlobally
-            && !isRemoteFlacUrl(originalSource)
-            && isHlsPlaylistUrl(loadedSource)
-            && originalSource.isValid()
-            && !originalSource.isEmpty()
-            && largeJump) {
+    if (!m_disableHlsGlobally && !isRemoteFlacUrl(originalSource) &&
+        isHlsPlaylistUrl(loadedSource) && originalSource.isValid() && !originalSource.isEmpty() &&
+        largeJump) {
         qWarning() << "AudioService: Large seek on HLS, proactive switch to direct stream."
-                   << "jumpMs:" << jumpDistance
-                   << "targetMs:" << targetMs
+                   << "jumpMs:" << jumpDistance << "targetMs:" << targetMs
                    << "track:" << originalSource.toString();
 
         m_disableHlsForTrack.insert(originalSource.toString());
@@ -363,7 +332,8 @@ void AudioService::seekTo(qint64 positionMs)
             }
         }
         destroySession(newSessionId);
-        qWarning() << "AudioService: Proactive direct-switch seek failed, fallback to current session seek.";
+        qWarning() << "AudioService: Proactive direct-switch seek failed, fallback to current "
+                      "session seek.";
     }
 
     m_pendingSeekPositionMs = targetMs;
@@ -379,27 +349,23 @@ void AudioService::seekTo(qint64 positionMs)
     }
 }
 
-void AudioService::setPlaylist(const QList<QUrl>& urls)
-{
+void AudioService::setPlaylist(const QList<QUrl>& urls) {
     // 播放列表由服务内部维护为“播放历史”，不再接受外部整体覆盖
     // 若需要清空历史，请调用 clearPlaylist()
     Q_UNUSED(urls);
     qDebug() << "AudioService: setPlaylist is deprecated, playback history is auto-managed";
 }
 
-void AudioService::addToPlaylist(const QUrl& url)
-{
+void AudioService::addToPlaylist(const QUrl& url) {
     m_playlist.append(url);
     emit playlistChanged();
 }
 
-void AudioService::appendToQueue(const QUrl& url)
-{
+void AudioService::appendToQueue(const QUrl& url) {
     addToPlaylist(url);
 }
 
-void AudioService::insertNextToQueue(const QUrl& url)
-{
+void AudioService::insertNextToQueue(const QUrl& url) {
     if (m_currentIndex < 0 || m_currentIndex >= m_playlist.size()) {
         addToPlaylist(url);
         play(url);
@@ -409,12 +375,12 @@ void AudioService::insertNextToQueue(const QUrl& url)
     insertToPlaylist(m_currentIndex + 1, url);
 }
 
-void AudioService::removeFromPlaylist(int index)
-{
-    if (index < 0 || index >= m_playlist.size()) return;
-    
+void AudioService::removeFromPlaylist(int index) {
+    if (index < 0 || index >= m_playlist.size())
+        return;
+
     m_playlist.removeAt(index);
-    
+
     // 删除项后修正当前索引
     if (index < m_currentIndex) {
         m_currentIndex--;
@@ -423,12 +389,11 @@ void AudioService::removeFromPlaylist(int index)
         stop();
         m_currentIndex = -1;
     }
-    
+
     emit playlistChanged();
 }
 
-void AudioService::clearPlaylist()
-{
+void AudioService::clearPlaylist() {
     m_playlist.clear();
     m_currentIndex = -1;
     m_shuffleHistory.clear();
@@ -436,33 +401,30 @@ void AudioService::clearPlaylist()
     qDebug() << "AudioService: Playback history cleared";
 }
 
-void AudioService::insertToPlaylist(int index, const QUrl& url)
-{
+void AudioService::insertToPlaylist(int index, const QUrl& url) {
     if (index < 0 || index > m_playlist.size()) {
         addToPlaylist(url);
         return;
     }
-    
+
     m_playlist.insert(index, url);
-    
+
     // 在当前项之前插入时，当前索引整体后移
     if (index <= m_currentIndex) {
         m_currentIndex++;
     }
-    
+
     emit playlistChanged();
 }
 
-void AudioService::moveInPlaylist(int from, int to)
-{
-    if (from < 0 || from >= m_playlist.size() || 
-        to < 0 || to >= m_playlist.size() || from == to) {
+void AudioService::moveInPlaylist(int from, int to) {
+    if (from < 0 || from >= m_playlist.size() || to < 0 || to >= m_playlist.size() || from == to) {
         return;
     }
-    
+
     QUrl url = m_playlist.takeAt(from);
     m_playlist.insert(to, url);
-    
+
     // 拖拽重排后修正当前索引
     if (from == m_currentIndex) {
         m_currentIndex = to;
@@ -471,18 +433,17 @@ void AudioService::moveInPlaylist(int from, int to)
     } else if (from > m_currentIndex && to <= m_currentIndex) {
         m_currentIndex++;
     }
-    
+
     emit playlistChanged();
 }
 
-void AudioService::setPlayMode(PlayMode mode)
-{
+void AudioService::setPlayMode(PlayMode mode) {
     m_playMode = mode;
 }
 
-void AudioService::playNext()
-{
-    qDebug() << "AudioService::playNext - Current index:" << m_currentIndex << "Playlist size:" << m_playlist.size() << "Play mode:" << (int)m_playMode;
+void AudioService::playNext() {
+    qDebug() << "AudioService::playNext - Current index:" << m_currentIndex
+             << "Playlist size:" << m_playlist.size() << "Play mode:" << (int)m_playMode;
     int nextIndex = getNextIndex();
     qDebug() << "AudioService::playNext - Next index:" << nextIndex;
     if (nextIndex >= 0) {
@@ -490,9 +451,9 @@ void AudioService::playNext()
     }
 }
 
-void AudioService::playPrevious()
-{
-    qDebug() << "AudioService::playPrevious - Current index:" << m_currentIndex << "Playlist size:" << m_playlist.size() << "Play mode:" << (int)m_playMode;
+void AudioService::playPrevious() {
+    qDebug() << "AudioService::playPrevious - Current index:" << m_currentIndex
+             << "Playlist size:" << m_playlist.size() << "Play mode:" << (int)m_playMode;
     int prevIndex = getPreviousIndex();
     qDebug() << "AudioService::playPrevious - Previous index:" << prevIndex;
     if (prevIndex >= 0) {
@@ -500,15 +461,14 @@ void AudioService::playPrevious()
     }
 }
 
-void AudioService::playAtIndex(int index)
-{
+void AudioService::playAtIndex(int index) {
     if (index < 0 || index >= m_playlist.size()) {
         qWarning() << "AudioService: Invalid playlist index:" << index;
         return;
     }
-    
+
     qDebug() << "AudioService: Playing track at index" << index << "of" << m_playlist.size();
-    
+
     m_currentIndex = index;
     QUrl url = m_playlist[index];
     QUrl playbackSource = url;
@@ -517,23 +477,25 @@ void AudioService::playAtIndex(int index)
     }
     AudioCacheManager::instance().warmupCache(url);
     playbackSource = AudioCacheManager::instance().resolvePlaybackUrl(url);
-    
+
     emit currentIndexChanged(m_currentIndex);
-    
+
     // 直接按索引创建并切换会话，避免 play(url) 的索引副作用
     QString sessionId = createSession();
     AudioSession* session = getSession(sessionId);
-    
-    if (!session) return;
-    
+
+    if (!session)
+        return;
+
     QUrl loadedSource;
-    const bool forceOriginal = m_disableHlsGlobally
-            || m_disableHlsForTrack.contains(url.toString());
-    if (loadSessionSourcePreferHls(session, playbackSource, forceOriginal, &loadedSource)
-            || (playbackSource != url
-                && loadSessionSourcePreferHls(session, url, forceOriginal, &loadedSource))) {
+    const bool forceOriginal =
+        m_disableHlsGlobally || m_disableHlsForTrack.contains(url.toString());
+    if (loadSessionSourcePreferHls(session, playbackSource, forceOriginal, &loadedSource) ||
+        (playbackSource != url &&
+         loadSessionSourcePreferHls(session, url, forceOriginal, &loadedSource))) {
         if (loadedSource == url && playbackSource != url) {
-            qWarning() << "AudioService: proxy source unavailable in playAtIndex, fallback to direct URL.";
+            qWarning()
+                << "AudioService: proxy source unavailable in playAtIndex, fallback to direct URL.";
         }
         m_sessionOriginalSource[sessionId] = url;
         m_sessionLoadedSource[sessionId] = loadedSource;
@@ -544,74 +506,67 @@ void AudioService::playAtIndex(int index)
     }
 }
 
-void AudioService::playPlaylist()
-{
+void AudioService::playPlaylist() {
     if (m_playlist.isEmpty()) {
         qWarning() << "AudioService: Cannot play empty playlist";
         return;
     }
-    
+
     // 新一轮列表播放前清空随机历史
     m_shuffleHistory.clear();
-    
+
     // 列表播放从第 1 首开始
     playAtIndex(0);
 }
 
-void AudioService::setVolume(int volume)
-{
+void AudioService::setVolume(int volume) {
     m_globalVolume = qBound(0, volume, 100);
-    
+
     if (auto session = currentSession()) {
         session->setVolume(m_globalVolume);
     }
 }
 
-bool AudioService::isPlaying() const
-{
+bool AudioService::isPlaying() const {
     auto session = const_cast<AudioService*>(this)->currentSession();
     return session ? (session->isPlaying() && !session->isPaused()) : false;
 }
 
-bool AudioService::isPaused() const
-{
+bool AudioService::isPaused() const {
     auto session = const_cast<AudioService*>(this)->currentSession();
     return session ? (session->isActive() && session->isPaused()) : false;
 }
 
-QUrl AudioService::currentUrl() const
-{
+QUrl AudioService::currentUrl() const {
     if (m_currentIndex >= 0 && m_currentIndex < m_playlist.size()) {
         return m_playlist[m_currentIndex];
     }
     return QUrl();
 }
 
-void AudioService::onSessionFinished()
-{
+void AudioService::onSessionFinished() {
     qDebug() << "AudioService: Session finished, current mode:" << m_playMode;
-    
+
     // 根据播放模式决定是否自动切歌
     switch (m_playMode) {
-    case Sequential:
-        // 顺序模式：仅在非最后一首时自动下一首
-        if (m_currentIndex < m_playlist.size() - 1) {
+        case Sequential:
+            // 顺序模式：仅在非最后一首时自动下一首
+            if (m_currentIndex < m_playlist.size() - 1) {
+                playNext();
+            } else {
+                emit playbackStopped();
+            }
+            break;
+        case RepeatOne:
+        case RepeatAll:
+        case Shuffle:
+            // 其余模式均继续自动播放下一首
             playNext();
-        } else {
-            emit playbackStopped();
-        }
-        break;
-    case RepeatOne:
-    case RepeatAll:
-    case Shuffle:
-        // 其余模式均继续自动播放下一首
-        playNext();
-        break;
+            break;
     }
 }
 
-void AudioService::onDurationChanged(qint64 durationMs)
-{
+void AudioService::onDurationChanged(qint64 durationMs) {
     const QUrl originalSource = m_sessionOriginalSource.value(m_currentSessionId);
     if (originalSource.isValid() && !originalSource.isEmpty()) {
         AudioCacheManager::instance().noteTrackDuration(originalSource, durationMs);
@@ -619,8 +574,7 @@ void AudioService::onDurationChanged(qint64 durationMs)
     emit durationChanged(durationMs);
 }
 
-void AudioService::onSeekDispatchTimeout()
-{
+void AudioService::onSeekDispatchTimeout() {
     if (!m_hasPendingSeek) {
         return;
     }
@@ -646,8 +600,7 @@ void AudioService::onSeekDispatchTimeout()
     }
 }
 
-void AudioService::onFullFileCacheReady(const QUrl& originalUrl, const QUrl& localFileUrl)
-{
+void AudioService::onFullFileCacheReady(const QUrl& originalUrl, const QUrl& localFileUrl) {
     qint64 targetMs = -1;
     if (m_hasPendingSeek && m_pendingSeekSessionId == m_currentSessionId) {
         targetMs = m_pendingSeekPositionMs;
@@ -655,27 +608,30 @@ void AudioService::onFullFileCacheReady(const QUrl& originalUrl, const QUrl& loc
     switchCurrentProxySessionToLocalCache(originalUrl, localFileUrl, targetMs);
 }
 
-void AudioService::onSessionError(const QString& error)
-{
+void AudioService::onSessionError(const QString& error) {
     if (!m_currentSessionId.isEmpty()) {
         const QUrl loadedSource = m_sessionLoadedSource.value(m_currentSessionId);
         const QUrl originalSource = m_sessionOriginalSource.value(m_currentSessionId);
         const bool isHlsLoaded = loadedSource.path().toLower().endsWith(".m3u8");
         const bool isProxyLoaded = isLocalProxyPlaybackUrl(loadedSource);
-        const bool canFallbackToDirect = isHlsLoaded && originalSource.isValid() && !originalSource.isEmpty();
+        const bool canFallbackToDirect =
+            isHlsLoaded && originalSource.isValid() && !originalSource.isEmpty();
         const bool isSeekTimeout = error.contains(QStringLiteral("缓冲超时"));
         const bool isSeekDriftReject = error.contains(QStringLiteral("seek定位偏移过大"));
 
-        if (isSeekDriftReject && isProxyLoaded && originalSource.isValid() && !originalSource.isEmpty()) {
-            const QUrl cacheSource = AudioCacheManager::instance().resolvePlaybackUrl(originalSource);
+        if (isSeekDriftReject && isProxyLoaded && originalSource.isValid() &&
+            !originalSource.isEmpty()) {
+            const QUrl cacheSource =
+                AudioCacheManager::instance().resolvePlaybackUrl(originalSource);
             qint64 targetMs = m_pendingSeekPositionMs;
             if (targetMs <= 0) {
                 if (auto session = currentSession()) {
                     targetMs = session->position();
                 }
             }
-            if (cacheSource.isLocalFile()
-                    && switchCurrentProxySessionToLocalCache(originalSource, cacheSource, qMax<qint64>(0, targetMs))) {
+            if (cacheSource.isLocalFile() &&
+                switchCurrentProxySessionToLocalCache(originalSource, cacheSource,
+                                                      qMax<qint64>(0, targetMs))) {
                 return;
             }
         }
@@ -692,13 +648,13 @@ void AudioService::onSessionError(const QString& error)
             }
 
             qWarning() << "AudioService: HLS seek timeout, fallback to direct stream."
-                       << "track:" << originalSource.toString()
-                       << "targetMs:" << targetMs;
+                       << "track:" << originalSource.toString() << "targetMs:" << targetMs;
 
             m_disableHlsForTrack.insert(originalSource.toString());
             if (!m_disableHlsGlobally) {
                 m_disableHlsGlobally = true;
-                qWarning() << "AudioService: Disable HLS globally for current run due to seek timeout instability.";
+                qWarning() << "AudioService: Disable HLS globally for current run due to seek "
+                              "timeout instability.";
             }
 
             const QString newSessionId = createSession();
@@ -723,40 +679,33 @@ void AudioService::onSessionError(const QString& error)
     emit serviceError(error);
 }
 
-void AudioService::onMetadataReady(const QString& title, const QString& artist, qint64 duration)
-{
+void AudioService::onMetadataReady(const QString& title, const QString& artist, qint64 duration) {
     emit currentTrackChanged(title, artist, duration);
 }
 
-void AudioService::onAlbumArtReady(const QString& imagePath)
-{
+void AudioService::onAlbumArtReady(const QString& imagePath) {
     emit albumArtChanged(imagePath);
 }
 
-void AudioService::onPositionChanged(qint64 positionMs)
-{
+void AudioService::onPositionChanged(qint64 positionMs) {
     emit positionChanged(positionMs);
 }
 
-void AudioService::onBufferingStarted()
-{
+void AudioService::onBufferingStarted() {
     qDebug() << "AudioService: Buffering started (network may be slow)";
     emit bufferingStarted();
 }
 
-void AudioService::onBufferingProgress(int percent)
-{
+void AudioService::onBufferingProgress(int percent) {
     emit bufferingProgress(percent);
 }
 
-void AudioService::onBufferingFinished()
-{
+void AudioService::onBufferingFinished() {
     qDebug() << "AudioService: Buffering finished";
     emit bufferingFinished();
 }
 
-void AudioService::switchToSession(const QString& sessionId)
-{
+void AudioService::switchToSession(const QString& sessionId) {
     if (sessionId != m_currentSessionId) {
         m_hasPendingSeek = false;
         m_pendingSeekSessionId.clear();
@@ -766,31 +715,30 @@ void AudioService::switchToSession(const QString& sessionId)
     // 切换会话前先清理旧会话，避免旧解码器继续写入共享播放器
     if (!m_currentSessionId.isEmpty() && m_currentSessionId != sessionId) {
         if (auto oldSession = currentSession()) {
-            oldSession->stop();  // 同步停止旧会话解码线程
+            oldSession->stop(); // 同步停止旧会话解码线程
         }
         // 立即销毁旧会话，避免状态残留
         destroySession(m_currentSessionId);
         qDebug() << "AudioService: Destroyed old session" << m_currentSessionId;
-        
+
         // 旧会话释放后清空共享缓冲，防止跨会话数据串音
         AudioPlayer::instance().resetBuffer();
         qDebug() << "AudioService: Shared AudioPlayer buffer reset";
     }
-    
+
     m_currentSessionId = sessionId;
-    
+
     // 将全局音量同步到新会话
     if (auto newSession = currentSession()) {
         newSession->setVolume(m_globalVolume);
     }
-    
+
     emit currentSessionChanged(sessionId);
 }
 
 bool AudioService::switchCurrentProxySessionToLocalCache(const QUrl& originalUrl,
                                                          const QUrl& localFileUrl,
-                                                         qint64 targetMs)
-{
+                                                         qint64 targetMs) {
     if (!originalUrl.isValid() || !localFileUrl.isLocalFile() || m_currentSessionId.isEmpty()) {
         return false;
     }
@@ -802,7 +750,9 @@ bool AudioService::switchCurrentProxySessionToLocalCache(const QUrl& originalUrl
     }
 
     AudioSession* oldSession = currentSession();
-    const bool shouldResume = (targetMs >= 0) || (oldSession ? (oldSession->isPlaying() && !oldSession->isPaused()) : false);
+    const bool shouldResume =
+        (targetMs >= 0) ||
+        (oldSession ? (oldSession->isPlaying() && !oldSession->isPaused()) : false);
     qint64 resumeMs = targetMs >= 0 ? targetMs : (oldSession ? oldSession->position() : 0);
     resumeMs = qMax<qint64>(0, resumeMs);
 
@@ -816,16 +766,13 @@ bool AudioService::switchCurrentProxySessionToLocalCache(const QUrl& originalUrl
     if (!loadSessionSourcePreferHls(newSession, localFileUrl, true, &loadedLocal)) {
         destroySession(newSessionId);
         qWarning() << "AudioService: Switch to local full cache failed:"
-                   << "track:" << originalUrl.toString()
-                   << "cache:" << localFileUrl.toLocalFile();
+                   << "track:" << originalUrl.toString() << "cache:" << localFileUrl.toLocalFile();
         return false;
     }
 
     qDebug() << "AudioService: Switching current proxy session to local full cache:"
-             << "track:" << originalUrl.toString()
-             << "cache:" << localFileUrl.toLocalFile()
-             << "resumeMs:" << resumeMs
-             << "resume:" << shouldResume;
+             << "track:" << originalUrl.toString() << "cache:" << localFileUrl.toLocalFile()
+             << "resumeMs:" << resumeMs << "resume:" << shouldResume;
 
     m_sessionOriginalSource[newSessionId] = originalUrl;
     m_sessionLoadedSource[newSessionId] = loadedLocal;
@@ -844,11 +791,11 @@ bool AudioService::switchCurrentProxySessionToLocalCache(const QUrl& originalUrl
     return true;
 }
 
-void AudioService::cleanupOldSessions()
-{
+void AudioService::cleanupOldSessions() {
     // 仅保留当前会话与最近会话，控制资源占用
-    if (m_sessions.size() <= 3) return;
-    
+    if (m_sessions.size() <= 3)
+        return;
+
     QStringList toRemove;
     for (auto it = m_sessions.begin(); it != m_sessions.end(); ++it) {
         if (it.key() != m_currentSessionId) {
@@ -858,108 +805,104 @@ void AudioService::cleanupOldSessions()
             }
         }
     }
-    
+
     for (const QString& id : toRemove) {
         qDebug() << "AudioService: Cleaning up old session:" << id;
         destroySession(id);
     }
 }
 
-void AudioService::playCurrentIndex()
-{
+void AudioService::playCurrentIndex() {
     if (m_currentIndex >= 0 && m_currentIndex < m_playlist.size()) {
         play(m_playlist[m_currentIndex]);
     }
 }
 
-int AudioService::getNextIndex()
-{
+int AudioService::getNextIndex() {
     if (m_playlist.isEmpty()) {
         qDebug() << "AudioService::getNextIndex - Playlist is empty";
         return -1;
     }
-    
+
     // 只有一首歌时不做“下一首”切换
     if (m_playlist.size() == 1) {
         return -1;
     }
-    
+
     switch (m_playMode) {
-    case Sequential:
-    case RepeatAll:
-        // 顺序/列表循环：最后一首回到第一首
-        return (m_currentIndex + 1) % m_playlist.size();
-        
-    case RepeatOne:
-        // 单曲循环：保持当前索引
-        return m_currentIndex;
-        
-    case Shuffle: {
-        // 随机模式：尽量避免短时间内重复
-        if (m_playlist.size() <= 1) return 0;
-        
-        // 记录当前索引到随机历史
-        if (m_currentIndex >= 0) {
-            m_shuffleHistory.enqueue(m_currentIndex);
-            // 限制随机历史长度，避免无限增长
-            if (m_shuffleHistory.size() > m_playlist.size() / 2) {
-                m_shuffleHistory.dequeue();
+        case Sequential:
+        case RepeatAll:
+            // 顺序/列表循环：最后一首回到第一首
+            return (m_currentIndex + 1) % m_playlist.size();
+
+        case RepeatOne:
+            // 单曲循环：保持当前索引
+            return m_currentIndex;
+
+        case Shuffle: {
+            // 随机模式：尽量避免短时间内重复
+            if (m_playlist.size() <= 1)
+                return 0;
+
+            // 记录当前索引到随机历史
+            if (m_currentIndex >= 0) {
+                m_shuffleHistory.enqueue(m_currentIndex);
+                // 限制随机历史长度，避免无限增长
+                if (m_shuffleHistory.size() > m_playlist.size() / 2) {
+                    m_shuffleHistory.dequeue();
+                }
             }
+
+            // 随机抽取下一首，优先避开最近历史
+            int nextIndex;
+            int attempts = 0;
+            do {
+                nextIndex = QRandomGenerator::global()->bounded(m_playlist.size());
+                attempts++;
+            } while (m_shuffleHistory.contains(nextIndex) && attempts < 10);
+
+            return nextIndex;
         }
-        
-        // 随机抽取下一首，优先避开最近历史
-        int nextIndex;
-        int attempts = 0;
-        do {
-            nextIndex = QRandomGenerator::global()->bounded(m_playlist.size());
-            attempts++;
-        } while (m_shuffleHistory.contains(nextIndex) && attempts < 10);
-        
-        return nextIndex;
     }
-    }
-    
+
     return -1;
 }
 
-int AudioService::getPreviousIndex()
-{
-    if (m_playlist.isEmpty()) return -1;
-    
+int AudioService::getPreviousIndex() {
+    if (m_playlist.isEmpty())
+        return -1;
+
     // 只有一首歌时不做“上一首”切换
     if (m_playlist.size() == 1) {
         return -1;
     }
-    
+
     switch (m_playMode) {
-    case Sequential:
-    case RepeatAll:
-        // 顺序/列表循环：第一首回到最后一首
-        return (m_currentIndex > 0) ? m_currentIndex - 1 : m_playlist.size() - 1;
-        
-    case RepeatOne:
-        // 单曲循环：保持当前索引
-        return m_currentIndex;
-        
-    case Shuffle: {
-        // 随机模式优先使用历史回退
-        if (!m_shuffleHistory.isEmpty()) {
-            return m_shuffleHistory.takeLast();
+        case Sequential:
+        case RepeatAll:
+            // 顺序/列表循环：第一首回到最后一首
+            return (m_currentIndex > 0) ? m_currentIndex - 1 : m_playlist.size() - 1;
+
+        case RepeatOne:
+            // 单曲循环：保持当前索引
+            return m_currentIndex;
+
+        case Shuffle: {
+            // 随机模式优先使用历史回退
+            if (!m_shuffleHistory.isEmpty()) {
+                return m_shuffleHistory.takeLast();
+            }
+            // 无历史时回退到随机选择（避开当前曲目）
+            if (m_playlist.size() > 1) {
+                int prevIndex;
+                do {
+                    prevIndex = QRandomGenerator::global()->bounded(m_playlist.size());
+                } while (prevIndex == m_currentIndex);
+                return prevIndex;
+            }
+            return 0;
         }
-        // 无历史时回退到随机选择（避开当前曲目）
-        if (m_playlist.size() > 1) {
-            int prevIndex;
-            do {
-                prevIndex = QRandomGenerator::global()->bounded(m_playlist.size());
-            } while (prevIndex == m_currentIndex);
-            return prevIndex;
-        }
-        return 0;
     }
-    }
-    
+
     return -1;
 }
-
-
-

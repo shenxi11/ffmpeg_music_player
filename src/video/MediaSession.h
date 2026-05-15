@@ -1,43 +1,34 @@
 ﻿#ifndef MEDIASESSION_H
 #define MEDIASESSION_H
 
-#include <QObject>
-#include <QUrl>
-#include <QTimer>
-#include <QThread>
-#include <QString>
-#include <atomic>
-#include <mutex>
-#include <condition_variable>
-#include <optional>
 #include "AudioSession.h"
 
+#include <QObject>
+#include <QString>
+#include <QThread>
+#include <QTimer>
+#include <QUrl>
+#include <atomic>
+#include <condition_variable>
+#include <mutex>
+#include <optional>
+
 extern "C" {
-#include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
 }
 
 class VideoSession;
 struct AVFilterGraph;
 struct AVFilterContext;
 
-class MediaSession : public QObject
-{
+class MediaSession : public QObject {
     Q_OBJECT
 
-public:
-    enum class DemuxState {
-        Stopped,
-        Running,
-        Paused
-    };
+  public:
+    enum class DemuxState { Stopped, Running, Paused };
 
-    enum PlaybackState {
-        Stopped,
-        Playing,
-        Paused,
-        Error
-    };
+    enum PlaybackState { Stopped, Playing, Paused, Error };
     Q_ENUM(PlaybackState)
 
     explicit MediaSession(QObject* parent = nullptr);
@@ -54,19 +45,33 @@ public:
     void setPlaybackRate(double rate);
     double playbackRate() const;
 
-    AudioSession* audioSession() const { return m_audioSession; }
-    VideoSession* videoSession() const { return m_videoSession; }
+    AudioSession* audioSession() const {
+        return m_audioSession;
+    }
+    VideoSession* videoSession() const {
+        return m_videoSession;
+    }
 
     void enableSync(bool enable);
-    bool isSyncEnabled() const { return m_syncEnabled; }
+    bool isSyncEnabled() const {
+        return m_syncEnabled;
+    }
 
     qint64 getCurrentPosition() const;
-    qint64 getDuration() const { return m_duration; }
-    PlaybackState state() const { return m_state; }
-    bool hasVideo() const { return m_videoSession != nullptr; }
-    bool hasAudio() const { return m_audioCodecCtx != nullptr || m_audioStreamIndex >= 0; }
+    qint64 getDuration() const {
+        return m_duration;
+    }
+    PlaybackState state() const {
+        return m_state;
+    }
+    bool hasVideo() const {
+        return m_videoSession != nullptr;
+    }
+    bool hasAudio() const {
+        return m_audioCodecCtx != nullptr || m_audioStreamIndex >= 0;
+    }
 
-signals:
+  signals:
     void positionChanged(qint64 positionMs);
     void durationChanged(qint64 durationMs);
     void stateChanged(PlaybackState state);
@@ -78,16 +83,22 @@ signals:
     void playbackError(const QString& message);
     void demuxFinished();
 
-private slots:
+  private slots:
     void onAudioPositionChanged(qint64 audioPos);
     void onVideoFrameRendered(qint64 videoPts);
     void syncAudioVideo();
     void updatePosition();
 
-private:
-    bool isDemuxRunning() const { return m_demuxState.load() != DemuxState::Stopped; }
-    bool isDemuxPaused() const { return m_demuxState.load() == DemuxState::Paused; }
-    void setDemuxState(DemuxState state) { m_demuxState.store(state); }
+  private:
+    bool isDemuxRunning() const {
+        return m_demuxState.load() != DemuxState::Stopped;
+    }
+    bool isDemuxPaused() const {
+        return m_demuxState.load() == DemuxState::Paused;
+    }
+    void setDemuxState(DemuxState state) {
+        m_demuxState.store(state);
+    }
 
     bool initDemuxer(const QString& filePath);
     void cleanupDemuxer();
@@ -104,7 +115,7 @@ private:
 
     void setState(PlaybackState state);
 
-private:
+  private:
     AudioSession* m_audioSession;
     VideoSession* m_videoSession;
 

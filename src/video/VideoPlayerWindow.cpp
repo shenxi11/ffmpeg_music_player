@@ -1,40 +1,28 @@
 #include "VideoPlayerWindow.h"
-#include "VideoSession.h"
+
 #include "VideoRendererGL.h"
-#include <QDebug>
-#include <QPainterPath>
-#include <QFileInfo>
+#include "VideoSession.h"
+
 #include <QApplication>
-#include <QScreen>
-#include <QTimer>
-#include <QStyle>
+#include <QDebug>
+#include <QFileInfo>
 #include <QFontMetrics>
+#include <QPainterPath>
+#include <QScreen>
+#include <QStyle>
+#include <QTimer>
 
 namespace {
 constexpr int kRendererRecoveryDelayMs = 50;
 }
 
-VideoPlayerWindow::VideoPlayerWindow(QWidget *parent)
-    : QWidget(parent)
-    , m_renderWidget(nullptr)
-    , m_playPauseBtn(nullptr)
-    , m_openFileBtn(nullptr)
-    , m_displayModeBtn(nullptr)
-    , m_fullScreenBtn(nullptr)
-    , m_qualityPresetBox(nullptr)
-    , m_playbackRateBox(nullptr)
-    , m_progressSlider(nullptr)
-    , m_timeLabel(nullptr)
-    , m_fileNameLabel(nullptr)
-    , m_mediaSession(nullptr)
-    , m_isPlaying(false)
-    , m_sliderPressed(false)
-    , m_duration(0)
-    , m_currentPosition(0)
-    , m_replayPendingSeek(false)
-    , m_fillDisplayMode(false)
-    , m_pendingStoppedSeekPosition(0)
-{
+VideoPlayerWindow::VideoPlayerWindow(QWidget* parent)
+    : QWidget(parent), m_renderWidget(nullptr), m_playPauseBtn(nullptr), m_openFileBtn(nullptr),
+      m_displayModeBtn(nullptr), m_fullScreenBtn(nullptr), m_qualityPresetBox(nullptr),
+      m_playbackRateBox(nullptr), m_progressSlider(nullptr), m_timeLabel(nullptr),
+      m_fileNameLabel(nullptr), m_mediaSession(nullptr), m_isPlaying(false), m_sliderPressed(false),
+      m_duration(0), m_currentPosition(0), m_replayPendingSeek(false), m_fillDisplayMode(false),
+      m_pendingStoppedSeekPosition(0) {
     setupUI();
 
     setWindowTitle(QStringLiteral(u"\u89c6\u9891\u64ad\u653e\u5668"));
@@ -42,16 +30,15 @@ VideoPlayerWindow::VideoPlayerWindow(QWidget *parent)
     resize(1080, 700);
     setFocusPolicy(Qt::StrongFocus);
 
-    setWindowFlags(Qt::Window | Qt::WindowCloseButtonHint | Qt::WindowMinimizeButtonHint | Qt::WindowMaximizeButtonHint);
+    setWindowFlags(Qt::Window | Qt::WindowCloseButtonHint | Qt::WindowMinimizeButtonHint |
+                   Qt::WindowMaximizeButtonHint);
 }
 
-VideoPlayerWindow::~VideoPlayerWindow()
-{
+VideoPlayerWindow::~VideoPlayerWindow() {
     qDebug() << "[VideoPlayerWindow] Destructor";
 }
 
-void VideoPlayerWindow::setupUI()
-{
+void VideoPlayerWindow::setupUI() {
     QVBoxLayout* mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->setSpacing(0);
@@ -72,26 +59,24 @@ void VideoPlayerWindow::setupUI()
     QPushButton* closeBtn = new QPushButton("X", titleBar);
     closeBtn->setFixedSize(30, 30);
     closeBtn->setObjectName("VideoTitleCloseButton");
-    closeBtn->setStyleSheet(
-        "QPushButton {"
-        "  background: transparent;"
-        "  border: none;"
-        "  color: #F4F6FA;"
-        "  border-radius: 0px;"
-        "  font-size: 16px;"
-        "}"
-        "QPushButton:hover {"
-        "  background: rgba(255, 76, 76, 0.85);"
-        "  color: #FFFFFF;"
-        "}"
-    );
+    closeBtn->setStyleSheet("QPushButton {"
+                            "  background: transparent;"
+                            "  border: none;"
+                            "  color: #F4F6FA;"
+                            "  border-radius: 0px;"
+                            "  font-size: 16px;"
+                            "}"
+                            "QPushButton:hover {"
+                            "  background: rgba(255, 76, 76, 0.85);"
+                            "  color: #FFFFFF;"
+                            "}");
 
     titleLayout->addWidget(m_fileNameLabel);
     titleLayout->addStretch();
     titleLayout->addWidget(closeBtn);
 
     m_renderWidget = new VideoRendererGL(this);
-    m_renderWidget->setDisplayMode(0);  // Fit
+    m_renderWidget->setDisplayMode(0); // Fit
     m_renderWidget->setQualityPreset(static_cast<int>(VideoRendererGL::Standard1080P));
 
     QWidget* controlBar = new QWidget(this);
@@ -112,9 +97,7 @@ void VideoPlayerWindow::setupUI()
         "QSlider::groove:horizontal { height: 4px; border-radius: 0px; background: #3A414E; }"
         "QSlider::sub-page:horizontal { border-radius: 0px; background: #EC4141; }"
         "QSlider::handle:horizontal { width: 12px; height: 12px; margin: -4px 0;"
-        "border-radius: 0px; border: 1px solid #EC4141; background: #FFFFFF; }"
-    );
-
+        "border-radius: 0px; border: 1px solid #EC4141; background: #FFFFFF; }");
 
     QHBoxLayout* buttonLayout = new QHBoxLayout();
     buttonLayout->setSpacing(15);
@@ -132,57 +115,59 @@ void VideoPlayerWindow::setupUI()
         "}"
         "QPushButton:hover { background: #FF5757; border-color: #EC4141; }"
         "QPushButton:pressed { background: #D93636; border-color: #C53030; }"
-        "QPushButton:disabled { background: #7F3E3E; border-color: #7F3E3E; color: #E9CACA; }"
-    );
+        "QPushButton:disabled { background: #7F3E3E; border-color: #7F3E3E; color: #E9CACA; }");
 
     m_openFileBtn = new QPushButton(QStringLiteral(u"\u6253\u5f00\u89c6\u9891"), controlBar);
     m_openFileBtn->setFixedHeight(40);
     m_openFileBtn->setObjectName("VideoActionButton");
-    m_openFileBtn->setStyleSheet(
-        "QPushButton { border: 1px solid #3A414E; border-radius: 0px; background: #262B33; color: #EDF1F7; padding: 0 14px; }"
-        "QPushButton:hover { border-color: #EC4141; background: #2D3440; }"
-        "QPushButton:pressed { background: #232830; }"
-    );
+    m_openFileBtn->setStyleSheet("QPushButton { border: 1px solid #3A414E; border-radius: 0px; "
+                                 "background: #262B33; color: #EDF1F7; padding: 0 14px; }"
+                                 "QPushButton:hover { border-color: #EC4141; background: #2D3440; }"
+                                 "QPushButton:pressed { background: #232830; }");
 
     // 显示“下一步动作”：当前默认是 Fit，因此按钮显示“填充”
     m_displayModeBtn = new QPushButton(QStringLiteral(u"\u586b\u5145"), controlBar);
     m_displayModeBtn->setFixedHeight(40);
     m_displayModeBtn->setObjectName("VideoActionButton");
     m_displayModeBtn->setStyleSheet(
-        "QPushButton { border: 1px solid #3A414E; border-radius: 0px; background: #262B33; color: #EDF1F7; padding: 0 14px; }"
+        "QPushButton { border: 1px solid #3A414E; border-radius: 0px; background: #262B33; color: "
+        "#EDF1F7; padding: 0 14px; }"
         "QPushButton:hover { border-color: #EC4141; background: #2D3440; }"
-        "QPushButton:pressed { background: #232830; }"
-    );
+        "QPushButton:pressed { background: #232830; }");
 
     m_fullScreenBtn = new QPushButton(QStringLiteral(u"\u6700\u5927\u5316"), controlBar);
     m_fullScreenBtn->setFixedHeight(40);
     m_fullScreenBtn->setObjectName("VideoActionButton");
     m_fullScreenBtn->setStyleSheet(
-        "QPushButton { border: 1px solid #3A414E; border-radius: 0px; background: #262B33; color: #EDF1F7; padding: 0 14px; }"
+        "QPushButton { border: 1px solid #3A414E; border-radius: 0px; background: #262B33; color: "
+        "#EDF1F7; padding: 0 14px; }"
         "QPushButton:hover { border-color: #EC4141; background: #2D3440; }"
-        "QPushButton:pressed { background: #232830; }"
-    );
+        "QPushButton:pressed { background: #232830; }");
 
     QLabel* qualityLabel = new QLabel(QStringLiteral(u"\u753b\u8d28"), controlBar);
     qualityLabel->setProperty("secondary", true);
 
     m_qualityPresetBox = new QComboBox(controlBar);
-    m_qualityPresetBox->addItem(QStringLiteral(u"\u6807\u51c6 1080P"), static_cast<int>(VideoRendererGL::Standard1080P));
-    m_qualityPresetBox->addItem(QStringLiteral(u"\u589e\u5f3a 2K"), static_cast<int>(VideoRendererGL::Enhanced2K));
+    m_qualityPresetBox->addItem(QStringLiteral(u"\u6807\u51c6 1080P"),
+                                static_cast<int>(VideoRendererGL::Standard1080P));
+    m_qualityPresetBox->addItem(QStringLiteral(u"\u589e\u5f3a 2K"),
+                                static_cast<int>(VideoRendererGL::Enhanced2K));
     m_qualityPresetBox->setCurrentIndex(0);
     m_qualityPresetBox->setEnabled(false);
     m_qualityPresetBox->setFixedHeight(36);
     m_qualityPresetBox->setSizeAdjustPolicy(QComboBox::AdjustToContents);
-    const int qualityTextWidth = QFontMetrics(m_qualityPresetBox->font()).horizontalAdvance(QStringLiteral(u"\u6807\u51c6 1080P"));
+    const int qualityTextWidth = QFontMetrics(m_qualityPresetBox->font())
+                                     .horizontalAdvance(QStringLiteral(u"\u6807\u51c6 1080P"));
     m_qualityPresetBox->setMinimumWidth(qualityTextWidth + 56);
     m_qualityPresetBox->setObjectName("VideoControlCombo");
     m_qualityPresetBox->setStyleSheet(
-        "QComboBox { border: 1px solid #3A414E; border-radius: 0px; background: #262B33; color: #EDF1F7; padding: 0 28px 0 10px; }"
+        "QComboBox { border: 1px solid #3A414E; border-radius: 0px; background: #262B33; color: "
+        "#EDF1F7; padding: 0 28px 0 10px; }"
         "QComboBox:hover { border-color: #EC4141; }"
         "QComboBox::drop-down { border: none; width: 22px; }"
-        "QComboBox QAbstractItemView { border: 1px solid #3A414E; border-radius: 0px; background: #262B33; color: #EDF1F7;"
-        "selection-background-color: #EC4141; selection-color: #FFFFFF; }"
-    );
+        "QComboBox QAbstractItemView { border: 1px solid #3A414E; border-radius: 0px; background: "
+        "#262B33; color: #EDF1F7;"
+        "selection-background-color: #EC4141; selection-color: #FFFFFF; }");
 
     QLabel* rateLabel = new QLabel(QStringLiteral(u"\u500d\u901f"), controlBar);
     rateLabel->setProperty("secondary", true);
@@ -199,12 +184,13 @@ void VideoPlayerWindow::setupUI()
     m_playbackRateBox->setFixedHeight(36);
     m_playbackRateBox->setObjectName("VideoControlCombo");
     m_playbackRateBox->setStyleSheet(
-        "QComboBox { border: 1px solid #3A414E; border-radius: 0px; background: #262B33; color: #EDF1F7; padding: 0 28px 0 10px; }"
+        "QComboBox { border: 1px solid #3A414E; border-radius: 0px; background: #262B33; color: "
+        "#EDF1F7; padding: 0 28px 0 10px; }"
         "QComboBox:hover { border-color: #EC4141; }"
         "QComboBox::drop-down { border: none; width: 22px; }"
-        "QComboBox QAbstractItemView { border: 1px solid #3A414E; border-radius: 0px; background: #262B33; color: #EDF1F7;"
-        "selection-background-color: #EC4141; selection-color: #FFFFFF; }"
-    );
+        "QComboBox QAbstractItemView { border: 1px solid #3A414E; border-radius: 0px; background: "
+        "#262B33; color: #EDF1F7;"
+        "selection-background-color: #EC4141; selection-color: #FFFFFF; }");
 
     m_timeLabel = new QLabel("00:00 / 00:00", controlBar);
     m_timeLabel->setProperty("secondary", true);
@@ -239,7 +225,8 @@ void VideoPlayerWindow::setupUI()
 
     // 强制重刷样式，确保对象名选择器和本地样式立即生效
     auto repolishWidget = [](QWidget* w) {
-        if (!w || !w->style()) return;
+        if (!w || !w->style())
+            return;
         w->style()->unpolish(w);
         w->style()->polish(w);
         w->update();
@@ -257,8 +244,7 @@ void VideoPlayerWindow::setupUI()
     repolishWidget(m_progressSlider);
 }
 
-void VideoPlayerWindow::loadVideo(const QString& filePath)
-{
+void VideoPlayerWindow::loadVideo(const QString& filePath) {
     if (filePath.isEmpty()) {
         return;
     }
@@ -344,8 +330,7 @@ void VideoPlayerWindow::loadVideo(const QString& filePath)
     emit videoLoaded(filePath);
 }
 
-void VideoPlayerWindow::onPlayPauseClicked()
-{
+void VideoPlayerWindow::onPlayPauseClicked() {
     if (!m_mediaSession) {
         qWarning() << "[VideoPlayerWindow] No media session";
         return;
@@ -386,8 +371,7 @@ void VideoPlayerWindow::onPlayPauseClicked()
     }
 }
 
-void VideoPlayerWindow::pausePlayback()
-{
+void VideoPlayerWindow::pausePlayback() {
     if (!m_mediaSession || !m_isPlaying) {
         return;
     }
@@ -400,8 +384,7 @@ void VideoPlayerWindow::pausePlayback()
     emit playStateChanged(m_isPlaying);
 }
 
-bool VideoPlayerWindow::resumePlayback()
-{
+bool VideoPlayerWindow::resumePlayback() {
     if (!m_mediaSession) {
         return false;
     }
@@ -412,8 +395,7 @@ bool VideoPlayerWindow::resumePlayback()
     return m_isPlaying;
 }
 
-bool VideoPlayerWindow::seekToPosition(qint64 positionMs)
-{
+bool VideoPlayerWindow::seekToPosition(qint64 positionMs) {
     if (!m_mediaSession || m_duration <= 0) {
         return false;
     }
@@ -452,14 +434,12 @@ bool VideoPlayerWindow::seekToPosition(qint64 positionMs)
     return true;
 }
 
-bool VideoPlayerWindow::setFullScreenEnabled(bool enabled)
-{
+bool VideoPlayerWindow::setFullScreenEnabled(bool enabled) {
     applyFullscreenState(enabled);
     return enabled == isMaximized();
 }
 
-bool VideoPlayerWindow::setPlaybackRateValue(double rate)
-{
+bool VideoPlayerWindow::setPlaybackRateValue(double rate) {
     if (!m_playbackRateBox) {
         return false;
     }
@@ -476,8 +456,7 @@ bool VideoPlayerWindow::setPlaybackRateValue(double rate)
     return false;
 }
 
-bool VideoPlayerWindow::setQualityPresetValue(const QString& preset)
-{
+bool VideoPlayerWindow::setQualityPresetValue(const QString& preset) {
     if (!m_qualityPresetBox) {
         return false;
     }
@@ -487,10 +466,11 @@ bool VideoPlayerWindow::setQualityPresetValue(const QString& preset)
         const QString text = m_qualityPresetBox->itemText(index).trimmed().toLower();
         bool ok = false;
         const int value = m_qualityPresetBox->itemData(index).toInt(&ok);
-        if (text == normalized ||
-            (ok && QString::number(value) == normalized) ||
-            (normalized == QStringLiteral("1080p") && ok && value == static_cast<int>(VideoRendererGL::Standard1080P)) ||
-            (normalized == QStringLiteral("2k") && ok && value == static_cast<int>(VideoRendererGL::Enhanced2K))) {
+        if (text == normalized || (ok && QString::number(value) == normalized) ||
+            (normalized == QStringLiteral("1080p") && ok &&
+             value == static_cast<int>(VideoRendererGL::Standard1080P)) ||
+            (normalized == QStringLiteral("2k") && ok &&
+             value == static_cast<int>(VideoRendererGL::Enhanced2K))) {
             m_qualityPresetBox->setCurrentIndex(index);
             onQualityPresetChanged(index);
             return true;
@@ -499,8 +479,7 @@ bool VideoPlayerWindow::setQualityPresetValue(const QString& preset)
     return false;
 }
 
-QVariantMap VideoPlayerWindow::snapshot() const
-{
+QVariantMap VideoPlayerWindow::snapshot() const {
     QString qualityText;
     int qualityValue = -1;
     if (m_qualityPresetBox && m_qualityPresetBox->currentIndex() >= 0) {
@@ -513,42 +492,36 @@ QVariantMap VideoPlayerWindow::snapshot() const
         rate = m_playbackRateBox->currentData().toDouble();
     }
 
-    return {
-        {QStringLiteral("visible"), isVisible()},
-        {QStringLiteral("fullScreen"), isMaximized()},
-        {QStringLiteral("playing"), m_isPlaying},
-        {QStringLiteral("filePath"), m_currentFilePath},
-        {QStringLiteral("durationMs"), m_duration},
-        {QStringLiteral("positionMs"), m_currentPosition},
-        {QStringLiteral("playbackRate"), rate},
-        {QStringLiteral("qualityPreset"), qualityText},
-        {QStringLiteral("qualityValue"), qualityValue},
-        {QStringLiteral("displayMode"), m_fillDisplayMode ? QStringLiteral("fill") : QStringLiteral("fit")}
-    };
+    return {{QStringLiteral("visible"), isVisible()},
+            {QStringLiteral("fullScreen"), isMaximized()},
+            {QStringLiteral("playing"), m_isPlaying},
+            {QStringLiteral("filePath"), m_currentFilePath},
+            {QStringLiteral("durationMs"), m_duration},
+            {QStringLiteral("positionMs"), m_currentPosition},
+            {QStringLiteral("playbackRate"), rate},
+            {QStringLiteral("qualityPreset"), qualityText},
+            {QStringLiteral("qualityValue"), qualityValue},
+            {QStringLiteral("displayMode"),
+             m_fillDisplayMode ? QStringLiteral("fill") : QStringLiteral("fit")}};
 }
 
-void VideoPlayerWindow::onOpenFileClicked()
-{
+void VideoPlayerWindow::onOpenFileClicked() {
     QString filePath = QFileDialog::getOpenFileName(
-        this,
-        QStringLiteral(u"\u9009\u62e9\u89c6\u9891\u6587\u4ef6"),
-        QDir::homePath(),
-        QStringLiteral(u"\u89c6\u9891\u6587\u4ef6 (*.mp4 *.avi *.mkv *.mov *.flv *.wmv);;\u6240\u6709\u6587\u4ef6 (*.*)")
-    );
+        this, QStringLiteral(u"\u9009\u62e9\u89c6\u9891\u6587\u4ef6"), QDir::homePath(),
+        QStringLiteral(u"\u89c6\u9891\u6587\u4ef6 (*.mp4 *.avi *.mkv *.mov *.flv "
+                       u"*.wmv);;\u6240\u6709\u6587\u4ef6 (*.*)"));
 
     if (!filePath.isEmpty()) {
         loadVideo(filePath);
     }
 }
 
-void VideoPlayerWindow::onSliderPressed()
-{
+void VideoPlayerWindow::onSliderPressed() {
     m_sliderPressed = true;
     qDebug() << "[VideoPlayerWindow] Slider pressed";
 }
 
-void VideoPlayerWindow::onDisplayModeClicked()
-{
+void VideoPlayerWindow::onDisplayModeClicked() {
     m_fillDisplayMode = !m_fillDisplayMode;
     const int mode = m_fillDisplayMode ? 1 : 0;
 
@@ -558,22 +531,19 @@ void VideoPlayerWindow::onDisplayModeClicked()
 
     if (m_displayModeBtn) {
         // 按钮文案表示“下一步动作”，避免出现“点适应却先切到填充”的反直觉行为
-        m_displayModeBtn->setText(m_fillDisplayMode
-                                      ? QStringLiteral(u"\u9002\u5e94")
-                                      : QStringLiteral(u"\u586b\u5145"));
+        m_displayModeBtn->setText(m_fillDisplayMode ? QStringLiteral(u"\u9002\u5e94")
+                                                    : QStringLiteral(u"\u586b\u5145"));
     }
 
     qDebug() << "[VideoPlayerWindow] Display mode changed to"
              << (m_fillDisplayMode ? "Fill" : "Fit");
 }
 
-void VideoPlayerWindow::onFullScreenClicked()
-{
+void VideoPlayerWindow::onFullScreenClicked() {
     applyFullscreenState(!isMaximized());
 }
 
-void VideoPlayerWindow::onPlaybackRateChanged(int index)
-{
+void VideoPlayerWindow::onPlaybackRateChanged(int index) {
     if (!m_playbackRateBox || index < 0) {
         return;
     }
@@ -591,8 +561,7 @@ void VideoPlayerWindow::onPlaybackRateChanged(int index)
     qDebug() << "[VideoPlayerWindow] Playback rate selected:" << rate << "x";
 }
 
-void VideoPlayerWindow::onQualityPresetChanged(int index)
-{
+void VideoPlayerWindow::onQualityPresetChanged(int index) {
     if (!m_qualityPresetBox || index < 0 || !m_renderWidget) {
         return;
     }
@@ -606,11 +575,11 @@ void VideoPlayerWindow::onQualityPresetChanged(int index)
     m_renderWidget->setQualityPreset(preset);
 
     qDebug() << "[VideoPlayerWindow] Quality preset selected:"
-             << (preset == static_cast<int>(VideoRendererGL::Enhanced2K) ? "Enhanced2K" : "Standard1080P");
+             << (preset == static_cast<int>(VideoRendererGL::Enhanced2K) ? "Enhanced2K"
+                                                                         : "Standard1080P");
 }
 
-void VideoPlayerWindow::onPlaybackFinished()
-{
+void VideoPlayerWindow::onPlaybackFinished() {
     qDebug() << "[VideoPlayerWindow] Playback finished";
 
     if (m_mediaSession) {
@@ -631,8 +600,7 @@ void VideoPlayerWindow::onPlaybackFinished()
     updateTimeLabel(0, m_duration);
 }
 
-void VideoPlayerWindow::onSliderReleased()
-{
+void VideoPlayerWindow::onSliderReleased() {
     m_sliderPressed = false;
 
     if (!m_mediaSession || !m_progressSlider) {
@@ -686,43 +654,37 @@ void VideoPlayerWindow::onSliderReleased()
     emit progressChanged(targetPosition);
 }
 
-void VideoPlayerWindow::onVideoSizeChanged(const QSize& size)
-{
+void VideoPlayerWindow::onVideoSizeChanged(const QSize& size) {
     Q_UNUSED(size);
     if (m_renderWidget) {
         m_renderWidget->setDisplayMode(m_fillDisplayMode ? 1 : 0);
     }
 }
 
-void VideoPlayerWindow::onMediaSessionStateChanged(MediaSession::PlaybackState state)
-{
+void VideoPlayerWindow::onMediaSessionStateChanged(MediaSession::PlaybackState state) {
     qDebug() << "[VideoPlayerWindow] State changed:" << static_cast<int>(state);
 }
 
-void VideoPlayerWindow::onDeferredSeekAfterStopped()
-{
+void VideoPlayerWindow::onDeferredSeekAfterStopped() {
     if (m_mediaSession) {
         m_mediaSession->seekTo(m_pendingStoppedSeekPosition);
     }
 }
 
-void VideoPlayerWindow::onSliderValueChanged(int value)
-{
+void VideoPlayerWindow::onSliderValueChanged(int value) {
     if (m_sliderPressed) {
         qint64 position = (m_duration * value) / 1000;
         updateTimeLabel(position, m_duration);
     }
 }
 
-void VideoPlayerWindow::updateTimeLabel(qint64 currentMs, qint64 totalMs)
-{
+void VideoPlayerWindow::updateTimeLabel(qint64 currentMs, qint64 totalMs) {
     QString current = formatTime(currentMs);
     QString total = formatTime(totalMs);
     m_timeLabel->setText(QString("%1 / %2").arg(current).arg(total));
 }
 
-QString VideoPlayerWindow::formatTime(qint64 ms)
-{
+QString VideoPlayerWindow::formatTime(qint64 ms) {
     int seconds = static_cast<int>((ms / 1000) % 60);
     int minutes = static_cast<int>((ms / (1000 * 60)) % 60);
     int hours = static_cast<int>(ms / (1000 * 60 * 60));
@@ -733,14 +695,11 @@ QString VideoPlayerWindow::formatTime(qint64 ms)
             .arg(minutes, 2, 10, QChar('0'))
             .arg(seconds, 2, 10, QChar('0'));
     } else {
-        return QString("%1:%2")
-            .arg(minutes, 2, 10, QChar('0'))
-            .arg(seconds, 2, 10, QChar('0'));
+        return QString("%1:%2").arg(minutes, 2, 10, QChar('0')).arg(seconds, 2, 10, QChar('0'));
     }
 }
 
-void VideoPlayerWindow::applyFullscreenState(bool enabled)
-{
+void VideoPlayerWindow::applyFullscreenState(bool enabled) {
     if (enabled == isMaximized()) {
         syncFullScreenButtonText();
         return;
@@ -758,19 +717,16 @@ void VideoPlayerWindow::applyFullscreenState(bool enabled)
     scheduleRendererRecovery();
 }
 
-void VideoPlayerWindow::syncFullScreenButtonText()
-{
+void VideoPlayerWindow::syncFullScreenButtonText() {
     if (!m_fullScreenBtn) {
         return;
     }
 
-    m_fullScreenBtn->setText(isMaximized()
-                                 ? QStringLiteral(u"\u8fd8\u539f")
-                                 : QStringLiteral(u"\u6700\u5927\u5316"));
+    m_fullScreenBtn->setText(isMaximized() ? QStringLiteral(u"\u8fd8\u539f")
+                                           : QStringLiteral(u"\u6700\u5927\u5316"));
 }
 
-void VideoPlayerWindow::scheduleRendererRecovery()
-{
+void VideoPlayerWindow::scheduleRendererRecovery() {
     if (!m_renderWidget) {
         return;
     }
@@ -783,8 +739,7 @@ void VideoPlayerWindow::scheduleRendererRecovery()
     });
 }
 
-void VideoPlayerWindow::recoverRendererAfterWindowModeChange()
-{
+void VideoPlayerWindow::recoverRendererAfterWindowModeChange() {
     if (!m_renderWidget) {
         return;
     }
@@ -802,8 +757,7 @@ void VideoPlayerWindow::recoverRendererAfterWindowModeChange()
     m_renderWidget->update();
 }
 
-void VideoPlayerWindow::changeEvent(QEvent* event)
-{
+void VideoPlayerWindow::changeEvent(QEvent* event) {
     QWidget::changeEvent(event);
 
     if (!event || event->type() != QEvent::WindowStateChange) {
@@ -815,13 +769,11 @@ void VideoPlayerWindow::changeEvent(QEvent* event)
     scheduleRendererRecovery();
 }
 
-void VideoPlayerWindow::resizeEvent(QResizeEvent *event)
-{
+void VideoPlayerWindow::resizeEvent(QResizeEvent* event) {
     QWidget::resizeEvent(event);
 }
 
-void VideoPlayerWindow::closeEvent(QCloseEvent *event)
-{
+void VideoPlayerWindow::closeEvent(QCloseEvent* event) {
     qDebug() << "[VideoPlayerWindow] Closing window, cleaning up resources...";
     if (isMaximized()) {
         showNormal();
@@ -872,8 +824,7 @@ void VideoPlayerWindow::closeEvent(QCloseEvent *event)
     QWidget::closeEvent(event);
 }
 
-void VideoPlayerWindow::keyPressEvent(QKeyEvent *event)
-{
+void VideoPlayerWindow::keyPressEvent(QKeyEvent* event) {
     if (!event) {
         QWidget::keyPressEvent(event);
         return;
@@ -894,8 +845,7 @@ void VideoPlayerWindow::keyPressEvent(QKeyEvent *event)
     QWidget::keyPressEvent(event);
 }
 
-void VideoPlayerWindow::onPositionChanged(qint64 positionMs)
-{
+void VideoPlayerWindow::onPositionChanged(qint64 positionMs) {
     m_currentPosition = positionMs;
 
     if (!m_sliderPressed && m_duration > 0) {
@@ -906,11 +856,9 @@ void VideoPlayerWindow::onPositionChanged(qint64 positionMs)
     updateTimeLabel(positionMs, m_duration);
 }
 
-void VideoPlayerWindow::onDurationChanged(qint64 durationMs)
-{
+void VideoPlayerWindow::onDurationChanged(qint64 durationMs) {
     m_duration = durationMs;
     updateTimeLabel(m_currentPosition, m_duration);
 
     qDebug() << "[VideoPlayerWindow] Duration:" << durationMs << "ms";
 }
-

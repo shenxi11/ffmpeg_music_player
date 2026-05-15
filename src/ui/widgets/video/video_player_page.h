@@ -14,11 +14,10 @@ class QPushButton;
 class QSlider;
 class QTimer;
 
-class VideoPlayerPage : public QWidget
-{
+class VideoPlayerPage : public QWidget {
     Q_OBJECT
 
-public:
+  public:
     explicit VideoPlayerPage(QWidget* parent = nullptr);
     ~VideoPlayerPage() override;
 
@@ -30,13 +29,13 @@ public:
     void setPlaybackSources(const QVariantList& sources);
     bool hasLoadedVideo() const;
 
-signals:
+  signals:
     void playStateChanged(bool isPlaying);
     void progressChanged(qint64 position);
     void videoLoaded(const QString& filePath);
     void backRequested();
 
-public slots:
+  public slots:
     void onPlayPauseClicked();
     void onOpenFileClicked();
     void onSliderPressed();
@@ -54,13 +53,13 @@ public slots:
     void onMediaSessionStateChanged(MediaSession::PlaybackState state);
     void onDeferredSeekAfterStopped();
 
-protected:
+  protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
     void showEvent(QShowEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
     void keyPressEvent(QKeyEvent* event) override;
 
-private:
+  private:
     void setupUi();
     void configureRendererWidget(VideoRendererGL* renderer);
     void connectUiSignals();
@@ -78,8 +77,7 @@ private:
     void switchActiveRenderer();
     void moveControlBarToFullscreenHost();
     void restoreControlBarToEmbeddedHost();
-    void applyRendererPlaybackState(VideoRendererGL* renderer,
-                                    MediaSession::PlaybackState state);
+    void applyRendererPlaybackState(VideoRendererGL* renderer, MediaSession::PlaybackState state);
     VideoRendererGL* activeRenderer() const;
     void resetPlaybackUi();
     QRect calculateVisibleVideoRect() const;

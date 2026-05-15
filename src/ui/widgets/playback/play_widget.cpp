@@ -10,7 +10,6 @@
 #include <QQuickWidget>
 #include <QTime>
 #include <QUrl>
-
 #include <iterator>
 
 namespace {
@@ -1959,8 +1958,7 @@ void PlayWidget::syncCommentOverlayGeometry() {
     const int panelHeight = qMax(1, bottomBoundary - topBarHeight);
     const QPoint hostTopLeft =
         mapTo(mainWidget, QPoint(qMax(0, width() - panelWidth), topBarHeight));
-    m_rightOverlayHost->setGeometry(hostTopLeft.x(), hostTopLeft.y(), panelWidth,
-                                    panelHeight);
+    m_rightOverlayHost->setGeometry(hostTopLeft.x(), hostTopLeft.y(), panelWidth, panelHeight);
     updateRightOverlayChildLayout();
     raiseRightOverlayIfVisible();
 }
@@ -2150,7 +2148,8 @@ void PlayWidget::raiseRightOverlayIfVisible() {
     }
 
     QWidget* mainWidget = m_rightOverlayHost->parentWidget();
-    QWidget* topBar = mainWidget ? mainWidget->findChild<QWidget*>(QStringLiteral("TopBar")) : nullptr;
+    QWidget* topBar =
+        mainWidget ? mainWidget->findChild<QWidget*>(QStringLiteral("TopBar")) : nullptr;
     if (topBar && !isUp) {
         topBar->raise();
     }

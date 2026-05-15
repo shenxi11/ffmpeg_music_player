@@ -1,19 +1,20 @@
 #include "AudioSession.h"
+
 #include "AudioCacheManager.h"
-#include <chrono>
-#include <QFileInfo>
+
 #include <QCoreApplication>
-#include <QEventLoop>
-#include <QUrlQuery>
 #include <QDateTime>
 #include <QDebug>
+#include <QEventLoop>
+#include <QFileInfo>
+#include <QUrlQuery>
+#include <chrono>
 #include <future>
 #include <thread>
 
 namespace {
 
-bool initDecoderWithEventPumping(AudioDecoder* decoder, const QString& source)
-{
+bool initDecoderWithEventPumping(AudioDecoder* decoder, const QString& source) {
     if (!decoder) {
         return false;
     }
@@ -31,8 +32,7 @@ bool initDecoderWithEventPumping(AudioDecoder* decoder, const QString& source)
     return future.get();
 }
 
-bool isLikelyFlacSource(const QUrl& sourceUrl)
-{
+bool isLikelyFlacSource(const QUrl& sourceUrl) {
     if (sourceUrl.path().toLower().endsWith(".flac")) {
         return true;
     }
@@ -43,15 +43,13 @@ bool isLikelyFlacSource(const QUrl& sourceUrl)
     return src.contains(QStringLiteral(".flac"));
 }
 
-bool isLocalProxySource(const QUrl& sourceUrl)
-{
+bool isLocalProxySource(const QUrl& sourceUrl) {
     const QString host = sourceUrl.host().toLower();
-    return sourceUrl.scheme().startsWith("http")
-            && (host == QStringLiteral("127.0.0.1") || host == QStringLiteral("localhost"));
+    return sourceUrl.scheme().startsWith("http") &&
+           (host == QStringLiteral("127.0.0.1") || host == QStringLiteral("localhost"));
 }
 
-int seekGraceMsForSource(const QUrl& sourceUrl)
-{
+int seekGraceMsForSource(const QUrl& sourceUrl) {
     const bool localProxy = isLocalProxySource(sourceUrl);
     const bool remoteHttp = sourceUrl.scheme().startsWith("http");
     const bool flacLike = isLikelyFlacSource(sourceUrl);
@@ -65,8 +63,7 @@ int seekGraceMsForSource(const QUrl& sourceUrl)
     return 120;
 }
 
-int seekRetryInitialMsForSource(const QUrl& sourceUrl)
-{
+int seekRetryInitialMsForSource(const QUrl& sourceUrl) {
     const bool localProxy = isLocalProxySource(sourceUrl);
     const bool remoteHttp = sourceUrl.scheme().startsWith("http");
     const bool flacLike = isLikelyFlacSource(sourceUrl);
@@ -83,16 +80,9 @@ int seekRetryInitialMsForSource(const QUrl& sourceUrl)
 } // namespace
 
 AudioSession::AudioSession(const QString& sessionId, QObject* parent)
-    : QObject(parent),
-      m_sessionId(sessionId),
-      m_active(false),
-      m_decoder(new AudioDecoder(this)),
-      m_player(&AudioPlayer::instance()),
-      m_duration(0),
-    m_seekGraceTimer(new QTimer(this)),
-    m_seekRetryTimer(new QTimer(this)),
-    m_seekLatencyTimer()
-{
+    : QObject(parent), m_sessionId(sessionId), m_active(false), m_decoder(new AudioDecoder(this)),
+      m_player(&AudioPlayer::instance()), m_duration(0), m_seekGraceTimer(new QTimer(this)),
+      m_seekRetryTimer(new QTimer(this)), m_seekLatencyTimer() {
     m_seekGraceTimer->setSingleShot(true);
     connect(m_seekGraceTimer, &QTimer::timeout, this, &AudioSession::onSeekGraceTimeout);
 
@@ -102,13 +92,11 @@ AudioSession::AudioSession(const QString& sessionId, QObject* parent)
     connectSignals();
 }
 
-AudioSession::~AudioSession()
-{
+AudioSession::~AudioSession() {
     cleanup();
 }
 
-void AudioSession::onSeekGraceTimeout()
-{
+void AudioSession::onSeekGraceTimeout() {
     setSeekPhase(SeekPhase::Idle, "seek_grace_timeout");
     if (m_buffering.decoderPausedByFlowControl) {
         m_buffering.decoderPausedByFlowControl = false;
@@ -124,8 +112,7 @@ void AudioSession::onSeekGraceTimeout()
     validateState("seek_grace_timeout");
 }
 
-bool AudioSession::loadSource(const QUrl& url)
-{
+bool AudioSession::loadSource(const QUrl& url) {
     auto t0 = std::chrono::high_resolution_clock::now();
 
     m_sourceUrl = url;
@@ -140,9 +127,9 @@ bool AudioSession::loadSource(const QUrl& url)
 
     // 默认先根据文件名生成标题，后续可被音频元数据覆盖。
     QFileInfo fileInfo(filePath);
-    m_title = fileInfo.completeBaseName();  // 优先使用去掉扩展名后的基础文件名
+    m_title = fileInfo.completeBaseName(); // 优先使用去掉扩展名后的基础文件名
     if (m_title.isEmpty()) {
-        m_title = fileInfo.fileName();  // 兜底使用完整文件名
+        m_title = fileInfo.fileName(); // 兜底使用完整文件名
     }
 
     // 艺术家先置空，等待解码器标签回填。
@@ -189,8 +176,7 @@ bool AudioSession::loadSource(const QUrl& url)
     return result;
 }
 
-void AudioSession::play()
-{
+void AudioSession::play() {
     auto t0 = std::chrono::high_resolution_clock::now();
 
     if (!m_active) {
@@ -212,15 +198,13 @@ void AudioSession::play()
 
     auto t1 = std::chrono::high_resolution_clock::now();
     infoLog("SESSION_EVT") << "play startDecode timing="
-                           << std::chrono::duration<double, std::milli>(t1 - t0).count()
-                           << "ms";
+                           << std::chrono::duration<double, std::milli>(t1 - t0).count() << "ms";
 
     m_buffering.active = true;
     finalizeControlPath("play");
 }
 
-void AudioSession::pause()
-{
+void AudioSession::pause() {
     if (!m_active) {
         return;
     }
@@ -246,8 +230,7 @@ void AudioSession::pause()
     finalizeControlPath("pause");
 }
 
-void AudioSession::resume()
-{
+void AudioSession::resume() {
     m_playback.resumeSignalPending = true;
     m_playback.manualPaused = false;
     m_playback.internalPausePending = false;
@@ -266,8 +249,7 @@ void AudioSession::resume()
     finalizeControlPath("resume");
 }
 
-void AudioSession::stop()
-{
+void AudioSession::stop() {
     resetRuntimeState();
     m_decoder->stopDecode();
     if (isWriteOwnerActive()) {
@@ -279,14 +261,14 @@ void AudioSession::stop()
     finalizeControlPath("stop");
 }
 
-void AudioSession::seekTo(qint64 positionMs)
-{
+void AudioSession::seekTo(qint64 positionMs) {
     if (!m_decoder || !m_player) {
         warnLog("SEEK_EVT") << "seekTo ignored while session destroying";
         return;
     }
 
-    infoLog("SEEK_EVT") << "seek start target=" << positionMs << "ms source=" << m_sourceUrl.toString();
+    infoLog("SEEK_EVT") << "seek start target=" << positionMs
+                        << "ms source=" << m_sourceUrl.toString();
     beginSeekLatencyTracking(positionMs);
     applySeekClockBase(positionMs);
 
@@ -316,22 +298,16 @@ void AudioSession::seekTo(qint64 positionMs)
     finalizeControlPath("seekTo");
 }
 
-void AudioSession::setVolume(int volume)
-{
+void AudioSession::setVolume(int volume) {
     m_player->setVolume(volume);
 }
 
-bool AudioSession::isPlaying() const
-{
+bool AudioSession::isPlaying() const {
     // Session-level playing must be ownership-aware.
-    return m_active
-            && isWriteOwnerActive()
-            && m_player->isPlaying()
-            && !m_player->isPaused();
+    return m_active && isWriteOwnerActive() && m_player->isPlaying() && !m_player->isPaused();
 }
 
-bool AudioSession::isPaused() const
-{
+bool AudioSession::isPaused() const {
     if (!m_active) {
         return false;
     }
@@ -349,18 +325,15 @@ bool AudioSession::isPaused() const
     return m_player->isPaused();
 }
 
-qint64 AudioSession::duration() const
-{
+qint64 AudioSession::duration() const {
     return m_duration;
 }
 
-qint64 AudioSession::position() const
-{
+qint64 AudioSession::position() const {
     return m_player->getCurrentTimestamp();
 }
 
-void AudioSession::onDecodedData(const QByteArray& data, qint64 timestampMs, int seekGeneration)
-{
+void AudioSession::onDecodedData(const QByteArray& data, qint64 timestampMs, int seekGeneration) {
     if (!m_active || m_playback.manualPaused || !isWriteOwnerActive()) {
         return;
     }
@@ -368,8 +341,7 @@ void AudioSession::onDecodedData(const QByteArray& data, qint64 timestampMs, int
     if (seekGeneration < m_clock.minAcceptedDecodeGeneration) {
         static int staleDropCount = 0;
         if (++staleDropCount % 50 == 1) {
-            infoLog("STATE_EVT") << "Drop stale decoded frame generation="
-                                 << seekGeneration
+            infoLog("STATE_EVT") << "Drop stale decoded frame generation=" << seekGeneration
                                  << " expected>=" << m_clock.minAcceptedDecodeGeneration;
         }
         return;
@@ -397,8 +369,8 @@ void AudioSession::onDecodedData(const QByteArray& data, qint64 timestampMs, int
     const int bufferedBytes = buffer ? buffer->availableBytes() : 0;
     int requiredLevel = 0;
     int requiredBytes = 0;
-    const bool readyToResume = shouldResumeFromDecodedWrite(
-            fillLevel, bufferedBytes, isRemoteFlac, requiredLevel, requiredBytes);
+    const bool readyToResume = shouldResumeFromDecodedWrite(fillLevel, bufferedBytes, isRemoteFlac,
+                                                            requiredLevel, requiredBytes);
 
     if (m_buffering.active && readyToResume) {
         m_buffering.active = false;
@@ -412,15 +384,13 @@ void AudioSession::onDecodedData(const QByteArray& data, qint64 timestampMs, int
     }
 }
 
-void AudioSession::onMetadataReady(qint64 durationMs, int sampleRate, int channels)
-{
+void AudioSession::onMetadataReady(qint64 durationMs, int sampleRate, int channels) {
     m_duration = durationMs;
     emit durationChanged(durationMs);
     emit metadataReady(m_title, m_artist, durationMs);
 }
 
-void AudioSession::onAudioTagsReady(const QString& title, const QString& artist)
-{
+void AudioSession::onAudioTagsReady(const QString& title, const QString& artist) {
     // 仅在标签非空时覆盖默认信息。
     if (!title.isEmpty()) {
         m_title = title;
@@ -435,19 +405,19 @@ void AudioSession::onAudioTagsReady(const QString& title, const QString& artist)
     emit metadataReady(m_title, m_artist, m_duration);
 }
 
-void AudioSession::onAlbumArtReady(const QString& imagePath)
-{
+void AudioSession::onAlbumArtReady(const QString& imagePath) {
     m_albumArt = imagePath;
     emit albumArtReady(imagePath);
 }
 
-void AudioSession::onDecodeError(const QString& error)
-{
+void AudioSession::onDecodeError(const QString& error) {
     if (isSeekLatencyActiveNow()) {
-        warnLog("SEEK_EVT") << "seek failed on decode error desired=" << m_seekLatency.desiredTargetMs
-                            << " working=" << m_seekLatency.workingTargetMs
-                            << " error=" << error
-                            << " elapsed=" << (m_seekLatencyTimer.isValid() ? m_seekLatencyTimer.elapsed() : -1) << "ms";
+        warnLog("SEEK_EVT") << "seek failed on decode error desired="
+                            << m_seekLatency.desiredTargetMs
+                            << " working=" << m_seekLatency.workingTargetMs << " error=" << error
+                            << " elapsed="
+                            << (m_seekLatencyTimer.isValid() ? m_seekLatencyTimer.elapsed() : -1)
+                            << "ms";
         setSeekLatencyPhase(SeekLatencyPhase::Inactive, "decode_error");
     }
     m_seek.fastStartMode = false;
@@ -458,13 +428,11 @@ void AudioSession::onDecodeError(const QString& error)
     emit sessionError(error);
 }
 
-void AudioSession::onPlaybackError(const QString& error)
-{
+void AudioSession::onPlaybackError(const QString& error) {
     emit sessionError(error);
 }
 
-void AudioSession::onPositionChanged(qint64 positionMs)
-{
+void AudioSession::onPositionChanged(qint64 positionMs) {
     if (!m_active || !isWriteOwnerActive()) {
         return;
     }
@@ -491,7 +459,8 @@ void AudioSession::onPositionChanged(qint64 positionMs)
             if (!m_buffering.tailWaitLogActive) {
                 m_tailWaitLogTimer.restart();
                 m_buffering.tailWaitLogActive = true;
-                infoLog("SESSION_EVT") << "Position reached metadata duration but decode not completed, waiting for EOS";
+                infoLog("SESSION_EVT") << "Position reached metadata duration but decode not "
+                                          "completed, waiting for EOS";
             } else if (m_tailWaitLogTimer.elapsed() >= 1000) {
                 m_tailWaitLogTimer.restart();
                 infoLog("SESSION_EVT") << "Still waiting EOS at tail position=" << positionMs
@@ -503,8 +472,7 @@ void AudioSession::onPositionChanged(qint64 positionMs)
             const int bufferedBytes = buffer ? buffer->availableBytes() : 0;
             if (positionMs >= m_duration + 2500 && bufferedBytes < 32 * 1024) {
                 warnLog("BUFFER_EVT") << "Tail force-finish fallback."
-                                      << " position=" << positionMs
-                                      << " duration=" << m_duration
+                                      << " position=" << positionMs << " duration=" << m_duration
                                       << " bufferedBytes=" << bufferedBytes;
                 onPlaybackFinished();
             }
@@ -512,8 +480,7 @@ void AudioSession::onPositionChanged(qint64 positionMs)
     }
 }
 
-void AudioSession::onBufferStatusChanged(int fillLevel)
-{
+void AudioSession::onBufferStatusChanged(int fillLevel) {
     if (!m_active || m_playback.manualPaused || !isWriteOwnerActive()) {
         return;
     }
@@ -546,11 +513,8 @@ void AudioSession::onBufferStatusChanged(int fillLevel)
         return;
     }
 
-    if (fillLevel < 10
-            && bufferedBytes < kBufferingEnterMinBytes
-            && m_player->isPlaying()
-            && !withinSeekGrace
-            && !m_buffering.active) {
+    if (fillLevel < 10 && bufferedBytes < kBufferingEnterMinBytes && m_player->isPlaying() &&
+        !withinSeekGrace && !m_buffering.active) {
         const qint64 currentPos = m_player->getPlaybackPosition();
         if (handleTailLowBufferFallback(currentPos, fillLevel, bufferedBytes)) {
             return;
@@ -564,7 +528,8 @@ void AudioSession::onBufferStatusChanged(int fillLevel)
     }
     // 水位/字节恢复后退出 buffering（字节门槛优先，百分比兜底）。
     else if (m_buffering.active) {
-        if (!canExitBufferingByThreshold(fillLevel, bufferedBytes, isRemoteFlac, kBufferingResumeMinBytes)) {
+        if (!canExitBufferingByThreshold(fillLevel, bufferedBytes, isRemoteFlac,
+                                         kBufferingResumeMinBytes)) {
             return;
         }
 
@@ -572,8 +537,7 @@ void AudioSession::onBufferStatusChanged(int fillLevel)
     }
 }
 
-void AudioSession::onBufferUnderrun()
-{
+void AudioSession::onBufferUnderrun() {
     if (!m_active || m_playback.manualPaused || !isWriteOwnerActive()) {
         return;
     }
@@ -589,8 +553,7 @@ void AudioSession::onBufferUnderrun()
     }
 }
 
-void AudioSession::onDecodeCompleted()
-{
+void AudioSession::onDecodeCompleted() {
     setDecodePhase(DecodePhase::Completed, "decode_completed");
     m_buffering.tailWaitLogActive = false;
     if (m_clock.lastDecodedMs > m_duration) {
@@ -604,24 +567,20 @@ void AudioSession::onDecodeCompleted()
     // 解码完成仅表示数据生产结束；会话结束仍以实际播放完成事件为准。
 }
 
-void AudioSession::onDecodeStarted()
-{
+void AudioSession::onDecodeStarted() {
     setDecodePhase(DecodePhase::Running, "decode_started");
     infoLog("SESSION_EVT") << "Decode started";
 }
 
-void AudioSession::onDecodePaused()
-{
+void AudioSession::onDecodePaused() {
     infoLog("SESSION_EVT") << "Decode paused";
 }
 
-void AudioSession::onDecodeStopped()
-{
+void AudioSession::onDecodeStopped() {
     infoLog("SESSION_EVT") << "Decode stopped";
 }
 
-void AudioSession::onPlaybackStarted()
-{
+void AudioSession::onPlaybackStarted() {
     if (!m_active || !isWriteOwnerActive()) {
         return;
     }
@@ -643,8 +602,7 @@ void AudioSession::onPlaybackStarted()
     validateState("onPlaybackStarted");
 }
 
-void AudioSession::onPlaybackPaused()
-{
+void AudioSession::onPlaybackPaused() {
     if (!m_active) {
         return;
     }
@@ -665,8 +623,7 @@ void AudioSession::onPlaybackPaused()
     validateState("onPlaybackPaused");
 }
 
-void AudioSession::onPlaybackResumed()
-{
+void AudioSession::onPlaybackResumed() {
     if (!m_active || m_playback.manualPaused || !isWriteOwnerActive()) {
         return;
     }
@@ -680,8 +637,7 @@ void AudioSession::onPlaybackResumed()
     validateState("onPlaybackResumed");
 }
 
-void AudioSession::onPlaybackStopped()
-{
+void AudioSession::onPlaybackStopped() {
     if (!m_active || !isWriteOwnerActive()) {
         return;
     }
@@ -689,8 +645,7 @@ void AudioSession::onPlaybackStopped()
     infoLog("SESSION_EVT") << "Playback stopped";
 }
 
-void AudioSession::onPlaybackFinished()
-{
+void AudioSession::onPlaybackFinished() {
     infoLog("SESSION_EVT") << "Playback finished";
 
     // 完成时先停止解码与输出，确保状态收敛。
@@ -704,9 +659,9 @@ void AudioSession::onPlaybackFinished()
     emit sessionFinished();
 }
 
-void AudioSession::onSeekRetryTimeout()
-{
-    if (!m_active || !isWriteOwnerActive() || !isSeekLatencyActiveNow() || isSeekFirstPacketSeenNow() || m_playback.manualPaused) {
+void AudioSession::onSeekRetryTimeout() {
+    if (!m_active || !isWriteOwnerActive() || !isSeekLatencyActiveNow() ||
+        isSeekFirstPacketSeenNow() || m_playback.manualPaused) {
         return;
     }
 
@@ -715,32 +670,35 @@ void AudioSession::onSeekRetryTimeout()
     const bool indexedLocalProxySeek = m_seekLatency.seekIndexHit;
     const qint64 elapsedMs = m_seekLatencyTimer.isValid() ? m_seekLatencyTimer.elapsed() : -1;
     const qint64 hardTimeoutMs = calculateSeekHardTimeoutMs(isHlsSeek, isRemoteFlacSeek);
-    const qint64 giveUpTimeoutMs = calculateSeekGiveUpTimeoutMs(isHlsSeek, isRemoteFlacSeek, hardTimeoutMs);
+    const qint64 giveUpTimeoutMs =
+        calculateSeekGiveUpTimeoutMs(isHlsSeek, isRemoteFlacSeek, hardTimeoutMs);
     switch (decideSeekRetryAction(elapsedMs, hardTimeoutMs, giveUpTimeoutMs)) {
-    case SeekRetryAction::GiveUp:
-        handleSeekRetryGiveUp(elapsedMs);
-        break;
-    case SeekRetryAction::DegradeByHardTimeout:
-        handleSeekRetryDegrade(elapsedMs, 1500, "[SEEK_DEGRADE] seek waiting exceeded hard timeout, keep buffering.");
-        break;
-    case SeekRetryAction::DegradeByRetryBudget:
-        handleSeekRetryDegrade(elapsedMs, 1800, "[SEEK_DEGRADE] Slow network while seeking, still buffering.");
-        break;
-    case SeekRetryAction::RetryNow:
-        handleSeekRetryAttempt(elapsedMs, indexedLocalProxySeek || isHlsSeek || isRemoteFlacSeek);
-        break;
+        case SeekRetryAction::GiveUp:
+            handleSeekRetryGiveUp(elapsedMs);
+            break;
+        case SeekRetryAction::DegradeByHardTimeout:
+            handleSeekRetryDegrade(
+                elapsedMs, 1500,
+                "[SEEK_DEGRADE] seek waiting exceeded hard timeout, keep buffering.");
+            break;
+        case SeekRetryAction::DegradeByRetryBudget:
+            handleSeekRetryDegrade(elapsedMs, 1800,
+                                   "[SEEK_DEGRADE] Slow network while seeking, still buffering.");
+            break;
+        case SeekRetryAction::RetryNow:
+            handleSeekRetryAttempt(elapsedMs,
+                                   indexedLocalProxySeek || isHlsSeek || isRemoteFlacSeek);
+            break;
     }
     finalizeControlPath("onSeekRetryTimeout");
 }
 
-bool AudioSession::isWriteOwnerActive() const
-{
+bool AudioSession::isWriteOwnerActive() const {
     return m_player && m_player->writeOwner() == m_sessionId;
 }
 
 // ===== Seek 运行时状态与时间轴基础 =====
-void AudioSession::resetRuntimeState()
-{
+void AudioSession::resetRuntimeState() {
     m_playback = PlaybackState{};
     m_buffering = BufferingState{};
     m_clock = ClockState{};
@@ -752,11 +710,11 @@ void AudioSession::resetRuntimeState()
     }
 }
 
-void AudioSession::beginSeekLatencyTracking(qint64 targetMs)
-{
+void AudioSession::beginSeekLatencyTracking(qint64 targetMs) {
     setSeekLatencyPhase(SeekLatencyPhase::WaitingFirstPacket, "beginSeekLatencyTracking");
-    m_seekLatency.seekIndexHit = isLocalProxySource(m_sourceUrl)
-            && AudioCacheManager::instance().hasResolvedSeekIndexForPlaybackUrl(m_sourceUrl);
+    m_seekLatency.seekIndexHit =
+        isLocalProxySource(m_sourceUrl) &&
+        AudioCacheManager::instance().hasResolvedSeekIndexForPlaybackUrl(m_sourceUrl);
     m_seekLatency.desiredTargetMs = targetMs;
     m_seekLatency.workingTargetMs = targetMs;
     m_seekLatency.firstPacketTimestampMs = -1;
@@ -778,8 +736,7 @@ void AudioSession::beginSeekLatencyTracking(qint64 targetMs)
                         << " source=" << m_sourceUrl.toString();
 }
 
-void AudioSession::applySeekClockBase(qint64 targetMs)
-{
+void AudioSession::applySeekClockBase(qint64 targetMs) {
     m_clock.lastDecodedMs = targetMs;
     m_clock.lastPausedPlaybackMs = targetMs;
     m_clock.baseTimestampMs = targetMs;
@@ -788,16 +745,14 @@ void AudioSession::applySeekClockBase(qint64 targetMs)
     setDecodePhase(DecodePhase::Running, "applySeekClockBase");
 }
 
-void AudioSession::enterSeekGraceWindow()
-{
+void AudioSession::enterSeekGraceWindow() {
     setSeekPhase(SeekPhase::Grace, "enterSeekGraceWindow");
     if (m_seekGraceTimer) {
         m_seekGraceTimer->start(seekGraceMsForSource(m_sourceUrl));
     }
 }
 
-qint64 AudioSession::resolveResumeTimestamp() const
-{
+qint64 AudioSession::resolveResumeTimestamp() const {
     if (m_seek.pendingTakeoverSeekMs.has_value()) {
         return qMax<qint64>(0, m_seek.pendingTakeoverSeekMs.value());
     }
@@ -811,13 +766,11 @@ qint64 AudioSession::resolveResumeTimestamp() const
 }
 
 // ===== 播放事件分发与会话信号控制 =====
-bool AudioSession::shouldSuppressExternalPauseResumeSignals() const
-{
+bool AudioSession::shouldSuppressExternalPauseResumeSignals() const {
     return isSeekingNow() || m_buffering.active || m_playback.manualPaused;
 }
 
-bool AudioSession::consumeResumeSignalPendingAndEmit()
-{
+bool AudioSession::consumeResumeSignalPendingAndEmit() {
     if (!m_playback.resumeSignalPending) {
         return false;
     }
@@ -827,14 +780,13 @@ bool AudioSession::consumeResumeSignalPendingAndEmit()
     return true;
 }
 
-bool AudioSession::emitSessionResumedByPolicy(ResumeEmitPolicy policy)
-{
+bool AudioSession::emitSessionResumedByPolicy(ResumeEmitPolicy policy) {
     if (consumeResumeSignalPendingAndEmit()) {
         return true;
     }
 
-    if (policy == ResumeEmitPolicy::PendingOrUnsuppressed
-            && !shouldSuppressExternalPauseResumeSignals()) {
+    if (policy == ResumeEmitPolicy::PendingOrUnsuppressed &&
+        !shouldSuppressExternalPauseResumeSignals()) {
         emit sessionResumed();
         return true;
     }
@@ -842,8 +794,7 @@ bool AudioSession::emitSessionResumedByPolicy(ResumeEmitPolicy policy)
     return false;
 }
 
-bool AudioSession::clearInternalPauseIfOwnershipLost()
-{
+bool AudioSession::clearInternalPauseIfOwnershipLost() {
     if (isWriteOwnerActive()) {
         return false;
     }
@@ -853,8 +804,7 @@ bool AudioSession::clearInternalPauseIfOwnershipLost()
     return true;
 }
 
-bool AudioSession::consumeInternalPausePending()
-{
+bool AudioSession::consumeInternalPausePending() {
     if (!m_playback.internalPausePending) {
         return false;
     }
@@ -864,14 +814,12 @@ bool AudioSession::consumeInternalPausePending()
     return true;
 }
 
-void AudioSession::markPlaybackResumedActivity()
-{
+void AudioSession::markPlaybackResumedActivity() {
     m_lastResumeTimer.restart();
     m_buffering.hasRecentResume = true;
 }
 
-void AudioSession::finalizeSeekLatencyOnPlaybackResumed()
-{
+void AudioSession::finalizeSeekLatencyOnPlaybackResumed() {
     if (!isSeekLatencyActiveNow() || isSeekFirstPacketSeenNow()) {
         finalizeSeekLatency("playback_resumed");
         return;
@@ -883,8 +831,8 @@ void AudioSession::finalizeSeekLatencyOnPlaybackResumed()
 }
 
 // ===== Owner 接管与会话切换 =====
-bool AudioSession::shouldTakeOverFromOwner(const QString& currentOwner, bool treatEmptyOwnerAsTakeover) const
-{
+bool AudioSession::shouldTakeOverFromOwner(const QString& currentOwner,
+                                           bool treatEmptyOwnerAsTakeover) const {
     if (currentOwner == m_sessionId) {
         return false;
     }
@@ -894,8 +842,7 @@ bool AudioSession::shouldTakeOverFromOwner(const QString& currentOwner, bool tre
     return true;
 }
 
-void AudioSession::pauseSharedPlayerForTakeover(bool takingOverFromOtherOwner)
-{
+void AudioSession::pauseSharedPlayerForTakeover(bool takingOverFromOtherOwner) {
     if (!takingOverFromOtherOwner) {
         return;
     }
@@ -906,27 +853,24 @@ void AudioSession::pauseSharedPlayerForTakeover(bool takingOverFromOtherOwner)
     m_player->pause();
 }
 
-void AudioSession::assignSessionAsWriteOwner()
-{
+void AudioSession::assignSessionAsWriteOwner() {
     m_player->setWriteOwner(m_sessionId);
 }
 
-void AudioSession::resetSharedOutputAfterTakeover(qint64 timestampMs)
-{
+void AudioSession::resetSharedOutputAfterTakeover(qint64 timestampMs) {
     m_player->stop();
     m_player->resetBuffer();
     m_player->setCurrentTimestamp(qMax<qint64>(0, timestampMs));
 }
 
-void AudioSession::deferSeekUntilOwnerTakeover(qint64 positionMs)
-{
+void AudioSession::deferSeekUntilOwnerTakeover(qint64 positionMs) {
     m_seek.pendingTakeoverSeekMs = positionMs;
     m_clock.minAcceptedDecodeGeneration = m_decoder->currentSeekGeneration() + 1;
-    infoLog("SEEK_EVT") << "Deferring seek until owner handoff resume target=" << positionMs << "ms";
+    infoLog("SEEK_EVT") << "Deferring seek until owner handoff resume target=" << positionMs
+                        << "ms";
 }
 
-bool AudioSession::handleResumeOwnerTakeover(const QString& currentOwner)
-{
+bool AudioSession::handleResumeOwnerTakeover(const QString& currentOwner) {
     const bool takingOverFromOtherOwner = shouldTakeOverFromOwner(currentOwner, true);
     pauseSharedPlayerForTakeover(takingOverFromOtherOwner);
     assignSessionAsWriteOwner();
@@ -939,8 +883,8 @@ bool AudioSession::handleResumeOwnerTakeover(const QString& currentOwner)
     return true;
 }
 
-void AudioSession::applyResumeTakeoverAtTimestamp(const QString& currentOwner, qint64 resumeTimestamp)
-{
+void AudioSession::applyResumeTakeoverAtTimestamp(const QString& currentOwner,
+                                                  qint64 resumeTimestamp) {
     infoLog("SESSION_EVT") << "Resume takeover from owner=" << currentOwner
                            << " resumeTimestamp=" << resumeTimestamp
                            << " lastPaused=" << m_clock.lastPausedPlaybackMs
@@ -956,8 +900,7 @@ void AudioSession::applyResumeTakeoverAtTimestamp(const QString& currentOwner, q
     m_buffering.active = true;
 }
 
-void AudioSession::startOrResumePlayerOutput()
-{
+void AudioSession::startOrResumePlayerOutput() {
     if (!m_player->isPlaying()) {
         m_player->start();
     } else if (m_player->isPaused()) {
@@ -966,13 +909,11 @@ void AudioSession::startOrResumePlayerOutput()
 }
 
 // ===== 本地 seek 执行链 =====
-bool AudioSession::isPlayerActivelyPlaying() const
-{
+bool AudioSession::isPlayerActivelyPlaying() const {
     return m_player->isPlaying() && !m_player->isPaused();
 }
 
-void AudioSession::pausePipelineForLocalSeek(bool wasPlaying)
-{
+void AudioSession::pausePipelineForLocalSeek(bool wasPlaying) {
     if (!wasPlaying) {
         return;
     }
@@ -982,8 +923,7 @@ void AudioSession::pausePipelineForLocalSeek(bool wasPlaying)
     m_player->pause();
 }
 
-void AudioSession::prepareOutputForLocalSeek(qint64 positionMs, bool wasPlaying)
-{
+void AudioSession::prepareOutputForLocalSeek(qint64 positionMs, bool wasPlaying) {
     m_player->resetBuffer();
     m_player->setCurrentTimestamp(positionMs);
 
@@ -993,28 +933,25 @@ void AudioSession::prepareOutputForLocalSeek(qint64 positionMs, bool wasPlaying)
     }
 }
 
-void AudioSession::dispatchDecoderSeekForLocalSeek(qint64 positionMs)
-{
+void AudioSession::dispatchDecoderSeekForLocalSeek(qint64 positionMs) {
     m_decoder->seekTo(positionMs);
     m_clock.minAcceptedDecodeGeneration = m_decoder->currentSeekGeneration();
     requestDecoderStart();
 }
 
 // ===== 解码时间轴与缓冲恢复策略 =====
-bool AudioSession::isRemoteFlacSource() const
-{
+bool AudioSession::isRemoteFlacSource() const {
     return m_sourceUrl.scheme().startsWith("http") && isLikelyFlacSource(m_sourceUrl);
 }
 
-void AudioSession::normalizeDecodedTimestamp(qint64 timestampMs, qint64& normalizedTimestampMs)
-{
+void AudioSession::normalizeDecodedTimestamp(qint64 timestampMs, qint64& normalizedTimestampMs) {
     if (m_clock.timestampMode == DecoderTimestampMode::ProbePending) {
         const qint64 delta = m_clock.baseTimestampMs - timestampMs;
         if (qAbs(delta) > 3000) {
-            warnLog("SEEK_EVT") << "Seek target differs from decoded timeline, trust decoded timestamp."
-                                << " expected=" << m_clock.baseTimestampMs
-                                << " decoded=" << timestampMs
-                                << " delta=" << delta;
+            warnLog("SEEK_EVT")
+                << "Seek target differs from decoded timeline, trust decoded timestamp."
+                << " expected=" << m_clock.baseTimestampMs << " decoded=" << timestampMs
+                << " delta=" << delta;
             m_clock.baseTimestampMs = timestampMs;
         } else {
             m_clock.baseTimestampMs = timestampMs;
@@ -1028,8 +965,7 @@ void AudioSession::normalizeDecodedTimestamp(qint64 timestampMs, qint64& normali
     }
 }
 
-void AudioSession::extendDurationFromDecodedTimestamp(qint64 normalizedTimestampMs)
-{
+void AudioSession::extendDurationFromDecodedTimestamp(qint64 normalizedTimestampMs) {
     if (m_duration > 0 && !isDecodeCompletedNow() && normalizedTimestampMs > m_duration + 500) {
         constexpr qint64 kDurationHeadroomMs = 2500;
         const qint64 desiredDuration = normalizedTimestampMs + kDurationHeadroomMs;
@@ -1042,8 +978,7 @@ void AudioSession::extendDurationFromDecodedTimestamp(qint64 normalizedTimestamp
     }
 }
 
-bool AudioSession::handleSeekLatencyOnDecodedTimestamp(qint64 normalizedTimestampMs)
-{
+bool AudioSession::handleSeekLatencyOnDecodedTimestamp(qint64 normalizedTimestampMs) {
     if (!isSeekLatencyActiveNow() || isSeekFirstPacketSeenNow()) {
         return false;
     }
@@ -1072,21 +1007,19 @@ bool AudioSession::handleSeekLatencyOnDecodedTimestamp(qint64 normalizedTimestam
             qint64 correctedTargetMs = m_seekLatency.desiredTargetMs;
             if (driftMs < 0) {
                 qint64 forwardCapMs = m_seekLatency.seekIndexHit
-                        ? 2500
-                        : 20000 + static_cast<qint64>(retryRound - 1) * 8000;
+                                          ? 2500
+                                          : 20000 + static_cast<qint64>(retryRound - 1) * 8000;
                 forwardCapMs = qMin<qint64>(forwardCapMs, 60000);
                 const qint64 forwardStepMs = qBound<qint64>(m_seekLatency.seekIndexHit ? 350 : 4000,
-                                                            ((-driftMs) * 2) / 3,
-                                                            forwardCapMs);
+                                                            ((-driftMs) * 2) / 3, forwardCapMs);
                 correctedTargetMs = m_seekLatency.desiredTargetMs + forwardStepMs;
             } else {
                 qint64 backwardCapMs = m_seekLatency.seekIndexHit
-                        ? 1800
-                        : 12000 + static_cast<qint64>(retryRound - 1) * 4000;
+                                           ? 1800
+                                           : 12000 + static_cast<qint64>(retryRound - 1) * 4000;
                 backwardCapMs = qMin<qint64>(backwardCapMs, 30000);
-                const qint64 backwardStepMs = qBound<qint64>(m_seekLatency.seekIndexHit ? 250 : 3000,
-                                                             (driftMs * 2) / 3,
-                                                             backwardCapMs);
+                const qint64 backwardStepMs = qBound<qint64>(
+                    m_seekLatency.seekIndexHit ? 250 : 3000, (driftMs * 2) / 3, backwardCapMs);
                 correctedTargetMs = m_seekLatency.desiredTargetMs - backwardStepMs;
             }
 
@@ -1099,12 +1032,11 @@ bool AudioSession::handleSeekLatencyOnDecodedTimestamp(qint64 normalizedTimestam
 
             m_seekLatency.workingTargetMs = correctedTargetMs;
 
-            warnLog("SEEK_EVT") << "[SEEK_CORRECT] retry="
-                                << m_seekLatency.accuracyRetryCount << "/" << m_seekLatency.accuracyMaxRetries
+            warnLog("SEEK_EVT") << "[SEEK_CORRECT] retry=" << m_seekLatency.accuracyRetryCount
+                                << "/" << m_seekLatency.accuracyMaxRetries
                                 << " desired=" << m_seekLatency.desiredTargetMs
                                 << " working=" << m_seekLatency.workingTargetMs
-                                << " decoded=" << normalizedTimestampMs
-                                << " drift=" << driftMs
+                                << " decoded=" << normalizedTimestampMs << " drift=" << driftMs
                                 << " acceptTolerance=" << acceptToleranceMs
                                 << " seek_index_hit=" << m_seekLatency.seekIndexHit
                                 << " corrective_reseek_count=" << m_seekLatency.accuracyRetryCount;
@@ -1123,17 +1055,16 @@ bool AudioSession::handleSeekLatencyOnDecodedTimestamp(qint64 normalizedTimestam
         warnLog("SEEK_EVT") << "[SEEK_ACCEPT] drift remains after correction retries."
                             << " desired=" << m_seekLatency.desiredTargetMs
                             << " working=" << m_seekLatency.workingTargetMs
-                            << " decoded=" << normalizedTimestampMs
-                            << " drift=" << driftMs
+                            << " decoded=" << normalizedTimestampMs << " drift=" << driftMs
                             << " acceptTolerance=" << acceptToleranceMs
                             << " seek_index_hit=" << m_seekLatency.seekIndexHit
                             << " corrective_reseek_count=" << m_seekLatency.accuracyRetryCount;
         if (m_seekLatency.seekIndexHit && absDriftMs > 10000) {
-            warnLog("SEEK_EVT") << "[SEEK_REJECT] indexed seek drift too large, request source recovery."
-                                << " desired=" << m_seekLatency.desiredTargetMs
-                                << " working=" << m_seekLatency.workingTargetMs
-                                << " decoded=" << normalizedTimestampMs
-                                << " drift=" << driftMs;
+            warnLog("SEEK_EVT")
+                << "[SEEK_REJECT] indexed seek drift too large, request source recovery."
+                << " desired=" << m_seekLatency.desiredTargetMs
+                << " working=" << m_seekLatency.workingTargetMs
+                << " decoded=" << normalizedTimestampMs << " drift=" << driftMs;
             if (m_seekRetryTimer) {
                 m_seekRetryTimer->stop();
             }
@@ -1172,12 +1103,10 @@ bool AudioSession::handleSeekLatencyOnDecodedTimestamp(qint64 normalizedTimestam
     return false;
 }
 
-void AudioSession::applyDecoderFlowControlBeforeWrite(bool isRemoteFlac, int fillLevelBeforeWrite)
-{
+void AudioSession::applyDecoderFlowControlBeforeWrite(bool isRemoteFlac, int fillLevelBeforeWrite) {
     const int flowControlPauseThreshold = isRemoteFlac ? 96 : 85;
-    if (fillLevelBeforeWrite > flowControlPauseThreshold
-            && !m_buffering.decoderPausedByFlowControl
-            && m_decoder->isDecoding()) {
+    if (fillLevelBeforeWrite > flowControlPauseThreshold &&
+        !m_buffering.decoderPausedByFlowControl && m_decoder->isDecoding()) {
         m_decoder->pauseDecode();
         m_buffering.decoderPausedByFlowControl = true;
         infoLog("BUFFER_EVT") << "Buffer full, pause decoder fill=" << fillLevelBeforeWrite << "%";
@@ -1185,8 +1114,7 @@ void AudioSession::applyDecoderFlowControlBeforeWrite(bool isRemoteFlac, int fil
 }
 
 bool AudioSession::shouldResumeFromDecodedWrite(int fillLevel, int bufferedBytes, bool isRemoteFlac,
-                                                int& requiredLevel, int& requiredBytes) const
-{
+                                                int& requiredLevel, int& requiredBytes) const {
     const bool startupPath = (!m_player->isPlaying() && m_active);
     const bool resumePath = (m_player->isPlaying() && m_player->isPaused());
 
@@ -1227,8 +1155,7 @@ bool AudioSession::shouldResumeFromDecodedWrite(int fillLevel, int bufferedBytes
     return m_seek.fastStartMode ? (readyByBytes || readyByLevel) : (readyByBytes && readyByLevel);
 }
 
-void AudioSession::startPlayerFromDecodedReady(int fillLevel)
-{
+void AudioSession::startPlayerFromDecodedReady(int fillLevel) {
     // Do not anchor to latest decoded timestamp here, otherwise
     // pre-buffered data can push UI progress forward abruptly.
     qint64 startTimestamp = m_clock.baseTimestampMs;
@@ -1241,16 +1168,13 @@ void AudioSession::startPlayerFromDecodedReady(int fillLevel)
 }
 
 void AudioSession::resumePlayerFromDecodedReady(int fillLevel, int bufferedBytes, int requiredLevel,
-                                                int requiredBytes)
-{
+                                                int requiredBytes) {
     m_player->resume();
-    infoLog("BUFFER_EVT") << "Buffer filled, resuming playback bytes="
-                          << bufferedBytes << "/" << requiredBytes
-                          << " fill=" << fillLevel << "/" << requiredLevel;
+    infoLog("BUFFER_EVT") << "Buffer filled, resuming playback bytes=" << bufferedBytes << "/"
+                          << requiredBytes << " fill=" << fillLevel << "/" << requiredLevel;
 }
 
-void AudioSession::completeDecodedReadyResume()
-{
+void AudioSession::completeDecodedReadyResume() {
     if (isSeekLatencyActiveNow()) {
         const qint64 elapsedMs = m_seekLatencyTimer.isValid() ? m_seekLatencyTimer.elapsed() : -1;
         infoLog("SEEK_EVT") << "buffer_resume_ms=" << elapsedMs
@@ -1264,15 +1188,13 @@ void AudioSession::completeDecodedReadyResume()
     emit bufferingFinished();
 }
 
-bool AudioSession::shouldDebounceBufferingEnter() const
-{
-    return m_buffering.hasRecentResume
-            && m_lastResumeTimer.isValid()
-            && m_lastResumeTimer.elapsed() < 220;
+bool AudioSession::shouldDebounceBufferingEnter() const {
+    return m_buffering.hasRecentResume && m_lastResumeTimer.isValid() &&
+           m_lastResumeTimer.elapsed() < 220;
 }
 
-bool AudioSession::handleTailLowBufferFallback(qint64 currentPos, int fillLevel, int bufferedBytes)
-{
+bool AudioSession::handleTailLowBufferFallback(qint64 currentPos, int fillLevel,
+                                               int bufferedBytes) {
     constexpr qint64 kTailFinishRemainingMs = 180;
     constexpr qint64 kTailFallbackWindowMs = 8000;
     constexpr qint64 kTailDecodeLeadMs = 800;
@@ -1284,8 +1206,8 @@ bool AudioSession::handleTailLowBufferFallback(qint64 currentPos, int fillLevel,
         tailRef = m_clock.lastDecodedMs;
     }
     const qint64 remainingToTail = (tailRef > 0) ? (tailRef - currentPos) : -1;
-    const bool tailDrained = fillLevel <= kTailFinishFillLevel
-            && bufferedBytes <= kTailFinishBufferedBytes;
+    const bool tailDrained =
+        fillLevel <= kTailFinishFillLevel && bufferedBytes <= kTailFinishBufferedBytes;
 
     auto finishTailPlayback = [&](const char* reason, qint64 remainingMs) {
         qint64 finalDuration = m_duration;
@@ -1299,28 +1221,21 @@ bool AudioSession::handleTailLowBufferFallback(qint64 currentPos, int fillLevel,
             m_duration = finalDuration;
             emit durationChanged(m_duration);
         }
-        infoLog("BUFFER_EVT") << "Tail finish reason=" << reason
-                              << " position=" << currentPos
+        infoLog("BUFFER_EVT") << "Tail finish reason=" << reason << " position=" << currentPos
                               << " duration=" << m_duration
                               << " lastDecoded=" << m_clock.lastDecodedMs
-                              << " remaining=" << remainingMs
-                              << " fill=" << fillLevel
+                              << " remaining=" << remainingMs << " fill=" << fillLevel
                               << "% bufferedBytes=" << bufferedBytes;
         onPlaybackFinished();
         return true;
     };
 
-    if (!isDecodeCompletedNow()
-            && m_duration > 0
-            && currentPos >= m_duration - kTailFallbackWindowMs
-            && m_clock.lastDecodedMs > 0
-            && currentPos >= m_clock.lastDecodedMs + kTailDecodeLeadMs
-            && tailDrained) {
+    if (!isDecodeCompletedNow() && m_duration > 0 &&
+        currentPos >= m_duration - kTailFallbackWindowMs && m_clock.lastDecodedMs > 0 &&
+        currentPos >= m_clock.lastDecodedMs + kTailDecodeLeadMs && tailDrained) {
         warnLog("BUFFER_EVT") << "Tail fallback finish without decodeCompleted."
-                              << " position=" << currentPos
-                              << " duration=" << m_duration
-                              << " lastDecoded=" << m_clock.lastDecodedMs
-                              << " fill=" << fillLevel
+                              << " position=" << currentPos << " duration=" << m_duration
+                              << " lastDecoded=" << m_clock.lastDecodedMs << " fill=" << fillLevel
                               << "% bufferedBytes=" << bufferedBytes;
         onPlaybackFinished();
         return true;
@@ -1332,8 +1247,7 @@ bool AudioSession::handleTailLowBufferFallback(qint64 currentPos, int fillLevel,
         }
 
         infoLog("BUFFER_EVT") << "Decode complete, keep draining tail"
-                              << " fill=" << fillLevel
-                              << "% bufferedBytes=" << bufferedBytes
+                              << " fill=" << fillLevel << "% bufferedBytes=" << bufferedBytes
                               << " remaining=" << remainingToTail << "ms";
         return true;
     }
@@ -1342,8 +1256,7 @@ bool AudioSession::handleTailLowBufferFallback(qint64 currentPos, int fillLevel,
 }
 
 bool AudioSession::canExitBufferingByThreshold(int fillLevel, int bufferedBytes, bool isRemoteFlac,
-                                               int bufferingResumeMinBytes) const
-{
+                                               int bufferingResumeMinBytes) const {
     int resumeLevelThreshold = m_seek.fastStartMode ? 6 : 25;
     if (isRemoteFlac) {
         const int flacLevel = m_seek.fastStartMode ? 16 : 20;
@@ -1356,8 +1269,7 @@ bool AudioSession::canExitBufferingByThreshold(int fillLevel, int bufferedBytes,
     return fillLevel >= resumeLevelThreshold || bufferedBytes >= bufferingResumeMinBytes;
 }
 
-void AudioSession::exitBufferingAndResume(int fillLevel, int bufferedBytes)
-{
+void AudioSession::exitBufferingAndResume(int fillLevel, int bufferedBytes) {
     if (isSeekLatencyActiveNow()) {
         const qint64 elapsedMs = m_seekLatencyTimer.isValid() ? m_seekLatencyTimer.elapsed() : -1;
         infoLog("SEEK_EVT") << "buffer_resume_ms=" << elapsedMs
@@ -1388,14 +1300,12 @@ void AudioSession::exitBufferingAndResume(int fillLevel, int bufferedBytes)
 }
 
 // ===== Seek 重试与退化策略 =====
-bool AudioSession::isHlsSeekSource() const
-{
+bool AudioSession::isHlsSeekSource() const {
     const QString sourcePath = m_sourceUrl.path().toLower();
     return sourcePath.endsWith(".m3u8") || m_sourceUrl.toString().contains("/hls/");
 }
 
-qint64 AudioSession::calculateSeekHardTimeoutMs(bool isHlsSeek, bool isRemoteFlacSeek) const
-{
+qint64 AudioSession::calculateSeekHardTimeoutMs(bool isHlsSeek, bool isRemoteFlacSeek) const {
     if (m_seekLatency.seekIndexHit) {
         return 6500;
     }
@@ -1409,8 +1319,7 @@ qint64 AudioSession::calculateSeekHardTimeoutMs(bool isHlsSeek, bool isRemoteFla
 }
 
 qint64 AudioSession::calculateSeekGiveUpTimeoutMs(bool isHlsSeek, bool isRemoteFlacSeek,
-                                                  qint64 hardTimeoutMs) const
-{
+                                                  qint64 hardTimeoutMs) const {
     if (m_seekLatency.seekIndexHit) {
         return qMax<qint64>(hardTimeoutMs, 8000);
     }
@@ -1423,9 +1332,9 @@ qint64 AudioSession::calculateSeekGiveUpTimeoutMs(bool isHlsSeek, bool isRemoteF
     return qMax<qint64>(hardTimeoutMs, 60000);
 }
 
-AudioSession::SeekRetryAction AudioSession::decideSeekRetryAction(qint64 elapsedMs, qint64 hardTimeoutMs,
-                                                                  qint64 giveUpTimeoutMs) const
-{
+AudioSession::SeekRetryAction AudioSession::decideSeekRetryAction(qint64 elapsedMs,
+                                                                  qint64 hardTimeoutMs,
+                                                                  qint64 giveUpTimeoutMs) const {
     if (elapsedMs >= giveUpTimeoutMs) {
         return SeekRetryAction::GiveUp;
     }
@@ -1438,8 +1347,7 @@ AudioSession::SeekRetryAction AudioSession::decideSeekRetryAction(qint64 elapsed
     return SeekRetryAction::RetryNow;
 }
 
-void AudioSession::handleSeekRetryGiveUp(qint64 elapsedMs)
-{
+void AudioSession::handleSeekRetryGiveUp(qint64 elapsedMs) {
     warnLog("SEEK_EVT") << "[SEEK_ABORT] elapsed=" << elapsedMs
                         << " seek_index_hit=" << m_seekLatency.seekIndexHit
                         << " corrective_reseek_count=" << m_seekLatency.accuracyRetryCount
@@ -1451,10 +1359,8 @@ void AudioSession::handleSeekRetryGiveUp(qint64 elapsedMs)
     emit sessionError(QStringLiteral("音频缓冲超时，请重试"));
 }
 
-void AudioSession::handleSeekRetryDegrade(qint64 elapsedMs, int nextRetryMs, const char* logTag)
-{
-    warnLog("SEEK_EVT") << logTag
-                        << " elapsed=" << elapsedMs
+void AudioSession::handleSeekRetryDegrade(qint64 elapsedMs, int nextRetryMs, const char* logTag) {
+    warnLog("SEEK_EVT") << logTag << " elapsed=" << elapsedMs
                         << " seek_index_hit=" << m_seekLatency.seekIndexHit
                         << " corrective_reseek_count=" << m_seekLatency.accuracyRetryCount
                         << " desired=" << m_seekLatency.desiredTargetMs
@@ -1470,8 +1376,7 @@ void AudioSession::handleSeekRetryDegrade(qint64 elapsedMs, int nextRetryMs, con
     }
 }
 
-void AudioSession::handleSeekRetryAttempt(qint64 elapsedMs, bool avoidRepeatReseek)
-{
+void AudioSession::handleSeekRetryAttempt(qint64 elapsedMs, bool avoidRepeatReseek) {
     ++m_seek.retryCount;
     warnLog("SEEK_EVT") << "[SEEK_RETRY] retry=" << m_seek.retryCount << "/" << m_seek.maxRetries
                         << " elapsed=" << elapsedMs
@@ -1502,102 +1407,90 @@ void AudioSession::handleSeekRetryAttempt(qint64 elapsedMs, bool avoidRepeatRese
 }
 
 // ===== 状态迁移与断言校验 =====
-void AudioSession::setSeekPhase(SeekPhase phase, const char* reason)
-{
+void AudioSession::setSeekPhase(SeekPhase phase, const char* reason) {
     if (m_seek.phase == phase) {
         return;
     }
-    infoLog("STATE_EVT") << "SeekPhase " << static_cast<int>(m_seek.phase)
-                         << " -> " << static_cast<int>(phase)
-                         << " reason=" << reason;
+    infoLog("STATE_EVT") << "SeekPhase " << static_cast<int>(m_seek.phase) << " -> "
+                         << static_cast<int>(phase) << " reason=" << reason;
     m_seek.phase = phase;
 }
 
-void AudioSession::setSeekLatencyPhase(SeekLatencyPhase phase, const char* reason)
-{
+void AudioSession::setSeekLatencyPhase(SeekLatencyPhase phase, const char* reason) {
     if (m_seekLatency.phase == phase) {
         return;
     }
-    infoLog("STATE_EVT") << "SeekLatencyPhase " << static_cast<int>(m_seekLatency.phase)
-                         << " -> " << static_cast<int>(phase)
-                         << " reason=" << reason;
+    infoLog("STATE_EVT") << "SeekLatencyPhase " << static_cast<int>(m_seekLatency.phase) << " -> "
+                         << static_cast<int>(phase) << " reason=" << reason;
     m_seekLatency.phase = phase;
 }
 
-void AudioSession::setDecodePhase(DecodePhase phase, const char* reason)
-{
+void AudioSession::setDecodePhase(DecodePhase phase, const char* reason) {
     if (m_decode.phase == phase) {
         return;
     }
-    infoLog("STATE_EVT") << "DecodePhase " << static_cast<int>(m_decode.phase)
-                         << " -> " << static_cast<int>(phase)
-                         << " reason=" << reason;
+    infoLog("STATE_EVT") << "DecodePhase " << static_cast<int>(m_decode.phase) << " -> "
+                         << static_cast<int>(phase) << " reason=" << reason;
     m_decode.phase = phase;
 }
 
-void AudioSession::validateState(const char* where) const
-{
+void AudioSession::validateState(const char* where) const {
 #ifndef QT_NO_DEBUG
     const char* checkPoint = where ? where : "unknown";
-    Q_ASSERT_X(!(m_playback.manualPaused && m_buffering.active),
-               checkPoint, "manualPaused and buffering.active cannot both be true");
-    Q_ASSERT_X(!(m_seek.phase == SeekPhase::Idle && m_seekGraceTimer && m_seekGraceTimer->isActive()),
-               checkPoint, "seek grace timer active while phase is idle");
-    Q_ASSERT_X(!(m_seekLatency.phase == SeekLatencyPhase::Inactive && m_seekRetryTimer && m_seekRetryTimer->isActive()),
+    Q_ASSERT_X(!(m_playback.manualPaused && m_buffering.active), checkPoint,
+               "manualPaused and buffering.active cannot both be true");
+    Q_ASSERT_X(
+        !(m_seek.phase == SeekPhase::Idle && m_seekGraceTimer && m_seekGraceTimer->isActive()),
+        checkPoint, "seek grace timer active while phase is idle");
+    Q_ASSERT_X(!(m_seekLatency.phase == SeekLatencyPhase::Inactive && m_seekRetryTimer &&
+                 m_seekRetryTimer->isActive()),
                checkPoint, "seek retry timer active while seek latency is inactive");
     if (m_seekLatency.phase == SeekLatencyPhase::FirstPacketSeen) {
-        Q_ASSERT_X(m_seekLatency.firstPacketTimestampMs >= 0,
-                   checkPoint, "firstPacketTimestampMs must be initialized in FirstPacketSeen phase");
+        Q_ASSERT_X(m_seekLatency.firstPacketTimestampMs >= 0, checkPoint,
+                   "firstPacketTimestampMs must be initialized in FirstPacketSeen phase");
     }
 #else
     Q_UNUSED(where);
 #endif
 }
 
-void AudioSession::cleanup()
-{
+void AudioSession::cleanup() {
     stop();
 }
 
-void AudioSession::requestDecoderStart()
-{
+void AudioSession::requestDecoderStart() {
     if (!m_decoder) {
         return;
     }
     m_decoder->startDecode();
 }
 
-void AudioSession::finalizeControlPath(const char* where)
-{
+void AudioSession::finalizeControlPath(const char* where) {
     validateState(where);
 }
 
-QDebug AudioSession::infoLog(const char* domain) const
-{
+QDebug AudioSession::infoLog(const char* domain) const {
     QDebug dbg = qDebug().noquote().nospace();
-    dbg << '[' << QDateTime::currentDateTime().toString("HH:mm:ss.zzz") << ']'
-        << '[' << domain << ']'
-        << "[session=" << m_sessionId << "] ";
+    dbg << '[' << QDateTime::currentDateTime().toString("HH:mm:ss.zzz") << ']' << '[' << domain
+        << ']' << "[session=" << m_sessionId << "] ";
     return dbg;
 }
 
-QDebug AudioSession::warnLog(const char* domain) const
-{
+QDebug AudioSession::warnLog(const char* domain) const {
     QDebug dbg = qWarning().noquote().nospace();
-    dbg << '[' << QDateTime::currentDateTime().toString("HH:mm:ss.zzz") << ']'
-        << '[' << domain << ']'
-        << "[session=" << m_sessionId << "] ";
+    dbg << '[' << QDateTime::currentDateTime().toString("HH:mm:ss.zzz") << ']' << '[' << domain
+        << ']' << "[session=" << m_sessionId << "] ";
     return dbg;
 }
 
-void AudioSession::finalizeSeekLatency(const char* stage)
-{
+void AudioSession::finalizeSeekLatency(const char* stage) {
     if (!isSeekLatencyActiveNow()) {
         return;
     }
 
     const qint64 elapsedMs = m_seekLatencyTimer.isValid() ? m_seekLatencyTimer.elapsed() : -1;
-    const QString metricName = QString("[SEEK_METRIC] seek_to_%1_ms:").arg(QString::fromUtf8(stage));
+    const QString metricName =
+        QString("[SEEK_METRIC] seek_to_%1_ms:").arg(QString::fromUtf8(stage));
     infoLog("SEEK_EVT") << metricName << elapsedMs
                         << " seek_target_ms=" << m_seekLatency.desiredTargetMs
                         << " seek_index_hit=" << m_seekLatency.seekIndexHit
@@ -1616,8 +1509,3 @@ void AudioSession::finalizeSeekLatency(const char* stage)
         m_seekRetryTimer->stop();
     }
 }
-
-
-
-
-

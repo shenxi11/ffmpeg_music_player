@@ -2,8 +2,8 @@
 
 #include "playback_state_manager.h"
 #include "plugin_host_window.h"
-#include "search_history_popup.h"
 #include "plugin_manager.h"
+#include "search_history_popup.h"
 #include "searchbox_qml.h"
 #include "settings_manager.h"
 
@@ -26,8 +26,8 @@
 #include <QPixmap>
 #include <QSaveFile>
 #include <QScrollArea>
-#include <QStyle>
 #include <QStandardPaths>
+#include <QStyle>
 #include <QTimer>
 #include <QUrl>
 #include <QVBoxLayout>
@@ -161,9 +161,8 @@ void savePlaylistCoverCacheIndex(const QJsonObject& index) {
 } // namespace
 
 MainWidget::MainWidget(bool localOnlyMode, QWidget* parent)
-    : QWidget(parent), w(nullptr), list(nullptr), videoListWidget(nullptr),
-      settingsWidget(nullptr), recommendMusicWidget(nullptr),
-      playlistWidget(nullptr), m_localOnlyMode(localOnlyMode) {
+    : QWidget(parent), w(nullptr), list(nullptr), videoListWidget(nullptr), settingsWidget(nullptr),
+      recommendMusicWidget(nullptr), playlistWidget(nullptr), m_localOnlyMode(localOnlyMode) {
     resize(1180, 760);
     setMinimumSize(1000, 640);
     setWindowFlags(Qt::CustomizeWindowHint);
@@ -223,7 +222,8 @@ MainWidget::MainWidget(bool localOnlyMode, QWidget* parent)
     m_closeButton->setToolTip(QStringLiteral("关闭"));
 
     connect(m_minimizeButton, &QPushButton::clicked, this, &MainWidget::showMinimized);
-    connect(m_maximizeButton, &QPushButton::clicked, this, &MainWidget::handleWindowToggleRequested);
+    connect(m_maximizeButton, &QPushButton::clicked, this,
+            &MainWidget::handleWindowToggleRequested);
     connect(m_closeButton, &QPushButton::clicked, this, &MainWidget::close);
 
     searchBox = new SearchBoxQml(this);
@@ -576,9 +576,9 @@ void MainWidget::showContentPanel(QWidget* activeWidget) {
         activeWidget = localAndDownloadWidget;
     }
 
-    const bool leavingCommentContent =
-        commentPageWidget && m_activeContentWidget == commentPageWidget &&
-        activeWidget != commentPageWidget;
+    const bool leavingCommentContent = commentPageWidget &&
+                                       m_activeContentWidget == commentPageWidget &&
+                                       activeWidget != commentPageWidget;
     if (leavingCommentContent) {
         if (w) {
             w->setMainContentCommentVisible(false);
@@ -1031,8 +1031,8 @@ void MainWidget::handleRecommendLoginRequested() {
 
 void MainWidget::handleRecommendPlayMusicWithMetadata(
     const QString& filePath, const QString& musicPath, const QString& title, const QString& artist,
-    const QString& cover, const QString& duration, const QString& songId,
-    const QString& requestId, const QString& modelVersion, const QString& scene) {
+    const QString& cover, const QString& duration, const QString& songId, const QString& requestId,
+    const QString& modelVersion, const QString& scene) {
     Q_UNUSED(duration);
     Q_UNUSED(requestId);
     Q_UNUSED(modelVersion);
@@ -1294,16 +1294,15 @@ void MainWidget::updateSideNavLayout() {
         const int menuReservedHeight = menuButtonHeight + menuBottomMargin + 12;
         const int maxSectionTop = qMax(0, leftWidget->height() - menuReservedHeight);
         const int sectionTop = qMin(desiredSectionTop, maxSectionTop);
-        const int sectionHeight =
-            qMax(0, leftWidget->height() - sectionTop - menuReservedHeight);
+        const int sectionHeight = qMax(0, leftWidget->height() - sectionTop - menuReservedHeight);
         sidebarPlaylistSection->setGeometry(14, sectionTop, panelWidth - 28, sectionHeight);
     }
 
     if (menuButton) {
-        menuButton->setGeometry(menuMargin,
-                                qMax(menuBottomMargin,
-                                     leftWidget->height() - menuButtonHeight - menuBottomMargin),
-                                qMax(44, panelWidth - menuMargin * 2), menuButtonHeight);
+        menuButton->setGeometry(
+            menuMargin,
+            qMax(menuBottomMargin, leftWidget->height() - menuButtonHeight - menuBottomMargin),
+            qMax(44, panelWidth - menuMargin * 2), menuButtonHeight);
         menuButton->raise();
     }
 }

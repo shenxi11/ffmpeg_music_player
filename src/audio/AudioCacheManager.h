@@ -1,29 +1,27 @@
 #ifndef AUDIO_CACHE_MANAGER_H
 #define AUDIO_CACHE_MANAGER_H
 
-#include <QObject>
 #include <QHash>
+#include <QMutex>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
+#include <QObject>
+#include <QPointer>
 #include <QSet>
 #include <QUrl>
-#include <QMutex>
-#include <QPointer>
 #include <QVector>
 
 class QTcpServer;
 class QTcpSocket;
 
-class AudioCacheManager : public QObject
-{
+class AudioCacheManager : public QObject {
     Q_OBJECT
-public:
+  public:
     static AudioCacheManager& instance();
 
     void setCacheDirectory(const QString& directoryPath);
     QString cacheDirectory() const;
-    bool clearCache(QString* errorMessage = nullptr,
-                    qint64* removedBytes = nullptr,
+    bool clearCache(QString* errorMessage = nullptr, qint64* removedBytes = nullptr,
                     qint64* removedFiles = nullptr);
 
     // Keep compatibility with existing service call path.
@@ -43,10 +41,10 @@ public:
 
     bool hasResolvedSeekIndexForPlaybackUrl(const QUrl& playbackUrl) const;
 
-signals:
+  signals:
     void fullFileCacheReady(const QUrl& originalUrl, const QUrl& localFileUrl);
 
-private slots:
+  private slots:
     void onDownloadFinished(QNetworkReply* reply);
     void onSeekIndexReplyFinished();
     void onProxySocketReadyRead();
@@ -55,7 +53,7 @@ private slots:
     void onProxyUpstreamReadyRead();
     void onProxyUpstreamFinished();
 
-private:
+  private:
     struct DownloadTask {
         QString cacheKey;
         QUrl originalUrl;
@@ -119,15 +117,10 @@ private:
     QString trackCacheDir(const QString& cacheKey) const;
     QString chunkFilePath(const QString& cacheKey, qint64 chunkIndex) const;
     bool hasChunk(const QString& cacheKey, qint64 chunkIndex) const;
-    void queueFullFileDownload(const QUrl& url,
-                               const QString& cacheKey,
-                               qint64 contentLength,
+    void queueFullFileDownload(const QUrl& url, const QString& cacheKey, qint64 contentLength,
                                QNetworkRequest::Priority priority = QNetworkRequest::LowPriority);
-    void queueChunkDownload(const QUrl& url,
-                            const QString& cacheKey,
-                            qint64 chunkIndex,
-                            qint64 startByte,
-                            qint64 endByte,
+    void queueChunkDownload(const QUrl& url, const QString& cacheKey, qint64 chunkIndex,
+                            qint64 startByte, qint64 endByte,
                             QNetworkRequest::Priority priority = QNetworkRequest::LowPriority);
 
     void ensureTrackMeta(const QUrl& url, const QString& cacheKey);
@@ -148,13 +141,11 @@ private:
     void updateTrackMetaFromProxyReply(const QString& cacheKey, QNetworkReply* reply);
     bool parseHttpRange(const QByteArray& rangeHeader, qint64* start, qint64* end) const;
     void sendProxyError(QTcpSocket* socket, int statusCode, const QByteArray& reason) const;
-    QByteArray buildHttpHeaders(int statusCode,
-                                const QByteArray& reason,
-                                const QByteArray& contentType,
-                                qint64 contentLength,
+    QByteArray buildHttpHeaders(int statusCode, const QByteArray& reason,
+                                const QByteArray& contentType, qint64 contentLength,
                                 const QByteArray& extra = QByteArray()) const;
 
-private:
+  private:
     QString m_cacheDirectory;
     QString m_chunkRootDirectory;
     QNetworkAccessManager m_networkManager;
@@ -163,8 +154,8 @@ private:
     QSet<QString> m_inflightChunkKeys;
     QHash<QString, TrackMeta> m_trackMetaCache;
 
-    qint64 m_chunkSizeBytes = 128 * 1024;      // 128 KB，降低大幅 seek 的字节定位误差
-    int m_startupPrefetchChunks = 6;           // 768 KB warmup
+    qint64 m_chunkSizeBytes = 128 * 1024;         // 128 KB，降低大幅 seek 的字节定位误差
+    int m_startupPrefetchChunks = 6;              // 768 KB warmup
     qint64 m_maxCacheBytes = 512LL * 1024 * 1024; // 512 MB
     qint64 m_lruLastRunMs = 0;
     mutable QTcpServer* m_proxyServer = nullptr;

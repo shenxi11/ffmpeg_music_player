@@ -3,21 +3,18 @@
 #include "AudioCacheManager.h"
 #include "settings_manager.h"
 
-void AudioService::setupServiceConnections()
-{
+void AudioService::setupServiceConnections() {
     m_seekDispatchTimer.setSingleShot(true);
-    connect(&m_seekDispatchTimer, &QTimer::timeout,
-            this, &AudioService::onSeekDispatchTimeout);
+    connect(&m_seekDispatchTimer, &QTimer::timeout, this, &AudioService::onSeekDispatchTimeout);
 
-    connect(&SettingsManager::instance(), &SettingsManager::audioCachePathChanged,
-            this, &AudioService::onAudioCachePathChanged);
+    connect(&SettingsManager::instance(), &SettingsManager::audioCachePathChanged, this,
+            &AudioService::onAudioCachePathChanged);
 
-    connect(&AudioCacheManager::instance(), &AudioCacheManager::fullFileCacheReady,
-            this, &AudioService::onFullFileCacheReady);
+    connect(&AudioCacheManager::instance(), &AudioCacheManager::fullFileCacheReady, this,
+            &AudioService::onFullFileCacheReady);
 }
 
-void AudioService::connectSessionSignals(AudioSession* session)
-{
+void AudioService::connectSessionSignals(AudioSession* session) {
     if (!session) {
         return;
     }

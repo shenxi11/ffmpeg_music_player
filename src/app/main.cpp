@@ -1,36 +1,36 @@
-#include "play_widget.h"
-#include <QFontMetrics>
-#include <QDebug>
-#include <QIcon>
-#include <QApplication>
-#include <QThread>
-#include <QTimer>
-#include <QDir>
-#include <QStandardPaths>
-#include <QFile>
-#include "main_widget.h"
-#include "server_welcome_dialog.h"
-#include "headers.h"
-#include "plugin_manager.h"
-#include "logger.h"
-#include "settings_manager.h"
-#include "user.h"
 #include "AudioPlayer.h"
 #include "AudioService.h"
 #include "MediaSession.h"
-#include "network/online_presence_manager.h"
+#include "headers.h"
+#include "logger.h"
+#include "main_widget.h"
 #include "network/network/network_service.h"
-#include <functional>
+#include "network/online_presence_manager.h"
+#include "play_widget.h"
+#include "plugin_manager.h"
+#include "server_welcome_dialog.h"
+#include "settings_manager.h"
+#include "user.h"
+
+#include <QApplication>
+#include <QDebug>
+#include <QDir>
+#include <QFile>
+#include <QFontMetrics>
+#include <QIcon>
+#include <QStandardPaths>
+#include <QThread>
+#include <QTimer>
 #include <cstdio>
+#include <functional>
 
 #ifdef Q_OS_WIN
-#include <Windows.h>  // For SetDllDirectoryW, GetModuleFileNameW
-#include <string>     // For std::wstring
+#include <Windows.h> // For SetDllDirectoryW, GetModuleFileNameW
+#include <string>    // For std::wstring
 #endif
 
 namespace {
-QString resolvePrintLogPath()
-{
+QString resolvePrintLogPath() {
     const QString envPath = qEnvironmentVariable("PRINT_LOG_PATH").trimmed();
     if (!envPath.isEmpty()) {
         return QDir::cleanPath(QDir::fromNativeSeparators(envPath));
@@ -44,8 +44,7 @@ QString resolvePrintLogPath()
     return QDir::current().absoluteFilePath(QStringLiteral("打印日志.txt"));
 }
 
-void finalizeRuntimeForProcessExit(bool runtimeInitialized)
-{
+void finalizeRuntimeForProcessExit(bool runtimeInitialized) {
     qDebug() << "[AppShutdown] Main event loop exited, begin runtime finalization";
 
     if (runtimeInitialized) {
@@ -71,10 +70,9 @@ void finalizeRuntimeForProcessExit(bool runtimeInitialized)
     QThreadPool::globalInstance()->waitForDone(5000);
     qDebug() << "[AppShutdown] Global thread pool wait complete";
 }
-}
+} // namespace
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char* argv[]) {
     QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
 
     // Windows 下先设置 DLL 搜索目录，避免运行期找不到依赖库
@@ -89,14 +87,14 @@ int main(int argc, char *argv[])
         exeDir = exeDir.substr(0, pos);
     }
     std::wstring resourceDir = exeDir + L"\\resource";
-    
+
     // 把 resource 目录加入系统 DLL 搜索路径
     SetDllDirectoryW(resourceDir.c_str());
-    
+
     // 如果需要更精细的目录管理，可改用 AddDllDirectory
     // AddDllDirectory(resourceDir.c_str());
 #endif
-    
+
     QApplication a(argc, argv);
     a.setQuitOnLastWindowClosed(false);
 
@@ -106,7 +104,7 @@ int main(int argc, char *argv[])
     qDebug() << "=========================================";
     qDebug() << "YunMusic Starting...";
     qDebug() << "Log file:" << currentLogFilePath();
-    
+
     // 打印运行时 DLL 搜索信息，便于排查依赖加载失败
 #ifdef Q_OS_WIN
     QString resourceDirQt = QCoreApplication::applicationDirPath() + "/resource";
@@ -136,30 +134,30 @@ int main(int argc, char *argv[])
     qRegisterMetaType<MediaSession::PlaybackState>("MediaSession::PlaybackState");
     qRegisterMetaType<MediaSession::PlaybackState>("PlaybackState");
     QLoggingCategory::setFilterRules("qt.audio.debug=false");
-    qRegisterMetaType<std::vector<std::pair<qint64,qint64>>>("std::vector<std::pair<qint64,qint64> >");
+    qRegisterMetaType<std::vector<std::pair<qint64, qint64>>>(
+        "std::vector<std::pair<qint64,qint64> >");
 
     auto user = User::getInstance();
 
     // 从应用目录加载插件
     QString pluginDir = QCoreApplication::applicationDirPath() + "/plugin";
     qDebug() << "Loading plugins from:" << pluginDir;
-    
+
     PluginManager& pluginManager = PluginManager::instance();
-    pluginManager.setAllowedPermissions({
-        QStringLiteral("ui.widget"),
-        QStringLiteral("audio.convert"),
-        QStringLiteral("speech.transcribe"),
-        QStringLiteral("agent.host.read"),
-        QStringLiteral("agent.host.control"),
-        QStringLiteral("network.read"),
-        QStringLiteral("storage.read"),
-        QStringLiteral("playback.control")
-    });
-    pluginManager.hostContext()->setEnvironmentValue(QStringLiteral("appName"), QStringLiteral("云音乐"));
-    pluginManager.hostContext()->setEnvironmentValue(QStringLiteral("appVersion"), QStringLiteral("1.0.0"));
+    pluginManager.setAllowedPermissions(
+        {QStringLiteral("ui.widget"), QStringLiteral("audio.convert"),
+         QStringLiteral("speech.transcribe"), QStringLiteral("agent.host.read"),
+         QStringLiteral("agent.host.control"), QStringLiteral("network.read"),
+         QStringLiteral("storage.read"), QStringLiteral("playback.control")});
+    pluginManager.hostContext()->setEnvironmentValue(QStringLiteral("appName"),
+                                                     QStringLiteral("云音乐"));
+    pluginManager.hostContext()->setEnvironmentValue(QStringLiteral("appVersion"),
+                                                     QStringLiteral("1.0.0"));
     pluginManager.hostContext()->setEnvironmentValue(QStringLiteral("pluginDir"), pluginDir);
-    pluginManager.hostContext()->setEnvironmentValue(QStringLiteral("themeName"), QStringLiteral("netease"));
-    pluginManager.hostContext()->setEnvironmentValue(QStringLiteral("themeAccentColor"), QStringLiteral("#EC4141"));
+    pluginManager.hostContext()->setEnvironmentValue(QStringLiteral("themeName"),
+                                                     QStringLiteral("netease"));
+    pluginManager.hostContext()->setEnvironmentValue(QStringLiteral("themeAccentColor"),
+                                                     QStringLiteral("#EC4141"));
     int loadedPlugins = pluginManager.loadPlugins(pluginDir);
     qDebug() << "Loaded" << loadedPlugins << "plugins";
 
@@ -226,7 +224,7 @@ int main(int argc, char *argv[])
 
     qDebug() << "Application cleanup complete";
     qDebug() << "[AppShutdown] Logger cleanup begin";
-    cleanupLogger();  // 释放日志资源并刷新缓冲
+    cleanupLogger(); // 释放日志资源并刷新缓冲
 
 #ifdef Q_OS_WIN
     std::fflush(nullptr);
@@ -235,6 +233,3 @@ int main(int argc, char *argv[])
 
     return result;
 }
-
-
-
