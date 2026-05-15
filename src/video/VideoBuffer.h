@@ -35,6 +35,7 @@ public:
     int size() const;
     bool isEmpty() const;
     bool isFull() const;
+    qint64 bufferedDurationMs() const;
     int capacity() const { return m_maxSize; }
     void setCapacity(int maxSize) { m_maxSize = maxSize; }
     

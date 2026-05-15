@@ -1,5 +1,6 @@
 #include "AudioService.h"
 
+#include "AudioCacheManager.h"
 #include "settings_manager.h"
 
 void AudioService::setupServiceConnections()
@@ -10,6 +11,9 @@ void AudioService::setupServiceConnections()
 
     connect(&SettingsManager::instance(), &SettingsManager::audioCachePathChanged,
             this, &AudioService::onAudioCachePathChanged);
+
+    connect(&AudioCacheManager::instance(), &AudioCacheManager::fullFileCacheReady,
+            this, &AudioService::onFullFileCacheReady);
 }
 
 void AudioService::connectSessionSignals(AudioSession* session)

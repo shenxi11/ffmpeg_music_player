@@ -118,6 +118,7 @@ private slots:
     void onBufferingFinished();
     void onDurationChanged(qint64 durationMs);
     void onSeekDispatchTimeout();
+    void onFullFileCacheReady(const QUrl& originalUrl, const QUrl& localFileUrl);
 
 private:
     AudioService(QObject* parent = nullptr);
@@ -129,6 +130,9 @@ private:
     void connectSessionSignals(AudioSession* session);
     
     void switchToSession(const QString& sessionId);
+    bool switchCurrentProxySessionToLocalCache(const QUrl& originalUrl,
+                                               const QUrl& localFileUrl,
+                                               qint64 targetMs = -1);
     void playCurrentIndex();
     void cleanupOldSessions();
     int getNextIndex();

@@ -1128,6 +1128,23 @@ bool AudioSession::handleSeekLatencyOnDecodedTimestamp(qint64 normalizedTimestam
                             << " acceptTolerance=" << acceptToleranceMs
                             << " seek_index_hit=" << m_seekLatency.seekIndexHit
                             << " corrective_reseek_count=" << m_seekLatency.accuracyRetryCount;
+        if (m_seekLatency.seekIndexHit && absDriftMs > 10000) {
+            warnLog("SEEK_EVT") << "[SEEK_REJECT] indexed seek drift too large, request source recovery."
+                                << " desired=" << m_seekLatency.desiredTargetMs
+                                << " working=" << m_seekLatency.workingTargetMs
+                                << " decoded=" << normalizedTimestampMs
+                                << " drift=" << driftMs;
+            if (m_seekRetryTimer) {
+                m_seekRetryTimer->stop();
+            }
+            finalizeSeekLatency("seek_reject_large_drift");
+            if (m_buffering.active) {
+                m_buffering.active = false;
+                emit bufferingFinished();
+            }
+            emit sessionError(QStringLiteral("seek定位偏移过大，请切换本地缓存重试"));
+            return true;
+        }
         setSeekLatencyPhase(SeekLatencyPhase::FirstPacketSeen, "seek_accept_nearest_keyframe");
         m_seekLatency.firstPacketTimestampMs = normalizedTimestampMs;
         m_seekLatency.workingTargetMs = normalizedTimestampMs;

@@ -75,6 +75,10 @@ QString Network::NetworkManager::sendRequest(
 
 void Network::NetworkManager::executeRequest(std::shared_ptr<RequestContext> context)
 {
+    if (!context || context->completed) {
+        return;
+    }
+
     QNetworkRequest request = createRequest(context->url, context->options);
     
     // 根据 HTTP 方法发送请求
@@ -118,8 +122,9 @@ void Network::NetworkManager::executeRequest(std::shared_ptr<RequestContext> con
             context->callback(response);
         }
         
-        QMutexLocker locker(&m_mutex);
-        m_activeRequests.remove(context->requestId);
+        context->completed = true;
+        cleanupElapsedTimer(context.get());
+        removeActiveRequest(context);
         return;
     }
     
@@ -224,24 +229,17 @@ void Network::NetworkManager::onRequestTimeout()
 
 void Network::NetworkManager::handleReplyFinished(std::shared_ptr<RequestContext> context)
 {
-    if (!context->reply) {
+    if (!context || context->completed) {
+        return;
+    }
+
+    QNetworkReply* reply = detachReply(context.get());
+    if (!reply) {
         qWarning() << "[NetworkManager] Reply is null in handleReplyFinished";
         return;
     }
-    
-    // 停止超时计时器。
-    if (context->timeoutTimer) {
-        context->timeoutTimer->stop();
-        context->timeoutTimer->deleteLater();
-        context->timeoutTimer = nullptr;
-    }
-    if (context->retryTimer) {
-        context->retryTimer->stop();
-        context->retryTimer->deleteLater();
-        context->retryTimer = nullptr;
-    }
-    
-    QNetworkReply* reply = context->reply;
+
+    cleanupTimers(context.get());
     
     // 构建响应对象。
     NetworkResponse response;
@@ -250,7 +248,7 @@ void Network::NetworkManager::handleReplyFinished(std::shared_ptr<RequestContext
     response.body = reply->readAll();
     response.error = reply->error();
     response.errorString = reply->errorString();
-    response.elapsedMs = context->elapsedTimer->elapsed();
+    response.elapsedMs = context->elapsedTimer ? context->elapsedTimer->elapsed() : 0;
     
     // 读取响应头与状态信息
     const auto headerList = reply->rawHeaderPairs();
@@ -274,8 +272,7 @@ void Network::NetworkManager::handleReplyFinished(std::shared_ptr<RequestContext
                  << "Error:" << response.errorString
                  << "Retry" << (context->currentRetry + 1) << "of" << context->options.maxRetries;
         
-        reply->deleteLater();
-        context->reply = nullptr;
+        disposeReply(reply, false);
         
         retryRequest(context);
         return;
@@ -296,22 +293,24 @@ void Network::NetworkManager::handleReplyFinished(std::shared_ptr<RequestContext
     }
     
     // 清理请求上下文
-    reply->deleteLater();
-    delete context->elapsedTimer;
-    
-    {
-        QMutexLocker locker(&m_mutex);
-        m_activeRequests.remove(context->requestId);
-    }
+    context->completed = true;
+    disposeReply(reply, false);
+    cleanupElapsedTimer(context.get());
+    removeActiveRequest(context);
 }
 
 void Network::NetworkManager::handleTimeout(std::shared_ptr<RequestContext> context)
 {
-    qWarning() << "[NetworkManager] Request timeout:" << context->requestId;
-    
-    if (context->reply) {
-        context->reply->abort();
+    if (!context || context->completed) {
+        return;
     }
+
+    qWarning() << "[NetworkManager] Request timeout:" << context->requestId;
+
+    // abort() 会触发 finished；先断开并脱离上下文，避免 finished 路径重复处理同一 reply。
+    QNetworkReply* reply = detachReply(context.get());
+    disposeReply(reply, true);
+    cleanupTimers(context.get());
     
     // 检查超时后是否需要重试
     if (context->currentRetry < context->options.maxRetries) {
@@ -324,7 +323,7 @@ void Network::NetworkManager::handleTimeout(std::shared_ptr<RequestContext> cont
         response.requestId = context->requestId;
         response.error = QNetworkReply::TimeoutError;
         response.errorString = "Request timeout";
-        response.elapsedMs = context->elapsedTimer->elapsed();
+        response.elapsedMs = context->elapsedTimer ? context->elapsedTimer->elapsed() : 0;
         
         updateStats(response);
         
@@ -334,18 +333,9 @@ void Network::NetworkManager::handleTimeout(std::shared_ptr<RequestContext> cont
         
         emit requestFailed(context->requestId, "Request timeout");
         
-        if (context->reply) {
-            context->reply->deleteLater();
-        }
-        if (context->retryTimer) {
-            context->retryTimer->stop();
-            context->retryTimer->deleteLater();
-            context->retryTimer = nullptr;
-        }
-        delete context->elapsedTimer;
-        
-        QMutexLocker locker(&m_mutex);
-        m_activeRequests.remove(context->requestId);
+        context->completed = true;
+        cleanupElapsedTimer(context.get());
+        removeActiveRequest(context);
     }
 }
 
@@ -395,7 +385,9 @@ void Network::NetworkManager::onRetryTimerTimeout()
     }
     retryTimer->deleteLater();
 
-    context->elapsedTimer->restart();
+    if (context->elapsedTimer) {
+        context->elapsedTimer->restart();
+    }
     executeRequest(context);
 }
 
@@ -414,65 +406,115 @@ int Network::NetworkManager::calculateRetryDelay(int retry, const RequestOptions
 
 void Network::NetworkManager::cancelRequest(const QString& requestId)
 {
-    QMutexLocker locker(&m_mutex);
-    
-    auto it = m_activeRequests.find(requestId);
-    if (it != m_activeRequests.end()) {
-        auto context = it.value();
-        
-        if (context->reply) {
-            context->reply->abort();
-            context->reply->deleteLater();
-            context->reply = nullptr;
+    std::shared_ptr<RequestContext> context;
+    {
+        QMutexLocker locker(&m_mutex);
+
+        auto it = m_activeRequests.find(requestId);
+        if (it != m_activeRequests.end()) {
+            context = it.value();
+            m_activeRequests.erase(it);
         }
-        
-        if (context->timeoutTimer) {
-            context->timeoutTimer->stop();
-            context->timeoutTimer->deleteLater();
-            context->timeoutTimer = nullptr;
-        }
-        if (context->retryTimer) {
-            context->retryTimer->stop();
-            context->retryTimer->deleteLater();
-            context->retryTimer = nullptr;
-        }
-        
-        delete context->elapsedTimer;
-        
-        m_activeRequests.erase(it);
-        
-        qDebug() << "[NetworkManager] Request cancelled:" << requestId;
     }
+
+    if (!context) {
+        return;
+    }
+
+    context->completed = true;
+    disposeReply(detachReply(context.get()), true);
+    cleanupTimers(context.get());
+    cleanupElapsedTimer(context.get());
+
+    qDebug() << "[NetworkManager] Request cancelled:" << requestId;
 }
 
 void Network::NetworkManager::cancelAllRequests()
 {
-    QMutexLocker locker(&m_mutex);
-    
-    for (auto& context : m_activeRequests) {
-        if (context->reply) {
-            context->reply->abort();
-            context->reply->deleteLater();
-            context->reply = nullptr;
+    QList<std::shared_ptr<RequestContext>> contexts;
+    {
+        QMutexLocker locker(&m_mutex);
+        contexts = m_activeRequests.values();
+        m_activeRequests.clear();
+    }
+
+    for (auto& context : contexts) {
+        if (!context) {
+            continue;
         }
-        
-        if (context->timeoutTimer) {
-            context->timeoutTimer->stop();
-            context->timeoutTimer->deleteLater();
-            context->timeoutTimer = nullptr;
-        }
-        if (context->retryTimer) {
-            context->retryTimer->stop();
-            context->retryTimer->deleteLater();
-            context->retryTimer = nullptr;
-        }
-        
-        delete context->elapsedTimer;
+
+        context->completed = true;
+        disposeReply(detachReply(context.get()), true);
+        cleanupTimers(context.get());
+        cleanupElapsedTimer(context.get());
     }
     
-    m_activeRequests.clear();
-    
     qDebug() << "[NetworkManager] All requests cancelled";
+}
+
+QNetworkReply* Network::NetworkManager::detachReply(RequestContext* context)
+{
+    if (!context) {
+        return nullptr;
+    }
+
+    QNetworkReply* reply = context->reply;
+    context->reply = nullptr;
+    if (reply) {
+        disconnect(reply, nullptr, this, nullptr);
+    }
+    return reply;
+}
+
+void Network::NetworkManager::disposeReply(QNetworkReply* reply, bool abortReply)
+{
+    if (!reply) {
+        return;
+    }
+
+    disconnect(reply, nullptr, this, nullptr);
+    if (abortReply && reply->isRunning()) {
+        reply->abort();
+    }
+    reply->deleteLater();
+}
+
+void Network::NetworkManager::cleanupTimers(RequestContext* context)
+{
+    if (!context) {
+        return;
+    }
+
+    if (context->timeoutTimer) {
+        context->timeoutTimer->stop();
+        context->timeoutTimer->deleteLater();
+        context->timeoutTimer = nullptr;
+    }
+    if (context->retryTimer) {
+        context->retryTimer->stop();
+        context->retryTimer->deleteLater();
+        context->retryTimer = nullptr;
+    }
+}
+
+void Network::NetworkManager::cleanupElapsedTimer(RequestContext* context)
+{
+    if (!context || !context->elapsedTimer) {
+        return;
+    }
+
+    delete context->elapsedTimer;
+    context->elapsedTimer = nullptr;
+}
+
+void Network::NetworkManager::removeActiveRequest(const std::shared_ptr<RequestContext>& context)
+{
+    if (!context) {
+        return;
+    }
+
+    QMutexLocker locker(&m_mutex);
+    m_activeRequests.remove(context->requestId);
 }
 
 RequestStats Network::NetworkManager::getStats() const

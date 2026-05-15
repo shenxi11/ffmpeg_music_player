@@ -22,14 +22,19 @@ public:
 
 signals:
     void videoListUpdated(const QVariantList& videoList);
-    void videoStreamResolved(const QString& videoUrl, const QString& videoName);
+    void videoStreamResolved(const QString& videoUrl, const QString& videoName,
+                             const QVariantList& playbackSources);
 
 private slots:
     void onVideoListReceived(const QVariantList& videoList);
     void onVideoStreamUrlReceived(const QString& videoUrl);
+    void onVideoPlaybackInfoReceived(const QVariantMap& playbackInfo);
 
 private:
+    QVariantList buildPlaybackSources(const QVariantMap& playbackInfo) const;
+
     HttpRequestV2 m_request;
+    QString m_selectedVideoPath;
     QString m_selectedVideoName;
 };
 

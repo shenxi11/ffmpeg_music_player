@@ -205,6 +205,7 @@ class HttpRequestV2 : public QObject {
      * @brief 获取视频流 URL
      */
     void getVideoStreamUrl(const QString& videoPath);
+    void getVideoPlaybackInfo(const QString& videoPath);
 
     /**
      * @brief 搜索歌手
@@ -260,6 +261,7 @@ class HttpRequestV2 : public QObject {
     void signalLrc(QStringList content);
     void signalVideoList(const QVariantList& videoList);
     void signalVideoStreamUrl(const QString& videoUrl);
+    void signalVideoPlaybackInfo(const QVariantMap& playbackInfo);
     void signalArtistExists(bool exists, const QString& artist);
     void signalArtistMusicList(const QList<Music>& musicList, const QString& artist);
     void signalAddFavoriteResult(bool success);

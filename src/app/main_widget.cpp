@@ -1744,7 +1744,12 @@ void MainWidget::closeEvent(QCloseEvent* event) {
         loginWidget->close();
     }
     if (w) {
-        w->close();
+        if (m_viewModel) {
+            m_viewModel->shutdownAudioPipeline();
+        }
+        qDebug() << "[MainWidget] closeEvent: deleting PlayWidget before native surface teardown";
+        delete w;
+        w = nullptr;
     }
 
     const auto topLevelList = QApplication::topLevelWidgets();

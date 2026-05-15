@@ -118,6 +118,7 @@ private:
         QTimer* retryTimer = nullptr;
         QElapsedTimer* elapsedTimer = nullptr;
         int currentRetry = 0;
+        bool completed = false;
     };
 
 private slots:
@@ -132,6 +133,11 @@ private:
     void handleTimeout(std::shared_ptr<RequestContext> context);
     void retryRequest(std::shared_ptr<RequestContext> context);
     int calculateRetryDelay(int retry, const RequestOptions& options);
+    QNetworkReply* detachReply(RequestContext* context);
+    void disposeReply(QNetworkReply* reply, bool abortReply);
+    void cleanupTimers(RequestContext* context);
+    void cleanupElapsedTimer(RequestContext* context);
+    void removeActiveRequest(const std::shared_ptr<RequestContext>& context);
     
     QNetworkRequest createRequest(const QString& url, const RequestOptions& options);
     QString httpMethodToString(HttpMethod method) const;

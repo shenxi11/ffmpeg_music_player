@@ -54,6 +54,7 @@ public:
     // ===== 获取组件 =====
     QWidget* videoRenderer() const { return m_renderer; }
     VideoBuffer* videoBuffer() const { return m_buffer; }
+    void setStreamingMode(bool enabled);
     
     // ===== 设置组件 =====
     void setVideoRenderer(QWidget* renderer);
@@ -84,6 +85,7 @@ private:
     // 状态
     bool m_running;
     bool m_holdFrame;           // 是否暂停渲染
+    bool m_streamingMode;       // 网络分片播放需要更大的缓冲窗口
     qint64 m_currentPTS;        // 当前PTS
     QSize m_videoSize;          // 视频尺寸
     

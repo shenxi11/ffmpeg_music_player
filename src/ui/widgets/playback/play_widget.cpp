@@ -851,12 +851,15 @@ void PlayWidget::shutdownQuickWidget(QQuickWidget* widget) {
     if (!widget) {
         return;
     }
+    widget->disconnect();
     widget->setUpdatesEnabled(false);
     if (QQuickWindow* quickWindow = widget->quickWindow()) {
         quickWindow->setPersistentOpenGLContext(false);
         quickWindow->setPersistentSceneGraph(false);
+        quickWindow->releaseResources();
     }
     widget->hide();
+    widget->setSource(QUrl());
 }
 
 void PlayWidget::onDeskToggled(bool checked) {

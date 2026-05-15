@@ -362,7 +362,12 @@ void VideoPlayerWindow::onPlayPauseClicked()
 
         // After reaching EOF, always seek back to 0 before replay.
         if (m_replayPendingSeek && m_mediaSession) {
-            m_mediaSession->seekTo(0);
+            if (!m_mediaSession->seekTo(0)) {
+                m_isPlaying = false;
+                m_playPauseBtn->setText(QStringLiteral(u"\u64ad\u653e"));
+                emit playStateChanged(false);
+                return;
+            }
             m_currentPosition = 0;
             if (m_progressSlider) {
                 m_progressSlider->setValue(0);
@@ -431,7 +436,9 @@ bool VideoPlayerWindow::seekToPosition(qint64 positionMs)
         m_pendingStoppedSeekPosition = target;
         QTimer::singleShot(0, this, &VideoPlayerWindow::onDeferredSeekAfterStopped);
     } else {
-        m_mediaSession->seekTo(target);
+        if (!m_mediaSession->seekTo(target)) {
+            return false;
+        }
         if (wasPaused || m_mediaSession->state() != MediaSession::Playing) {
             m_mediaSession->play();
         }
@@ -652,10 +659,14 @@ void VideoPlayerWindow::onSliderReleased()
     } else if (wasPaused) {
         // Paused态先显式seek，再恢复播放，避免play()里的handoff强制seek
         // 与用户seek形成双重seek链路。
-        m_mediaSession->seekTo(targetPosition);
+        if (!m_mediaSession->seekTo(targetPosition)) {
+            return;
+        }
         m_mediaSession->play();
     } else {
-        m_mediaSession->seekTo(targetPosition);
+        if (!m_mediaSession->seekTo(targetPosition)) {
+            return;
+        }
         if (m_mediaSession->state() != MediaSession::Playing) {
             m_mediaSession->play();
         }

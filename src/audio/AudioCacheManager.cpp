@@ -52,6 +52,14 @@ bool hasSeekIndexSupportedAudioExtension(const QString& pathLower)
             || pathLower.endsWith(".aac");
 }
 
+bool shouldFullCacheByAudioType(const QUrl& url)
+{
+    const QString pathLower = url.path().toLower();
+    return pathLower.endsWith(".mp3")
+            || pathLower.endsWith(".ogg")
+            || pathLower.endsWith(".wav");
+}
+
 bool isFlacUrl(const QUrl& url)
 {
     return url.path().toLower().endsWith(".flac");
@@ -287,11 +295,10 @@ QUrl AudioCacheManager::resolvePlaybackUrl(const QUrl& originalUrl) const
         return originalUrl;
     }
 
-    // Backward compatibility: if old full-file cache exists, keep using it.
-    const QString legacyFullPath = legacyFullCachePathForUrl(originalUrl);
-    const QFileInfo legacyInfo(legacyFullPath);
-    if (legacyInfo.exists() && legacyInfo.isFile() && legacyInfo.size() > 0) {
-        return QUrl::fromLocalFile(legacyFullPath);
+    if (hasValidFullCache(originalUrl)) {
+        const QString fullPath = legacyFullCachePathForUrl(originalUrl);
+        qDebug() << "[AudioCache] Full cache hit:" << fullPath;
+        return QUrl::fromLocalFile(fullPath);
     }
 
     const_cast<AudioCacheManager*>(this)->startProxyServerIfNeeded();
@@ -323,6 +330,21 @@ void AudioCacheManager::warmupCache(const QUrl& originalUrl)
     loadTrackMeta(cacheKey, &meta);
     meta.lastAccessMs = currentEpochMs();
     updateTrackMeta(cacheKey, meta.contentLength, meta.durationMs);
+
+    if (shouldFullCacheByAudioType(originalUrl) && meta.contentLength > 0) {
+        queueFullFileDownload(originalUrl, cacheKey, meta.contentLength, QNetworkRequest::HighPriority);
+        return;
+    }
+    if (shouldFullCacheByAudioType(originalUrl)) {
+        qDebug() << "[AudioCache] Full cache waiting-size:"
+                 << "url=" << originalUrl.toString();
+        return;
+    }
+    if (!shouldFullCacheByAudioType(originalUrl)) {
+        qDebug() << "[AudioCache] Full cache skip-type:"
+                 << "bytes=" << meta.contentLength
+                 << "url=" << originalUrl.toString();
+    }
 
     int startupChunks = m_startupPrefetchChunks;
     if (isFlacUrl(originalUrl)) {
@@ -769,7 +791,11 @@ void AudioCacheManager::onDownloadFinished(QNetworkReply* reply)
 
     const DownloadTask task = it.value();
     m_downloadTasks.erase(it);
-    m_inflightChunkKeys.remove(task.cacheKey + ":" + QString::number(task.chunkIndex));
+    if (task.fullFileDownload) {
+        m_inflightChunkKeys.remove(task.cacheKey + ":full");
+    } else {
+        m_inflightChunkKeys.remove(task.cacheKey + ":" + QString::number(task.chunkIndex));
+    }
     if (task.metadataProbe) {
         m_inflightChunkKeys.remove(task.cacheKey + ":probe");
     }
@@ -780,7 +806,29 @@ void AudioCacheManager::onDownloadFinished(QNetworkReply* reply)
                     && !payload.isEmpty()
                     && (task.metadataProbe || responseLooksAudio);
 
-    if (ok && !task.metadataProbe) {
+    if (ok && task.fullFileDownload) {
+        const QString partPath = task.targetFilePath + QStringLiteral(".part");
+        QFile out(partPath);
+        if (out.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+            out.write(payload);
+            out.close();
+
+            QFile::remove(task.targetFilePath);
+            if (QFile::rename(partPath, task.targetFilePath)) {
+                QFile(task.targetFilePath).setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner
+                                                          | QFileDevice::ReadUser | QFileDevice::WriteUser);
+                qDebug() << "[AudioCache] Full cache completed:"
+                         << "bytes=" << payload.size()
+                         << "path=" << task.targetFilePath;
+                emit fullFileCacheReady(task.originalUrl, QUrl::fromLocalFile(task.targetFilePath));
+            } else {
+                QFile::remove(partPath);
+                qWarning() << "[AudioCache] Full cache rename failed:" << task.targetFilePath;
+            }
+        } else {
+            qWarning() << "[AudioCache] Cannot write full cache file:" << partPath;
+        }
+    } else if (ok && !task.metadataProbe) {
         const QString partPath = task.targetFilePath + QStringLiteral(".part");
         QFile out(partPath);
         if (out.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
@@ -801,7 +849,8 @@ void AudioCacheManager::onDownloadFinished(QNetworkReply* reply)
             qWarning() << "[AudioCache] Cannot write chunk cache file:" << partPath;
         }
     } else if (!ok) {
-        qWarning() << "[AudioCache] Chunk download failed:"
+        qWarning() << (task.fullFileDownload ? "[AudioCache] Full cache download failed:"
+                                             : "[AudioCache] Chunk download failed:")
                    << "chunk=" << task.chunkIndex
                    << "url=" << reply->url().toString()
                    << "status=" << reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt()
@@ -824,6 +873,12 @@ void AudioCacheManager::onDownloadFinished(QNetworkReply* reply)
     }
     meta.lastAccessMs = currentEpochMs();
     updateTrackMeta(task.cacheKey, meta.contentLength, meta.durationMs);
+
+    if ((task.metadataProbe || !task.fullFileDownload)
+            && shouldFullCacheByAudioType(task.originalUrl)
+            && meta.contentLength > 0) {
+        queueFullFileDownload(task.originalUrl, task.cacheKey, meta.contentLength, QNetworkRequest::HighPriority);
+    }
 
     maybeRunLruCleanup();
     reply->deleteLater();
@@ -969,6 +1024,45 @@ void AudioCacheManager::handleProxyRequest(QTcpSocket* socket, const QByteArray&
     }
 
     const QString cacheKey = makeCacheKey(srcUrl);
+    const QString fullCachePath = legacyFullCachePathForUrl(srcUrl);
+    const QFileInfo fullCacheInfo(fullCachePath);
+    if (fullCacheInfo.exists() && fullCacheInfo.isFile() && fullCacheInfo.size() > 0) {
+        QFile fullFile(fullCachePath);
+        if (fullFile.open(QIODevice::ReadOnly)) {
+            const qint64 fileSize = fullCacheInfo.size();
+            qint64 responseStart = hasRange && rangeStart >= 0 ? rangeStart : 0;
+            qint64 responseEnd = hasRange && rangeEnd >= rangeStart ? rangeEnd : fileSize - 1;
+            responseStart = qBound<qint64>(0, responseStart, fileSize - 1);
+            responseEnd = qBound<qint64>(responseStart, responseEnd, fileSize - 1);
+            const qint64 responseLength = responseEnd - responseStart + 1;
+            if (responseLength > 0 && fullFile.seek(responseStart)) {
+                const QByteArray payload = fullFile.read(responseLength);
+                QByteArray extra;
+                if (hasRange) {
+                    extra += QByteArray("Content-Range: bytes ")
+                            + QByteArray::number(responseStart)
+                            + "-"
+                            + QByteArray::number(responseStart + payload.size() - 1)
+                            + "/"
+                            + QByteArray::number(fileSize)
+                            + "\r\n";
+                }
+                socket->write(buildHttpHeaders(hasRange ? 206 : 200,
+                                               hasRange ? QByteArray("Partial Content") : QByteArray("OK"),
+                                               "audio/mpeg",
+                                               payload.size(),
+                                               extra));
+                socket->write(payload);
+                socket->disconnectFromHost();
+                qDebug() << "[AudioCacheProxy] Full cache response:"
+                         << "range=" << QString("%1-%2").arg(responseStart).arg(responseStart + payload.size() - 1)
+                         << "bytes=" << payload.size()
+                         << "path=" << fullCachePath;
+                return;
+            }
+        }
+    }
+
     // Fast path: single-chunk hit can be returned directly without upstream fetch.
     // Supports unaligned byte-range to improve FLAC seek hit rate.
     if (hasRange && rangeStart >= 0) {
@@ -1400,6 +1494,20 @@ QString AudioCacheManager::legacyFullCachePathForUrl(const QUrl& url) const
     return QDir(m_cacheDirectory).filePath(makeCacheKey(url) + ext);
 }
 
+bool AudioCacheManager::hasCompleteFileCache(const QUrl& originalUrl) const
+{
+    return canCacheUrl(originalUrl) && hasValidFullCache(originalUrl);
+}
+
+bool AudioCacheManager::hasValidFullCache(const QUrl& url, qint64 expectedSize) const
+{
+    const QFileInfo info(legacyFullCachePathForUrl(url));
+    if (!info.exists() || !info.isFile() || info.size() <= 0) {
+        return false;
+    }
+    return expectedSize <= 0 || info.size() == expectedSize;
+}
+
 QString AudioCacheManager::trackCacheDir(const QString& cacheKey) const
 {
     return QDir(m_chunkRootDirectory).filePath(cacheKey);
@@ -1414,6 +1522,53 @@ bool AudioCacheManager::hasChunk(const QString& cacheKey, qint64 chunkIndex) con
 {
     const QFileInfo info(chunkFilePath(cacheKey, chunkIndex));
     return info.exists() && info.isFile() && info.size() > 0;
+}
+
+void AudioCacheManager::queueFullFileDownload(const QUrl& url,
+                                              const QString& cacheKey,
+                                              qint64 contentLength,
+                                              QNetworkRequest::Priority priority)
+{
+    if (!shouldFullCacheByAudioType(url) || contentLength <= 0) {
+        return;
+    }
+
+    if (hasValidFullCache(url, contentLength)) {
+        QFile(legacyFullCachePathForUrl(url)).setFileTime(QDateTime::currentDateTimeUtc(),
+                                                          QFileDevice::FileAccessTime);
+        qDebug() << "[AudioCache] Full cache already complete:"
+                 << "bytes=" << contentLength
+                 << "url=" << url.toString();
+        return;
+    }
+
+    const QString inflightKey = cacheKey + ":full";
+    if (m_inflightChunkKeys.contains(inflightKey)) {
+        return;
+    }
+
+    QDir().mkpath(m_cacheDirectory);
+    QNetworkRequest request(url);
+    request.setAttribute(QNetworkRequest::FollowRedirectsAttribute, true);
+    request.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("FFmpegMusicPlayer/1.0"));
+    request.setPriority(priority);
+
+    QNetworkReply* reply = m_networkManager.get(request);
+    m_inflightChunkKeys.insert(inflightKey);
+    m_downloadTasks.insert(reply, DownloadTask{
+        cacheKey,
+        url,
+        0,
+        contentLength - 1,
+        -1,
+        legacyFullCachePathForUrl(url),
+        false,
+        true
+    });
+
+    qDebug() << "[AudioCache] Full cache queued:"
+             << "bytes=" << contentLength
+             << "url=" << url.toString();
 }
 
 void AudioCacheManager::queueChunkDownload(const QUrl& url,

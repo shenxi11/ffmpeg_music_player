@@ -121,6 +121,23 @@ int VideoBuffer::size() const
     return m_queue.size();
 }
 
+qint64 VideoBuffer::bufferedDurationMs() const
+{
+    QMutexLocker locker(&m_mutex);
+    if (m_queue.size() < 2) {
+        return 0;
+    }
+
+    const VideoFrame* firstFrame = m_queue.first();
+    const VideoFrame* lastFrame = m_queue.last();
+    if (!firstFrame || !lastFrame || lastFrame->pts < firstFrame->pts) {
+        return 0;
+    }
+
+    const qint64 lastDuration = qMax<qint64>(0, lastFrame->duration);
+    return (lastFrame->pts - firstFrame->pts) + lastDuration;
+}
+
 bool VideoBuffer::isEmpty() const
 {
     QMutexLocker locker(&m_mutex);

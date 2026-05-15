@@ -4,6 +4,8 @@
 #include "MediaSession.h"
 #include "VideoRendererGL.h"
 
+#include <QVariantList>
+#include <QVariantMap>
 #include <QWidget>
 
 class QComboBox;
@@ -25,6 +27,7 @@ public:
     bool resumePlayback();
     bool seekToPosition(qint64 positionMs);
     void setVideoInfo(const QString& title, const QString& sourcePath, qint64 sizeBytes);
+    void setPlaybackSources(const QVariantList& sources);
     bool hasLoadedVideo() const;
 
 signals:
@@ -46,6 +49,7 @@ public slots:
     void onPositionChanged(qint64 positionMs);
     void onDurationChanged(qint64 durationMs);
     void onPlaybackFinished();
+    void onPlaybackError(const QString& message);
     void onVideoSizeChanged(const QSize& size);
     void onMediaSessionStateChanged(MediaSession::PlaybackState state);
     void onDeferredSeekAfterStopped();
@@ -81,6 +85,14 @@ private:
     QRect calculateVisibleVideoRect() const;
     bool isCursorInsideStage() const;
     void setStageHovered(bool hovered);
+    void reloadCurrentSourceAt(qint64 positionMs, bool resumeAfterLoad);
+    bool loadSourceAt(qint64 positionMs, bool resumeAfterLoad, bool allowFallback);
+    qint64 normalizedHlsResumePosition(qint64 positionMs) const;
+    void restoreQualitySelectionForCurrentSource();
+    QString directPlaybackSourceUrl() const;
+    bool isHlsSource(const QString& source) const;
+    void applyRendererQualityPreset(int preset);
+    int rendererPresetForSource(const QVariantMap& source) const;
     QString formatTime(qint64 ms) const;
     QString formatSizeBytes(qint64 bytes) const;
 
@@ -139,13 +151,19 @@ private:
     bool m_videoFullscreenActive = false;
     bool m_replayPendingSeek = false;
     bool m_fillDisplayMode = false;
+    bool m_switchingQualitySource = false;
+    bool m_fallingBackToDirectSource = false;
+    bool m_restoringQualitySelection = false;
     qint64 m_duration = 0;
     qint64 m_currentPosition = 0;
+    qint64 m_qualitySwitchResumePosition = 0;
     qint64 m_pendingStoppedSeekPosition = 0;
 
     QString m_currentFilePath;
     QString m_displayTitle;
     QString m_sourcePath;
+    QString m_previousQualitySource;
+    QVariantList m_playbackSources;
     qint64 m_sourceSizeBytes = 0;
 };
 

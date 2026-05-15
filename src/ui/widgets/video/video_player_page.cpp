@@ -15,12 +15,18 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QSlider>
+#include <QSignalBlocker>
 #include <QTimer>
+#include <QVariantMap>
 #include <QVBoxLayout>
 
 namespace {
 constexpr int kRendererRecoveryDelayMs = 50;
 constexpr int kOverlayHideDelayMs = 180;
+constexpr int kSourceUrlRole = Qt::UserRole + 32;
+constexpr int kRendererPresetRole = Qt::UserRole + 33;
+constexpr qint64 kHlsSafeResumeThresholdMs = 5000;
+constexpr qint64 kHlsSegmentDurationMs = 2000;
 
 QPushButton* createActionChip(const QString& text, QWidget* parent, bool enabled)
 {
@@ -484,7 +490,13 @@ void VideoPlayerPage::setupUi()
 
     m_qualityPresetBox = new QComboBox(m_controlBar);
     m_qualityPresetBox->addItem(QStringLiteral("高清"), static_cast<int>(VideoRendererGL::Standard1080P));
+    m_qualityPresetBox->setItemData(0, QString(), kSourceUrlRole);
+    m_qualityPresetBox->setItemData(0, static_cast<int>(VideoRendererGL::Standard1080P),
+                                    kRendererPresetRole);
     m_qualityPresetBox->addItem(QStringLiteral("超清"), static_cast<int>(VideoRendererGL::Enhanced2K));
+    m_qualityPresetBox->setItemData(1, QString(), kSourceUrlRole);
+    m_qualityPresetBox->setItemData(1, static_cast<int>(VideoRendererGL::Enhanced2K),
+                                    kRendererPresetRole);
     m_qualityPresetBox->setCurrentIndex(1);
     m_qualityPresetBox->setVisible(false);
 
@@ -676,6 +688,8 @@ void VideoPlayerPage::connectMediaSessionSignals()
             &VideoPlayerPage::onDurationChanged);
     connect(m_mediaSession, &MediaSession::playbackFinished, this,
             &VideoPlayerPage::onPlaybackFinished);
+    connect(m_mediaSession, &MediaSession::playbackError, this,
+            &VideoPlayerPage::onPlaybackError);
     connect(m_mediaSession, &MediaSession::stateChanged, this,
             &VideoPlayerPage::onMediaSessionStateChanged);
 }
@@ -769,7 +783,9 @@ void VideoPlayerPage::switchActiveRenderer()
 
     renderer->setDisplayMode(m_fillDisplayMode ? 1 : 0);
     if (m_qualityPresetBox && m_qualityPresetBox->currentIndex() >= 0) {
-        renderer->setQualityPreset(m_qualityPresetBox->currentData().toInt());
+        renderer->setQualityPreset(
+            m_qualityPresetBox->currentData(kRendererPresetRole)
+                .toInt());
     }
     videoSession->setVideoRenderer(renderer);
     renderer->show();
@@ -799,6 +815,15 @@ void VideoPlayerPage::resetPlaybackUi()
         m_progressSlider->setValue(0);
     }
     if (m_qualityPresetBox) {
+        m_qualityPresetBox->clear();
+        m_qualityPresetBox->addItem(QStringLiteral("高清"), QString());
+        m_qualityPresetBox->setItemData(0, QString(), kSourceUrlRole);
+        m_qualityPresetBox->setItemData(0, static_cast<int>(VideoRendererGL::Standard1080P),
+                                        kRendererPresetRole);
+        m_qualityPresetBox->addItem(QStringLiteral("超清"), QString());
+        m_qualityPresetBox->setItemData(1, QString(), kSourceUrlRole);
+        m_qualityPresetBox->setItemData(1, static_cast<int>(VideoRendererGL::Enhanced2K),
+                                        kRendererPresetRole);
         m_qualityPresetBox->setCurrentIndex(1);
         m_qualityPresetBox->setEnabled(false);
     }
@@ -835,6 +860,9 @@ void VideoPlayerPage::loadVideo(const QString& filePath)
 
     resetPlaybackUi();
     m_currentFilePath = filePath.trimmed();
+    if (!m_playbackSources.isEmpty()) {
+        setPlaybackSources(m_playbackSources);
+    }
     if (m_displayTitle.isEmpty()) {
         m_displayTitle = fileNameFromSource(m_currentFilePath);
     }
@@ -877,6 +905,197 @@ void VideoPlayerPage::loadVideo(const QString& filePath)
     updateInfoPanel();
     updateStageState();
     emit videoLoaded(m_currentFilePath);
+}
+
+void VideoPlayerPage::reloadCurrentSourceAt(qint64 positionMs, bool resumeAfterLoad)
+{
+    loadSourceAt(positionMs, resumeAfterLoad, true);
+}
+
+bool VideoPlayerPage::loadSourceAt(qint64 positionMs, bool resumeAfterLoad, bool allowFallback)
+{
+    const QString source = m_currentFilePath.trimmed();
+    if (source.isEmpty()) {
+        return false;
+    }
+
+    if (m_mediaSession) {
+        m_mediaSession->stop();
+        delete m_mediaSession;
+        m_mediaSession = nullptr;
+    }
+
+    const bool previousSliderPressed = m_sliderPressed;
+    resetPlaybackUi();
+    m_sliderPressed = previousSliderPressed;
+    m_currentFilePath = source;
+    if (!m_playbackSources.isEmpty()) {
+        setPlaybackSources(m_playbackSources);
+    }
+
+    m_mediaSession = new MediaSession(this);
+    connectMediaSessionSignals();
+
+    QUrl url(m_currentFilePath);
+    if (!url.isValid() || url.scheme().isEmpty()) {
+        url = QUrl::fromLocalFile(m_currentFilePath);
+    }
+
+    if (!m_mediaSession->loadSource(url)) {
+        delete m_mediaSession;
+        m_mediaSession = nullptr;
+        m_placeholderTitleLabel->setText(QStringLiteral("视频加载失败"));
+        m_placeholderSubtitleLabel->setText(QStringLiteral("当前清晰度暂时无法播放，已保留原始播放入口。"));
+        updateStageState();
+        if (allowFallback && isHlsSource(source)) {
+            onPlaybackError(QStringLiteral("HLS source failed to load"));
+        }
+        return false;
+    }
+
+    if (m_qualityPresetBox) {
+        const QSignalBlocker blocker(m_qualityPresetBox);
+        for (int i = 0; i < m_qualityPresetBox->count(); ++i) {
+            if (m_qualityPresetBox->itemData(i, kSourceUrlRole).toString() == m_currentFilePath) {
+                m_qualityPresetBox->setCurrentIndex(i);
+                break;
+            }
+        }
+    }
+
+    if (m_mediaSession->hasVideo()) {
+        if (VideoSession* videoSession = m_mediaSession->videoSession()) {
+            videoSession->setVideoRenderer(activeRenderer());
+        }
+    }
+
+    if (m_qualityPresetBox) {
+        m_qualityPresetBox->setEnabled(true);
+        applyRendererQualityPreset(
+            m_qualityPresetBox->currentData(kRendererPresetRole).toInt());
+    }
+    if (m_playPauseButton) {
+        m_playPauseButton->setEnabled(true);
+    }
+    onPlaybackRateChanged(2);
+    updatePlaybackButtons();
+    updateInfoPanel();
+    updateStageState();
+
+    qint64 resumePosition = qBound<qint64>(0, positionMs, m_duration);
+    if (isHlsSource(source)) {
+        resumePosition = normalizedHlsResumePosition(resumePosition);
+    }
+
+    if (resumePosition > 0 && !m_mediaSession->seekTo(resumePosition)) {
+        if (allowFallback && isHlsSource(source)) {
+            onPlaybackError(QStringLiteral("HLS seek failed while switching quality"));
+        }
+        return false;
+    }
+
+    m_currentPosition = resumePosition;
+    if (m_progressSlider && m_duration > 0) {
+        m_progressSlider->setValue(static_cast<int>((resumePosition * 1000) / m_duration));
+    }
+    if (resumeAfterLoad && !m_isPlaying) {
+        resumePlayback();
+    }
+    emit videoLoaded(m_currentFilePath);
+    return true;
+}
+
+void VideoPlayerPage::setPlaybackSources(const QVariantList& sources)
+{
+    m_playbackSources = sources;
+    if (!m_qualityPresetBox) {
+        return;
+    }
+
+    QSignalBlocker blocker(m_qualityPresetBox);
+    m_qualityPresetBox->clear();
+
+    if (m_playbackSources.isEmpty()) {
+        m_qualityPresetBox->addItem(QStringLiteral("原画"), QString());
+        m_qualityPresetBox->setItemData(0, QString(), kSourceUrlRole);
+        m_qualityPresetBox->setItemData(0, static_cast<int>(VideoRendererGL::Standard1080P),
+                                        kRendererPresetRole);
+        m_qualityPresetBox->setCurrentIndex(0);
+        return;
+    }
+
+    int preferredIndex = 0;
+    for (const QVariant& value : m_playbackSources) {
+        const QVariantMap source = value.toMap();
+        const QString label = source.value(QStringLiteral("label")).toString().trimmed();
+        const QString url = source.value(QStringLiteral("url")).toString().trimmed();
+        const QString id = source.value(QStringLiteral("id")).toString().trimmed();
+        const bool direct = source.value(QStringLiteral("direct")).toBool();
+        if (url.isEmpty()) {
+            continue;
+        }
+
+        const int index = m_qualityPresetBox->count();
+        m_qualityPresetBox->addItem(label.isEmpty() ? id : label, url);
+        m_qualityPresetBox->setItemData(index, url, kSourceUrlRole);
+        m_qualityPresetBox->setItemData(index, rendererPresetForSource(source),
+                                        kRendererPresetRole);
+        if (url == m_currentFilePath || direct || id == QStringLiteral("direct")) {
+            preferredIndex = index;
+        }
+    }
+
+    if (m_qualityPresetBox->count() == 0) {
+        m_qualityPresetBox->addItem(QStringLiteral("原画"));
+        m_qualityPresetBox->setItemData(0, QString(), kSourceUrlRole);
+        m_qualityPresetBox->setItemData(0, static_cast<int>(VideoRendererGL::Standard1080P),
+                                        kRendererPresetRole);
+    }
+    m_qualityPresetBox->setCurrentIndex(qBound(0, preferredIndex, m_qualityPresetBox->count() - 1));
+}
+
+QString VideoPlayerPage::directPlaybackSourceUrl() const
+{
+    for (const QVariant& value : m_playbackSources) {
+        const QVariantMap source = value.toMap();
+        const QString id = source.value(QStringLiteral("id")).toString().trimmed();
+        const QString url = source.value(QStringLiteral("url")).toString().trimmed();
+        const bool direct = source.value(QStringLiteral("direct")).toBool();
+        if (!url.isEmpty() && (direct || id == QStringLiteral("direct"))) {
+            return url;
+        }
+    }
+    return QString();
+}
+
+bool VideoPlayerPage::isHlsSource(const QString& source) const
+{
+    const QString lowered = source.trimmed().toLower();
+    return lowered.contains(QStringLiteral(".m3u8")) || lowered.contains(QStringLiteral("/video-hls/"));
+}
+
+qint64 VideoPlayerPage::normalizedHlsResumePosition(qint64 positionMs) const
+{
+    if (positionMs <= 0 || positionMs < kHlsSafeResumeThresholdMs) {
+        return 0;
+    }
+
+    return (positionMs / kHlsSegmentDurationMs) * kHlsSegmentDurationMs;
+}
+
+void VideoPlayerPage::restoreQualitySelectionForCurrentSource()
+{
+    if (!m_qualityPresetBox) {
+        return;
+    }
+
+    QSignalBlocker blocker(m_qualityPresetBox);
+    for (int i = 0; i < m_qualityPresetBox->count(); ++i) {
+        if (m_qualityPresetBox->itemData(i, kSourceUrlRole).toString() == m_currentFilePath) {
+            m_qualityPresetBox->setCurrentIndex(i);
+            return;
+        }
+    }
 }
 
 void VideoPlayerPage::pausePlayback()
@@ -926,7 +1145,9 @@ bool VideoPlayerPage::seekToPosition(qint64 positionMs)
         m_pendingStoppedSeekPosition = target;
         QTimer::singleShot(0, this, &VideoPlayerPage::onDeferredSeekAfterStopped);
     } else {
-        m_mediaSession->seekTo(target);
+        if (!m_mediaSession->seekTo(target)) {
+            return false;
+        }
         if (wasPaused || m_mediaSession->state() != MediaSession::Playing) {
             m_mediaSession->play();
         }
@@ -949,7 +1170,13 @@ void VideoPlayerPage::onPlayPauseClicked()
     if (m_isPlaying) {
         emit playStateChanged(true);
         if (m_replayPendingSeek) {
-            m_mediaSession->seekTo(0);
+            if (!m_mediaSession->seekTo(0)) {
+                m_isPlaying = false;
+                emit playStateChanged(false);
+                updatePlaybackButtons();
+                updateStageState();
+                return;
+            }
             m_currentPosition = 0;
             if (m_progressSlider) {
                 m_progressSlider->setValue(0);
@@ -1006,10 +1233,14 @@ void VideoPlayerPage::onSliderReleased()
         m_pendingStoppedSeekPosition = targetPosition;
         QTimer::singleShot(0, this, &VideoPlayerPage::onDeferredSeekAfterStopped);
     } else if (wasPaused) {
-        m_mediaSession->seekTo(targetPosition);
+        if (!m_mediaSession->seekTo(targetPosition)) {
+            return;
+        }
         m_mediaSession->play();
     } else {
-        m_mediaSession->seekTo(targetPosition);
+        if (!m_mediaSession->seekTo(targetPosition)) {
+            return;
+        }
         if (m_mediaSession->state() != MediaSession::Playing) {
             m_mediaSession->play();
         }
@@ -1068,25 +1299,65 @@ void VideoPlayerPage::onPlaybackRateChanged(int index)
 
 void VideoPlayerPage::onQualityPresetChanged(int index)
 {
-    if (!m_qualityPresetBox || index < 0) {
+    if (!m_qualityPresetBox || index < 0 || m_restoringQualitySelection) {
         return;
     }
 
-    bool ok = false;
-    const int preset = m_qualityPresetBox->itemData(index).toInt(&ok);
-    if (ok) {
-        if (m_renderWidget) {
-            m_renderWidget->setQualityPreset(preset);
-        }
-        if (m_fullscreenRenderWidget) {
-            m_fullscreenRenderWidget->setQualityPreset(preset);
+    const int preset = m_qualityPresetBox->itemData(index, kRendererPresetRole)
+                           .toInt(nullptr);
+    applyRendererQualityPreset(preset);
+
+    const QString sourceUrl =
+        m_qualityPresetBox->itemData(index, kSourceUrlRole).toString().trimmed();
+    if (!sourceUrl.isEmpty() && !m_currentFilePath.isEmpty() && sourceUrl != m_currentFilePath) {
+        const qint64 resumePosition = m_currentPosition;
+        const bool resumeAfterLoad = m_isPlaying ||
+            (m_mediaSession && m_mediaSession->state() == MediaSession::Playing);
+        m_switchingQualitySource = true;
+        m_qualitySwitchResumePosition = resumePosition;
+        m_previousQualitySource = m_currentFilePath;
+        m_currentFilePath = sourceUrl;
+        const bool loaded = loadSourceAt(resumePosition, resumeAfterLoad, true);
+        if (loaded && !isHlsSource(sourceUrl)) {
+            m_switchingQualitySource = false;
+            m_previousQualitySource.clear();
         }
     }
+    updatePlaybackButtons();
+}
+
+void VideoPlayerPage::applyRendererQualityPreset(int preset)
+{
+    if (m_renderWidget) {
+        m_renderWidget->setQualityPreset(preset);
+    }
+    if (m_fullscreenRenderWidget) {
+        m_fullscreenRenderWidget->setQualityPreset(preset);
+    }
+}
+
+int VideoPlayerPage::rendererPresetForSource(const QVariantMap& source) const
+{
+    const QString id = source.value(QStringLiteral("id")).toString().toLower();
+    const QString label = source.value(QStringLiteral("label")).toString().toLower();
+    if (id.contains(QStringLiteral("1080")) || label.contains(QStringLiteral("1080")) ||
+        label.contains(QStringLiteral("超清"))) {
+        return static_cast<int>(VideoRendererGL::Enhanced2K);
+    }
+    return static_cast<int>(VideoRendererGL::Standard1080P);
 }
 
 void VideoPlayerPage::onPositionChanged(qint64 positionMs)
 {
     m_currentPosition = positionMs;
+    if (m_switchingQualitySource && isHlsSource(m_currentFilePath)) {
+        const qint64 switchAnchor = normalizedHlsResumePosition(m_qualitySwitchResumePosition);
+        if (positionMs >= switchAnchor + 2500) {
+            qDebug() << "[VideoPlayerPage] HLS quality switch stabilized at" << positionMs << "ms";
+            m_switchingQualitySource = false;
+            m_previousQualitySource.clear();
+        }
+    }
     if (!m_sliderPressed && m_duration > 0) {
         m_progressSlider->setValue(static_cast<int>((positionMs * 1000) / m_duration));
     }
@@ -1101,6 +1372,12 @@ void VideoPlayerPage::onDurationChanged(qint64 durationMs)
 
 void VideoPlayerPage::onPlaybackFinished()
 {
+    const bool endedNearDuration = (m_duration > 0 && m_currentPosition >= m_duration - 1500);
+    if (m_switchingQualitySource || (isHlsSource(m_currentFilePath) && !endedNearDuration)) {
+        onPlaybackError(QStringLiteral("HLS playback finished before media packets"));
+        return;
+    }
+
     if (m_mediaSession) {
         m_mediaSession->stop();
     }
@@ -1114,6 +1391,68 @@ void VideoPlayerPage::onPlaybackFinished()
     updatePlaybackButtons();
     updateStageState();
     emit playStateChanged(false);
+}
+
+void VideoPlayerPage::onPlaybackError(const QString& message)
+{
+    qWarning() << "[VideoPlayerPage] Playback error:" << message
+               << "source:" << m_currentFilePath
+               << "switchingQuality:" << m_switchingQualitySource
+               << "fallingBack:" << m_fallingBackToDirectSource;
+
+    if (m_switchingQualitySource && !m_previousQualitySource.isEmpty() &&
+        m_previousQualitySource != m_currentFilePath) {
+        const qint64 resumePosition = qMax(m_qualitySwitchResumePosition, m_currentPosition);
+        const bool resumeAfterLoad = m_isPlaying ||
+            (m_mediaSession && m_mediaSession->state() == MediaSession::Playing);
+        qWarning() << "[VideoPlayerPage] HLS quality switch failed, restoring previous source:"
+                   << m_previousQualitySource;
+        m_currentFilePath = m_previousQualitySource;
+        m_previousQualitySource.clear();
+        m_switchingQualitySource = false;
+        m_restoringQualitySelection = true;
+        const bool loaded = loadSourceAt(resumePosition, resumeAfterLoad, false);
+        restoreQualitySelectionForCurrentSource();
+        m_restoringQualitySelection = false;
+        if (!loaded) {
+            m_isPlaying = false;
+            updatePlaybackButtons();
+            updateStageState();
+            emit playStateChanged(false);
+        }
+        return;
+    }
+
+    const QString fallbackUrl = directPlaybackSourceUrl();
+    if (m_fallingBackToDirectSource || fallbackUrl.isEmpty() || fallbackUrl == m_currentFilePath) {
+        m_switchingQualitySource = false;
+        m_fallingBackToDirectSource = false;
+        m_previousQualitySource.clear();
+        m_isPlaying = false;
+        updatePlaybackButtons();
+        updateStageState();
+        emit playStateChanged(false);
+        return;
+    }
+
+    const qint64 resumePosition = qMax(m_qualitySwitchResumePosition, m_currentPosition);
+    const bool resumeAfterLoad = m_isPlaying ||
+        (m_mediaSession && m_mediaSession->state() == MediaSession::Playing);
+
+    m_fallingBackToDirectSource = true;
+    m_switchingQualitySource = false;
+    m_previousQualitySource.clear();
+    m_currentFilePath = fallbackUrl;
+    const bool loaded = loadSourceAt(resumePosition, resumeAfterLoad, false);
+    m_fallingBackToDirectSource = false;
+    m_switchingQualitySource = false;
+
+    if (!loaded) {
+        m_isPlaying = false;
+        updatePlaybackButtons();
+        updateStageState();
+        emit playStateChanged(false);
+    }
 }
 
 void VideoPlayerPage::onVideoSizeChanged(const QSize& size)

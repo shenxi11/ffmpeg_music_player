@@ -32,7 +32,8 @@ private slots:
     void onRefreshRequested();
     void onVideoListReceived(const QVariantList& videoList);
     void onVideoSelected(const QString& videoPath, const QString& videoName);
-    void onVideoStreamResolved(const QString& videoUrl, const QString& videoName);
+    void onVideoStreamResolved(const QString& videoUrl, const QString& videoName,
+                               const QVariantList& playbackSources);
     void onVideoPlayerPlayStateChanged(bool isPlaying);
     void onReturnToListRequested();
 

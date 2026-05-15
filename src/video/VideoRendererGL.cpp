@@ -122,6 +122,7 @@ VideoRendererGL::VideoRendererGL(QWidget* parent)
     , m_bufferingThreshold(8)
     , m_bufferingTimeoutMs(450)
     , m_bufferingTimeoutLogged(false)
+    , m_hlsMode(false)
     , m_earlyWaitPts(-1)
     , m_earlyWaitLogged(false)
     , m_videoSize(-1, -1)
@@ -612,13 +613,26 @@ void VideoRendererGL::stop()
 
 void VideoRendererGL::startBuffering()
 {
-    const int dynamicThreshold = qBound(3, m_targetFPS / 6, 8);
+    const int dynamicThreshold = m_hlsMode
+        ? qBound(24, m_targetFPS * 2, 120)
+        : qBound(3, m_targetFPS / 6, 8);
     m_bufferingThreshold = dynamicThreshold;
+    m_bufferingTimeoutMs = m_hlsMode ? 2200 : 450;
     m_buffering = true;
     m_bufferingTimeoutLogged = false;
     m_bufferingTimer.restart();
     qDebug() << "[VideoRendererGL] Start buffering, threshold:" << m_bufferingThreshold
              << "timeout:" << m_bufferingTimeoutMs << "ms";
+}
+
+void VideoRendererGL::setHlsMode(bool enabled)
+{
+    if (m_hlsMode == enabled) {
+        return;
+    }
+
+    m_hlsMode = enabled;
+    qDebug() << "[VideoRendererGL] HLS mode" << (m_hlsMode ? "enabled" : "disabled");
 }
 
 void VideoRendererGL::refreshAfterSurfaceChange()
@@ -754,12 +768,15 @@ void VideoRendererGL::renderNextFrame()
 
     if (m_buffering) {
         const int bufferSize = m_buffer->size();
+        const qint64 bufferedDurationMs = m_buffer->bufferedDurationMs();
         const bool enoughFrames = bufferSize >= m_bufferingThreshold;
+        const bool enoughDuration = !m_hlsMode || bufferedDurationMs >= 1500;
         const bool timeoutReached = m_bufferingTimer.isValid() && m_bufferingTimer.elapsed() >= m_bufferingTimeoutMs;
 
-        if (enoughFrames || (timeoutReached && bufferSize > 0)) {
+        if ((enoughFrames && enoughDuration) || (timeoutReached && bufferSize > 0)) {
             m_buffering = false;
             qDebug() << "[VideoRendererGL] Buffering complete, size:" << bufferSize
+                     << "duration:" << bufferedDurationMs << "ms"
                      << "elapsed:" << (m_bufferingTimer.isValid() ? m_bufferingTimer.elapsed() : 0) << "ms";
         } else {
             if (timeoutReached && bufferSize == 0 && !m_bufferingTimeoutLogged) {

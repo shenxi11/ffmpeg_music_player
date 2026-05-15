@@ -17,6 +17,7 @@
 #include "user.h"
 #include "AudioPlayer.h"
 #include "AudioService.h"
+#include "MediaSession.h"
 #include "network/online_presence_manager.h"
 #include "network/network/network_service.h"
 #include <functional>
@@ -132,6 +133,8 @@ int main(int argc, char *argv[])
     setlocale(LC_ALL, "chs");
 
     qRegisterMetaType<std::map<int, std::string>>("std::map<int, std::string>");
+    qRegisterMetaType<MediaSession::PlaybackState>("MediaSession::PlaybackState");
+    qRegisterMetaType<MediaSession::PlaybackState>("PlaybackState");
     QLoggingCategory::setFilterRules("qt.audio.debug=false");
     qRegisterMetaType<std::vector<std::pair<qint64,qint64>>>("std::vector<std::pair<qint64,qint64> >");
 

@@ -39,6 +39,7 @@ public slots:
     void setPixelAspectRatio(int num, int den);
     void setDisplayMode(int mode);     // 0: Fit, 1: Fill
     void setQualityPreset(int preset); // 0: 标准(1080P), 1: 增强(2K)
+    void setHlsMode(bool enabled);
 
     qint64 lastPTS() const { return m_lastPTS; }
 
@@ -70,6 +71,7 @@ private:
     int m_bufferingThreshold;
     int m_bufferingTimeoutMs;
     bool m_bufferingTimeoutLogged;
+    bool m_hlsMode;
     QElapsedTimer m_bufferingTimer;
     qint64 m_earlyWaitPts;
     bool m_earlyWaitLogged;

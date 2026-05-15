@@ -49,7 +49,7 @@ public:
     void play();
     void pause();
     void stop();
-    void seekTo(qint64 positionMs);
+    bool seekTo(qint64 positionMs);
 
     void setPlaybackRate(double rate);
     double playbackRate() const;
@@ -75,6 +75,7 @@ signals:
     void metadataReady(QString title, QString artist, qint64 duration);
     void syncError(int offsetMs);
     void playbackFinished();
+    void playbackError(const QString& message);
     void demuxFinished();
 
 private slots:
@@ -90,6 +91,8 @@ private:
 
     bool initDemuxer(const QString& filePath);
     void cleanupDemuxer();
+    int seekDemuxer(qint64 positionMs);
+    qint64 normalizedSeekPosition(qint64 positionMs) const;
     bool initAudioDecoder(AVStream* stream);
     bool recreateAudioResampler();
     void cleanupAudioFilterGraph();
@@ -118,6 +121,7 @@ private:
     std::mutex m_audioResampleMutex;
 
     QString m_currentUrl;
+    bool m_hlsSource;
     qint64 m_duration;
     PlaybackState m_state;
     std::atomic<double> m_playbackRate;
@@ -131,6 +135,10 @@ private:
     std::mutex m_demuxPauseMutex;
     std::condition_variable m_demuxPauseCv;
     std::optional<qint64> m_pendingAudioClockSyncMs;
+    qint64 m_lastSeekTargetMs;
+    qint64 m_hlsSeekStepBackMs;
+    bool m_waitingFirstPacketAfterSeek;
+    int m_seekEofRetryCount;
 
     QString m_audioWriteOwnerId;
 

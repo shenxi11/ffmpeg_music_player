@@ -34,7 +34,8 @@ void VideoListWidget::setupVideoPlayerConnections()
             &VideoListWidget::onReturnToListRequested);
 }
 
-void VideoListWidget::onVideoStreamResolved(const QString& videoUrl, const QString& videoName)
+void VideoListWidget::onVideoStreamResolved(const QString& videoUrl, const QString& videoName,
+                                            const QVariantList& playbackSources)
 {
     Q_UNUSED(videoName);
 
@@ -43,6 +44,7 @@ void VideoListWidget::onVideoStreamResolved(const QString& videoUrl, const QStri
     }
 
     m_playerPage->setVideoInfo(m_selectedVideoName, m_selectedVideoPath, m_selectedVideoSize);
+    m_playerPage->setPlaybackSources(playbackSources);
     m_playerPage->loadVideo(videoUrl);
     showPlayerPage();
     m_playerPage->resumePlayback();

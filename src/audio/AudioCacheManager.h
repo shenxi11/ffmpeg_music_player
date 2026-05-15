@@ -36,10 +36,15 @@ public:
     // Prefetch chunks around a seek target to reduce first-hit delay.
     void prefetchForSeek(const QUrl& originalUrl, qint64 targetMs, qint64 durationMs);
 
+    bool hasCompleteFileCache(const QUrl& originalUrl) const;
+
     // Save known duration to improve byte-range estimation.
     void noteTrackDuration(const QUrl& originalUrl, qint64 durationMs);
 
     bool hasResolvedSeekIndexForPlaybackUrl(const QUrl& playbackUrl) const;
+
+signals:
+    void fullFileCacheReady(const QUrl& originalUrl, const QUrl& localFileUrl);
 
 private slots:
     void onDownloadFinished(QNetworkReply* reply);
@@ -59,6 +64,7 @@ private:
         qint64 chunkIndex = -1;
         QString targetFilePath;
         bool metadataProbe = false;
+        bool fullFileDownload = false;
     };
 
     struct TrackMeta {
@@ -108,10 +114,15 @@ private:
     qint64 estimateCenterByteFromSeekIndex(const TrackMeta& meta, qint64 targetMs) const;
 
     QString legacyFullCachePathForUrl(const QUrl& url) const;
+    bool hasValidFullCache(const QUrl& url, qint64 expectedSize = -1) const;
 
     QString trackCacheDir(const QString& cacheKey) const;
     QString chunkFilePath(const QString& cacheKey, qint64 chunkIndex) const;
     bool hasChunk(const QString& cacheKey, qint64 chunkIndex) const;
+    void queueFullFileDownload(const QUrl& url,
+                               const QString& cacheKey,
+                               qint64 contentLength,
+                               QNetworkRequest::Priority priority = QNetworkRequest::LowPriority);
     void queueChunkDownload(const QUrl& url,
                             const QString& cacheKey,
                             qint64 chunkIndex,

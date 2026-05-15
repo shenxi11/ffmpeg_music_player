@@ -10,6 +10,7 @@
 #include <QUuid>
 #include <QVector>
 #include <QtGlobal>
+#include <limits>
 
 extern "C" {
 #include <libavfilter/avfilter.h>
@@ -32,6 +33,7 @@ MediaSession::MediaSession(QObject* parent)
     , m_audioFilterSrcCtx(nullptr)
     , m_audioFilterSinkCtx(nullptr)
     , m_audioOutputSampleRate(44100)
+    , m_hlsSource(false)
     , m_duration(0)
     , m_state(Stopped)
     , m_playbackRate(1.0)
@@ -41,6 +43,10 @@ MediaSession::MediaSession(QObject* parent)
     , m_demuxThread(nullptr)
     , m_demuxState(DemuxState::Stopped)
     , m_pendingAudioClockSyncMs(std::nullopt)
+    , m_lastSeekTargetMs(0)
+    , m_hlsSeekStepBackMs(0)
+    , m_waitingFirstPacketAfterSeek(false)
+    , m_seekEofRetryCount(0)
     , m_audioWriteOwnerId(QUuid::createUuid().toString(QUuid::WithoutBraces))
     , m_positionTimer(nullptr)
 {
@@ -115,6 +121,7 @@ bool MediaSession::loadSource(const QUrl& url)
             delete m_videoSession;
             m_videoSession = nullptr;
         } else {
+            m_videoSession->setStreamingMode(m_hlsSource);
             qDebug() << "[MediaSession] Video stream - codec:" 
                      << avcodec_get_name(videoStream->codecpar->codec_id)
                      << "resolution:" << videoStream->codecpar->width 
@@ -329,12 +336,16 @@ void MediaSession::stop()
     setState(Stopped);
 }
 
-void MediaSession::seekTo(qint64 positionMs)
+bool MediaSession::seekTo(qint64 positionMs)
 {
-    qDebug() << "[MediaSession] Seek to:" << positionMs << "ms";
+    const qint64 requestedPositionMs = qMax<qint64>(0, positionMs);
+    const qint64 targetPositionMs = normalizedSeekPosition(requestedPositionMs);
+    qDebug() << "[MediaSession] Seek to:" << requestedPositionMs << "ms"
+             << "normalized:" << targetPositionMs << "ms"
+             << "hls:" << m_hlsSource;
     
     if (!m_formatContext) {
-        return;
+        return false;
     }
     
     bool wasRunning = isDemuxRunning();
@@ -353,22 +364,23 @@ void MediaSession::seekTo(qint64 positionMs)
         }
     }
     
-    int64_t timestamp = positionMs * 1000;
-    
-    // FFmpeg seek
-    int ret = av_seek_frame(m_formatContext, -1, timestamp, AVSEEK_FLAG_BACKWARD);
+    int ret = seekDemuxer(targetPositionMs);
     if (ret < 0) {
-        qWarning() << "[MediaSession] Seek failed";
+        char errbuf[AV_ERROR_MAX_STRING_SIZE] = {0};
+        av_strerror(ret, errbuf, sizeof(errbuf));
+        qWarning() << "[MediaSession] Seek failed:" << errbuf;
         if (wasRunning) {
             setDemuxState(DemuxState::Running);
         }
-        return;
+        setState(Error);
+        emit playbackError(QStringLiteral("Seek failed: %1").arg(QString::fromLatin1(errbuf)));
+        return false;
     }
     
     if (m_audioCodecCtx) {
         avcodec_flush_buffers(m_audioCodecCtx);
         AudioPlayer::instance().resetBuffer();
-        m_pendingAudioClockSyncMs = positionMs;
+        m_pendingAudioClockSyncMs = targetPositionMs;
         {
             std::lock_guard<std::mutex> lock(m_audioResampleMutex);
             recreateAudioResampler();
@@ -385,7 +397,11 @@ void MediaSession::seekTo(qint64 positionMs)
         }
     }
     
-    m_masterClock = positionMs;
+    m_masterClock = targetPositionMs;
+    m_lastSeekTargetMs = targetPositionMs;
+    m_hlsSeekStepBackMs = 0;
+    m_waitingFirstPacketAfterSeek = true;
+    m_seekEofRetryCount = 0;
     
     if (wasRunning) {
         setDemuxState(DemuxState::Running);
@@ -399,7 +415,8 @@ void MediaSession::seekTo(qint64 positionMs)
         }
     }
     
-    emit positionChanged(positionMs);
+    emit positionChanged(targetPositionMs);
+    return true;
 }
 
 void MediaSession::setPlaybackRate(double rate)
@@ -514,6 +531,9 @@ void MediaSession::updatePosition()
 
 bool MediaSession::initDemuxer(const QString& filePath)
 {
+    const QString lowered = filePath.trimmed().toLower();
+    m_hlsSource = lowered.contains(QStringLiteral(".m3u8"));
+
     int ret = avformat_open_input(&m_formatContext, filePath.toUtf8().data(), nullptr, nullptr);
     if (ret < 0) {
         char errbuf[128];
@@ -549,6 +569,45 @@ bool MediaSession::initDemuxer(const QString& filePath)
     av_dump_format(m_formatContext, 0, filePath.toUtf8().data(), 0);
     
     return m_audioStreamIndex >= 0 || m_videoStreamIndex >= 0;
+}
+
+int MediaSession::seekDemuxer(qint64 positionMs)
+{
+    if (!m_formatContext) {
+        return AVERROR(EINVAL);
+    }
+
+    const qint64 targetMs = qMax<qint64>(0, positionMs);
+    const qint64 seekTargetUs = targetMs * 1000;
+
+    if (m_hlsSource) {
+        int ret = avformat_seek_file(
+            m_formatContext,
+            -1,
+            std::numeric_limits<int64_t>::min(),
+            seekTargetUs,
+            std::numeric_limits<int64_t>::max(),
+            AVSEEK_FLAG_BACKWARD
+        );
+        if (ret < 0) {
+            ret = av_seek_frame(m_formatContext, -1, seekTargetUs, AVSEEK_FLAG_BACKWARD);
+        }
+        return ret;
+    }
+
+    return av_seek_frame(m_formatContext, -1, seekTargetUs, AVSEEK_FLAG_BACKWARD);
+}
+
+qint64 MediaSession::normalizedSeekPosition(qint64 positionMs) const
+{
+    if (!m_hlsSource) {
+        return positionMs;
+    }
+
+    static constexpr qint64 kHlsSegmentDurationMs = 2000;
+    const qint64 alignedPosition = (qMax<qint64>(0, positionMs) / kHlsSegmentDurationMs)
+        * kHlsSegmentDurationMs;
+    return qMax<qint64>(0, alignedPosition);
 }
 
 void MediaSession::cleanupDemuxer()
@@ -685,14 +744,41 @@ void MediaSession::demuxLoop()
         
         if (ret < 0) {
             if (ret == AVERROR_EOF) {
+                if (m_hlsSource && m_waitingFirstPacketAfterSeek && audioPacketCount == 0 &&
+                    videoPacketCount == 0 && m_seekEofRetryCount < 3) {
+                    ++m_seekEofRetryCount;
+                    m_hlsSeekStepBackMs += 2000;
+                    const qint64 retryPositionMs = qMax<qint64>(0, m_lastSeekTargetMs - m_hlsSeekStepBackMs);
+                    qWarning() << "[MediaSession] HLS seek reached EOF before first packet,"
+                               << "retrying seek at" << retryPositionMs << "ms"
+                               << "attempt:" << m_seekEofRetryCount;
+                    avformat_flush(m_formatContext);
+                    if (seekDemuxer(retryPositionMs) >= 0) {
+                        m_pendingAudioClockSyncMs = retryPositionMs;
+                        continue;
+                    }
+                }
                 qDebug() << "[MediaSession] Demux reached EOF";
-                emit playbackFinished();
+                if (m_hlsSource && m_waitingFirstPacketAfterSeek) {
+                    setState(Error);
+                    emit playbackError(QStringLiteral("HLS seek reached EOF before media packets"));
+                } else {
+                    emit playbackFinished();
+                }
             } else {
                 char errbuf[128];
                 av_strerror(ret, errbuf, sizeof(errbuf));
                 qWarning() << "[MediaSession] Read frame error:" << errbuf;
             }
             break;
+        }
+
+        if (m_waitingFirstPacketAfterSeek) {
+            m_waitingFirstPacketAfterSeek = false;
+            m_seekEofRetryCount = 0;
+            m_hlsSeekStepBackMs = 0;
+            qDebug() << "[MediaSession] First packet after seek received - stream_index:"
+                     << pkt->stream_index;
         }
         
         if (pkt->stream_index == m_audioStreamIndex && m_audioCodecCtx) {

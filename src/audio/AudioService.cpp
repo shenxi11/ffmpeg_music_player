@@ -35,6 +35,15 @@ bool isRemoteFlacUrl(const QUrl& url)
     return url.path().toLower().endsWith(".flac");
 }
 
+bool isLocalProxyPlaybackUrl(const QUrl& url)
+{
+    if (!isNetworkUrl(url)) {
+        return false;
+    }
+    const QString host = url.host().toLower();
+    return host == QStringLiteral("127.0.0.1") || host == QStringLiteral("localhost");
+}
+
 constexpr int kRemoteFlacBufferCapacityBytes = 6 * 1024 * 1024;
 
 QUrl buildHlsCandidate(const QUrl& original)
@@ -312,7 +321,12 @@ void AudioService::seekTo(qint64 positionMs)
     const qint64 jumpDistance = qAbs(targetMs - currentPos);
     const bool largeJump = jumpDistance >= 45 * 1000;
 
-    if (originalSource.isValid() && !originalSource.isEmpty()) {
+    bool shouldPrefetchForSeek = originalSource.isValid() && !originalSource.isEmpty()
+                                 && !loadedSource.isLocalFile();
+    if (shouldPrefetchForSeek) {
+        shouldPrefetchForSeek = !AudioCacheManager::instance().hasCompleteFileCache(originalSource);
+    }
+    if (shouldPrefetchForSeek) {
         AudioCacheManager::instance().prefetchForSeek(originalSource, targetMs, session->duration());
     }
 
@@ -632,14 +646,39 @@ void AudioService::onSeekDispatchTimeout()
     }
 }
 
+void AudioService::onFullFileCacheReady(const QUrl& originalUrl, const QUrl& localFileUrl)
+{
+    qint64 targetMs = -1;
+    if (m_hasPendingSeek && m_pendingSeekSessionId == m_currentSessionId) {
+        targetMs = m_pendingSeekPositionMs;
+    }
+    switchCurrentProxySessionToLocalCache(originalUrl, localFileUrl, targetMs);
+}
+
 void AudioService::onSessionError(const QString& error)
 {
     if (!m_currentSessionId.isEmpty()) {
         const QUrl loadedSource = m_sessionLoadedSource.value(m_currentSessionId);
         const QUrl originalSource = m_sessionOriginalSource.value(m_currentSessionId);
         const bool isHlsLoaded = loadedSource.path().toLower().endsWith(".m3u8");
+        const bool isProxyLoaded = isLocalProxyPlaybackUrl(loadedSource);
         const bool canFallbackToDirect = isHlsLoaded && originalSource.isValid() && !originalSource.isEmpty();
         const bool isSeekTimeout = error.contains(QStringLiteral("缓冲超时"));
+        const bool isSeekDriftReject = error.contains(QStringLiteral("seek定位偏移过大"));
+
+        if (isSeekDriftReject && isProxyLoaded && originalSource.isValid() && !originalSource.isEmpty()) {
+            const QUrl cacheSource = AudioCacheManager::instance().resolvePlaybackUrl(originalSource);
+            qint64 targetMs = m_pendingSeekPositionMs;
+            if (targetMs <= 0) {
+                if (auto session = currentSession()) {
+                    targetMs = session->position();
+                }
+            }
+            if (cacheSource.isLocalFile()
+                    && switchCurrentProxySessionToLocalCache(originalSource, cacheSource, qMax<qint64>(0, targetMs))) {
+                return;
+            }
+        }
 
         if (isSeekTimeout && canFallbackToDirect) {
             qint64 targetMs = m_pendingSeekPositionMs;
@@ -746,6 +785,63 @@ void AudioService::switchToSession(const QString& sessionId)
     }
     
     emit currentSessionChanged(sessionId);
+}
+
+bool AudioService::switchCurrentProxySessionToLocalCache(const QUrl& originalUrl,
+                                                         const QUrl& localFileUrl,
+                                                         qint64 targetMs)
+{
+    if (!originalUrl.isValid() || !localFileUrl.isLocalFile() || m_currentSessionId.isEmpty()) {
+        return false;
+    }
+
+    const QUrl currentOriginal = m_sessionOriginalSource.value(m_currentSessionId);
+    const QUrl currentLoaded = m_sessionLoadedSource.value(m_currentSessionId);
+    if (currentOriginal != originalUrl || !isLocalProxyPlaybackUrl(currentLoaded)) {
+        return false;
+    }
+
+    AudioSession* oldSession = currentSession();
+    const bool shouldResume = (targetMs >= 0) || (oldSession ? (oldSession->isPlaying() && !oldSession->isPaused()) : false);
+    qint64 resumeMs = targetMs >= 0 ? targetMs : (oldSession ? oldSession->position() : 0);
+    resumeMs = qMax<qint64>(0, resumeMs);
+
+    const QString newSessionId = createSession();
+    AudioSession* newSession = getSession(newSessionId);
+    if (!newSession) {
+        return false;
+    }
+
+    QUrl loadedLocal;
+    if (!loadSessionSourcePreferHls(newSession, localFileUrl, true, &loadedLocal)) {
+        destroySession(newSessionId);
+        qWarning() << "AudioService: Switch to local full cache failed:"
+                   << "track:" << originalUrl.toString()
+                   << "cache:" << localFileUrl.toLocalFile();
+        return false;
+    }
+
+    qDebug() << "AudioService: Switching current proxy session to local full cache:"
+             << "track:" << originalUrl.toString()
+             << "cache:" << localFileUrl.toLocalFile()
+             << "resumeMs:" << resumeMs
+             << "resume:" << shouldResume;
+
+    m_sessionOriginalSource[newSessionId] = originalUrl;
+    m_sessionLoadedSource[newSessionId] = loadedLocal;
+    m_hasPendingSeek = false;
+    m_pendingSeekSessionId.clear();
+    m_seekDispatchTimer.stop();
+
+    switchToSession(newSessionId);
+    newSession->play();
+    if (resumeMs > 0) {
+        newSession->seekTo(resumeMs);
+    }
+    if (!shouldResume) {
+        newSession->pause();
+    }
+    return true;
 }
 
 void AudioService::cleanupOldSessions()

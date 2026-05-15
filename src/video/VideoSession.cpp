@@ -12,6 +12,7 @@ VideoSession::VideoSession(QObject* parent)
     , m_decodeThread(nullptr)
     , m_running(false)
     , m_holdFrame(false)
+    , m_streamingMode(false)
     , m_currentPTS(0)
     , m_stream(nullptr)
     , m_sampleAspectRatio({1, 1})
@@ -75,9 +76,24 @@ void VideoSession::setVideoRenderer(QWidget* renderer)
             qDebug() << "[VideoSession] Set renderer PAR to"
                      << m_sampleAspectRatio.num << "/" << m_sampleAspectRatio.den;
         }
+
+        QMetaObject::invokeMethod(m_renderer, "setHlsMode", Q_ARG(bool, m_streamingMode));
         
         qDebug() << "[VideoSession] VideoRenderer set and connected to buffer";
     }
+}
+
+void VideoSession::setStreamingMode(bool enabled)
+{
+    m_streamingMode = enabled;
+    if (m_buffer) {
+        m_buffer->setCapacity(enabled ? 150 : 30);
+    }
+    if (m_renderer) {
+        QMetaObject::invokeMethod(m_renderer, "setHlsMode", Q_ARG(bool, enabled));
+    }
+    qDebug() << "[VideoSession] Streaming mode" << (enabled ? "enabled" : "disabled")
+             << "buffer capacity:" << (m_buffer ? m_buffer->capacity() : 0);
 }
 
 bool VideoSession::initVideoStream(AVStream* stream)

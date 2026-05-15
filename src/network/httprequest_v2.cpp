@@ -29,8 +29,9 @@
 namespace {
 QString readArtistFromObject(const QJsonObject& obj);
 QString rewriteServiceUrlToBase(const QString& rawUrl, const QString& baseUrl);
-const QSet<QString> kLegacyHosts = {QStringLiteral("slcdut.xyz"), QStringLiteral("127.0.0.1"),
-                                    QStringLiteral("localhost")};
+const QSet<QString> kLegacyHosts = {QStringLiteral("127.0.0.1"), QStringLiteral("localhost")};
+const QSet<QString> kMediaCdnHosts = {QStringLiteral("slcdut.xyz"),
+                                      QStringLiteral("d6scklga.ap.qedge.top")};
 
 QString normalizePlaylistOwnershipToken(QString value) {
     value = value.trimmed().toLower();
@@ -121,6 +122,14 @@ bool shouldRewriteAbsoluteServiceUrl(const QUrl& url, const QUrl& base) {
         return false;
     }
 
+    const QString path = url.path();
+    if (kMediaCdnHosts.contains(host) &&
+        (path.startsWith("/uploads/", Qt::CaseInsensitive) ||
+         path.startsWith("/hls/", Qt::CaseInsensitive) ||
+         path.startsWith("/video-hls/", Qt::CaseInsensitive))) {
+        return false;
+    }
+
     if (kLegacyHosts.contains(host)) {
         return true;
     }
@@ -129,7 +138,6 @@ bool shouldRewriteAbsoluteServiceUrl(const QUrl& url, const QUrl& base) {
         return false;
     }
 
-    const QString path = url.path();
     return path.startsWith("/uploads/", Qt::CaseInsensitive) ||
            path.startsWith("/video/", Qt::CaseInsensitive) ||
            path.startsWith("/lrc", Qt::CaseInsensitive) ||
@@ -1691,6 +1699,43 @@ void HttpRequestV2::getVideoStreamUrl(const QString& videoPath) {
                 emit signalVideoStreamUrl(videoUrl);
             } else {
                 qWarning() << "[HttpRequestV2] Get video stream error:" << response.errorString;
+            }
+        });
+}
+
+void HttpRequestV2::getVideoPlaybackInfo(const QString& videoPath) {
+    QJsonObject json;
+    json["path"] = videoPath;
+
+    m_networkService.postJson(
+        "video/playback-info", json, {}, [this](const Network::NetworkResponse& response) {
+            if (response.isSuccess()) {
+                QJsonObject result = Network::NetworkService::parseJsonObject(response);
+                QVariantMap playbackInfo = result.toVariantMap();
+
+                playbackInfo["direct_url"] =
+                    rewriteServiceUrlToBase(result["direct_url"].toString(), m_baseUrl);
+                playbackInfo["master_url"] =
+                    rewriteServiceUrlToBase(result["master_url"].toString(), m_baseUrl);
+
+                QVariantList variants;
+                const QJsonArray variantArray = result["variants"].toArray();
+                variants.reserve(variantArray.size());
+                for (const QJsonValue& value : variantArray) {
+                    QVariantMap variant = value.toObject().toVariantMap();
+                    variant["url"] = rewriteServiceUrlToBase(variant.value("url").toString(), m_baseUrl);
+                    variants.append(variant);
+                }
+                playbackInfo["variants"] = variants;
+
+                qDebug() << "[HttpRequestV2] Video playback info:"
+                         << playbackInfo.value("status").toString()
+                         << playbackInfo.value("hls_ready").toBool();
+                emit signalVideoPlaybackInfo(playbackInfo);
+            } else {
+                qWarning() << "[HttpRequestV2] Get video playback info error:"
+                           << response.errorString;
+                emit signalVideoPlaybackInfo(QVariantMap());
             }
         });
 }
