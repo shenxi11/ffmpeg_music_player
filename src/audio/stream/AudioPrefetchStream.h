@@ -1,6 +1,7 @@
 #ifndef AUDIOPREFETCHSTREAM_H
 #define AUDIOPREFETCHSTREAM_H
 
+#include "AudioCurlStreamBackend.h"
 #include "AudioStreamAccess.h"
 
 #include <QByteArray>
@@ -61,6 +62,9 @@ class AudioPrefetchStream {
     };
 
     void workerLoop();
+    void qtWorkerLoop();
+    void curlWorkerLoop();
+    bool appendBackendData(const QByteArray& data, int generation, qint64 replyStartOffset);
     bool startContinuousRequest(qint64 offset, int generation);
     void closeContinuousRequest(bool abortReply);
     void pumpNetworkEvents(int maxWaitMs);
@@ -84,7 +88,9 @@ class AudioPrefetchStream {
     std::condition_variable m_spaceCv;
     std::thread m_worker;
     std::unique_ptr<AudioStreamAccess> m_access;
+    std::unique_ptr<AudioCurlStreamBackend> m_curlBackend;
     std::unique_ptr<QNetworkAccessManager> m_networkManager;
+    std::atomic<bool> m_stopSignal{false};
     QNetworkReply* m_reply = nullptr;
     InterruptCallback m_interruptCallback;
     QUrl m_url;

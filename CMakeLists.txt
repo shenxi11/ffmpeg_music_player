@@ -60,6 +60,16 @@ find_package(Qt5 REQUIRED COMPONENTS Core)
 message(STATUS "Qt5 Version: ${Qt5_VERSION}")
 message(STATUS "Qt5 Location: ${Qt5_DIR}")
 
+option(CLOUDMUSIC_AUDIO_ENABLE_LIBCURL "Enable optional libcurl backend for remote audio streaming" ON)
+if(CLOUDMUSIC_AUDIO_ENABLE_LIBCURL)
+    find_package(CURL QUIET)
+    if(CURL_FOUND)
+        message(STATUS "libcurl backend enabled for remote audio streaming")
+    else()
+        message(STATUS "libcurl not found; remote audio streaming uses Qt Network backend")
+    endif()
+endif()
+
 # FFmpeg 路径配置
 set(FFMPEG_DIR "E:/ffmpeg4.4/bin")
 set(FFMPEG_INCLUDE_DIR "${FFMPEG_DIR}/../include")
@@ -219,6 +229,11 @@ find_package(OpenGL REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE
     OpenGL::GL
 )
+
+if(CLOUDMUSIC_AUDIO_ENABLE_LIBCURL AND CURL_FOUND)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE CLOUDMUSIC_AUDIO_USE_LIBCURL)
+    target_link_libraries(${PROJECT_NAME} PRIVATE CURL::libcurl)
+endif()
 
 # 设置输出目录（使用 CMake 默认路径）
 

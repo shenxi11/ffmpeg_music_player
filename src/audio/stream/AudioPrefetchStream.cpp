@@ -62,15 +62,33 @@ void AudioPrefetchStream::setInterruptCallback(InterruptCallback callback) {
             return shouldAbort();
         });
     }
+    if (m_curlBackend) {
+        m_curlBackend->setInterruptCallback([this]() {
+            return shouldAbort();
+        });
+    }
 }
 
 bool AudioPrefetchStream::open(const QUrl& url) {
     stop();
+    m_stopSignal = false;
 
     m_access = std::make_unique<AudioStreamAccess>();
     m_access->setInterruptCallback([this]() {
         return shouldAbort();
     });
+    if (AudioCurlStreamBackend::isAvailable()) {
+        auto curlBackend = std::make_unique<AudioCurlStreamBackend>();
+        curlBackend->setInterruptCallback([this]() {
+            return shouldAbort();
+        });
+        if (curlBackend->open(url)) {
+            m_curlBackend = std::move(curlBackend);
+        } else {
+            qWarning() << "[STREAM_EVT][AudioPrefetchStream] curl_backend_unavailable"
+                       << "error=" << curlBackend->lastError();
+        }
+    }
 
     {
         std::lock_guard<std::mutex> lock(m_mutex);
@@ -97,15 +115,20 @@ bool AudioPrefetchStream::open(const QUrl& url) {
 }
 
 void AudioPrefetchStream::stop() {
+    m_stopSignal = true;
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         m_stopRequested = true;
         m_opened = false;
         ++m_generation;
     }
+    if (m_curlBackend) {
+        m_curlBackend->abort();
+    }
     m_dataCv.notify_all();
     m_spaceCv.notify_all();
     waitForWorkerStopped();
+    m_curlBackend.reset();
     m_access.reset();
 }
 
@@ -217,6 +240,9 @@ bool AudioPrefetchStream::seek(qint64 offset) {
     m_error = false;
     m_reconnectPending = true;
     m_abortReplyRequested = true;
+    if (m_curlBackend) {
+        m_curlBackend->abort();
+    }
     m_retryCount = 0;
     resetTracksLocked(offset);
     m_replyStartOffset = offset;
@@ -277,6 +303,9 @@ bool AudioPrefetchStream::forceSeekToHint(qint64 targetMs, qint64 targetByte,
     m_canSeek = true;
     m_reconnectPending = true;
     m_abortReplyRequested = true;
+    if (m_curlBackend) {
+        m_curlBackend->abort();
+    }
     m_retryCount = 0;
     m_hasPendingSeekHint = false;
     resetTracksLocked(targetByte);
@@ -318,6 +347,14 @@ QString AudioPrefetchStream::lastError() const {
 }
 
 void AudioPrefetchStream::workerLoop() {
+    if (m_curlBackend) {
+        curlWorkerLoop();
+        return;
+    }
+    qtWorkerLoop();
+}
+
+void AudioPrefetchStream::qtWorkerLoop() {
     m_streamTimer.start();
     m_networkManager = std::make_unique<QNetworkAccessManager>();
 
@@ -458,6 +495,169 @@ void AudioPrefetchStream::workerLoop() {
 
     closeContinuousRequest(true);
     m_networkManager.reset();
+
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_workerRunning = false;
+        m_dataCv.notify_all();
+    }
+}
+
+void AudioPrefetchStream::curlWorkerLoop() {
+    m_streamTimer.start();
+
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_workerRunning = true;
+        m_reconnectPending = true;
+        m_retryCount = 0;
+        m_firstByteStartMs = m_streamTimer.elapsed();
+    }
+
+    qDebug() << "[STREAM_EVT][AudioPrefetchStream] curl_worker_enabled";
+
+    while (true) {
+        bool shouldStart = false;
+        int waitForReconnectMs = 0;
+        qint64 startOffset = 0;
+        int startGeneration = 0;
+        {
+            std::unique_lock<std::mutex> lock(m_mutex);
+            m_spaceCv.wait_for(lock, std::chrono::milliseconds(m_workerWaitMs), [this]() {
+                return m_stopRequested || shouldAbort() || m_reconnectPending ||
+                       m_abortReplyRequested ||
+                       (!m_eof && !m_error && cachedAheadLocked() < m_bufferMaxBytes);
+            });
+
+            if (m_stopRequested || shouldAbort()) {
+                break;
+            }
+
+            if (m_abortReplyRequested) {
+                m_abortReplyRequested = false;
+            }
+
+            const bool wantsStart =
+                !m_eof && !m_error &&
+                (m_reconnectPending || cachedAheadLocked() < m_bufferMaxBytes);
+            if (wantsStart && m_reconnectNotBeforeMs > m_streamTimer.elapsed()) {
+                waitForReconnectMs = static_cast<int>(
+                    qMin<qint64>(m_reconnectNotBeforeMs - m_streamTimer.elapsed(), 250));
+            } else {
+                shouldStart = wantsStart;
+            }
+            startOffset = m_prefetchOffset;
+            startGeneration = m_generation;
+        }
+
+        if (waitForReconnectMs > 0) {
+            std::unique_lock<std::mutex> lock(m_mutex);
+            m_dataCv.wait_for(lock, std::chrono::milliseconds(waitForReconnectMs), [this]() {
+                return m_stopRequested || shouldAbort() || m_abortReplyRequested;
+            });
+            continue;
+        }
+
+        if (!shouldStart) {
+            continue;
+        }
+
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            if (m_stopRequested || shouldAbort()) {
+                break;
+            }
+            if (startGeneration != m_generation || startOffset != m_prefetchOffset) {
+                qDebug() << "[STREAM_EVT][AudioPrefetchStream] curl_start_stale_ignored"
+                         << "requestGeneration=" << startGeneration
+                         << "currentGeneration=" << m_generation
+                         << "offset=" << startOffset
+                         << "activeOffset=" << m_prefetchOffset;
+                continue;
+            }
+            m_reconnectPending = false;
+            m_replyGeneration = startGeneration;
+            m_replyStartOffset = startOffset;
+            m_lastAppendOffset = startOffset;
+            m_lastAppendLogOffset = startOffset;
+            m_error = false;
+            m_lastError.clear();
+            if (cachedAheadLocked() == 0 && startOffset == m_pos) {
+                m_firstByteStartMs = m_streamTimer.elapsed();
+            }
+        }
+
+        m_curlBackend->clearAbort();
+        const QByteArray rangeHeader = "bytes=" + QByteArray::number(startOffset) + "-";
+        qDebug() << "[STREAM_EVT][AudioPrefetchStream] curl_upstream_open"
+                 << "offset=" << startOffset << "range=" << rangeHeader;
+
+        AudioCurlStreamBackend::Response response =
+            m_curlBackend->fetchFrom(startOffset, [this, startGeneration,
+                                                   startOffset](const QByteArray& data) {
+                return appendBackendData(data, startGeneration, startOffset);
+            });
+
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            if (m_stopRequested || shouldAbort()) {
+                break;
+            }
+            if (m_upstreamPaused && startGeneration == m_generation &&
+                startOffset == m_replyStartOffset) {
+                m_upstreamPaused = false;
+                qDebug() << "[STREAM_EVT][AudioPrefetchStream] curl_upstream_pause"
+                         << "offset=" << m_prefetchOffset
+                         << "cacheAhead=" << cachedAheadLocked();
+                continue;
+            }
+            if (startGeneration != m_generation || startOffset != m_replyStartOffset) {
+                qDebug() << "[STREAM_EVT][AudioPrefetchStream] curl_response_stale_ignored"
+                         << "requestGeneration=" << startGeneration
+                         << "currentGeneration=" << m_generation
+                         << "replyStart=" << startOffset
+                         << "activeStart=" << m_replyStartOffset;
+                continue;
+            }
+            if (response.totalLength > 0) {
+                m_contentLength = response.totalLength;
+                AudioCacheManager::instance().noteTrackContentLength(m_url, response.totalLength);
+            }
+            if (response.statusCode == 206) {
+                m_canSeek = true;
+            }
+            if (response.eof ||
+                (response.ok && m_contentLength > 0 && m_prefetchOffset >= m_contentLength)) {
+                m_eof = true;
+                m_retryCount = 0;
+                qDebug() << "[STREAM_EVT][AudioPrefetchStream] curl_upstream_eof"
+                         << "offset=" << m_prefetchOffset;
+                m_dataCv.notify_all();
+                continue;
+            }
+            if (!response.ok || response.interrupted) {
+                if (response.interrupted) {
+                    m_lastInterrupted = true;
+                    m_dataCv.notify_all();
+                    continue;
+                }
+                if (m_retryCount < m_maxRetryCount) {
+                    scheduleReconnectLocked(response.error);
+                    continue;
+                }
+                m_error = true;
+                m_lastError = response.error.isEmpty()
+                                  ? QStringLiteral("curl stream finished unexpectedly")
+                                  : response.error;
+                qWarning() << "[STREAM_EVT][AudioPrefetchStream] curl_upstream_failed"
+                           << "offset=" << m_prefetchOffset << "error=" << m_lastError;
+                m_dataCv.notify_all();
+                continue;
+            }
+            m_retryCount = 0;
+            m_spaceCv.notify_one();
+        }
+    }
 
     {
         std::lock_guard<std::mutex> lock(m_mutex);
@@ -627,22 +827,26 @@ void AudioPrefetchStream::pumpNetworkEvents(int maxWaitMs) {
     loop.exec();
 }
 
-void AudioPrefetchStream::appendNetworkData(const QByteArray& data, int generation,
+bool AudioPrefetchStream::appendBackendData(const QByteArray& data, int generation,
                                             qint64 replyStartOffset) {
     std::lock_guard<std::mutex> lock(m_mutex);
-    if (!m_reply || data.isEmpty() || m_stopRequested || shouldAbort()) {
-        return;
+    if (data.isEmpty() || m_stopRequested || shouldAbort()) {
+        return false;
+    }
+    if (cachedAheadLocked() >= m_bufferMaxBytes) {
+        m_upstreamPaused = true;
+        return false;
     }
     if (generation != m_replyGeneration || generation != m_generation ||
         replyStartOffset != m_replyStartOffset) {
-        qDebug() << "[STREAM_EVT][AudioPrefetchStream] stale_append_ignored"
+        qDebug() << "[STREAM_EVT][AudioPrefetchStream] stale_backend_chunk_ignored"
                  << "bytes=" << data.size()
                  << "replyGeneration=" << generation
                  << "currentGeneration=" << m_generation
                  << "replyStart=" << replyStartOffset
                  << "activeStart=" << m_replyStartOffset
                  << "lastAppend=" << m_lastAppendOffset;
-        return;
+        return false;
     }
 
     int trackIndex = findTrackAppendableLocked(m_lastAppendOffset);
@@ -687,6 +891,20 @@ void AudioPrefetchStream::appendNetworkData(const QByteArray& data, int generati
                  << "cacheAhead=" << cachedAheadLocked();
     }
     m_dataCv.notify_all();
+    return true;
+}
+
+void AudioPrefetchStream::appendNetworkData(const QByteArray& data, int generation,
+                                            qint64 replyStartOffset) {
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        if (!m_reply) {
+            return;
+        }
+    }
+    if (!appendBackendData(data, generation, replyStartOffset)) {
+        return;
+    }
 }
 
 bool AudioPrefetchStream::validateContinuousHeaders() {
@@ -859,7 +1077,7 @@ void AudioPrefetchStream::trimTrackLocked(Track& track) {
 }
 
 bool AudioPrefetchStream::shouldAbort() const {
-    return m_interruptCallback && m_interruptCallback();
+    return m_stopSignal.load() || (m_interruptCallback && m_interruptCallback());
 }
 
 void AudioPrefetchStream::waitForWorkerStopped() {
