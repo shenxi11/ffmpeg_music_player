@@ -1,27 +1,20 @@
 ﻿#ifndef PROCESS_SLIDER_QML_H
 #define PROCESS_SLIDER_QML_H
 
-#include <QQuickWidget>
-#include <QQuickItem>
-#include <QSurfaceFormat>
-#include <QWidget>
 #include <QDebug>
 #include <QElapsedTimer>
+#include <QQuickItem>
+#include <QQuickWidget>
+#include <QSurfaceFormat>
+#include <QWidget>
 
-class ProcessSliderQml : public QQuickWidget
-{
+class ProcessSliderQml : public QQuickWidget {
     Q_OBJECT
-public:
+  public:
     // 播放控制栏相关信号
-    enum State {
-        Stop = 0,
-        Play = 1,
-        Pause = 2
-    };
-    
-    explicit ProcessSliderQml(QWidget *parent = nullptr)
-        : QQuickWidget(parent)
-    {
+    enum State { Stop = 0, Play = 1, Pause = 2 };
+
+    explicit ProcessSliderQml(QWidget* parent = nullptr) : QQuickWidget(parent) {
         QElapsedTimer timer;
         timer.start();
 
@@ -31,19 +24,20 @@ public:
         setFormat(quickFormat);
         setClearColor(Qt::transparent);
         setAttribute(Qt::WA_TranslucentBackground, true);
-        setAttribute(Qt::WA_NoSystemBackground, true);  // 禁用系统背景填充
-        setAttribute(Qt::WA_OpaquePaintEvent, false);   // 设置透明渲染相关属性
+        setAttribute(Qt::WA_NoSystemBackground, true); // 禁用系统背景填充
+        setAttribute(Qt::WA_OpaquePaintEvent, false);  // 设置透明渲染相关属性
         setAttribute(Qt::WA_AlwaysStackOnTop, true);
-        setStyleSheet("background: transparent; border: 0;");      // 设置透明渲染相关属性
-        setAutoFillBackground(false);                   // 禁用自动背景填充
-        
-        qDebug() << "ProcessSliderQml: Loading QML from qrc:/qml/components/playback/ProcessSlider.qml";
+        setStyleSheet("background: transparent; border: 0;"); // 设置透明渲染相关属性
+        setAutoFillBackground(false);                         // 禁用自动背景填充
+
+        qDebug()
+            << "ProcessSliderQml: Loading QML from qrc:/qml/components/playback/ProcessSlider.qml";
         setSource(QUrl("qrc:/qml/components/playback/ProcessSlider.qml"));
         qDebug() << "  QML source set in" << timer.elapsed() << "ms";
-        
+
         setResizeMode(QQuickWidget::SizeRootObjectToView);
         qDebug() << "  Resize mode set in" << timer.elapsed() << "ms";
-        
+
         // 输出 QML 加载错误，便于启动阶段排查。
         if (status() == QQuickWidget::Error) {
             qDebug() << "ProcessSliderQml: QML loading errors:";
@@ -53,7 +47,7 @@ public:
         } else {
             qDebug() << "ProcessSliderQml: QML loaded successfully in" << timer.elapsed() << "ms";
         }
-        
+
         QQuickItem* root = rootObject();
         if (root) {
             qDebug() << "ProcessSliderQml: Root object found, connecting signals...";
@@ -63,7 +57,7 @@ public:
             connect(root, SIGNAL(sliderReleasedSignal()), this, SIGNAL(signalSliderReleased()));
             connect(root, SIGNAL(upClicked()), this, SIGNAL(signalUpClick()));
             connect(root, SIGNAL(playFinished()), this, SIGNAL(signalPlayFinished()));
-            
+
             // 播放控制栏相关信号
             connect(root, SIGNAL(stop()), this, SIGNAL(signalStop()));
             connect(root, SIGNAL(nextSong()), this, SIGNAL(signalNextSong()));
@@ -75,23 +69,25 @@ public:
             connect(root, SIGNAL(deskToggled(bool)), this, SIGNAL(signalDeskToggled(bool)));
             connect(root, SIGNAL(commentToggled(bool)), this, SIGNAL(signalCommentToggled(bool)));
             connect(root, SIGNAL(loopToggled(bool)), this, SLOT(on_loop_state_changed(bool)));
-            connect(root, SIGNAL(playerPageStyleRequested(int)), this, SIGNAL(signalPlayerPageStyleRequested(int)));
-            
+            connect(root, SIGNAL(playerPageStyleRequested(int)), this,
+                    SIGNAL(signalPlayerPageStyleRequested(int)));
+
             // 播放模式状态同步说明
             connect(root, SIGNAL(playModeChanged()), this, SLOT(on_playMode_changed()));
-            
-            qDebug() << "ProcessSliderQml: All signals connected in" << timer.elapsed() << "ms (total)";
+
+            qDebug() << "ProcessSliderQml: All signals connected in" << timer.elapsed()
+                     << "ms (total)";
         } else {
             qDebug() << "ProcessSliderQml: ERROR - Root object is null!";
         }
-        
+
         qDebug() << "ProcessSliderQml: Constructor completed in" << timer.elapsed() << "ms (total)";
-        
+
         // 确保控件可见
         raise();
         show();
     }
-    
+
     // 设置进度条最大秒数（总时长）。
     void setMaxSeconds(int seconds) {
         QQuickItem* root = rootObject();
@@ -99,7 +95,7 @@ public:
             QMetaObject::invokeMethod(root, "setMaxTime", Q_ARG(QVariant, seconds));
         }
     }
-    
+
     void setCurrentSeconds(int seconds) {
         QQuickItem* root = rootObject();
         if (root) {
@@ -122,14 +118,14 @@ public:
             QMetaObject::invokeMethod(root, "clearSeekPending");
         }
     }
-    
+
     void setSongName(const QString& name) {
         QQuickItem* root = rootObject();
         if (root) {
             QMetaObject::invokeMethod(root, "setSongName", Q_ARG(QVariant, name));
         }
     }
-    
+
     void setPicPath(const QString& path) {
         QQuickItem* root = rootObject();
         if (root) {
@@ -144,22 +140,30 @@ public:
         }
     }
 
+    void setBuffering(bool buffering) {
+        QQuickItem* root = rootObject();
+        if (root) {
+            root->setProperty("buffering", buffering);
+        }
+    }
+
     void setPlayerPageStyle(int styleId) {
         QQuickItem* root = rootObject();
         if (root) {
             root->setProperty("playerPageStyle", styleId);
         }
     }
-    
+
     // 播放控制栏相关信号
     void setState(State state) {
         QQuickItem* root = rootObject();
         if (root) {
             qDebug() << "[ProcessSliderQml] setState called with state:" << state;
-            QMetaObject::invokeMethod(root, "setPlayState", Q_ARG(QVariant, static_cast<int>(state)));
+            QMetaObject::invokeMethod(root, "setPlayState",
+                                      Q_ARG(QVariant, static_cast<int>(state)));
         }
     }
-    
+
     State getState() {
         QQuickItem* root = rootObject();
         if (root) {
@@ -169,14 +173,14 @@ public:
         }
         return Stop;
     }
-    
+
     void setLoopFlag(bool flag) {
         QQuickItem* root = rootObject();
         if (root) {
             QMetaObject::invokeMethod(root, "setLoopState", Q_ARG(QVariant, flag));
         }
     }
-    
+
     bool getLoopFlag() {
         QQuickItem* root = rootObject();
         if (root) {
@@ -186,7 +190,7 @@ public:
         }
         return false;
     }
-    
+
     void setDeskChecked(bool checked) {
         QQuickItem* root = rootObject();
         if (root) {
@@ -217,7 +221,7 @@ public:
             root->setProperty("mlistChecked", checked);
         }
     }
-    
+
     bool getDeskChecked() {
         QQuickItem* root = rootObject();
         if (root) {
@@ -225,27 +229,27 @@ public:
         }
         return false;
     }
-    
+
     void onIsUpChanged(bool isUp) {
         QQuickItem* root = rootObject();
         if (root) {
             QMetaObject::invokeMethod(root, "setIsUp", Q_ARG(QVariant, isUp));
         }
     }
-    
+
     void onPlayFinished() {
         QQuickItem* root = rootObject();
         if (root) {
             QMetaObject::invokeMethod(root, "handlePlayFinished");
         }
     }
-    
-public slots:
+
+  public slots:
     void on_loop_state_changed(bool loop) {
         qDebug() << "Loop state changed to:" << loop;
         emit signalLoopChange(loop);
     }
-    
+
     void on_playMode_changed() {
         QQuickItem* root = rootObject();
         if (root) {
@@ -254,15 +258,15 @@ public slots:
             emit signalPlayModeChanged(mode);
         }
     }
-    
-signals:
+
+  signals:
     // 用户拖动进度条后的目标秒数。
     void signalSliderMove(int seconds);
     void signalSliderPressed();
     void signalSliderReleased();
     void signalUpClick();
-    void signalPlayFinished();  // 播放完成信号
-    
+    void signalPlayFinished(); // 播放完成信号
+
     // 播放控制栏相关信号
     void signalStop();
     void signalNextSong();
@@ -274,9 +278,8 @@ signals:
     void signalDeskToggled(bool checked);
     void signalCommentToggled(bool checked);
     void signalLoopChange(bool loop);
-    void signalPlayModeChanged(int mode);  // 播放模式变更信号
+    void signalPlayModeChanged(int mode); // 播放模式变更信号
     void signalPlayerPageStyleRequested(int styleId);
 };
 
 #endif // PROCESS_SLIDER_QML_H
-

@@ -69,10 +69,10 @@ int seekRetryInitialMsForSource(const QUrl& sourceUrl) {
     const bool flacLike = isLikelyFlacSource(sourceUrl);
 
     if (localProxy) {
-        return flacLike ? 650 : 500;
+        return flacLike ? 5000 : 3200;
     }
     if (remoteHttp) {
-        return flacLike ? 900 : 700;
+        return flacLike ? 1800 : 1200;
     }
     return 500;
 }
@@ -82,12 +82,17 @@ int seekRetryInitialMsForSource(const QUrl& sourceUrl) {
 AudioSession::AudioSession(const QString& sessionId, QObject* parent)
     : QObject(parent), m_sessionId(sessionId), m_active(false), m_decoder(new AudioDecoder(this)),
       m_player(&AudioPlayer::instance()), m_duration(0), m_seekGraceTimer(new QTimer(this)),
-      m_seekRetryTimer(new QTimer(this)), m_seekLatencyTimer() {
+      m_seekRetryTimer(new QTimer(this)), m_bufferingWatchdogTimer(new QTimer(this)),
+      m_seekLatencyTimer() {
     m_seekGraceTimer->setSingleShot(true);
     connect(m_seekGraceTimer, &QTimer::timeout, this, &AudioSession::onSeekGraceTimeout);
 
     m_seekRetryTimer->setSingleShot(true);
     connect(m_seekRetryTimer, &QTimer::timeout, this, &AudioSession::onSeekRetryTimeout);
+
+    m_bufferingWatchdogTimer->setInterval(300);
+    connect(m_bufferingWatchdogTimer, &QTimer::timeout, this,
+            &AudioSession::onBufferingWatchdogTimeout);
 
     connectSignals();
 }
@@ -219,6 +224,7 @@ void AudioSession::pause() {
 
     m_playback.manualPaused = true;
     m_buffering.active = false;
+    stopBufferingWatchdog();
     m_decoder->pauseDecode();
     if (isWriteOwnerActive()) {
         m_player->pause();
@@ -291,7 +297,9 @@ void AudioSession::seekTo(qint64 positionMs) {
     // 启动 seek 宽限窗口，过滤 seek 后短暂抖动。
     enterSeekGraceWindow();
 
-    dispatchDecoderSeekForLocalSeek(positionMs);
+    const AudioDecoder::SeekMode seekMode =
+        isRemoteFastSeekSource() ? AudioDecoder::SeekMode::Fast : AudioDecoder::SeekMode::Precise;
+    dispatchDecoderSeekForLocalSeek(positionMs, seekMode);
 
     // m_isSeeking 会在 seekGraceTimer 超时后复位。
     infoLog("SEEK_EVT") << "seek pipeline dispatched";
@@ -494,9 +502,9 @@ void AudioSession::onBufferStatusChanged(int fillLevel) {
     int kBufferingEnterMinBytes = m_seek.fastStartMode ? (24 * 1024) : (96 * 1024);
     int kBufferingResumeMinBytes = m_seek.fastStartMode ? (48 * 1024) : (192 * 1024);
     if (isRemoteFlac) {
-        // 远端 FLAC 仍保留缓冲保护，但降低门槛以减少 seek 后等待。
-        kBufferingEnterMinBytes = 128 * 1024;
-        kBufferingResumeMinBytes = 384 * 1024;
+        // 网络预取层已经承担大块 read-ahead，这里只保留防止 PCM underrun 的门槛。
+        kBufferingEnterMinBytes = m_seek.fastStartMode ? (96 * 1024) : (192 * 1024);
+        kBufferingResumeMinBytes = m_seek.fastStartMode ? (256 * 1024) : (512 * 1024);
     }
 
     // 水位回落后恢复此前因流控暂停的解码线程。
@@ -524,6 +532,7 @@ void AudioSession::onBufferStatusChanged(int fillLevel) {
         m_playback.internalPausePending = true;
         m_player->pause();
         emit bufferingStarted();
+        kickBufferingRecovery("low_buffer_enter", fillLevel, bufferedBytes);
         infoLog("BUFFER_EVT") << "Buffering started fill=" << fillLevel << "%";
     }
     // 水位/字节恢复后退出 buffering（字节门槛优先，百分比兜底）。
@@ -550,6 +559,9 @@ void AudioSession::onBufferUnderrun() {
         m_playback.internalPausePending = true;
         m_player->pause();
         emit bufferingStarted();
+        const AudioBuffer* buffer = m_player->getBuffer();
+        const int bufferedBytes = buffer ? buffer->availableBytes() : 0;
+        kickBufferingRecovery("buffer_underrun", m_player->bufferFillLevel(), bufferedBytes);
     }
 }
 
@@ -665,10 +677,53 @@ void AudioSession::onSeekRetryTimeout() {
         return;
     }
 
+    const AudioCacheManager::SeekHintStatus hintStatus =
+        AudioCacheManager::instance().seekHintStatusForPlaybackUrl(
+            m_sourceUrl, m_seekLatency.desiredTargetMs);
+    const qint64 elapsedMs = m_seekLatencyTimer.isValid() ? m_seekLatencyTimer.elapsed() : -1;
+    if (hintStatus.hasHint) {
+        infoLog("SEEK_EVT") << "seek_hint_status"
+                            << " target_matches=" << hintStatus.targetMatches
+                            << " seek_index_hit=" << hintStatus.seekIndexHit
+                            << " takeover_started=" << hintStatus.takeoverStarted
+                            << " takeover_pending=" << hintStatus.takeoverPending
+                            << " takeover_headers_sent=" << hintStatus.takeoverHeadersSent
+                            << " generation=" << hintStatus.generation
+                            << " active_proxy_streams=" << hintStatus.activeProxyStreams
+                            << " target_byte=" << hintStatus.targetByte
+                            << " proxy_original_range_start="
+                            << hintStatus.proxyOriginalRangeStart
+                            << " proxy_effective_range_start="
+                            << hintStatus.proxyEffectiveRangeStart
+                            << " takeover_age_ms=" << hintStatus.takeoverAgeMs;
+    }
+    if (hintStatus.targetMatches && hintStatus.takeoverPending) {
+        warnLog("SEEK_EVT") << "[SEEK_WAIT] retry_suppressed_by_proxy"
+                            << " elapsed=" << elapsedMs
+                            << " seek_hint_generation=" << hintStatus.generation
+                            << " active_proxy_streams=" << hintStatus.activeProxyStreams
+                            << " proxy_original_range_start="
+                            << hintStatus.proxyOriginalRangeStart
+                            << " proxy_effective_range_start="
+                            << hintStatus.proxyEffectiveRangeStart
+                            << " desired=" << m_seekLatency.desiredTargetMs
+                            << " target_byte=" << hintStatus.targetByte;
+        requestDecoderStart();
+        if (!m_buffering.active) {
+            m_buffering.active = true;
+            emit bufferingStarted();
+        }
+        emit bufferingProgress(qMax(1, m_buffering.percent));
+        if (m_seekRetryTimer) {
+            m_seekRetryTimer->start(hintStatus.takeoverAgeMs >= 3000 ? 900 : 650);
+        }
+        finalizeControlPath("onSeekRetryTimeout.proxyPending");
+        return;
+    }
+
     const bool isHlsSeek = isHlsSeekSource();
     const bool isRemoteFlacSeek = isRemoteFlacSource();
     const bool indexedLocalProxySeek = m_seekLatency.seekIndexHit;
-    const qint64 elapsedMs = m_seekLatencyTimer.isValid() ? m_seekLatencyTimer.elapsed() : -1;
     const qint64 hardTimeoutMs = calculateSeekHardTimeoutMs(isHlsSeek, isRemoteFlacSeek);
     const qint64 giveUpTimeoutMs =
         calculateSeekGiveUpTimeoutMs(isHlsSeek, isRemoteFlacSeek, hardTimeoutMs);
@@ -693,6 +748,41 @@ void AudioSession::onSeekRetryTimeout() {
     finalizeControlPath("onSeekRetryTimeout");
 }
 
+void AudioSession::onBufferingWatchdogTimeout() {
+    if (!m_buffering.active) {
+        stopBufferingWatchdog();
+        return;
+    }
+
+    if (!m_active || m_playback.manualPaused || !isWriteOwnerActive()) {
+        stopBufferingWatchdog();
+        return;
+    }
+
+    const AudioBuffer* buffer = m_player ? m_player->getBuffer() : nullptr;
+    const int bufferedBytes = buffer ? buffer->availableBytes() : 0;
+    const int fillLevel = m_player ? m_player->bufferFillLevel() : 0;
+    const bool isRemoteFlac = isRemoteFlacSource();
+    const int resumeMinBytes =
+        isRemoteFlac ? (m_seek.fastStartMode ? (1536 * 1024) : (2 * 1024 * 1024)) : (96 * 1024);
+
+    kickBufferingRecovery("buffering_watchdog", fillLevel, bufferedBytes);
+
+    if (canExitBufferingByThreshold(fillLevel, bufferedBytes, isRemoteFlac, resumeMinBytes)) {
+        infoLog("BUFFER_EVT") << "buffering_watchdog_exit fill=" << fillLevel
+                              << "% bufferedBytes=" << bufferedBytes;
+        exitBufferingAndResume(fillLevel, bufferedBytes);
+        return;
+    }
+
+    infoLog("BUFFER_EVT") << "buffering_watchdog_wait fill=" << fillLevel
+                          << "% bufferedBytes=" << bufferedBytes
+                          << " decoderPausedByFlowControl="
+                          << m_buffering.decoderPausedByFlowControl
+                          << " manualPaused=" << m_playback.manualPaused
+                          << " isDecoding=" << (m_decoder ? m_decoder->isDecoding() : false);
+}
+
 bool AudioSession::isWriteOwnerActive() const {
     return m_player && m_player->writeOwner() == m_sessionId;
 }
@@ -708,25 +798,31 @@ void AudioSession::resetRuntimeState() {
     if (m_seekRetryTimer) {
         m_seekRetryTimer->stop();
     }
+    stopBufferingWatchdog();
 }
 
 void AudioSession::beginSeekLatencyTracking(qint64 targetMs) {
     setSeekLatencyPhase(SeekLatencyPhase::WaitingFirstPacket, "beginSeekLatencyTracking");
+    const AudioCacheManager::SeekHintStatus hintStatus =
+        AudioCacheManager::instance().seekHintStatusForPlaybackUrl(m_sourceUrl, targetMs);
     m_seekLatency.seekIndexHit =
-        isLocalProxySource(m_sourceUrl) &&
+        (hintStatus.targetMatches && hintStatus.seekIndexHit) ||
         AudioCacheManager::instance().hasResolvedSeekIndexForPlaybackUrl(m_sourceUrl);
     m_seekLatency.desiredTargetMs = targetMs;
     m_seekLatency.workingTargetMs = targetMs;
     m_seekLatency.firstPacketTimestampMs = -1;
+    m_seekLatency.proxySeekTakeover = false;
     m_seekLatency.accuracyRetryCount = 0;
-    m_seekLatency.accuracyMaxRetries = m_seekLatency.seekIndexHit ? 1 : 5;
-    m_seekLatency.accuracyToleranceMs = m_seekLatency.seekIndexHit ? 450 : 2500;
-    m_seekLatency.hardTimeoutMs = m_seekLatency.seekIndexHit ? 6500 : 20000;
+    m_seekLatency.accuracyMaxRetries = m_seekLatency.seekIndexHit ? 1 : 3;
+    m_seekLatency.accuracyToleranceMs = m_seekLatency.seekIndexHit ? 6500 : 7000;
+    m_seekLatency.hardTimeoutMs = m_seekLatency.seekIndexHit ? 9000 : 18000;
     m_seekLatencyTimer.restart();
 
     m_seek.fastStartMode = true;
     m_seek.retryCount = 0;
-    m_seek.maxRetries = m_seekLatency.seekIndexHit ? 1 : 4;
+    m_seek.maxRetries = m_seekLatency.seekIndexHit ? 1 : 3;
+    m_seek.dispatchedGeneration = 0;
+    m_seek.dispatchedTargetMs = -1;
     if (m_seekRetryTimer) {
         m_seekRetryTimer->start(seekRetryInitialMsForSource(m_sourceUrl));
     }
@@ -894,9 +990,10 @@ void AudioSession::applyResumeTakeoverAtTimestamp(const QString& currentOwner,
     applySeekClockBase(resumeTimestamp);
     enterSeekGraceWindow();
     resetSharedOutputAfterTakeover(resumeTimestamp);
-    m_decoder->seekTo(resumeTimestamp);
-    m_clock.minAcceptedDecodeGeneration = m_decoder->currentSeekGeneration();
     beginSeekLatencyTracking(resumeTimestamp);
+    dispatchDecoderSeekForLocalSeek(resumeTimestamp,
+                                    isRemoteFastSeekSource() ? AudioDecoder::SeekMode::Fast
+                                                             : AudioDecoder::SeekMode::Precise);
     m_buffering.active = true;
 }
 
@@ -933,13 +1030,19 @@ void AudioSession::prepareOutputForLocalSeek(qint64 positionMs, bool wasPlaying)
     }
 }
 
-void AudioSession::dispatchDecoderSeekForLocalSeek(qint64 positionMs) {
-    m_decoder->seekTo(positionMs);
+void AudioSession::dispatchDecoderSeekForLocalSeek(qint64 positionMs, AudioDecoder::SeekMode mode) {
+    m_decoder->seekTo(positionMs, mode);
     m_clock.minAcceptedDecodeGeneration = m_decoder->currentSeekGeneration();
+    m_seek.dispatchedGeneration = m_clock.minAcceptedDecodeGeneration;
+    m_seek.dispatchedTargetMs = positionMs;
     requestDecoderStart();
 }
 
 // ===== 解码时间轴与缓冲恢复策略 =====
+bool AudioSession::isRemoteFastSeekSource() const {
+    return m_sourceUrl.scheme().startsWith("http") && !isHlsSeekSource();
+}
+
 bool AudioSession::isRemoteFlacSource() const {
     return m_sourceUrl.scheme().startsWith("http") && isLikelyFlacSource(m_sourceUrl);
 }
@@ -949,15 +1052,35 @@ void AudioSession::normalizeDecodedTimestamp(qint64 timestampMs, qint64& normali
         const qint64 delta = m_clock.baseTimestampMs - timestampMs;
         if (qAbs(delta) > 3000) {
             warnLog("SEEK_EVT")
-                << "Seek target differs from decoded timeline, trust decoded timestamp."
+                << "Seek target differs from decoded timeline, keep requested timeline."
                 << " expected=" << m_clock.baseTimestampMs << " decoded=" << timestampMs
                 << " delta=" << delta;
-            m_clock.baseTimestampMs = timestampMs;
-        } else {
-            m_clock.baseTimestampMs = timestampMs;
         }
-        m_clock.timestampMode = DecoderTimestampMode::Passthrough;
-        m_clock.offsetTimestampMs = 0;
+        if (isRemoteFlacSource()) {
+            m_clock.timestampMode = DecoderTimestampMode::Passthrough;
+            m_clock.offsetTimestampMs = 0;
+            if (qAbs(delta) > 3000) {
+                warnLog("SEEK_EVT") << "[FLAC_SEEK_VERIFY] reject timestamp rebase"
+                                    << " target=" << m_clock.baseTimestampMs
+                                    << " decoded=" << timestampMs << " drift=" << -delta;
+            }
+            return;
+        }
+        const bool proxyTakeover =
+            AudioCacheManager::instance().hasRecentProxySeekTakeoverForPlaybackUrl(
+                m_sourceUrl, m_clock.baseTimestampMs);
+        if (proxyTakeover && qAbs(delta) > 3000) {
+            m_clock.offsetTimestampMs = delta;
+            m_clock.timestampMode = DecoderTimestampMode::OffsetApplied;
+            normalizedTimestampMs = timestampMs + m_clock.offsetTimestampMs;
+            infoLog("SEEK_EVT") << "Apply proxy seek timestamp rebase."
+                                << " target=" << m_clock.baseTimestampMs
+                                << " decoded=" << timestampMs << " offset=" << delta
+                                << " normalized=" << normalizedTimestampMs;
+        } else {
+            m_clock.timestampMode = DecoderTimestampMode::Passthrough;
+            m_clock.offsetTimestampMs = 0;
+        }
     }
 
     if (m_clock.timestampMode == DecoderTimestampMode::OffsetApplied) {
@@ -978,72 +1101,74 @@ void AudioSession::extendDurationFromDecodedTimestamp(qint64 normalizedTimestamp
     }
 }
 
-bool AudioSession::handleSeekLatencyOnDecodedTimestamp(qint64 normalizedTimestampMs) {
+bool AudioSession::handleSeekLatencyOnDecodedTimestamp(qint64& normalizedTimestampMs) {
     if (!isSeekLatencyActiveNow() || isSeekFirstPacketSeenNow()) {
         return false;
     }
 
-    const qint64 driftMs = normalizedTimestampMs - m_seekLatency.desiredTargetMs;
-    const qint64 absDriftMs = qAbs(driftMs);
-    qint64 acceptToleranceMs = m_seekLatency.accuracyToleranceMs;
-    if (m_seekLatency.seekIndexHit) {
-        if (m_seekLatency.accuracyRetryCount >= 1) {
-            acceptToleranceMs = qMax<qint64>(acceptToleranceMs, 900);
-        }
-    } else {
-        if (m_seekLatency.accuracyRetryCount >= 2) {
-            acceptToleranceMs = qMax<qint64>(acceptToleranceMs, 8000);
-        }
-        if (m_seekLatency.accuracyRetryCount >= 4) {
-            acceptToleranceMs = qMax<qint64>(acceptToleranceMs, 15000);
-        }
+    qint64 driftMs = normalizedTimestampMs - m_seekLatency.desiredTargetMs;
+    qint64 absDriftMs = qAbs(driftMs);
+    const qint64 acceptToleranceMs = m_seekLatency.accuracyToleranceMs;
+    const bool remoteFlac = isRemoteFlacSource();
+    if (!remoteFlac && !m_seekLatency.proxySeekTakeover) {
+        m_seekLatency.proxySeekTakeover =
+            AudioCacheManager::instance().hasRecentProxySeekTakeoverForPlaybackUrl(
+                m_sourceUrl, m_seekLatency.desiredTargetMs);
+    }
+
+    infoLog("SEEK_EVT") << "[FLAC_SEEK_VERIFY]"
+                        << " remote_flac=" << remoteFlac
+                        << " desired=" << m_seekLatency.desiredTargetMs
+                        << " decoded=" << normalizedTimestampMs << " drift=" << driftMs
+                        << " tolerance=" << acceptToleranceMs
+                        << " retry=" << m_seekLatency.accuracyRetryCount << "/"
+                        << m_seekLatency.accuracyMaxRetries;
+
+    if (!remoteFlac && absDriftMs > acceptToleranceMs && m_seekLatency.proxySeekTakeover &&
+        normalizedTimestampMs < m_seekLatency.desiredTargetMs && absDriftMs <= 90000) {
+        const qint64 offset = m_seekLatency.desiredTargetMs - normalizedTimestampMs;
+        m_clock.offsetTimestampMs += offset;
+        m_clock.timestampMode = DecoderTimestampMode::OffsetApplied;
+        normalizedTimestampMs += offset;
+        driftMs = normalizedTimestampMs - m_seekLatency.desiredTargetMs;
+        absDriftMs = qAbs(driftMs);
+        infoLog("SEEK_EVT") << "Accept proxy seek takeover with timestamp rebase."
+                            << " desired=" << m_seekLatency.desiredTargetMs
+                            << " decoded=" << (normalizedTimestampMs - offset)
+                            << " normalized=" << normalizedTimestampMs
+                            << " offset_delta=" << offset;
+    }
+
+    if (!remoteFlac && absDriftMs > acceptToleranceMs && m_seekLatency.seekIndexHit &&
+        normalizedTimestampMs < m_seekLatency.desiredTargetMs && absDriftMs <= 7000) {
+        const qint64 offset = m_seekLatency.desiredTargetMs - normalizedTimestampMs;
+        m_clock.offsetTimestampMs += offset;
+        m_clock.timestampMode = DecoderTimestampMode::OffsetApplied;
+        normalizedTimestampMs += offset;
+        driftMs = normalizedTimestampMs - m_seekLatency.desiredTargetMs;
+        absDriftMs = qAbs(driftMs);
+        infoLog("SEEK_EVT") << "[SEEK_ACCEPT_EARLY_FRAME] early_frame_accepted"
+                            << " desired=" << m_seekLatency.desiredTargetMs
+                            << " decoded=" << (normalizedTimestampMs - offset)
+                            << " normalized=" << normalizedTimestampMs
+                            << " offset_delta=" << offset
+                            << " seek_index_hit=" << m_seekLatency.seekIndexHit;
     }
 
     if (absDriftMs > acceptToleranceMs) {
         if (m_seekLatency.accuracyRetryCount < m_seekLatency.accuracyMaxRetries) {
             ++m_seekLatency.accuracyRetryCount;
-            const int retryRound = m_seekLatency.accuracyRetryCount;
-
-            qint64 correctedTargetMs = m_seekLatency.desiredTargetMs;
-            if (driftMs < 0) {
-                qint64 forwardCapMs = m_seekLatency.seekIndexHit
-                                          ? 2500
-                                          : 20000 + static_cast<qint64>(retryRound - 1) * 8000;
-                forwardCapMs = qMin<qint64>(forwardCapMs, 60000);
-                const qint64 forwardStepMs = qBound<qint64>(m_seekLatency.seekIndexHit ? 350 : 4000,
-                                                            ((-driftMs) * 2) / 3, forwardCapMs);
-                correctedTargetMs = m_seekLatency.desiredTargetMs + forwardStepMs;
-            } else {
-                qint64 backwardCapMs = m_seekLatency.seekIndexHit
-                                           ? 1800
-                                           : 12000 + static_cast<qint64>(retryRound - 1) * 4000;
-                backwardCapMs = qMin<qint64>(backwardCapMs, 30000);
-                const qint64 backwardStepMs = qBound<qint64>(
-                    m_seekLatency.seekIndexHit ? 250 : 3000, (driftMs * 2) / 3, backwardCapMs);
-                correctedTargetMs = m_seekLatency.desiredTargetMs - backwardStepMs;
-            }
-
-            if (correctedTargetMs < 0) {
-                correctedTargetMs = 0;
-            }
-            if (m_duration > 0 && correctedTargetMs > m_duration - 500) {
-                correctedTargetMs = qMax<qint64>(0, m_duration - 500);
-            }
-
-            m_seekLatency.workingTargetMs = correctedTargetMs;
-
-            warnLog("SEEK_EVT") << "[SEEK_CORRECT] retry=" << m_seekLatency.accuracyRetryCount
-                                << "/" << m_seekLatency.accuracyMaxRetries
+            warnLog("SEEK_EVT") << (remoteFlac ? "[FLAC_SEEK_REJECT]" : "[SEEK_REJECT_DRIFT]")
+                                << " decoded timestamp too far from target,"
+                                << " retry=" << m_seekLatency.accuracyRetryCount << "/"
+                                << m_seekLatency.accuracyMaxRetries
                                 << " desired=" << m_seekLatency.desiredTargetMs
-                                << " working=" << m_seekLatency.workingTargetMs
                                 << " decoded=" << normalizedTimestampMs << " drift=" << driftMs
                                 << " acceptTolerance=" << acceptToleranceMs
-                                << " seek_index_hit=" << m_seekLatency.seekIndexHit
-                                << " corrective_reseek_count=" << m_seekLatency.accuracyRetryCount;
-
-            setSeekLatencyPhase(SeekLatencyPhase::WaitingFirstPacket, "seek_corrective_reseek");
+                                << " seek_index_hit=" << m_seekLatency.seekIndexHit;
             m_seekLatency.firstPacketTimestampMs = -1;
-            m_decoder->seekTo(m_seekLatency.workingTargetMs);
+            setSeekLatencyPhase(SeekLatencyPhase::WaitingFirstPacket, "seek_reject_large_drift");
+            m_decoder->seekTo(m_seekLatency.desiredTargetMs, AudioDecoder::SeekMode::Fast);
             m_clock.minAcceptedDecodeGeneration = m_decoder->currentSeekGeneration();
             m_decoder->startDecode();
             if (m_seekRetryTimer) {
@@ -1052,41 +1177,33 @@ bool AudioSession::handleSeekLatencyOnDecodedTimestamp(qint64 normalizedTimestam
             return true;
         }
 
-        warnLog("SEEK_EVT") << "[SEEK_ACCEPT] drift remains after correction retries."
+        warnLog("SEEK_EVT") << (remoteFlac ? "[FLAC_SEEK_ABORT]" : "[SEEK_REJECT_DRIFT]")
+                            << " decoded timestamp still too far after retries,"
+                            << " keep buffering."
                             << " desired=" << m_seekLatency.desiredTargetMs
-                            << " working=" << m_seekLatency.workingTargetMs
                             << " decoded=" << normalizedTimestampMs << " drift=" << driftMs
                             << " acceptTolerance=" << acceptToleranceMs
-                            << " seek_index_hit=" << m_seekLatency.seekIndexHit
-                            << " corrective_reseek_count=" << m_seekLatency.accuracyRetryCount;
-        if (m_seekLatency.seekIndexHit && absDriftMs > 10000) {
-            warnLog("SEEK_EVT")
-                << "[SEEK_REJECT] indexed seek drift too large, request source recovery."
-                << " desired=" << m_seekLatency.desiredTargetMs
-                << " working=" << m_seekLatency.workingTargetMs
-                << " decoded=" << normalizedTimestampMs << " drift=" << driftMs;
-            if (m_seekRetryTimer) {
-                m_seekRetryTimer->stop();
-            }
-            finalizeSeekLatency("seek_reject_large_drift");
-            if (m_buffering.active) {
-                m_buffering.active = false;
-                emit bufferingFinished();
-            }
-            emit sessionError(QStringLiteral("seek定位偏移过大，请切换本地缓存重试"));
+                            << " seek_index_hit=" << m_seekLatency.seekIndexHit;
+        if (remoteFlac) {
+            finalizeSeekLatency("flac_seek_verified_drift_reject");
+            m_buffering.active = false;
+            stopBufferingWatchdog();
+            emit bufferingFinished();
+            emit sessionError(QStringLiteral("FLAC seek failed: decoded timestamp drift too large"));
             return true;
         }
-        setSeekLatencyPhase(SeekLatencyPhase::FirstPacketSeen, "seek_accept_nearest_keyframe");
-        m_seekLatency.firstPacketTimestampMs = normalizedTimestampMs;
-        m_seekLatency.workingTargetMs = normalizedTimestampMs;
+        m_seekLatency.firstPacketTimestampMs = -1;
+        setSeekLatencyPhase(SeekLatencyPhase::WaitingFirstPacket, "seek_large_drift_keep_waiting");
         if (m_seekRetryTimer) {
-            m_seekRetryTimer->stop();
+            m_seekRetryTimer->start(1500);
         }
+        return true;
     }
 
     if (!isSeekFirstPacketSeenNow()) {
-        setSeekLatencyPhase(SeekLatencyPhase::FirstPacketSeen, "seek_first_packet_seen");
+        setSeekLatencyPhase(SeekLatencyPhase::FirstPacketSeen, "seek_accept_decoded_in_tolerance");
         m_seekLatency.firstPacketTimestampMs = normalizedTimestampMs;
+        m_seekLatency.workingTargetMs = normalizedTimestampMs;
         const qint64 elapsedMs = m_seekLatencyTimer.isValid() ? m_seekLatencyTimer.elapsed() : -1;
         infoLog("SEEK_EVT") << "seek_to_first_decoded_ms=" << elapsedMs
                             << " seek_target_ms=" << m_seekLatency.desiredTargetMs
@@ -1094,7 +1211,14 @@ bool AudioSession::handleSeekLatencyOnDecodedTimestamp(qint64 normalizedTimestam
                             << " corrective_reseek_count=" << m_seekLatency.accuracyRetryCount
                             << " desired=" << m_seekLatency.desiredTargetMs
                             << " working=" << m_seekLatency.workingTargetMs
-                            << " decoded_ts=" << normalizedTimestampMs;
+                            << " decoded_ts=" << normalizedTimestampMs << " drift=" << driftMs
+                            << " abs_drift=" << absDriftMs
+                            << " acceptTolerance=" << acceptToleranceMs;
+        if (remoteFlac) {
+            infoLog("SEEK_EVT") << "[FLAC_SEEK_ACCEPT]"
+                                << " target=" << m_seekLatency.desiredTargetMs
+                                << " decoded=" << normalizedTimestampMs << " drift=" << driftMs;
+        }
         if (m_seekRetryTimer) {
             m_seekRetryTimer->stop();
         }
@@ -1128,31 +1252,39 @@ bool AudioSession::shouldResumeFromDecodedWrite(int fillLevel, int bufferedBytes
         requiredBytes = 192 * 1024;
     }
 
+    const bool remoteSource = m_sourceUrl.scheme().startsWith("http");
     if (m_seek.fastStartMode) {
         if (isRemoteFlac) {
-            requiredLevel = 14;
-            requiredBytes = 320 * 1024;
+            requiredLevel = 4;
+            requiredBytes = 192 * 1024;
+        } else if (remoteSource) {
+            requiredLevel = 4;
+            requiredBytes = 48 * 1024;
         } else {
             requiredLevel = 4;
             requiredBytes = 24 * 1024;
         }
-    } else if (isRemoteFlac) {
-        if (startupPath) {
-            requiredLevel = qMax(requiredLevel, 22);
-            requiredBytes = qMax(requiredBytes, 512 * 1024);
-        } else if (resumePath) {
-            requiredLevel = qMax(requiredLevel, 20);
-            requiredBytes = qMax(requiredBytes, 512 * 1024);
-        }
+    } else if (remoteSource) {
+        const int remoteMinLevel = isRemoteFlac ? 8 : 12;
+        const int remoteMinBytes = isRemoteFlac ? 512 * 1024 : 128 * 1024;
+        requiredLevel = qMax(requiredLevel, remoteMinLevel);
+        requiredBytes = qMax(requiredBytes, remoteMinBytes);
     }
 
     const bool readyByBytes = bufferedBytes >= requiredBytes;
     const bool readyByLevel = fillLevel >= requiredLevel;
-    if (!isRemoteFlac) {
+    if (!remoteSource) {
+        return readyByBytes || readyByLevel;
+    }
+    if (m_seek.fastStartMode) {
         return readyByBytes || readyByLevel;
     }
 
-    return m_seek.fastStartMode ? (readyByBytes || readyByLevel) : (readyByBytes && readyByLevel);
+    if (isRemoteFlac) {
+        return readyByBytes || readyByLevel;
+    }
+
+    return readyByBytes && readyByLevel;
 }
 
 void AudioSession::startPlayerFromDecodedReady(int fillLevel) {
@@ -1185,12 +1317,39 @@ void AudioSession::completeDecodedReadyResume() {
     m_lastResumeTimer.restart();
     m_buffering.hasRecentResume = true;
     m_seek.fastStartMode = false;
+    stopBufferingWatchdog();
     emit bufferingFinished();
+}
+
+void AudioSession::kickBufferingRecovery(const char* reason, int fillLevel, int bufferedBytes) {
+    if (!m_active || m_playback.manualPaused || !isWriteOwnerActive() || !m_decoder) {
+        return;
+    }
+
+    if (m_buffering.decoderPausedByFlowControl) {
+        m_buffering.decoderPausedByFlowControl = false;
+    }
+
+    requestDecoderStart();
+    if (m_buffering.active && m_bufferingWatchdogTimer &&
+        !m_bufferingWatchdogTimer->isActive()) {
+        m_bufferingWatchdogTimer->start();
+    }
+
+    infoLog("BUFFER_EVT") << "buffering_recovery_kick reason=" << reason
+                          << " fill=" << fillLevel << "% bufferedBytes=" << bufferedBytes
+                          << " isDecoding=" << m_decoder->isDecoding();
+}
+
+void AudioSession::stopBufferingWatchdog() {
+    if (m_bufferingWatchdogTimer && m_bufferingWatchdogTimer->isActive()) {
+        m_bufferingWatchdogTimer->stop();
+    }
 }
 
 bool AudioSession::shouldDebounceBufferingEnter() const {
     return m_buffering.hasRecentResume && m_lastResumeTimer.isValid() &&
-           m_lastResumeTimer.elapsed() < 220;
+           m_lastResumeTimer.elapsed() < (m_sourceUrl.scheme().startsWith("http") ? 1200 : 220);
 }
 
 bool AudioSession::handleTailLowBufferFallback(qint64 currentPos, int fillLevel,
@@ -1259,12 +1418,15 @@ bool AudioSession::canExitBufferingByThreshold(int fillLevel, int bufferedBytes,
                                                int bufferingResumeMinBytes) const {
     int resumeLevelThreshold = m_seek.fastStartMode ? 6 : 25;
     if (isRemoteFlac) {
-        const int flacLevel = m_seek.fastStartMode ? 16 : 20;
+        const int flacLevel = m_seek.fastStartMode ? 6 : 10;
         resumeLevelThreshold = qMax(resumeLevelThreshold, flacLevel);
     }
 
+    if (m_seek.fastStartMode && !isRemoteFlac) {
+        return fillLevel >= resumeLevelThreshold || bufferedBytes >= qMin(bufferingResumeMinBytes, 48 * 1024);
+    }
     if (isRemoteFlac) {
-        return fillLevel >= resumeLevelThreshold && bufferedBytes >= bufferingResumeMinBytes;
+        return fillLevel >= resumeLevelThreshold || bufferedBytes >= bufferingResumeMinBytes;
     }
     return fillLevel >= resumeLevelThreshold || bufferedBytes >= bufferingResumeMinBytes;
 }
@@ -1278,6 +1440,7 @@ void AudioSession::exitBufferingAndResume(int fillLevel, int bufferedBytes) {
                             << " corrective_reseek_count=" << m_seekLatency.accuracyRetryCount;
     }
     m_buffering.active = false;
+    stopBufferingWatchdog();
     if (!m_player->isPlaying() && m_active) {
         qint64 startTimestamp = m_clock.baseTimestampMs;
         if (startTimestamp < 0) {
@@ -1313,7 +1476,7 @@ qint64 AudioSession::calculateSeekHardTimeoutMs(bool isHlsSeek, bool isRemoteFla
         return qMin<qint64>(m_seekLatency.hardTimeoutMs, 12000);
     }
     if (isRemoteFlacSeek) {
-        return 12000;
+        return 6000;
     }
     return qMax<qint64>(m_seekLatency.hardTimeoutMs, 30000);
 }
@@ -1327,7 +1490,7 @@ qint64 AudioSession::calculateSeekGiveUpTimeoutMs(bool isHlsSeek, bool isRemoteF
         return qMax<qint64>(hardTimeoutMs, 45000);
     }
     if (isRemoteFlacSeek) {
-        return qMax<qint64>(hardTimeoutMs, 15000);
+        return qMax<qint64>(hardTimeoutMs, 8000);
     }
     return qMax<qint64>(hardTimeoutMs, 60000);
 }
@@ -1336,6 +1499,9 @@ AudioSession::SeekRetryAction AudioSession::decideSeekRetryAction(qint64 elapsed
                                                                   qint64 hardTimeoutMs,
                                                                   qint64 giveUpTimeoutMs) const {
     if (elapsedMs >= giveUpTimeoutMs) {
+        return SeekRetryAction::GiveUp;
+    }
+    if (isRemoteFlacSource() && elapsedMs >= hardTimeoutMs) {
         return SeekRetryAction::GiveUp;
     }
     if (elapsedMs >= hardTimeoutMs) {
@@ -1355,6 +1521,7 @@ void AudioSession::handleSeekRetryGiveUp(qint64 elapsedMs) {
                         << " working=" << m_seekLatency.workingTargetMs;
     finalizeSeekLatency("seek_timeout_no_packet");
     m_buffering.active = false;
+    stopBufferingWatchdog();
     emit bufferingFinished();
     emit sessionError(QStringLiteral("音频缓冲超时，请重试"));
 }
@@ -1370,7 +1537,10 @@ void AudioSession::handleSeekRetryDegrade(qint64 elapsedMs, int nextRetryMs, con
         emit bufferingStarted();
     }
     emit bufferingProgress(qMax(1, m_buffering.percent));
-    requestDecoderStart();
+    const AudioBuffer* buffer = m_player ? m_player->getBuffer() : nullptr;
+    const int bufferedBytes = buffer ? buffer->availableBytes() : 0;
+    kickBufferingRecovery("seek_retry_degrade", m_player ? m_player->bufferFillLevel() : 0,
+                          bufferedBytes);
     if (m_seekRetryTimer) {
         m_seekRetryTimer->start(nextRetryMs);
     }
@@ -1385,11 +1555,20 @@ void AudioSession::handleSeekRetryAttempt(qint64 elapsedMs, bool avoidRepeatRese
                         << " desired=" << m_seekLatency.desiredTargetMs
                         << " working=" << m_seekLatency.workingTargetMs;
 
-    if (!avoidRepeatReseek || m_seek.retryCount <= 1) {
-        m_decoder->seekTo(m_seekLatency.workingTargetMs);
-        m_clock.minAcceptedDecodeGeneration = m_decoder->currentSeekGeneration();
+    const bool sameActiveTarget =
+        m_seek.dispatchedGeneration > 0 &&
+        qAbs(m_seek.dispatchedTargetMs - m_seekLatency.workingTargetMs) <= 500;
+    if (sameActiveTarget) {
+        warnLog("SEEK_EVT") << "[SEEK_WAIT] seek_singleflight_suppressed"
+                            << " elapsed=" << elapsedMs
+                            << " dispatched_generation=" << m_seek.dispatchedGeneration
+                            << " desired=" << m_seekLatency.desiredTargetMs
+                            << " working=" << m_seekLatency.workingTargetMs;
+    } else if (!avoidRepeatReseek) {
+        dispatchDecoderSeekForLocalSeek(m_seekLatency.workingTargetMs,
+                                        AudioDecoder::SeekMode::Fast);
     } else {
-        warnLog("SEEK_EVT") << "[SEEK_WAIT] skip extra reseek"
+        warnLog("SEEK_EVT") << "[SEEK_WAIT] skip repeat reseek"
                             << " elapsed=" << elapsedMs
                             << " desired=" << m_seekLatency.desiredTargetMs
                             << " working=" << m_seekLatency.workingTargetMs;
@@ -1400,6 +1579,10 @@ void AudioSession::handleSeekRetryAttempt(qint64 elapsedMs, bool avoidRepeatRese
         m_buffering.active = true;
         emit bufferingStarted();
     }
+    const AudioBuffer* buffer = m_player ? m_player->getBuffer() : nullptr;
+    const int bufferedBytes = buffer ? buffer->availableBytes() : 0;
+    kickBufferingRecovery("seek_retry_attempt", m_player ? m_player->bufferFillLevel() : 0,
+                          bufferedBytes);
     if (m_seekRetryTimer) {
         const int nextMs = 650 + m_seek.retryCount * 350;
         m_seekRetryTimer->start(nextMs);

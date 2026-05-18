@@ -557,13 +557,15 @@ void PlayWidget::handleMusicButtonClicked() {
 
 void PlayWidget::handleBufferingStateChanged(bool active) {
     qDebug() << "[MVVM-UI] Buffering state changed:" << active;
+    if (process_slider) {
+        process_slider->setBuffering(active);
+    }
     if (!nameLabel) {
         return;
     }
 
     if (active) {
         qDebug() << "[MVVM-UI] Buffering started";
-        nameLabel->setText("正在缓冲...");
         return;
     }
 

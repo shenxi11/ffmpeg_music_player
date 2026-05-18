@@ -1,4 +1,6 @@
 ﻿#include "AudioDecoder.h"
+#include "stream/AudioAvioBridge.h"
+
 #include <QStandardPaths>
 #include <QDateTime>
 #include <QFile>
@@ -13,6 +15,7 @@ extern "C" {
 AudioDecoder::AudioDecoder(QObject *parent)
     : QObject(parent),
       m_formatCtx(nullptr),
+      m_avioBridge(nullptr),
       m_codecCtx(nullptr),
       m_swrCtx(nullptr),
       m_frame(nullptr),
@@ -27,6 +30,7 @@ AudioDecoder::AudioDecoder(QObject *parent)
       m_stopRequested(false),
       m_seekRequested(false),
       m_seekTarget(0),
+      m_seekMode(static_cast<int>(SeekMode::Precise)),
       m_seekGeneration(0),
       m_appliedSeekGeneration(0),
       m_currentPts(0),
@@ -101,6 +105,7 @@ bool AudioDecoder::initDecoder(const QString& filePath)
     m_appliedSeekGeneration = 0;
     m_seekRequested = false;
     m_seekTarget = 0;
+    m_seekMode = static_cast<int>(SeekMode::Precise);
     m_waitingFirstPacketAfterSeek = false;
     m_seekEofRetryCount = 0;
     m_firstPts = 0;
@@ -233,7 +238,7 @@ void AudioDecoder::stopDecode()
     emit decodeStopped();
 }
 
-void AudioDecoder::seekTo(qint64 positionMs)
+void AudioDecoder::seekTo(qint64 positionMs, SeekMode mode)
 {
     if (!m_formatCtx || m_audioStreamIndex < 0) return;
 
@@ -242,12 +247,14 @@ void AudioDecoder::seekTo(qint64 positionMs)
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         m_seekTarget = positionMs;
+        m_seekMode = static_cast<int>(mode);
         m_seekRequested = true;
     }
     const int generation = m_seekGeneration.fetch_add(1) + 1;
     m_ioAbortRequested = true;  // 打断可能阻塞中的 av_read_frame，尽快执行新 seek
     m_cv.notify_all();
-    qDebug() << "AudioDecoder: Seek requested at" << positionMs << "ms, generation:" << generation;
+    qDebug() << "AudioDecoder: Seek requested at" << positionMs << "ms, generation:" << generation
+             << "mode:" << (mode == SeekMode::Fast ? "fast" : "precise");
 }
 
 void AudioDecoder::decode()
@@ -274,25 +281,36 @@ void AudioDecoder::decode()
         }
 
         if (m_seekRequested) {
-            const qint64 targetMs = m_seekTarget.load();
+            qint64 targetMs = 0;
+            SeekMode seekMode = SeekMode::Precise;
+            {
+                std::lock_guard<std::mutex> lock(m_mutex);
+                targetMs = m_seekTarget.load();
+                seekMode = static_cast<SeekMode>(m_seekMode.load());
+                m_seekRequested = false;
+            }
             const int targetGeneration = m_seekGeneration.load();
-            m_seekRequested = false;
 
             if (!m_formatCtx || m_audioStreamIndex < 0) {
                 continue;
             }
 
-            qDebug() << "AudioDecoder: Processing seek request at" << targetMs << "ms";
+            qDebug() << "AudioDecoder: Processing seek request at" << targetMs << "ms"
+                     << "mode:" << (seekMode == SeekMode::Fast ? "fast" : "precise");
+            m_ioAbortRequested = false;
+            if (m_avioBridge) {
+                m_avioBridge->prepareSeek(targetMs);
+            }
             const bool likelyFlacNetwork = m_networkSource.load() && m_filePath.toLower().contains(".flac");
             const bool localProxySource = m_networkSource.load()
                     && (m_filePath.startsWith("http://127.0.0.1", Qt::CaseInsensitive)
                         || m_filePath.startsWith("http://localhost", Qt::CaseInsensitive));
             const int seekDeadlineMs = localProxySource
-                    ? (likelyFlacNetwork ? 3200 : 2200)
-                    : (likelyFlacNetwork ? 5000 : 1600);
+                    ? (likelyFlacNetwork ? 6500 : 4200)
+                    : (likelyFlacNetwork ? 8000 : 2200);
             setIoDeadlineMs(seekDeadlineMs);
             int seekFlags = AVSEEK_FLAG_BACKWARD;
-            if (m_networkSource.load()) {
+            if (seekMode == SeekMode::Fast && m_networkSource.load()) {
                 seekFlags |= AVSEEK_FLAG_ANY;
             }
             int seekRet = AVERROR(EINVAL);
@@ -344,7 +362,7 @@ void AudioDecoder::decode()
                 if (seekRet < 0 && m_networkSource.load()) {
                     seekRet = av_seek_frame(m_formatCtx, -1, seekTargetUs, AVSEEK_FLAG_BACKWARD);
                 }
-                if (seekRet < 0 && m_networkSource.load()) {
+                if (seekRet < 0 && m_networkSource.load() && seekMode == SeekMode::Fast) {
                     seekRet = av_seek_frame(m_formatCtx, -1, seekTargetUs, AVSEEK_FLAG_BACKWARD | AVSEEK_FLAG_ANY);
                 }
             }
@@ -359,6 +377,12 @@ void AudioDecoder::decode()
                 char errbuf[AV_ERROR_MAX_STRING_SIZE] = {0};
                 av_strerror(seekRet, errbuf, sizeof(errbuf));
                 qDebug() << "AudioDecoder: Seek failed in decode thread:" << errbuf;
+                m_waitingFirstPacketAfterSeek = false;
+                m_seekEofRetryCount = 0;
+                if (likelyFlacNetwork) {
+                    qWarning() << "AudioDecoder: Remote FLAC seek failed, wait session retry:"
+                               << errbuf;
+                }
             }
             continue;
         }
@@ -369,17 +393,16 @@ void AudioDecoder::decode()
                 && (m_filePath.startsWith("http://127.0.0.1", Qt::CaseInsensitive)
                     || m_filePath.startsWith("http://localhost", Qt::CaseInsensitive));
         int readTimeoutMs = localProxySource
-                ? (likelyFlacNetwork ? 2200 : 1600)
-                : (likelyFlacNetwork ? 3000 : 2600);
+                ? (likelyFlacNetwork ? 4200 : 2600)
+                : (likelyFlacNetwork ? 9000 : 2600);
         if (m_waitingFirstPacketAfterSeek.load()) {
             // HLS 切段后首包 RTT 通常显著高于裸文件 Range，避免误判 EOF。
             if (m_hlsSource.load()) {
                 readTimeoutMs = 4500;
             } else if (localProxySource) {
-                readTimeoutMs = likelyFlacNetwork ? 2600 : 1800;
+                readTimeoutMs = likelyFlacNetwork ? 6500 : 4200;
             } else if (likelyFlacNetwork) {
-                // 远端 FLAC seek 首包等待时间适度收敛，降低拖动后“长时间无声”。
-                readTimeoutMs = 3200;
+                readTimeoutMs = 9000;
             } else {
                 readTimeoutMs = 900;
             }
@@ -420,6 +443,12 @@ void AudioDecoder::decode()
                 char errbuf[AV_ERROR_MAX_STRING_SIZE] = {0};
                 av_strerror(ret, errbuf, sizeof(errbuf));
                 qDebug() << "AudioDecoder: Read frame error:" << errbuf << ", will retry";
+                if (likelyFlacNetwork && m_waitingFirstPacketAfterSeek.load()) {
+                    qWarning() << "AudioDecoder: Remote FLAC first packet read failed,"
+                               << "keep waiting for session retry:" << errbuf;
+                    std::this_thread::sleep_for(std::chrono::milliseconds(80));
+                    continue;
+                }
                 const int sleepMs = m_waitingFirstPacketAfterSeek.load() ? 2 : 10;
                 std::this_thread::sleep_for(std::chrono::milliseconds(sleepMs));
                 continue;  
@@ -555,10 +584,48 @@ void AudioDecoder::cleanup()
     }
     if(m_codecCtx)
         avcodec_free_context(&m_codecCtx);
-    if(m_formatCtx)
+    if(m_formatCtx) {
+        if (m_avioBridge) {
+            m_formatCtx->pb = nullptr;
+        }
         avformat_close_input(&m_formatCtx);
+    }
+    delete m_avioBridge;
+    m_avioBridge = nullptr;
     if(m_swrCtx)
         swr_free(&m_swrCtx);
+}
+
+bool AudioDecoder::shouldUseCustomNetworkInput(const QString& filePath) const
+{
+    const QUrl url(filePath.trimmed());
+    if (!url.isValid()) {
+        return false;
+    }
+
+    const QString scheme = url.scheme().toLower();
+    if (scheme != QStringLiteral("http")) {
+        return false;
+    }
+
+    const QString lowerPath = url.path().toLower();
+    const QString host = url.host().toLower();
+    const bool localProxySource =
+        host == QStringLiteral("127.0.0.1") || host == QStringLiteral("localhost");
+    if (localProxySource) {
+        return false;
+    }
+
+    if (lowerPath.endsWith(QStringLiteral(".m3u8")) || lowerPath.contains(QStringLiteral("/hls/"))) {
+        return false;
+    }
+
+    return lowerPath.endsWith(QStringLiteral(".mp3")) ||
+           lowerPath.endsWith(QStringLiteral(".flac")) ||
+           lowerPath.endsWith(QStringLiteral(".wav")) ||
+           lowerPath.endsWith(QStringLiteral(".ogg")) ||
+           lowerPath.endsWith(QStringLiteral(".m4a")) ||
+           lowerPath.endsWith(QStringLiteral(".aac"));
 }
 
 void AudioDecoder::extractAudioTags()
@@ -644,21 +711,45 @@ bool AudioDecoder::openFile(const QString& filePath)
     }
     m_formatCtx->interrupt_callback.callback = &AudioDecoder::interruptCallback;
     m_formatCtx->interrupt_callback.opaque = this;
+
+    const bool useCustomNetworkInput = shouldUseCustomNetworkInput(filePath);
+    if (useCustomNetworkInput) {
+        m_avioBridge = new AudioAvioBridge();
+        m_avioBridge->setInterruptCallback([this]() {
+            return m_stopRequested.load() || m_ioAbortRequested.load();
+        });
+        if (m_avioBridge->open(QUrl(filePath)) && m_avioBridge->attachTo(m_formatCtx)) {
+            qDebug() << "AudioDecoder: Custom HTTP AVIO enabled for" << filePath;
+        } else {
+            qWarning() << "AudioDecoder: Custom HTTP AVIO unavailable, fallback to FFmpeg native:"
+                       << (m_avioBridge ? m_avioBridge->lastError() : QStringLiteral("unknown"));
+            delete m_avioBridge;
+            m_avioBridge = nullptr;
+            m_formatCtx->pb = nullptr;
+            m_formatCtx->flags &= ~AVFMT_FLAG_CUSTOM_IO;
+        }
+    }
     
     AVDictionary* options = nullptr;
     
     av_dict_set(&options, "timeout", "30000000", 0);  
-    av_dict_set(&options, "rw_timeout", "3000000", 0); // 单次I/O约3秒超时
+    av_dict_set(&options, "rw_timeout", "9000000", 0);
     av_dict_set(&options, "reconnect", "1", 0);  
     av_dict_set(&options, "reconnect_streamed", "1", 0);  
+    av_dict_set(&options, "reconnect_at_eof", "1", 0);
+    av_dict_set(&options, "reconnect_on_network_error", "1", 0);
+    av_dict_set(&options, "reconnect_on_http_error", "408,429,500,502,503,504", 0);
     av_dict_set(&options, "reconnect_delay_max", "5", 0);  
     if (m_networkSource.load()) {
         // 强制按可随机访问网络流处理，避免 server 已支持 Range 但被判为不可 seek。
         av_dict_set(&options, "seekable", "1", 0);
+        av_dict_set(&options, "multiple_requests", "1", 0);
+        av_dict_set(&options, "probesize", "65536", 0);
+        av_dict_set(&options, "analyzeduration", "500000", 0);
     }
     
     setIoDeadlineMs(9000);
-    int ret = avformat_open_input(&m_formatCtx, inputUrl, nullptr, &options);
+    int ret = avformat_open_input(&m_formatCtx, m_avioBridge ? nullptr : inputUrl, nullptr, &options);
     clearIoDeadline();
     av_dict_free(&options);
     
@@ -670,7 +761,7 @@ bool AudioDecoder::openFile(const QString& filePath)
         char errbuf[AV_ERROR_MAX_STRING_SIZE] = {0};
         av_strerror(ret, errbuf, sizeof(errbuf));
         qDebug() << "Could not open input file:" << errbuf << "Error code:" << ret;
-        avformat_close_input(&m_formatCtx);
+        cleanup();
         return false;
     }
     
@@ -678,7 +769,7 @@ bool AudioDecoder::openFile(const QString& filePath)
     if (avformat_find_stream_info(m_formatCtx, nullptr) < 0) {
         clearIoDeadline();
         qDebug() << "Could not find stream information";
-        avformat_close_input(&m_formatCtx);
+        cleanup();
         return false;
     }
     clearIoDeadline();
@@ -698,7 +789,7 @@ bool AudioDecoder::openFile(const QString& filePath)
     
     if (m_audioStreamIndex == -1) {
         qDebug() << "Could not find an audio stream";
-        avformat_close_input(&m_formatCtx);
+        cleanup();
         return false;
     }
     

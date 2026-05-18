@@ -100,6 +100,7 @@ private slots:
     void onPlaybackFinished();
     void onSeekGraceTimeout();
     void onSeekRetryTimeout();
+    void onBufferingWatchdogTimeout();
 
 private:
     enum class SeekPhase {
@@ -166,6 +167,8 @@ private:
         bool fastStartMode = false;
         int retryCount = 0;
         int maxRetries = 4;
+        int dispatchedGeneration = 0;
+        qint64 dispatchedTargetMs = -1;
         std::optional<qint64> pendingTakeoverSeekMs;
     };
 
@@ -175,6 +178,7 @@ private:
         qint64 workingTargetMs = 0;
         qint64 firstPacketTimestampMs = -1;
         bool seekIndexHit = false;
+        bool proxySeekTakeover = false;
         int accuracyRetryCount = 0;
         int accuracyMaxRetries = 5;
         qint64 accuracyToleranceMs = 2500;
@@ -231,19 +235,23 @@ private:
     bool isPlayerActivelyPlaying() const;
     void pausePipelineForLocalSeek(bool wasPlaying);
     void prepareOutputForLocalSeek(qint64 positionMs, bool wasPlaying);
-    void dispatchDecoderSeekForLocalSeek(qint64 positionMs);
+    void dispatchDecoderSeekForLocalSeek(qint64 positionMs,
+                                         AudioDecoder::SeekMode mode = AudioDecoder::SeekMode::Precise);
 
     // 解码时间轴/缓冲阈值/恢复判定
+    bool isRemoteFastSeekSource() const;
     bool isRemoteFlacSource() const;
     void normalizeDecodedTimestamp(qint64 timestampMs, qint64& normalizedTimestampMs);
     void extendDurationFromDecodedTimestamp(qint64 normalizedTimestampMs);
-    bool handleSeekLatencyOnDecodedTimestamp(qint64 normalizedTimestampMs);
+    bool handleSeekLatencyOnDecodedTimestamp(qint64& normalizedTimestampMs);
     void applyDecoderFlowControlBeforeWrite(bool isRemoteFlac, int fillLevelBeforeWrite);
     bool shouldResumeFromDecodedWrite(int fillLevel, int bufferedBytes, bool isRemoteFlac,
                                       int& requiredLevel, int& requiredBytes) const;
     void startPlayerFromDecodedReady(int fillLevel);
     void resumePlayerFromDecodedReady(int fillLevel, int bufferedBytes, int requiredLevel, int requiredBytes);
     void completeDecodedReadyResume();
+    void kickBufferingRecovery(const char* reason, int fillLevel, int bufferedBytes);
+    void stopBufferingWatchdog();
     bool shouldDebounceBufferingEnter() const;
     bool handleTailLowBufferFallback(qint64 currentPos, int fillLevel, int bufferedBytes);
     bool canExitBufferingByThreshold(int fillLevel, int bufferedBytes, bool isRemoteFlac,
@@ -290,6 +298,7 @@ private:
     // seek 宽限窗口，避免 seek 后瞬时状态抖动影响 UI 与自动控制
     QTimer* m_seekGraceTimer;
     QTimer* m_seekRetryTimer;
+    QTimer* m_bufferingWatchdogTimer;
     QElapsedTimer m_lastResumeTimer;
     QElapsedTimer m_tailWaitLogTimer;
     QElapsedTimer m_seekLatencyTimer;

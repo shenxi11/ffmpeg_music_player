@@ -41,6 +41,7 @@ Item {
     property bool deskChecked: false
     property bool commentChecked: false
     property bool commentEnabled: false
+    property bool buffering: false
     property int playMode: 2    // 0: Sequential, 1: RepeatOne, 2: RepeatAll, 3: Shuffle
     property string playerIconPrefix: "qrc:/qml/assets/ai/icons/player-control/"
     property int playerPageStyle: 0
@@ -424,6 +425,7 @@ Item {
                         }
 
                         Rectangle {
+                            id: playButton
                             width: root.playButtonSize
                             height: root.playButtonSize
                             radius: width / 2
@@ -435,6 +437,7 @@ Item {
                                 anchors.centerIn: parent
                                 width: 20
                                 height: 20
+                                opacity: root.buffering ? 0.28 : 1.0
                                 source: {
                                     if (root.playState === 1) {
                                         if (playArea.pressed) return root.playerIconPrefix + "player_btn_pause_pressed.svg"
@@ -447,6 +450,17 @@ Item {
                                 }
                                 fillMode: Image.PreserveAspectFit
                             }
+
+                            BusyIndicator {
+                                anchors.centerIn: parent
+                                width: Math.max(22, root.playButtonSize - 12)
+                                height: width
+                                visible: root.buffering
+                                running: root.buffering
+                            }
+
+                            ToolTip.visible: playArea.containsMouse && root.buffering
+                            ToolTip.text: "正在缓冲..."
 
                             MouseArea {
                                 id: playArea

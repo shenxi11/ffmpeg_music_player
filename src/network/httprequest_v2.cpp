@@ -652,6 +652,10 @@ HttpRequestV2::HttpRequestV2(QObject* parent)
     // DNS棰勭儹
     m_networkService.prewarmDns(QUrl(m_baseUrl).host());
 
+    m_feedbackDispatchTimer.setSingleShot(true);
+    connect(&m_feedbackDispatchTimer, &QTimer::timeout, this,
+            &HttpRequestV2::sendNextRecommendationFeedback);
+
     qDebug() << "[HttpRequestV2] Initialized with base URL:" << m_baseUrl;
 }
 
@@ -1620,34 +1624,71 @@ void HttpRequestV2::postRecommendationFeedback(const QString& userId, const QStr
         return;
     }
 
-    QJsonObject json;
-    json[QStringLiteral("user_id")] = trimmedUser;
-    json[QStringLiteral("song_id")] = trimmedSongId;
-    json[QStringLiteral("event_type")] = trimmedEventType;
-    json[QStringLiteral("scene")] =
-        scene.trimmed().isEmpty() ? QStringLiteral("home") : scene.trimmed();
+    RecommendationFeedbackTask task;
+    task.userId = trimmedUser;
+    task.songId = trimmedSongId;
+    task.eventType = trimmedEventType;
+    task.scene = scene;
+    task.requestId = requestId;
+    task.modelVersion = modelVersion;
+    task.playMs = playMs;
+    task.durationMs = durationMs;
+    enqueueRecommendationFeedback(task);
+}
 
-    if (!requestId.trimmed().isEmpty()) {
-        json[QStringLiteral("request_id")] = requestId.trimmed();
+void HttpRequestV2::enqueueRecommendationFeedback(const RecommendationFeedbackTask& task) {
+    constexpr int kMaxFeedbackQueueSize = 32;
+    if (m_feedbackQueue.size() >= kMaxFeedbackQueueSize) {
+        const RecommendationFeedbackTask dropped = m_feedbackQueue.dequeue();
+        qWarning() << "[HttpRequestV2] Recommendation feedback queue full, dropping oldest:"
+                   << dropped.eventType << dropped.songId;
     }
-    if (!modelVersion.trimmed().isEmpty()) {
-        json[QStringLiteral("model_version")] = modelVersion.trimmed();
+
+    m_feedbackQueue.enqueue(task);
+    if (!m_feedbackRequestInFlight && !m_feedbackDispatchTimer.isActive()) {
+        m_feedbackDispatchTimer.start(1200);
     }
-    if (playMs >= 0) {
-        json[QStringLiteral("play_ms")] = static_cast<double>(playMs);
+}
+
+void HttpRequestV2::sendNextRecommendationFeedback() {
+    if (m_feedbackRequestInFlight || m_feedbackQueue.isEmpty()) {
+        return;
     }
-    if (durationMs >= 0) {
-        json[QStringLiteral("duration_ms")] = static_cast<double>(durationMs);
+
+    const RecommendationFeedbackTask task = m_feedbackQueue.dequeue();
+
+    QJsonObject json;
+    json[QStringLiteral("user_id")] = task.userId;
+    json[QStringLiteral("song_id")] = task.songId;
+    json[QStringLiteral("event_type")] = task.eventType;
+    json[QStringLiteral("scene")] =
+        task.scene.trimmed().isEmpty() ? QStringLiteral("home") : task.scene.trimmed();
+
+    if (!task.requestId.trimmed().isEmpty()) {
+        json[QStringLiteral("request_id")] = task.requestId.trimmed();
+    }
+    if (!task.modelVersion.trimmed().isEmpty()) {
+        json[QStringLiteral("model_version")] = task.modelVersion.trimmed();
+    }
+    if (task.playMs >= 0) {
+        json[QStringLiteral("play_ms")] = static_cast<double>(task.playMs);
+    }
+    if (task.durationMs >= 0) {
+        json[QStringLiteral("duration_ms")] = static_cast<double>(task.durationMs);
     }
 
     Network::RequestOptions options =
         Network::RequestOptions::withPriority(Network::RequestPriority::Low);
-    options.maxRetries = 0;
+    options.timeout = 5000;
+    options.maxRetries = 1;
+    options.retryDelay = 1500;
+    options.exponentialBackoff = true;
     options.useCache = false;
 
+    m_feedbackRequestInFlight = true;
     m_networkService.postJson(
         QStringLiteral("recommendations/feedback"), json, options,
-        [this, trimmedEventType, trimmedSongId](const Network::NetworkResponse& response) {
+        [this, task](const Network::NetworkResponse& response) {
             bool success = false;
             if (response.isSuccess()) {
                 const QJsonObject rootObj = Network::NetworkService::parseJsonObject(response);
@@ -1662,7 +1703,11 @@ void HttpRequestV2::postRecommendationFeedback(const QString& userId, const QStr
                            << response.errorString << "status:" << response.statusCode;
             }
 
-            emit signalRecommendationFeedbackResult(success, trimmedEventType, trimmedSongId);
+            emit signalRecommendationFeedbackResult(success, task.eventType, task.songId);
+            m_feedbackRequestInFlight = false;
+            if (!m_feedbackQueue.isEmpty()) {
+                m_feedbackDispatchTimer.start(650);
+            }
         });
 }
 

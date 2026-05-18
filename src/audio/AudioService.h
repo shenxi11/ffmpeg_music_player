@@ -9,7 +9,8 @@
 #include <QQueue>
 #include <QRandomGenerator>
 #include <QSet>
-#include <QTimer>
+
+class AudioInputController;
 
 /**
  * @brief 音频服务协调模块
@@ -127,10 +128,11 @@ class AudioService : public QObject {
     void onBufferingProgress(int percent);
     void onBufferingFinished();
     void onDurationChanged(qint64 durationMs);
-    void onSeekDispatchTimeout();
     void onFullFileCacheReady(const QUrl& originalUrl, const QUrl& localFileUrl);
 
   private:
+    friend class AudioInputController;
+
     AudioService(QObject* parent = nullptr);
     ~AudioService();
     AudioService(const AudioService&) = delete;
@@ -139,9 +141,21 @@ class AudioService : public QObject {
     void setupServiceConnections();
     void connectSessionSignals(AudioSession* session);
 
+    bool executePlayInternal(const QUrl& url);
+    void executePauseInternal();
+    void executeResumeInternal();
+    void executeStopInternal();
+    void executeSeekInternal(const QString& sessionId, qint64 positionMs);
+    void executePlayNextInternal();
+    void executePlayPreviousInternal();
+    void executePlayAtIndexInternal(int index);
+    void executeSetVolumeInternal(int volume);
+    QString currentSessionIdForController() const;
+
     void switchToSession(const QString& sessionId);
     bool switchCurrentProxySessionToLocalCache(const QUrl& originalUrl, const QUrl& localFileUrl,
                                                qint64 targetMs = -1);
+    bool restartCurrentRemoteFlacSession(qint64 targetMs);
     void playCurrentIndex();
     void cleanupOldSessions();
     int getNextIndex();
@@ -164,14 +178,10 @@ class AudioService : public QObject {
     QQueue<int> m_shuffleHistory;
     QHash<QString, QUrl> m_sessionOriginalSource;
     QHash<QString, QUrl> m_sessionLoadedSource;
+    QHash<QString, int> m_remoteFlacSeekRestartCounts;
     QSet<QString> m_disableHlsForTrack;
     bool m_disableHlsGlobally;
-
-    // seek 防抖合并：快速连续拖动只派发最后一次位置
-    QTimer m_seekDispatchTimer;
-    bool m_hasPendingSeek;
-    qint64 m_pendingSeekPositionMs;
-    QString m_pendingSeekSessionId;
+    AudioInputController* m_inputController;
 };
 
 #endif // AUDIOSERVICE_H

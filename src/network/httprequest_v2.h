@@ -5,6 +5,8 @@
 #include "network/network_service.h"
 
 #include <QObject>
+#include <QQueue>
+#include <QTimer>
 #include <QVariantList>
 #include <QVariantMap>
 
@@ -313,9 +315,25 @@ class HttpRequestV2 : public QObject {
                                         int statusCode);
 
   private:
+    struct RecommendationFeedbackTask {
+        QString userId;
+        QString songId;
+        QString eventType;
+        QString scene;
+        QString requestId;
+        QString modelVersion;
+        qint64 playMs = -1;
+        qint64 durationMs = -1;
+    };
+
     QVariantMap parsePlaylistDetailPayload(const Network::NetworkResponse& response);
+    void enqueueRecommendationFeedback(const RecommendationFeedbackTask& task);
+    void sendNextRecommendationFeedback();
     Network::NetworkService& m_networkService;
     QString m_baseUrl;
+    QQueue<RecommendationFeedbackTask> m_feedbackQueue;
+    QTimer m_feedbackDispatchTimer;
+    bool m_feedbackRequestInFlight = false;
 };
 
 #endif // HTTPREQUEST_V2_H

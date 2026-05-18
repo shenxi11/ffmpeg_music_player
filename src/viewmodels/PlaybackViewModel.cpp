@@ -312,7 +312,9 @@ void PlaybackViewModel::onAudioServiceDurationChanged(qint64 duration) {
 
 void PlaybackViewModel::onAudioServiceBufferingStarted() {
     updateBufferingState(true);
-    syncPlaybackStateFromService("bufferingStarted");
+    updatePlayingState(true);
+    updatePausedState(false);
+    emit shouldStartRotation();
 }
 
 void PlaybackViewModel::onAudioServiceBufferingFinished() {
@@ -442,8 +444,8 @@ QString PlaybackViewModel::formatTime(qint64 milliseconds) {
 QVariantMap PlaybackViewModel::buildPlaylistSnapshotItem(const QUrl& url, int index) const {
     const QString entryKey = normalizePlaylistEntryPath(url);
     const bool isCurrent = index == m_audioService->currentIndex();
-    const bool ownsCurrentMetadata = isCurrent && !entryKey.isEmpty() &&
-                                     entryKey == currentPlaybackMetadataKey();
+    const bool ownsCurrentMetadata =
+        isCurrent && !entryKey.isEmpty() && entryKey == currentPlaybackMetadataKey();
     const QVariantMap cachedMetadata = m_playlistMetadataCache.value(entryKey);
     const QString fallbackTitle = titleFromUrl(url);
     const QString title =

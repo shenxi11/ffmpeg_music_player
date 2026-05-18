@@ -9,6 +9,8 @@
 #include <condition_variable>
 #include "headers.h"
 
+class AudioAvioBridge;
+
 /**
  * @brief 音频解码引擎模块
  * 职责：负责音频文件的解封装、解码和重采样
@@ -17,6 +19,11 @@ class AudioDecoder : public QObject
 {
     Q_OBJECT
 public:
+    enum class SeekMode {
+        Precise,
+        Fast
+    };
+
     explicit AudioDecoder(QObject *parent = nullptr);
     ~AudioDecoder();
 
@@ -27,7 +34,7 @@ public:
     void startDecode();
     void pauseDecode();
     void stopDecode();
-    void seekTo(qint64 positionMs);
+    void seekTo(qint64 positionMs, SeekMode mode = SeekMode::Precise);
     
     // 状态查询
     bool isDecoding() const { return m_decoding; }
@@ -74,9 +81,11 @@ private:
     bool openFile(const QString& filePath);
     bool setupDecoder();
     bool setupResampler();
+    bool shouldUseCustomNetworkInput(const QString& filePath) const;
     
     // FFmpeg 组件
     AVFormatContext* m_formatCtx;
+    AudioAvioBridge* m_avioBridge;
     AVCodecContext* m_codecCtx;
     SwrContext* m_swrCtx;
     AVFrame* m_frame;
@@ -103,6 +112,7 @@ private:
     // 定位控制
     std::atomic<bool> m_seekRequested;
     std::atomic<qint64> m_seekTarget;
+    std::atomic<int> m_seekMode;
     std::atomic<int> m_seekGeneration;
     std::atomic<int> m_appliedSeekGeneration;
     
