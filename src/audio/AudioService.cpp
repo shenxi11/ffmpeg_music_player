@@ -216,7 +216,6 @@ bool AudioService::play(const QUrl& url) {
 
 bool AudioService::executePlayInternal(const QUrl& url) {
     auto t0 = std::chrono::high_resolution_clock::now();
-    m_inputController->clearAll();
 
     // URL 已存在则复用索引，否则追加到播放历史尾部
     int foundIndex = m_playlist.indexOf(url);
@@ -247,6 +246,7 @@ bool AudioService::executePlayInternal(const QUrl& url) {
     if (isRemoteFlacUrl(url)) {
         AudioPlayer::instance().ensureBufferCapacity(kRemoteFlacBufferCapacityBytes);
         m_remoteFlacSeekRestartCounts.remove(url.toString());
+        AudioCacheManager::instance().warmupCache(url);
         qDebug() << "AudioService: Remote FLAC uses direct media input:" << url.toString();
     }
     playbackSource = resolveAudioPlaybackSource(url);
@@ -326,6 +326,7 @@ void AudioService::seekTo(qint64 positionMs) {
     if (!session) {
         return;
     }
+    session->cancelFailedRemoteFlacRecoveryForUserSeek();
     m_inputController->postSeek(m_currentSessionId, positionMs, session->position());
 }
 
@@ -352,9 +353,6 @@ void AudioService::executeSeekInternal(const QString& sessionId, qint64 position
 
     bool shouldPrefetchForSeek =
         originalSource.isValid() && !originalSource.isEmpty() && !loadedSource.isLocalFile();
-    if (isRemoteFlacUrl(originalSource)) {
-        shouldPrefetchForSeek = false;
-    }
     if (shouldPrefetchForSeek) {
         shouldPrefetchForSeek = !AudioCacheManager::instance().hasCompleteFileCache(originalSource);
     }
@@ -539,6 +537,7 @@ void AudioService::executePlayAtIndexInternal(int index) {
     if (isRemoteFlacUrl(url)) {
         AudioPlayer::instance().ensureBufferCapacity(kRemoteFlacBufferCapacityBytes);
         m_remoteFlacSeekRestartCounts.remove(url.toString());
+        AudioCacheManager::instance().warmupCache(url);
         qDebug() << "AudioService: Remote FLAC uses direct media input:" << url.toString();
     }
     playbackSource = resolveAudioPlaybackSource(url);
@@ -673,6 +672,9 @@ void AudioService::onSessionError(const QString& error) {
         if (isTransientRemoteFlacSeekError) {
             qWarning() << "AudioService: Remote FLAC seek error handled in current session,"
                        << "skip session restart:" << error;
+            emit playbackPaused();
+            emit bufferingFinished();
+            emit serviceError(error);
             return;
         }
 

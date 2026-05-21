@@ -1,10 +1,8 @@
 #include "AudioNetworkAccess.h"
 
-#include <QEventLoop>
-#include <QNetworkReply>
-#include <QNetworkRequest>
+#include "network/curl_network_transport.h"
+
 #include <QRegularExpression>
-#include <QTimer>
 #include <QtDebug>
 
 namespace {
@@ -12,12 +10,22 @@ constexpr int kProbeTimeoutMs = 5000;
 constexpr int kRetryCount = 2;
 constexpr qint64 kMinPartialReturnBytes = 128LL * 1024;
 
-qint64 headerContentLength(const QNetworkReply* reply) {
-    if (!reply) {
+QString headerValue(const QMap<QString, QString>& headers, const QString& name) {
+    for (auto it = headers.cbegin(); it != headers.cend(); ++it) {
+        if (it.key().compare(name, Qt::CaseInsensitive) == 0) {
+            return it.value();
+        }
+    }
+    return QString();
+}
+
+qint64 headerContentLength(const QMap<QString, QString>& headers) {
+    const QString valueText = headerValue(headers, QStringLiteral("Content-Length"));
+    if (valueText.isEmpty()) {
         return -1;
     }
     bool ok = false;
-    const qint64 value = reply->header(QNetworkRequest::ContentLengthHeader).toLongLong(&ok);
+    const qint64 value = valueText.toLongLong(&ok);
     return ok ? value : -1;
 }
 } // namespace
@@ -70,7 +78,6 @@ bool AudioNetworkAccess::open(const QUrl& url) {
     }
 
     m_lastError = probe.error.isEmpty() ? head.error : probe.error;
-    resetManagerForCurrentThread();
     return false;
 }
 
@@ -180,137 +187,72 @@ AudioNetworkAccess::Response AudioNetworkAccess::sendRequest(const QByteArray& m
                                                              const QByteArray& rangeHeader,
                                                              int timeoutMs,
                                                              qint64 minReturnBytes) {
-    Q_UNUSED(minReturnBytes);
-
     Response response;
     if (shouldAbort()) {
         response.interrupted = true;
         return response;
     }
 
-    QNetworkRequest request(m_url);
-    request.setAttribute(QNetworkRequest::FollowRedirectsAttribute, true);
-    request.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("FFmpegMusicPlayer/2.0"));
-    request.setRawHeader("Accept", "*/*");
-    request.setRawHeader("Connection", "keep-alive");
+    CurlNetworkTransport::Request request;
+    request.url = m_url.toString(QUrl::FullyEncoded);
+    request.method = QString::fromLatin1(method);
+    request.timeoutMs = qMax(500, timeoutMs);
+    request.userAgent = QStringLiteral("FFmpegMusicPlayer/2.0");
+    request.headers.insert(QStringLiteral("Accept"), QStringLiteral("*/*"));
+    request.headers.insert(QStringLiteral("Connection"), QStringLiteral("keep-alive"));
     if (!rangeHeader.isEmpty()) {
-        request.setRawHeader("Range", rangeHeader);
+        request.headers.insert(QStringLiteral("Range"), QString::fromLatin1(rangeHeader));
+    }
+    request.shouldAbort = [this]() {
+        return shouldAbort();
+    };
+    if (minReturnBytes > 0 && method != "HEAD") {
+        request.onData = [&response, minReturnBytes](const QByteArray& chunk) {
+            response.body.append(chunk);
+            return response.body.size() < minReturnBytes;
+        };
     }
 
-    QNetworkAccessManager* manager = managerForCurrentThread();
-    if (!manager) {
-        response.error = QStringLiteral("Failed to create network manager");
-        return response;
-    }
+    const CurlNetworkTransport::Response curlResponse = CurlNetworkTransport::perform(request);
+    response.statusCode = curlResponse.statusCode;
+    response.acceptRanges =
+        headerValue(curlResponse.headers, QStringLiteral("Accept-Ranges")).toLatin1();
+    response.contentRange =
+        headerValue(curlResponse.headers, QStringLiteral("Content-Range")).toLatin1();
+    response.contentLength = headerContentLength(curlResponse.headers);
+    response.body = curlResponse.body;
+    response.interrupted = curlResponse.aborted || shouldAbort();
+    response.timedOut = curlResponse.timedOut;
 
-    QNetworkReply* reply = nullptr;
-    if (method == "HEAD") {
-        reply = manager->head(request);
-    } else {
-        reply = manager->get(request);
-    }
-
-    QEventLoop loop;
-    QTimer timeoutTimer;
-    QTimer interruptTimer;
-    bool finished = false;
-    timeoutTimer.setSingleShot(true);
-    interruptTimer.setInterval(20);
-
-    QObject::connect(reply, &QNetworkReply::readyRead, &loop, [&]() {
-        response.body.append(reply->readAll());
-    });
-    QObject::connect(reply, &QNetworkReply::finished, &loop, [&]() {
-        finished = true;
-        response.body.append(reply->readAll());
-        loop.quit();
-    });
-    QObject::connect(&timeoutTimer, &QTimer::timeout, &loop, [&]() {
-        response.timedOut = true;
-        response.interrupted = shouldAbort();
-        response.body.append(reply->readAll());
-        if (reply->isRunning()) {
-            reply->abort();
-        }
-        loop.quit();
-    });
-    QObject::connect(&interruptTimer, &QTimer::timeout, &loop, [&]() {
-        if (shouldAbort()) {
-            response.interrupted = true;
-            if (reply->isRunning()) {
-                reply->abort();
-            }
-            loop.quit();
-        }
-    });
-
-    timeoutTimer.start(qMax(500, timeoutMs));
-    interruptTimer.start();
-    loop.exec();
-    timeoutTimer.stop();
-    interruptTimer.stop();
-
-    response.statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-    response.acceptRanges = reply->rawHeader("Accept-Ranges");
-    response.contentRange = reply->rawHeader("Content-Range");
-    response.contentLength = headerContentLength(reply);
-
-    if (!response.interrupted && response.timedOut && !response.body.isEmpty()) {
+    if (!response.interrupted && curlResponse.error == CurlNetworkTransport::Error::FileError &&
+        minReturnBytes > 0 && response.body.size() >= minReturnBytes) {
         response.partial = true;
         response.ok = response.statusCode == 200 || response.statusCode == 206 ||
                       response.statusCode == 0;
         qDebug() << "[AudioNetworkAccess] range_partial=true"
                  << "range=" << rangeHeader << "bytes=" << response.body.size()
-                 << "status=" << response.statusCode << "timedOut=" << response.timedOut;
-    } else if (!response.interrupted && reply->error() == QNetworkReply::NoError) {
+                 << "status=" << response.statusCode;
+    } else if (!response.interrupted &&
+               curlResponse.error == CurlNetworkTransport::Error::NoError) {
         response.ok = response.statusCode == 200 || response.statusCode == 206 ||
                       response.statusCode == 416 || response.statusCode == 0;
-    } else if (!response.interrupted && finished) {
-        response.error = reply->errorString();
     } else if (!response.interrupted) {
-        response.error = response.timedOut ? QStringLiteral("Range request timed out")
-                                           : reply->errorString();
+        response.error = curlResponse.errorString;
+        if (response.error.isEmpty()) {
+            response.error = response.timedOut ? QStringLiteral("Range request timed out")
+                                               : QStringLiteral("HTTP request failed");
+        }
     }
 
     if (!response.ok && response.error.isEmpty() && !response.interrupted) {
         response.error = QStringLiteral("HTTP status %1").arg(response.statusCode);
     }
 
-    reply->deleteLater();
     return response;
 }
 
 bool AudioNetworkAccess::shouldAbort() const {
     return m_interruptCallback && m_interruptCallback();
-}
-
-QNetworkAccessManager* AudioNetworkAccess::managerForCurrentThread() {
-    QThread* currentThread = QThread::currentThread();
-    if (!m_manager || m_managerThread != currentThread) {
-        if (m_manager) {
-            QNetworkAccessManager* oldManager = m_manager.release();
-            oldManager->deleteLater();
-        }
-        m_manager = std::make_unique<QNetworkAccessManager>();
-        m_managerThread = currentThread;
-        qDebug() << "[AudioNetworkAccess] network_manager_created"
-                 << "thread=" << currentThread;
-    }
-    return m_manager.get();
-}
-
-void AudioNetworkAccess::resetManagerForCurrentThread() {
-    if (!m_manager) {
-        return;
-    }
-
-    if (m_managerThread == QThread::currentThread()) {
-        m_manager.reset();
-    } else {
-        QNetworkAccessManager* oldManager = m_manager.release();
-        oldManager->deleteLater();
-    }
-    m_managerThread = nullptr;
 }
 
 bool AudioNetworkAccess::parseContentRange(const QByteArray& value, qint64* start, qint64* end,

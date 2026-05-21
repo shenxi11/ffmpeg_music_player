@@ -343,7 +343,10 @@ void VideoRendererGL::updateTextures(VideoFrame* frame) {
 
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, m_textureU);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, width / 2, height / 2, 0, GL_RED, GL_UNSIGNED_BYTE,
+    const int chromaWidth = (width + 1) / 2;
+    const int chromaHeight = (height + 1) / 2;
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, chromaWidth, chromaHeight, 0, GL_RED, GL_UNSIGNED_BYTE,
                  frame->data[1]);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -352,7 +355,7 @@ void VideoRendererGL::updateTextures(VideoFrame* frame) {
 
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_2D, m_textureV);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, width / 2, height / 2, 0, GL_RED, GL_UNSIGNED_BYTE,
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, chromaWidth, chromaHeight, 0, GL_RED, GL_UNSIGNED_BYTE,
                  frame->data[2]);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -620,6 +623,14 @@ void VideoRendererGL::refreshAfterSurfaceChange() {
 }
 
 void VideoRendererGL::setVideoBuffer(VideoBuffer* buffer) {
+    if (!buffer && m_buffer) {
+        m_playing = false;
+        m_buffering = false;
+        m_earlyWaitPts = -1;
+        m_earlyWaitLogged = false;
+        m_earlyWaitTimer.invalidate();
+        m_renderTimer->stop();
+    }
     m_buffer = buffer;
 }
 
@@ -717,13 +728,14 @@ void VideoRendererGL::renderNextFrame() {
     static constexpr qint64 kRenderAheadBaseMs = 120;
     static constexpr qint64 kDropLateThresholdBaseMs = 350;
 
-    if (!m_playing || !m_buffer) {
+    VideoBuffer* buffer = m_buffer;
+    if (!m_playing || !buffer) {
         return;
     }
 
     if (m_buffering) {
-        const int bufferSize = m_buffer->size();
-        const qint64 bufferedDurationMs = m_buffer->bufferedDurationMs();
+        const int bufferSize = buffer->size();
+        const qint64 bufferedDurationMs = buffer->bufferedDurationMs();
         const bool enoughFrames = bufferSize >= m_bufferingThreshold;
         const bool enoughDuration = !m_hlsMode || bufferedDurationMs >= 1500;
         const bool timeoutReached =
@@ -776,14 +788,14 @@ void VideoRendererGL::renderNextFrame() {
 
     const int maxDropPerTick = highSpeedMode ? 40 : 10;
 
-    VideoFrame* frame = m_buffer->peek();
-    if (!frame) {
+    VideoBuffer::FrameInfo frameInfo;
+    if (!buffer || !buffer->peekInfo(&frameInfo)) {
         return;
     }
 
-    if (!highSpeedMode && frame->pts > audioClock + renderAheadMs) {
+    if (!highSpeedMode && frameInfo.pts > audioClock + renderAheadMs) {
         if (!m_earlyWaitTimer.isValid()) {
-            m_earlyWaitPts = frame->pts;
+            m_earlyWaitPts = frameInfo.pts;
             m_earlyWaitLogged = false;
             m_earlyWaitTimer.restart();
             return;
@@ -799,7 +811,8 @@ void VideoRendererGL::renderNextFrame() {
         if (!m_earlyWaitLogged) {
             m_earlyWaitLogged = true;
             qWarning() << "[VideoRendererGL] Force render after early-frame stall"
-                       << "firstFramePts:" << m_earlyWaitPts << "currentFramePts:" << frame->pts
+                       << "firstFramePts:" << m_earlyWaitPts
+                       << "currentFramePts:" << frameInfo.pts
                        << "audioClock:" << audioClock << "aheadThreshold:" << renderAheadMs
                        << "rate:" << playbackRate << "waited:" << m_earlyWaitTimer.elapsed()
                        << "ms";
@@ -810,21 +823,22 @@ void VideoRendererGL::renderNextFrame() {
     m_earlyWaitTimer.invalidate();
 
     int skippedCount = 0;
-    while (frame && audioClock > frame->pts + dropLateThresholdMs) {
+    while (audioClock > frameInfo.pts + dropLateThresholdMs) {
         ++skippedCount;
-        m_buffer->pop();
-        delete frame;
-        frame = m_buffer->peek();
-        if (skippedCount >= maxDropPerTick) {
+        if (!buffer) {
+            return;
+        }
+        VideoFrame* lateFrame = buffer->popIfPts(frameInfo.pts);
+        delete lateFrame;
+        if (skippedCount >= maxDropPerTick || !buffer->peekInfo(&frameInfo)) {
             break;
         }
     }
 
-    if (!frame) {
+    if (!buffer) {
         return;
     }
-
-    frame = m_buffer->pop();
+    VideoFrame* frame = buffer->popIfPts(frameInfo.pts);
     if (!frame) {
         return;
     }

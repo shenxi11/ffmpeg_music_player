@@ -11,8 +11,8 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QMetaObject>
 #include <QMutexLocker>
-#include <QNetworkRequest>
 #include <QPointer>
 #include <QRegularExpression>
 #include <QStandardPaths>
@@ -20,6 +20,7 @@
 #include <QTcpSocket>
 #include <QUrlQuery>
 #include <QVector>
+#include <QtConcurrent>
 #include <QtDebug>
 #include <algorithm>
 #include <memory>
@@ -41,7 +42,8 @@ bool hasSupportedAudioExtension(const QString& pathLower) {
 }
 
 bool hasSeekIndexSupportedAudioExtension(const QString& pathLower) {
-    return pathLower.endsWith(".mp3") || pathLower.endsWith(".m4a") || pathLower.endsWith(".aac");
+    return pathLower.endsWith(".mp3") || pathLower.endsWith(".flac") ||
+           pathLower.endsWith(".m4a") || pathLower.endsWith(".aac");
 }
 
 bool shouldFullCacheByAudioType(const QUrl& url) {
@@ -51,6 +53,10 @@ bool shouldFullCacheByAudioType(const QUrl& url) {
 
 bool isFlacUrl(const QUrl& url) {
     return url.path().toLower().endsWith(".flac");
+}
+
+bool isFlacMusicPath(const QString& path) {
+    return path.toLower().endsWith(QStringLiteral(".flac"));
 }
 
 bool isLocalProxyUrl(const QUrl& url) {
@@ -89,18 +95,36 @@ bool containsTraversalSegment(const QString& normalizedPath) {
     return false;
 }
 
-bool isLikelyAudioResponse(const QNetworkReply* reply) {
-    if (!reply) {
-        return false;
+QString headerValue(const QMap<QString, QString>& headers, const QString& name) {
+    for (auto it = headers.cbegin(); it != headers.cend(); ++it) {
+        if (it.key().compare(name, Qt::CaseInsensitive) == 0) {
+            return it.value();
+        }
     }
+    return QString();
+}
 
-    const int statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+QByteArray headerValueBytes(const QMap<QString, QString>& headers, const QString& name) {
+    return headerValue(headers, name).toLatin1();
+}
+
+qint64 contentLengthFromHeaders(const QMap<QString, QString>& headers) {
+    bool ok = false;
+    const qint64 value =
+        headerValue(headers, QStringLiteral("Content-Length")).toLongLong(&ok);
+    return ok ? value : -1;
+}
+
+constexpr qint64 kLocalSeekSinglePointWindowMs = 5000;
+constexpr qint64 kLocalSeekMaxBracketWindowMs = 45000;
+
+bool isLikelyAudioResponse(int statusCode, const QMap<QString, QString>& headers) {
     if (statusCode != 0 && statusCode != 200 && statusCode != 206) {
         return false;
     }
 
     QByteArray contentType =
-        reply->header(QNetworkRequest::ContentTypeHeader).toByteArray().toLower().trimmed();
+        headerValueBytes(headers, QStringLiteral("Content-Type")).toLower().trimmed();
     const int semicolonPos = contentType.indexOf(';');
     if (semicolonPos >= 0) {
         contentType = contentType.left(semicolonPos).trimmed();
@@ -198,9 +222,6 @@ AudioCacheManager::AudioCacheManager(QObject* parent) : QObject(parent) {
     m_cacheDirectory = ensureCacheDirectory(defaultPath);
     m_chunkRootDirectory = QDir(m_cacheDirectory).filePath(QStringLiteral("chunks"));
     QDir().mkpath(m_chunkRootDirectory);
-
-    connect(&m_networkManager, &QNetworkAccessManager::finished, this,
-            &AudioCacheManager::onDownloadFinished);
 }
 
 void AudioCacheManager::setCacheDirectory(const QString& directoryPath) {
@@ -227,15 +248,13 @@ bool AudioCacheManager::clearCache(QString* errorMessage, qint64* removedBytes,
     qint64 files = 0;
 
     // Abort pending downloads to avoid writing new cache files during cleanup.
-    const QList<QNetworkReply*> activeReplies = m_downloadTasks.keys();
-    for (QNetworkReply* reply : activeReplies) {
-        if (!reply) {
-            continue;
-        }
-        reply->abort();
-        reply->deleteLater();
+    const QList<quint64> activeRequests = m_downloadTasks.keys();
+    for (quint64 requestId : activeRequests) {
+        abortRequest(requestId);
     }
     m_downloadTasks.clear();
+    m_seekIndexRequests.clear();
+    m_abortFlags.clear();
     m_inflightChunkKeys.clear();
     m_proxyReadBuffers.clear();
     m_memoryRangeWindows.clear();
@@ -341,8 +360,13 @@ void AudioCacheManager::warmupCache(const QUrl& originalUrl) {
     }
 
     if (isFlacUrl(originalUrl)) {
-        ensureTrackMeta(originalUrl, makeCacheKey(originalUrl));
-        qDebug() << "[AudioCache] Warmup skipped for direct FLAC stream:" << originalUrl.toString();
+        const QString cacheKey = makeCacheKey(originalUrl);
+        ensureTrackMeta(originalUrl, cacheKey);
+        TrackMeta meta;
+        loadTrackMeta(cacheKey, &meta);
+        ensureSeekIndex(originalUrl, cacheKey, meta.durationMs);
+        qDebug() << "[AudioCache] Warmup seek-index only for direct FLAC stream:"
+                 << originalUrl.toString();
         return;
     }
 
@@ -358,7 +382,7 @@ void AudioCacheManager::warmupCache(const QUrl& originalUrl) {
         qDebug() << "[AudioCache] Full cache queued by audio type:"
                  << "bytes=" << meta.contentLength << "url=" << originalUrl.toString();
         queueFullFileDownload(originalUrl, cacheKey, meta.contentLength,
-                              QNetworkRequest::HighPriority);
+                              CacheRequestPriority::High);
         return;
     }
     qDebug() << "[AudioCache] Full cache skip-type:"
@@ -378,20 +402,13 @@ void AudioCacheManager::warmupCache(const QUrl& originalUrl) {
             continue;
         }
         queueChunkDownload(originalUrl, cacheKey, chunkIndex, start, end,
-                           QNetworkRequest::LowPriority);
+                           CacheRequestPriority::Low);
     }
 }
 
 void AudioCacheManager::prefetchForSeek(const QUrl& originalUrl, qint64 targetMs,
                                         qint64 durationMs) {
     if (!canCacheUrl(originalUrl)) {
-        return;
-    }
-
-    if (isFlacUrl(originalUrl)) {
-        qDebug() << "[AudioCache] Seek prefetch skipped for direct FLAC stream:"
-                 << "targetMs=" << targetMs << "durationMs=" << durationMs
-                 << "url=" << originalUrl.toString();
         return;
     }
 
@@ -420,8 +437,8 @@ void AudioCacheManager::prefetchForSeek(const QUrl& originalUrl, qint64 targetMs
         meta.contentLength = meta.seekIndexFileSize;
     }
 
-    const qint64 indexedCenterByte = estimateCenterByteFromSeekIndex(meta, targetMs);
-    const bool seekIndexHit = indexedCenterByte >= 0;
+    SeekIndexEstimate seekEstimate = estimateCenterByteFromSeekIndex(meta, targetMs);
+    const bool seekIndexHit = seekEstimate.hit;
 
     if (meta.contentLength <= 0 || (!seekIndexHit && meta.durationMs <= 0) || targetMs < 0) {
         qDebug() << "[AudioCache] Seek prefetch skipped, metadata incomplete:"
@@ -430,19 +447,42 @@ void AudioCacheManager::prefetchForSeek(const QUrl& originalUrl, qint64 targetMs
         return;
     }
 
-    qint64 centerByte = indexedCenterByte;
+    qint64 centerByte = seekEstimate.correctedTargetByte;
     if (!seekIndexHit) {
         const double ratio =
             qBound(0.0, static_cast<double>(targetMs) / static_cast<double>(meta.durationMs), 1.0);
         centerByte = static_cast<qint64>(ratio * static_cast<double>(meta.contentLength - 1));
+        seekEstimate.hit = false;
+        seekEstimate.exact = false;
+        seekEstimate.confidenceScore = 20;
+        seekEstimate.confidenceReason = QStringLiteral("duration_ratio_fallback");
+        seekEstimate.rawTargetByte = centerByte;
+        seekEstimate.correctedTargetByte = centerByte;
+        seekEstimate.correctionBytes = 0;
+        seekEstimate.anchorTimeMs = targetMs;
+        seekEstimate.preRollMs = 0;
     }
     if (centerByte < 0) {
         centerByte = 0;
     }
-    registerSeekHint(originalUrl, cacheKey, targetMs, centerByte, meta.contentLength, seekIndexHit);
-    const qint64 centerChunk = centerByte / m_chunkSizeBytes;
+    registerSeekHint(originalUrl, cacheKey, targetMs, meta.contentLength, seekEstimate);
     const bool flac = isFlacUrl(originalUrl);
-    const qint64 seekWindow = flac ? 0 : (seekIndexHit ? 1 : 0);
+    if (flac) {
+        qDebug() << "[AudioCache] Direct FLAC seek hint prepared:"
+                 << "seek_target_ms=" << targetMs << "seek_index_hit=" << seekIndexHit
+                 << "targetByte=" << centerByte << "contentLength=" << meta.contentLength
+                 << "exact=" << seekEstimate.exact
+                 << "confidenceScore=" << seekEstimate.confidenceScore
+                 << "confidenceReason=" << seekEstimate.confidenceReason
+                 << "anchorTimeMs=" << seekEstimate.anchorTimeMs
+                 << "preRollMs=" << seekEstimate.preRollMs
+                 << "rawTargetByte=" << seekEstimate.rawTargetByte
+                 << "correctedTargetByte=" << seekEstimate.correctedTargetByte
+                 << "url=" << originalUrl.toString();
+        return;
+    }
+    const qint64 centerChunk = centerByte / m_chunkSizeBytes;
+    const qint64 seekWindow = seekIndexHit ? 1 : 0;
 
     // 以“中心块优先，再向前后扩展”的顺序预取，降低首包等待。
     QVector<qint64> offsets;
@@ -464,18 +504,24 @@ void AudioCacheManager::prefetchForSeek(const QUrl& originalUrl, qint64 targetMs
         if (end < start) {
             continue;
         }
-        QNetworkRequest::Priority priority = QNetworkRequest::LowPriority;
+        CacheRequestPriority priority = CacheRequestPriority::Low;
         if (offset == 0) {
-            priority = QNetworkRequest::HighPriority;
+            priority = CacheRequestPriority::High;
         } else if (qAbs(offset) <= 1) {
-            priority = QNetworkRequest::NormalPriority;
+            priority = CacheRequestPriority::Normal;
         }
         queueChunkDownload(originalUrl, cacheKey, chunkIndex, start, end, priority);
     }
 
     qDebug() << "[AudioCache] Seek prefetch queued:"
              << "seek_target_ms=" << targetMs << "seek_index_hit=" << seekIndexHit
-             << "seek_prefetch_center_byte=" << centerByte << "targetMs=" << targetMs
+             << "seek_prefetch_center_byte=" << centerByte
+             << "seek_hint_exact=" << seekEstimate.exact
+             << "seek_confidence_score=" << seekEstimate.confidenceScore
+             << "seek_confidence_reason=" << seekEstimate.confidenceReason
+             << "seek_raw_target_byte=" << seekEstimate.rawTargetByte
+             << "seek_corrected_target_byte=" << seekEstimate.correctedTargetByte
+             << "seek_correction_bytes=" << seekEstimate.correctionBytes << "targetMs=" << targetMs
              << "durationMs=" << meta.durationMs << "contentLength=" << meta.contentLength
              << "centerChunk=" << centerChunk << "window=" << seekWindow << "isFlac=" << flac;
 }
@@ -503,6 +549,142 @@ void AudioCacheManager::noteTrackContentLength(const QUrl& originalUrl, qint64 c
     }
 
     updateTrackMeta(makeCacheKey(originalUrl), contentLength, -1);
+}
+
+qint64 AudioCacheManager::knownTrackDuration(const QUrl& originalUrl) const {
+    if (!canCacheUrl(originalUrl)) {
+        return -1;
+    }
+
+    TrackMeta meta;
+    if (!loadTrackMeta(makeCacheKey(originalUrl), &meta)) {
+        return -1;
+    }
+    return meta.durationMs;
+}
+
+void AudioCacheManager::noteSeekIndexObservation(const QUrl& originalUrl, qint64 targetMs,
+                                                 qint64 hintedByte, qint64 firstDecodedMs,
+                                                 bool accepted, int generation) {
+    if (!canCacheUrl(originalUrl) || targetMs < 0 || hintedByte < 0 || firstDecodedMs < 0) {
+        return;
+    }
+
+    const QString cacheKey = makeCacheKey(originalUrl);
+    TrackMeta meta;
+    if (!loadTrackMeta(cacheKey, &meta)) {
+        return;
+    }
+    if (meta.contentLength <= 0 && meta.seekIndexFileSize > 0) {
+        meta.contentLength = meta.seekIndexFileSize;
+    }
+
+    const bool flacObservation = isFlacUrl(originalUrl) || isFlacMusicPath(meta.seekIndexMusicPath);
+    if (flacObservation) {
+        const SeekHint hint = m_seekHints.value(cacheKey);
+        const bool generationMatches = generation <= 0 || hint.generation <= 0 ||
+                                       hint.generation == generation;
+        const bool currentHintMatches =
+            hint.targetByte == hintedByte && qAbs(hint.targetMs - targetMs) <= 1500 &&
+            hint.expiresAtMs >= currentEpochMs() && generationMatches;
+        const bool durationRatioFallback =
+            hint.confidenceReason == QStringLiteral("duration_ratio_fallback");
+        if (!currentHintMatches || !hint.seekIndexHit || durationRatioFallback) {
+            qDebug() << "[AudioCache] Skip FLAC seek observation:"
+                     << "targetMs=" << targetMs << "hintedByte=" << hintedByte
+                     << "firstDecodedMs=" << firstDecodedMs
+                     << "currentHintMatches=" << currentHintMatches
+                     << "generationMatches=" << generationMatches
+                     << "hintGeneration=" << hint.generation
+                     << "observationGeneration=" << generation
+                     << "seekIndexHit=" << hint.seekIndexHit
+                     << "confidenceScore=" << hint.confidenceScore
+                     << "confidenceReason=" << hint.confidenceReason;
+            return;
+        }
+    }
+
+    SeekIndexEstimate targetEstimate;
+    const qint64 targetRawByte = estimateRawByteFromSeekIndex(meta, targetMs, &targetEstimate);
+    const qint64 decodedRawByte = estimateRawByteFromSeekIndex(meta, firstDecodedMs);
+    const qint64 driftMs = firstDecodedMs - targetMs;
+    qint64 inferredCorrectionBytes = 0;
+    if (targetRawByte >= 0 && decodedRawByte >= 0) {
+        inferredCorrectionBytes = targetRawByte - decodedRawByte;
+    }
+    const bool goodSample = accepted && qAbs(driftMs) <= 1500;
+    if (goodSample) {
+        ++meta.seekIndexGoodSamples;
+    } else {
+        ++meta.seekIndexBadSamples;
+    }
+
+    if (!goodSample) {
+        if (meta.seekIndexCorrectionUpdatedAtMs > 0) {
+            meta.seekIndexGlobalBiasBytes =
+                (meta.seekIndexGlobalBiasBytes * 3 + inferredCorrectionBytes) / 4;
+            meta.seekIndexGlobalBiasMs = (meta.seekIndexGlobalBiasMs * 3 + driftMs) / 4;
+        } else {
+            meta.seekIndexGlobalBiasBytes = inferredCorrectionBytes;
+            meta.seekIndexGlobalBiasMs = driftMs;
+        }
+        meta.seekIndexCorrectionUpdatedAtMs = currentEpochMs();
+    } else if (qAbs(meta.seekIndexGlobalBiasBytes) <= 64 * 1024 &&
+               qAbs(meta.seekIndexGlobalBiasMs) <= 1500) {
+        meta.seekIndexGlobalBiasBytes = 0;
+        meta.seekIndexGlobalBiasMs = 0;
+        meta.seekIndexCorrectionUpdatedAtMs = currentEpochMs();
+    }
+
+    if (accepted) {
+        qint64 learnedByte = hintedByte;
+        if (meta.contentLength > 0) {
+            learnedByte = qBound<qint64>(0, learnedByte, meta.contentLength - 1);
+        }
+        const qint64 learnedTime = qMax<qint64>(0, firstDecodedMs);
+        bool merged = false;
+        for (TrackMeta::SeekIndexPoint& point : meta.localSeekPoints) {
+            if (qAbs(point.timeMs - learnedTime) <= 2500) {
+                point.timeMs = (point.timeMs + learnedTime) / 2;
+                point.byteOffset = (point.byteOffset * 3 + learnedByte) / 4;
+                merged = true;
+                break;
+            }
+        }
+        if (!merged) {
+            meta.localSeekPoints.push_back(TrackMeta::SeekIndexPoint{learnedTime, learnedByte});
+        }
+        std::sort(meta.localSeekPoints.begin(), meta.localSeekPoints.end(),
+                  [](const TrackMeta::SeekIndexPoint& lhs,
+                     const TrackMeta::SeekIndexPoint& rhs) {
+                      if (lhs.timeMs == rhs.timeMs) {
+                          return lhs.byteOffset < rhs.byteOffset;
+                      }
+                      return lhs.timeMs < rhs.timeMs;
+                  });
+        while (meta.localSeekPoints.size() > 64) {
+            meta.localSeekPoints.removeFirst();
+        }
+    }
+
+    meta.lastAccessMs = currentEpochMs();
+    {
+        QMutexLocker locker(&m_metaMutex);
+        m_trackMetaCache.insert(cacheKey, meta);
+    }
+    persistTrackMeta(cacheKey, meta);
+
+    qDebug() << "[AudioCache] Seek index observation:"
+             << "targetMs=" << targetMs << "hintedByte=" << hintedByte
+             << "firstDecodedMs=" << firstDecodedMs << "driftMs=" << driftMs
+             << "accepted=" << accepted << "generation=" << generation
+             << "targetRawByte=" << targetRawByte << "decodedRawByte=" << decodedRawByte
+             << "inferredCorrectionBytes=" << inferredCorrectionBytes
+             << "localPoints=" << meta.localSeekPoints.size()
+             << "globalBiasBytes=" << meta.seekIndexGlobalBiasBytes
+             << "globalBiasMs=" << meta.seekIndexGlobalBiasMs
+             << "goodSamples=" << meta.seekIndexGoodSamples
+             << "badSamples=" << meta.seekIndexBadSamples;
 }
 
 bool AudioCacheManager::hasResolvedSeekIndexForPlaybackUrl(const QUrl& playbackUrl) const {
@@ -554,11 +736,19 @@ AudioCacheManager::SeekHintStatus AudioCacheManager::seekHintStatusForPlaybackUr
     status.hasHint = true;
     status.targetMatches = qAbs(hint.targetMs - targetMs) <= 1500;
     status.seekIndexHit = hint.seekIndexHit;
+    status.exact = hint.exact;
+    status.confidenceScore = hint.confidenceScore;
+    status.confidenceReason = hint.confidenceReason;
     status.takeoverStarted = hint.takeoverAtMs > 0;
     status.takeoverHeadersSent = hint.takeoverHeadersSentAtMs > 0;
     status.generation = hint.generation;
     status.targetMs = hint.targetMs;
     status.targetByte = hint.targetByte;
+    status.rawTargetByte = hint.rawTargetByte;
+    status.correctedTargetByte = hint.correctedTargetByte;
+    status.correctionBytes = hint.correctionBytes;
+    status.anchorTimeMs = hint.anchorTimeMs;
+    status.preRollMs = hint.preRollMs;
     status.takeoverAgeMs = hint.takeoverAtMs > 0 ? nowMs - hint.takeoverAtMs : -1;
 
     for (auto it = m_proxyStreamStates.cbegin(); it != m_proxyStreamStates.cend(); ++it) {
@@ -596,10 +786,18 @@ AudioCacheManager::DirectSeekHint AudioCacheManager::directSeekHintForPlaybackUr
         qAbs(registered.targetMs - targetMs) <= 1500) {
         result.valid = true;
         result.seekIndexHit = registered.seekIndexHit;
+        result.exact = registered.exact;
         result.registeredHint = true;
+        result.confidenceScore = registered.confidenceScore;
+        result.confidenceReason = registered.confidenceReason;
         result.generation = registered.generation;
         result.targetMs = registered.targetMs;
         result.targetByte = registered.targetByte;
+        result.rawTargetByte = registered.rawTargetByte;
+        result.correctedTargetByte = registered.correctedTargetByte;
+        result.correctionBytes = registered.correctionBytes;
+        result.anchorTimeMs = registered.anchorTimeMs;
+        result.preRollMs = registered.preRollMs;
         result.contentLength = registered.contentLength;
         return result;
     }
@@ -612,12 +810,20 @@ AudioCacheManager::DirectSeekHint AudioCacheManager::directSeekHintForPlaybackUr
         meta.contentLength = meta.seekIndexFileSize;
     }
 
-    qint64 targetByte = estimateCenterByteFromSeekIndex(meta, targetMs);
-    const bool seekIndexHit = targetByte >= 0;
-    if (targetByte < 0 && meta.contentLength > 0 && meta.durationMs > 0) {
+    SeekIndexEstimate estimate = estimateCenterByteFromSeekIndex(meta, targetMs);
+    qint64 targetByte = estimate.correctedTargetByte;
+    const bool seekIndexHit = estimate.hit;
+    if (!seekIndexHit && meta.contentLength > 0 && meta.durationMs > 0) {
         const double ratio =
             qBound(0.0, static_cast<double>(targetMs) / static_cast<double>(meta.durationMs), 1.0);
         targetByte = static_cast<qint64>(ratio * static_cast<double>(meta.contentLength - 1));
+        estimate.confidenceScore = 20;
+        estimate.confidenceReason = QStringLiteral("duration_ratio_fallback");
+        estimate.rawTargetByte = targetByte;
+        estimate.correctedTargetByte = targetByte;
+        estimate.correctionBytes = 0;
+        estimate.anchorTimeMs = targetMs;
+        estimate.preRollMs = 0;
     }
 
     if (targetByte < 0 || meta.contentLength <= 0) {
@@ -625,9 +831,17 @@ AudioCacheManager::DirectSeekHint AudioCacheManager::directSeekHintForPlaybackUr
     }
 
     result.valid = true;
-    result.seekIndexHit = seekIndexHit;
+    result.seekIndexHit = estimate.hit;
+    result.exact = estimate.exact;
+    result.confidenceScore = estimate.confidenceScore;
+    result.confidenceReason = estimate.confidenceReason;
     result.targetMs = targetMs;
     result.targetByte = qBound<qint64>(0, targetByte, meta.contentLength - 1);
+    result.rawTargetByte = estimate.rawTargetByte;
+    result.correctedTargetByte = result.targetByte;
+    result.correctionBytes = estimate.correctionBytes;
+    result.anchorTimeMs = estimate.anchorTimeMs;
+    result.preRollMs = estimate.preRollMs;
     result.contentLength = meta.contentLength;
     return result;
 }
@@ -712,6 +926,11 @@ void AudioCacheManager::ensureSeekIndex(const QUrl& originalUrl, const QString& 
         meta.seekIndexVersion.clear();
         meta.seekIndexMusicPath = musicPath;
         meta.seekIndexPoints.clear();
+        meta.seekIndexGoodSamples = 0;
+        meta.seekIndexBadSamples = 0;
+        meta.seekIndexGlobalBiasBytes = 0;
+        meta.seekIndexGlobalBiasMs = 0;
+        meta.seekIndexCorrectionUpdatedAtMs = 0;
         metaChanged = true;
     }
 
@@ -745,32 +964,74 @@ void AudioCacheManager::ensureSeekIndex(const QUrl& originalUrl, const QString& 
     query.addQueryItem(QStringLiteral("music_path"), musicPath);
     seekIndexUrl.setQuery(query);
 
-    QNetworkRequest request(seekIndexUrl);
-    request.setAttribute(QNetworkRequest::FollowRedirectsAttribute, true);
-    request.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("FFmpegMusicPlayer/1.0"));
-    request.setPriority(QNetworkRequest::HighPriority);
+    CurlNetworkTransport::Request request;
+    request.url = seekIndexUrl.toString(QUrl::FullyEncoded);
+    request.method = QStringLiteral("GET");
+    request.userAgent = QStringLiteral("FFmpegMusicPlayer/1.0");
+    request.timeoutMs = 8000;
 
-    QNetworkReply* reply = m_networkManager.get(request);
-    m_seekIndexRequests.insert(reply, SeekIndexRequest{cacheKey, musicPath});
-    connect(reply, &QNetworkReply::finished, this, &AudioCacheManager::onSeekIndexReplyFinished);
+    const quint64 requestId = nextRequestId();
+    m_seekIndexRequests.insert(requestId, SeekIndexRequest{cacheKey, musicPath});
+    launchSeekIndexRequest(requestId, SeekIndexRequest{cacheKey, musicPath}, request);
 
     qDebug() << "[AudioCache] Request seek index:"
              << "musicPath=" << musicPath << "url=" << seekIndexUrl.toString();
 }
 
-qint64 AudioCacheManager::estimateCenterByteFromSeekIndex(const TrackMeta& meta,
-                                                          qint64 targetMs) const {
-    if (!meta.seekIndexResolved || !meta.seekIndexSupported || meta.seekIndexPoints.isEmpty() ||
-        targetMs < 0) {
+qint64 AudioCacheManager::estimateRawByteFromSeekIndex(const TrackMeta& meta, qint64 targetMs,
+                                                       SeekIndexEstimate* estimate) const {
+    if (estimate) {
+        *estimate = SeekIndexEstimate{};
+    }
+    const bool hasServerIndex =
+        meta.seekIndexResolved && meta.seekIndexSupported && !meta.seekIndexPoints.isEmpty();
+    const bool usingLocalLearning = !hasServerIndex;
+    const QVector<TrackMeta::SeekIndexPoint>& points =
+        hasServerIndex ? meta.seekIndexPoints : meta.localSeekPoints;
+    if (points.isEmpty() || targetMs < 0) {
         return -1;
     }
 
-    const auto& points = meta.seekIndexPoints;
+    if (usingLocalLearning) {
+        if (points.size() == 1) {
+            const TrackMeta::SeekIndexPoint& point = points.first();
+            if (qAbs(targetMs - point.timeMs) > kLocalSeekSinglePointWindowMs) {
+                if (estimate) {
+                    estimate->confidenceReason =
+                        QStringLiteral("local_seek_single_point_out_of_window");
+                }
+                return -1;
+            }
+        } else if (targetMs < points.first().timeMs || targetMs > points.last().timeMs) {
+            if (estimate) {
+                estimate->confidenceReason = QStringLiteral("local_seek_out_of_bracket");
+            }
+            return -1;
+        }
+    }
+
+    const bool flacIndex = hasServerIndex && isFlacMusicPath(meta.seekIndexMusicPath);
     qint64 centerByte = points.first().byteOffset;
     if (targetMs <= points.first().timeMs) {
         centerByte = points.first().byteOffset;
+        if (estimate) {
+            estimate->previousTimeMs = points.first().timeMs;
+            estimate->nextTimeMs = points.first().timeMs;
+            estimate->previousByte = points.first().byteOffset;
+            estimate->nextByte = points.first().byteOffset;
+            estimate->anchorTimeMs = points.first().timeMs;
+            estimate->preRollMs = qMax<qint64>(0, targetMs - points.first().timeMs);
+        }
     } else if (targetMs >= points.last().timeMs) {
         centerByte = points.last().byteOffset;
+        if (estimate) {
+            estimate->previousTimeMs = points.last().timeMs;
+            estimate->nextTimeMs = points.last().timeMs;
+            estimate->previousByte = points.last().byteOffset;
+            estimate->nextByte = points.last().byteOffset;
+            estimate->anchorTimeMs = points.last().timeMs;
+            estimate->preRollMs = qMax<qint64>(0, targetMs - points.last().timeMs);
+        }
     } else {
         for (int i = 1; i < points.size(); ++i) {
             const TrackMeta::SeekIndexPoint& previous = points.at(i - 1);
@@ -781,14 +1042,43 @@ qint64 AudioCacheManager::estimateCenterByteFromSeekIndex(const TrackMeta& meta,
 
             if (next.timeMs <= previous.timeMs || next.byteOffset <= previous.byteOffset) {
                 centerByte = previous.byteOffset;
+                if (estimate) {
+                    estimate->previousTimeMs = previous.timeMs;
+                    estimate->nextTimeMs = next.timeMs;
+                    estimate->previousByte = previous.byteOffset;
+                    estimate->nextByte = next.byteOffset;
+                    estimate->anchorTimeMs = previous.timeMs;
+                    estimate->preRollMs = qMax<qint64>(0, targetMs - previous.timeMs);
+                }
                 break;
             }
 
-            const double ratio = static_cast<double>(targetMs - previous.timeMs) /
-                                 static_cast<double>(next.timeMs - previous.timeMs);
-            centerByte = previous.byteOffset +
-                         static_cast<qint64>(
-                             ratio * static_cast<double>(next.byteOffset - previous.byteOffset));
+            if (usingLocalLearning &&
+                next.timeMs - previous.timeMs > kLocalSeekMaxBracketWindowMs) {
+                if (estimate) {
+                    estimate->confidenceReason = QStringLiteral("local_seek_sparse_bracket");
+                }
+                return -1;
+            }
+
+            if (flacIndex) {
+                centerByte = previous.byteOffset;
+            } else {
+                const double ratio = static_cast<double>(targetMs - previous.timeMs) /
+                                     static_cast<double>(next.timeMs - previous.timeMs);
+                centerByte =
+                    previous.byteOffset +
+                    static_cast<qint64>(
+                        ratio * static_cast<double>(next.byteOffset - previous.byteOffset));
+            }
+            if (estimate) {
+                estimate->previousTimeMs = previous.timeMs;
+                estimate->nextTimeMs = next.timeMs;
+                estimate->previousByte = previous.byteOffset;
+                estimate->nextByte = next.byteOffset;
+                estimate->anchorTimeMs = flacIndex ? previous.timeMs : targetMs;
+                estimate->preRollMs = flacIndex ? qMax<qint64>(0, targetMs - previous.timeMs) : 0;
+            }
             break;
         }
     }
@@ -798,12 +1088,105 @@ qint64 AudioCacheManager::estimateCenterByteFromSeekIndex(const TrackMeta& meta,
         return -1;
     }
     const qint64 maxByte = qMax<qint64>(0, fileSize - 1);
-    return qBound<qint64>(0, centerByte, maxByte);
+    const qint64 boundedByte = qBound<qint64>(0, centerByte, maxByte);
+    if (estimate) {
+        estimate->hit = true;
+        estimate->rawTargetByte = boundedByte;
+        estimate->correctedTargetByte = boundedByte;
+        if (estimate->anchorTimeMs < 0) {
+            estimate->anchorTimeMs = targetMs;
+            estimate->preRollMs = 0;
+        }
+        if (!hasServerIndex) {
+            estimate->exact = false;
+            const bool likelyFlac = isFlacMusicPath(meta.seekIndexMusicPath) ||
+                                    meta.seekIndexMusicPath.isEmpty();
+            const int upperBound = likelyFlac ? 55 : 78;
+            estimate->confidenceScore = qBound(35, 45 + meta.seekIndexGoodSamples * 6 -
+                                                       meta.seekIndexBadSamples * 8,
+                                               upperBound);
+            estimate->confidenceReason =
+                likelyFlac ? QStringLiteral("local_flac_learning_approx")
+                           : QStringLiteral("local_seek_learning_index");
+        }
+    }
+    return boundedByte;
+}
+
+AudioCacheManager::SeekIndexEstimate AudioCacheManager::estimateCenterByteFromSeekIndex(
+    const TrackMeta& meta, qint64 targetMs) const {
+    SeekIndexEstimate estimate;
+    const qint64 rawByte = estimateRawByteFromSeekIndex(meta, targetMs, &estimate);
+    if (rawByte < 0) {
+        estimate.confidenceReason = QStringLiteral("seek_index_unavailable");
+        return estimate;
+    }
+
+    const qint64 fileSize = qMax(meta.seekIndexFileSize, meta.contentLength);
+    if (fileSize <= 0) {
+        estimate.hit = false;
+        estimate.confidenceReason = QStringLiteral("missing_file_size");
+        return estimate;
+    }
+
+    const bool serverIndex =
+        meta.seekIndexResolved && meta.seekIndexSupported && !meta.seekIndexPoints.isEmpty();
+    const bool flacIndex = serverIndex && isFlacMusicPath(meta.seekIndexMusicPath);
+    const bool localLearning = !serverIndex;
+    const bool localFlacLearning =
+        localLearning && (isFlacMusicPath(meta.seekIndexMusicPath) ||
+                          meta.seekIndexMusicPath.isEmpty());
+    estimate.hit = true;
+    estimate.rawTargetByte = rawByte;
+    estimate.correctionBytes = localFlacLearning ? 0 : meta.seekIndexGlobalBiasBytes;
+    estimate.correctedTargetByte =
+        qBound<qint64>(0, rawByte + estimate.correctionBytes, qMax<qint64>(0, fileSize - 1));
+    int confidence = flacIndex ? 90 : (serverIndex ? 55 : qMax(40, estimate.confidenceScore));
+    QString reason = flacIndex ? QStringLiteral("flac_server_frame_anchor") :
+                     (serverIndex ? QStringLiteral("server_index_default_non_exact") :
+                                    (localFlacLearning
+                                         ? QStringLiteral("local_flac_learning_approx")
+                                         : QStringLiteral("local_seek_learning_index")));
+    if (flacIndex && estimate.preRollMs > 3000) {
+        confidence -= 20;
+        reason = QStringLiteral("flac_anchor_preroll_large");
+    }
+    if (meta.seekIndexGoodSamples > 0 || meta.seekIndexBadSamples > 0) {
+        confidence += qMin(25, meta.seekIndexGoodSamples * 8);
+        confidence -= qMin(45, meta.seekIndexBadSamples * 10);
+        reason = localFlacLearning ? QStringLiteral("local_flac_learning_feedback")
+                                   : QStringLiteral("seek_observation_feedback");
+    }
+    if (qAbs(meta.seekIndexGlobalBiasMs) > 6500 ||
+        qAbs(meta.seekIndexGlobalBiasBytes) > m_chunkSizeBytes) {
+        confidence -= 25;
+        reason = QStringLiteral("large_bias_observed");
+    }
+    confidence = qBound(0, confidence, 100);
+    if (localFlacLearning) {
+        confidence = qMin(confidence, 55);
+    }
+
+    estimate.confidenceScore = confidence;
+    estimate.confidenceReason = reason;
+    if (localFlacLearning) {
+        estimate.exact = false;
+    } else {
+        estimate.exact = flacIndex
+                             ? (confidence >= 85 && estimate.preRollMs <= 3000 &&
+                                meta.seekIndexBadSamples == 0 &&
+                                qAbs(meta.seekIndexGlobalBiasMs) <= 1500)
+                             : (confidence >= 85 && meta.seekIndexGoodSamples >= 2 &&
+                                meta.seekIndexBadSamples == 0 &&
+                                qAbs(meta.seekIndexGlobalBiasMs) <= 1500);
+    }
+    return estimate;
 }
 
 void AudioCacheManager::registerSeekHint(const QUrl& originalUrl, const QString& cacheKey,
-                                         qint64 targetMs, qint64 targetByte,
-                                         qint64 contentLength, bool seekIndexHit) {
+                                         qint64 targetMs, qint64 contentLength,
+                                         const SeekIndexEstimate& estimate) {
+    const qint64 targetByte = estimate.correctedTargetByte;
     if (!canCacheUrl(originalUrl) || cacheKey.isEmpty() || targetMs < 0 || targetByte < 0) {
         return;
     }
@@ -812,7 +1195,15 @@ void AudioCacheManager::registerSeekHint(const QUrl& originalUrl, const QString&
     hint.targetMs = targetMs;
     hint.targetByte = targetByte;
     hint.contentLength = contentLength;
-    hint.seekIndexHit = seekIndexHit;
+    hint.seekIndexHit = estimate.hit;
+    hint.exact = estimate.exact;
+    hint.confidenceScore = estimate.confidenceScore;
+    hint.confidenceReason = estimate.confidenceReason;
+    hint.rawTargetByte = estimate.rawTargetByte;
+    hint.correctedTargetByte = estimate.correctedTargetByte;
+    hint.correctionBytes = estimate.correctionBytes;
+    hint.anchorTimeMs = estimate.anchorTimeMs;
+    hint.preRollMs = estimate.preRollMs;
     hint.generation = ++m_seekHintGeneration;
     hint.expiresAtMs = currentEpochMs() + 15000;
     m_seekHints.insert(cacheKey, hint);
@@ -823,7 +1214,14 @@ void AudioCacheManager::registerSeekHint(const QUrl& originalUrl, const QString&
     qDebug() << "[AudioCache] Seek hint registered:"
              << "generation=" << hint.generation << "targetMs=" << targetMs
              << "targetByte=" << targetByte << "contentLength=" << contentLength
-             << "seekIndexHit=" << seekIndexHit << "url=" << originalUrl.toString();
+             << "seekIndexHit=" << hint.seekIndexHit << "exact=" << hint.exact
+             << "confidenceScore=" << hint.confidenceScore
+             << "confidenceReason=" << hint.confidenceReason
+             << "rawTargetByte=" << hint.rawTargetByte
+             << "correctedTargetByte=" << hint.correctedTargetByte
+             << "correctionBytes=" << hint.correctionBytes
+             << "anchorTimeMs=" << hint.anchorTimeMs << "preRollMs=" << hint.preRollMs
+             << "url=" << originalUrl.toString();
 }
 
 bool AudioCacheManager::resolveSeekHintForRange(const QString& cacheKey, qint64 requestStart,
@@ -844,12 +1242,27 @@ bool AudioCacheManager::resolveSeekHintForRange(const QString& cacheKey, qint64 
         return false;
     }
 
-    const qint64 tolerance = hint.seekIndexHit ? 128 * 1024 : qMax<qint64>(384 * 1024, m_chunkSizeBytes);
+    const qint64 tolerance =
+        hint.exact ? 128 * 1024 : qMax<qint64>(384 * 1024, m_chunkSizeBytes);
     if (qAbs(requestStart - hint.targetByte) <= tolerance) {
+        qDebug() << "[AudioCache] Seek hint range already near target:"
+                 << "requestStart=" << requestStart << "targetByte=" << hint.targetByte
+                 << "exact=" << hint.exact << "confidenceScore=" << hint.confidenceScore
+                 << "confidenceReason=" << hint.confidenceReason
+                 << "rawTargetByte=" << hint.rawTargetByte
+                 << "correctedTargetByte=" << hint.correctedTargetByte
+                 << "correctionBytes=" << hint.correctionBytes << "tolerance=" << tolerance;
         return false;
     }
 
     *out = hint;
+    qDebug() << "[AudioCache] Seek hint range takeover:"
+             << "requestStart=" << requestStart << "targetByte=" << hint.targetByte
+             << "exact=" << hint.exact << "confidenceScore=" << hint.confidenceScore
+             << "confidenceReason=" << hint.confidenceReason
+             << "rawTargetByte=" << hint.rawTargetByte
+             << "correctedTargetByte=" << hint.correctedTargetByte
+             << "correctionBytes=" << hint.correctionBytes << "tolerance=" << tolerance;
     return true;
 }
 
@@ -887,22 +1300,18 @@ void AudioCacheManager::cancelProxyStreamsForCacheKey(const QString& cacheKey) {
         return;
     }
 
-    const QList<QNetworkReply*> replies = m_proxyStreamStates.keys();
+    const QList<quint64> requests = m_proxyStreamStates.keys();
     int cancelled = 0;
-    for (QNetworkReply* reply : replies) {
-        if (!reply) {
-            continue;
-        }
-        const ProxyStreamState state = m_proxyStreamStates.value(reply);
+    for (quint64 requestId : requests) {
+        const ProxyStreamState state = m_proxyStreamStates.value(requestId);
         if (state.cacheKey != cacheKey) {
             continue;
         }
-        m_proxyStreamStates.remove(reply);
+        m_proxyStreamStates.remove(requestId);
         if (!state.socket.isNull()) {
             state.socket->disconnectFromHost();
         }
-        reply->abort();
-        reply->deleteLater();
+        abortRequest(requestId);
         ++cancelled;
     }
     if (cancelled > 0) {
@@ -916,17 +1325,14 @@ void AudioCacheManager::cancelBackgroundRangesForCacheKey(const QString& cacheKe
         return;
     }
 
-    const QList<QNetworkReply*> replies = m_downloadTasks.keys();
+    const QList<quint64> requests = m_downloadTasks.keys();
     int cancelled = 0;
-    for (QNetworkReply* reply : replies) {
-        if (!reply) {
-            continue;
-        }
-        const DownloadTask task = m_downloadTasks.value(reply);
+    for (quint64 requestId : requests) {
+        const DownloadTask task = m_downloadTasks.value(requestId);
         if (task.cacheKey != cacheKey || task.metadataProbe || task.fullFileDownload) {
             continue;
         }
-        reply->abort();
+        abortRequest(requestId);
         ++cancelled;
     }
     if (cancelled > 0) {
@@ -935,20 +1341,55 @@ void AudioCacheManager::cancelBackgroundRangesForCacheKey(const QString& cacheKe
     }
 }
 
-void AudioCacheManager::onSeekIndexReplyFinished() {
-    auto* reply = qobject_cast<QNetworkReply*>(sender());
-    if (!reply) {
-        return;
-    }
+quint64 AudioCacheManager::nextRequestId() {
+    return m_nextRequestId++;
+}
 
-    const auto it = m_seekIndexRequests.find(reply);
+std::shared_ptr<std::atomic_bool> AudioCacheManager::registerAbortFlag(quint64 requestId) {
+    auto flag = std::make_shared<std::atomic_bool>(false);
+    m_abortFlags.insert(requestId, flag);
+    return flag;
+}
+
+void AudioCacheManager::abortRequest(quint64 requestId) {
+    const auto flag = m_abortFlags.value(requestId);
+    if (flag) {
+        flag->store(true);
+    }
+}
+
+void AudioCacheManager::launchSeekIndexRequest(quint64 requestId,
+                                               const SeekIndexRequest& requestInfo,
+                                               const CurlNetworkTransport::Request& request) {
+    auto abortFlag = registerAbortFlag(requestId);
+    CurlNetworkTransport::Request transportRequest = request;
+    transportRequest.shouldAbort = [abortFlag]() {
+        return abortFlag && abortFlag->load();
+    };
+    QtConcurrent::run([this, requestId, requestInfo, transportRequest]() {
+        Q_UNUSED(requestInfo);
+        const CurlNetworkTransport::Response response =
+            CurlNetworkTransport::perform(transportRequest);
+        QMetaObject::invokeMethod(
+            this,
+            [this, requestId, response]() {
+                handleSeekIndexResponse(requestId, response);
+            },
+            Qt::QueuedConnection);
+    });
+}
+
+void AudioCacheManager::handleSeekIndexResponse(
+    quint64 requestId, const CurlNetworkTransport::Response& response) {
+    const auto it = m_seekIndexRequests.find(requestId);
     if (it == m_seekIndexRequests.end()) {
-        reply->deleteLater();
+        m_abortFlags.remove(requestId);
         return;
     }
 
     const SeekIndexRequest request = it.value();
     m_seekIndexRequests.erase(it);
+    m_abortFlags.remove(requestId);
 
     TrackMeta meta;
     loadTrackMeta(request.cacheKey, &meta);
@@ -963,10 +1404,10 @@ void AudioCacheManager::onSeekIndexReplyFinished() {
     }
 
     bool parsedResponse = false;
-    const int statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-    if (reply->error() == QNetworkReply::NoError && statusCode == 200) {
+    const int statusCode = response.statusCode;
+    if (response.error == CurlNetworkTransport::Error::NoError && statusCode == 200) {
         QJsonParseError parseError;
-        const QJsonDocument doc = QJsonDocument::fromJson(reply->readAll(), &parseError);
+        const QJsonDocument doc = QJsonDocument::fromJson(response.body, &parseError);
         if (parseError.error == QJsonParseError::NoError && doc.isObject()) {
             const QJsonObject obj = doc.object();
             const bool supported = obj.value(QStringLiteral("supported")).toBool(false);
@@ -1003,6 +1444,12 @@ void AudioCacheManager::onSeekIndexReplyFinished() {
                     return lhs.timeMs < rhs.timeMs;
                 });
 
+            const QString previousMusicPath = meta.seekIndexMusicPath;
+            const QString previousVersion = meta.seekIndexVersion;
+            const qint64 previousFileSize = meta.seekIndexFileSize;
+            const bool indexIdentityChanged = previousMusicPath != resolvedMusicPath ||
+                                              previousVersion != version ||
+                                              previousFileSize != fileSize;
             meta.seekIndexResolved = true;
             meta.seekIndexSupported = supported && !points.isEmpty();
             meta.seekIndexMusicPath = resolvedMusicPath;
@@ -1010,6 +1457,14 @@ void AudioCacheManager::onSeekIndexReplyFinished() {
             meta.seekIndexVersion = version;
             meta.seekIndexPoints =
                 meta.seekIndexSupported ? points : QVector<TrackMeta::SeekIndexPoint>{};
+            if (indexIdentityChanged) {
+                meta.seekIndexGoodSamples = 0;
+                meta.seekIndexBadSamples = 0;
+                meta.seekIndexGlobalBiasBytes = 0;
+                meta.seekIndexGlobalBiasMs = 0;
+                meta.seekIndexCorrectionUpdatedAtMs = 0;
+                meta.localSeekPoints.clear();
+            }
             if (durationMs > 0) {
                 meta.durationMs = durationMs;
             }
@@ -1036,7 +1491,7 @@ void AudioCacheManager::onSeekIndexReplyFinished() {
         }
         qWarning() << "[AudioCache] Seek index request failed:"
                    << "musicPath=" << request.musicPath << "status=" << statusCode
-                   << "error=" << reply->errorString();
+                   << "error=" << response.errorString;
     }
 
     {
@@ -1044,30 +1499,39 @@ void AudioCacheManager::onSeekIndexReplyFinished() {
         m_trackMetaCache.insert(request.cacheKey, meta);
     }
     persistTrackMeta(request.cacheKey, meta);
-    reply->deleteLater();
 }
 
-void AudioCacheManager::onDownloadFinished(QNetworkReply* reply) {
-    if (!reply) {
-        return;
-    }
+void AudioCacheManager::launchDownloadTask(quint64 requestId, const DownloadTask& task,
+                                           const CurlNetworkTransport::Request& request) {
+    auto abortFlag = registerAbortFlag(requestId);
+    CurlNetworkTransport::Request transportRequest = request;
+    transportRequest.shouldAbort = [abortFlag]() {
+        return abortFlag && abortFlag->load();
+    };
+    QtConcurrent::run([this, requestId, task, transportRequest]() {
+        Q_UNUSED(task);
+        const CurlNetworkTransport::Response response =
+            CurlNetworkTransport::perform(transportRequest);
+        QMetaObject::invokeMethod(
+            this,
+            [this, requestId, response]() {
+                handleDownloadResponse(requestId, response);
+            },
+            Qt::QueuedConnection);
+    });
+}
 
-    if (m_proxyStreamStates.contains(reply)) {
-        return;
-    }
-
-    if (m_seekIndexRequests.contains(reply)) {
-        return;
-    }
-
-    const auto it = m_downloadTasks.find(reply);
+void AudioCacheManager::handleDownloadResponse(
+    quint64 requestId, const CurlNetworkTransport::Response& response) {
+    const auto it = m_downloadTasks.find(requestId);
     if (it == m_downloadTasks.end()) {
-        reply->deleteLater();
+        m_abortFlags.remove(requestId);
         return;
     }
 
     const DownloadTask task = it.value();
     m_downloadTasks.erase(it);
+    m_abortFlags.remove(requestId);
     if (task.fullFileDownload) {
         m_inflightChunkKeys.remove(task.cacheKey + ":full");
     } else {
@@ -1077,9 +1541,10 @@ void AudioCacheManager::onDownloadFinished(QNetworkReply* reply) {
         m_inflightChunkKeys.remove(task.cacheKey + ":probe");
     }
 
-    const QByteArray payload = reply->readAll();
-    const bool responseLooksAudio = isLikelyAudioResponse(reply);
-    const bool ok = (reply->error() == QNetworkReply::NoError) && !payload.isEmpty() &&
+    const QByteArray payload = response.body;
+    const bool responseLooksAudio = isLikelyAudioResponse(response.statusCode, response.headers);
+    const bool ok = (response.error == CurlNetworkTransport::Error::NoError) &&
+                    !payload.isEmpty() &&
                     (task.metadataProbe || responseLooksAudio);
 
     if (ok && task.fullFileDownload) {
@@ -1128,16 +1593,16 @@ void AudioCacheManager::onDownloadFinished(QNetworkReply* reply) {
     } else if (!ok) {
         qWarning() << (task.fullFileDownload ? "[AudioCache] Full cache download failed:"
                                              : "[AudioCache] Chunk download failed:")
-                   << "chunk=" << task.chunkIndex << "url=" << reply->url().toString() << "status="
-                   << reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt()
-                   << "contentType="
-                   << reply->header(QNetworkRequest::ContentTypeHeader).toByteArray()
-                   << "error=" << reply->errorString();
+                   << "chunk=" << task.chunkIndex << "url=" << task.originalUrl.toString()
+                   << "status=" << response.statusCode
+                   << "contentType=" << headerValueBytes(response.headers,
+                                                           QStringLiteral("Content-Type"))
+                   << "error=" << response.errorString;
     }
 
     // Update metadata from response headers.
-    qint64 contentLength = reply->header(QNetworkRequest::ContentLengthHeader).toLongLong();
-    const QString contentRange = reply->rawHeader("Content-Range");
+    qint64 contentLength = contentLengthFromHeaders(response.headers);
+    const QString contentRange = headerValue(response.headers, QStringLiteral("Content-Range"));
     const qint64 rangeTotal = parseContentRangeLength(contentRange);
     if (rangeTotal > 0) {
         contentLength = rangeTotal;
@@ -1154,11 +1619,10 @@ void AudioCacheManager::onDownloadFinished(QNetworkReply* reply) {
     if (task.metadataProbe && shouldFullCacheByAudioType(task.originalUrl) &&
         meta.contentLength > 0) {
         queueFullFileDownload(task.originalUrl, task.cacheKey, meta.contentLength,
-                              QNetworkRequest::HighPriority);
+                              CacheRequestPriority::High);
     }
 
     maybeRunLruCleanup();
-    reply->deleteLater();
 }
 
 void AudioCacheManager::startProxyServerIfNeeded() {
@@ -1377,6 +1841,12 @@ void AudioCacheManager::handleProxyRequest(QTcpSocket* socket, const QByteArray&
              << "upstreamStart=" << upstreamStart << "upstreamEnd=" << upstreamEnd
              << "seekHintTakeover=" << seekHintTakeover
              << "seekTargetMs=" << seekHint.targetMs
+             << "seekHintExact=" << seekHint.exact
+             << "seekConfidenceScore=" << seekHint.confidenceScore
+             << "seekConfidenceReason=" << seekHint.confidenceReason
+             << "seekRawTargetByte=" << seekHint.rawTargetByte
+             << "seekCorrectedTargetByte=" << seekHint.correctedTargetByte
+             << "seekCorrectionBytes=" << seekHint.correctionBytes
              << "proxy_original_range_start=" << proxyOriginalRangeStart
              << "proxy_effective_range_start=" << upstreamStart;
 
@@ -1403,22 +1873,12 @@ void AudioCacheManager::startProxyUpstreamRequest(const ProxyStreamState& state)
         return;
     }
 
-    QNetworkRequest upstreamRequest(state.sourceUrl);
-    upstreamRequest.setAttribute(QNetworkRequest::FollowRedirectsAttribute, true);
-    upstreamRequest.setHeader(QNetworkRequest::UserAgentHeader,
-                              QStringLiteral("FFmpegMusicPlayer/1.0"));
-    upstreamRequest.setPriority(QNetworkRequest::HighPriority);
-    upstreamRequest.setRawHeader("Accept", "*/*");
-    upstreamRequest.setRawHeader("Connection", "keep-alive");
-
     qint64 upstreamStart = state.upstreamStartByte >= 0 ? state.upstreamStartByte : 0;
     QByteArray upstreamRange = QByteArray("bytes=") + QByteArray::number(upstreamStart) + "-";
     if (state.upstreamEndByte >= upstreamStart) {
         upstreamRange += QByteArray::number(state.upstreamEndByte);
     }
-    upstreamRequest.setRawHeader("Range", upstreamRange);
 
-    QNetworkReply* reply = m_networkManager.get(upstreamRequest);
     ProxyStreamState nextState = state;
     nextState.upstreamStartByte = upstreamStart;
     nextState.upstreamRangeHeaderRaw = upstreamRange;
@@ -1434,12 +1894,54 @@ void AudioCacheManager::startProxyUpstreamRequest(const ProxyStreamState& state)
         nextState.nextCacheByte = -1;
         nextState.nextMemoryByte = -1;
     }
-    m_proxyStreamStates.insert(reply, nextState);
+    const quint64 requestId = nextRequestId();
+    m_proxyStreamStates.insert(requestId, nextState);
 
-    const auto destroyedSignal = static_cast<void (QObject::*)(QObject*)>(&QObject::destroyed);
-    connect(nextState.socket.data(), destroyedSignal, reply, &QNetworkReply::abort);
-    connect(reply, &QNetworkReply::readyRead, this, &AudioCacheManager::onProxyUpstreamReadyRead);
-    connect(reply, &QNetworkReply::finished, this, &AudioCacheManager::onProxyUpstreamFinished);
+    auto abortFlag = registerAbortFlag(requestId);
+    if (!nextState.socket.isNull()) {
+        connect(nextState.socket.data(), &QObject::destroyed, this, [this, requestId]() {
+            abortRequest(requestId);
+        });
+    }
+
+    CurlNetworkTransport::Request request;
+    request.url = nextState.sourceUrl.toString(QUrl::FullyEncoded);
+    request.method = QStringLiteral("GET");
+    request.userAgent = QStringLiteral("FFmpegMusicPlayer/1.0");
+    request.timeoutMs = 120000;
+    request.headers.insert(QStringLiteral("Accept"), QStringLiteral("*/*"));
+    request.headers.insert(QStringLiteral("Connection"), QStringLiteral("keep-alive"));
+    request.headers.insert(QStringLiteral("Range"), QString::fromLatin1(upstreamRange));
+    request.shouldAbort = [abortFlag]() {
+        return abortFlag && abortFlag->load();
+    };
+    request.onHeaders = [this, requestId](int statusCode, const QMap<QString, QString>& headers) {
+        QMetaObject::invokeMethod(
+            this,
+            [this, requestId, statusCode, headers]() {
+                handleProxyHeaders(requestId, statusCode, headers);
+            },
+            Qt::QueuedConnection);
+    };
+    request.onData = [this, requestId](const QByteArray& chunk) {
+        QMetaObject::invokeMethod(
+            this,
+            [this, requestId, chunk]() {
+                handleProxyData(requestId, chunk);
+            },
+            Qt::QueuedConnection);
+        return true;
+    };
+
+    QtConcurrent::run([this, requestId, request]() {
+        const CurlNetworkTransport::Response response = CurlNetworkTransport::perform(request);
+        QMetaObject::invokeMethod(
+            this,
+            [this, requestId, response]() {
+                handleProxyFinished(requestId, response);
+            },
+            Qt::QueuedConnection);
+    });
 
     qDebug() << "[AudioCacheProxy] Upstream request:"
              << "retry=" << nextState.retryCount << "range=" << nextState.upstreamRangeHeaderRaw
@@ -1450,64 +1952,71 @@ void AudioCacheManager::startProxyUpstreamRequest(const ProxyStreamState& state)
              << "src=" << nextState.sourceUrl.toString();
 }
 
-void AudioCacheManager::onProxyUpstreamReadyRead() {
-    auto* reply = qobject_cast<QNetworkReply*>(sender());
-    if (!reply) {
-        return;
-    }
-
-    auto it = m_proxyStreamStates.find(reply);
+void AudioCacheManager::handleProxyHeaders(quint64 requestId, int statusCode,
+                                           const QMap<QString, QString>& headers) {
+    auto it = m_proxyStreamStates.find(requestId);
     if (it == m_proxyStreamStates.end()) {
         return;
     }
     ProxyStreamState& state = it.value();
+    ensureProxyHeadersSent(statusCode, headers, &state);
+}
 
-    if (!ensureProxyHeadersSent(reply, &state)) {
+void AudioCacheManager::handleProxyData(quint64 requestId, const QByteArray& chunk) {
+    auto it = m_proxyStreamStates.find(requestId);
+    if (it == m_proxyStreamStates.end()) {
         return;
     }
-
-    const QByteArray chunk = reply->readAll();
+    ProxyStreamState& state = it.value();
     if (chunk.isEmpty() || state.socket.isNull()) {
         return;
     }
-
-    state.bytesForwarded += chunk.size();
-    state.upstreamBytesForwarded += chunk.size();
-    state.socket->write(chunk);
-
-    if (state.hasRange && state.rangeStart >= 0 && state.rangeEnd >= state.rangeStart &&
-        (state.rangeStart % m_chunkSizeBytes == 0) &&
-        (state.rangeEnd - state.rangeStart + 1) <= m_chunkSizeBytes &&
-        state.collectedForCache.size() < m_chunkSizeBytes) {
-        state.collectedForCache.append(chunk);
-    }
-    appendMemoryRangeData(&state, chunk);
-    appendProxyCacheData(&state, chunk);
-}
-
-void AudioCacheManager::onProxyUpstreamFinished() {
-    auto* reply = qobject_cast<QNetworkReply*>(sender());
-    if (!reply) {
+    if (!state.headerSent) {
+        state.pendingBody.append(chunk);
         return;
     }
 
-    auto it = m_proxyStreamStates.find(reply);
+    forwardProxyChunk(&state, chunk);
+}
+
+void AudioCacheManager::forwardProxyChunk(ProxyStreamState* state, const QByteArray& chunk) {
+    if (!state || chunk.isEmpty() || state->socket.isNull()) {
+        return;
+    }
+
+    state->bytesForwarded += chunk.size();
+    state->upstreamBytesForwarded += chunk.size();
+    state->socket->write(chunk);
+
+    if (state->hasRange && state->rangeStart >= 0 && state->rangeEnd >= state->rangeStart &&
+        (state->rangeStart % m_chunkSizeBytes == 0) &&
+        (state->rangeEnd - state->rangeStart + 1) <= m_chunkSizeBytes &&
+        state->collectedForCache.size() < m_chunkSizeBytes) {
+        state->collectedForCache.append(chunk);
+    }
+    appendMemoryRangeData(state, chunk);
+    appendProxyCacheData(state, chunk);
+}
+
+void AudioCacheManager::handleProxyFinished(
+    quint64 requestId, const CurlNetworkTransport::Response& response) {
+    auto it = m_proxyStreamStates.find(requestId);
     if (it == m_proxyStreamStates.end()) {
-        reply->deleteLater();
+        m_abortFlags.remove(requestId);
         return;
     }
     ProxyStreamState state = it.value();
     m_proxyStreamStates.erase(it);
+    m_abortFlags.remove(requestId);
 
     if (state.socket.isNull() || state.socket->state() == QAbstractSocket::UnconnectedState) {
-        reply->deleteLater();
         return;
     }
 
-    const int statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+    const int statusCode = response.statusCode;
     const bool retryableStatus = statusCode == 0 || statusCode == 408 || statusCode == 429 ||
                                  (statusCode >= 500 && statusCode <= 599);
-    const bool networkError = reply->error() != QNetworkReply::NoError;
+    const bool networkError = response.error != CurlNetworkTransport::Error::NoError;
     const bool failedOrRetryable = networkError || retryableStatus;
     if (failedOrRetryable) {
         if (!state.headerSent && (retryableStatus || networkError) &&
@@ -1515,6 +2024,7 @@ void AudioCacheManager::onProxyUpstreamFinished() {
             ++state.retryCount;
             state.bytesForwarded = 0;
             state.upstreamBytesForwarded = 0;
+            state.pendingBody.clear();
             state.collectedForCache.clear();
             state.cacheWriteBuffer.clear();
             state.responseStartByte = -1;
@@ -1523,54 +2033,35 @@ void AudioCacheManager::onProxyUpstreamFinished() {
             qWarning() << "[AudioCacheProxy] Upstream retry:"
                        << "retry=" << state.retryCount << "/" << state.maxRetries
                        << "status=" << statusCode << "range=" << state.upstreamRangeHeaderRaw
-                       << "error=" << reply->errorString() << "src=" << state.sourceUrl.toString();
-            reply->deleteLater();
+                       << "error=" << response.errorString
+                       << "src=" << state.sourceUrl.toString();
             startProxyUpstreamRequest(state);
             return;
         }
-        if (state.headerSent && tryResumeProxyUpstream(&state, reply->errorString())) {
-            reply->deleteLater();
+        if (state.headerSent && tryResumeProxyUpstream(&state, response.errorString)) {
             return;
         }
 
         qWarning() << "[AudioCacheProxy] Upstream error:"
                    << "status=" << statusCode << "retry=" << state.retryCount << "/"
                    << state.maxRetries << "range=" << state.upstreamRangeHeaderRaw
-                   << "error=" << reply->errorString();
+                   << "error=" << response.errorString;
         if (!state.headerSent) {
             sendProxyError(state.socket, 502, "Bad Gateway");
         } else {
             state.socket->disconnectFromHost();
         }
-        reply->deleteLater();
         return;
     }
 
-    if (!ensureProxyHeadersSent(reply, &state)) {
-        reply->deleteLater();
+    if (!ensureProxyHeadersSent(statusCode, response.headers, &state)) {
         return;
-    }
-
-    const QByteArray tail = reply->readAll();
-    if (!tail.isEmpty()) {
-        state.bytesForwarded += tail.size();
-        state.upstreamBytesForwarded += tail.size();
-        state.socket->write(tail);
-        if (state.hasRange && state.rangeStart >= 0 && state.rangeEnd >= state.rangeStart &&
-            (state.rangeStart % m_chunkSizeBytes == 0) &&
-            (state.rangeEnd - state.rangeStart + 1) <= m_chunkSizeBytes &&
-            state.collectedForCache.size() < m_chunkSizeBytes) {
-            state.collectedForCache.append(tail);
-        }
-        appendMemoryRangeData(&state, tail);
-        appendProxyCacheData(&state, tail);
     }
 
     const bool shortUpstream =
         state.expectedUpstreamBytes > 0 && state.upstreamBytesForwarded < state.expectedUpstreamBytes;
     if (state.headerSent && shortUpstream &&
         tryResumeProxyUpstream(&state, QStringLiteral("short upstream response"))) {
-        reply->deleteLater();
         return;
     }
 
@@ -1578,15 +2069,16 @@ void AudioCacheManager::onProxyUpstreamFinished() {
     state.socket->disconnectFromHost();
 
     persistAlignedProxyChunk(state);
-    updateTrackMetaFromProxyReply(state.cacheKey, reply);
+    updateTrackMetaFromProxyHeaders(state.cacheKey, response.headers);
     maybeRunLruCleanup();
 
     qDebug() << "[AudioCacheProxy] Response finished, bytes:" << state.bytesForwarded;
-    reply->deleteLater();
 }
 
-bool AudioCacheManager::ensureProxyHeadersSent(QNetworkReply* reply, ProxyStreamState* state) {
-    if (!reply || !state) {
+bool AudioCacheManager::ensureProxyHeadersSent(int upstreamStatus,
+                                               const QMap<QString, QString>& headers,
+                                               ProxyStreamState* state) {
+    if (!state) {
         return false;
     }
 
@@ -1599,7 +2091,6 @@ bool AudioCacheManager::ensureProxyHeadersSent(QNetworkReply* reply, ProxyStream
         return false;
     }
 
-    const int upstreamStatus = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
     const bool clientRequestedRange = state->hasRange && state->rangeStart >= 0;
     const int defaultStatus = clientRequestedRange ? 206 : 200;
     const int statusCode = upstreamStatus > 0 ? upstreamStatus : defaultStatus;
@@ -1614,24 +2105,20 @@ bool AudioCacheManager::ensureProxyHeadersSent(QNetworkReply* reply, ProxyStream
         return false;
     }
 
-    QByteArray reason = reply->attribute(QNetworkRequest::HttpReasonPhraseAttribute).toByteArray();
     const QByteArray outboundReason =
         clientRequestedRange ? QByteArray("Partial Content") : QByteArray("OK");
-    if (reason.isEmpty()) {
-        reason = outboundReason;
-    }
 
-    QByteArray contentType = reply->header(QNetworkRequest::ContentTypeHeader).toByteArray();
+    QByteArray contentType = headerValueBytes(headers, QStringLiteral("Content-Type"));
     if (contentType.isEmpty()) {
         contentType = audioContentTypeForUrl(state->sourceUrl);
     }
 
-    qint64 contentLength = reply->header(QNetworkRequest::ContentLengthHeader).toLongLong();
+    qint64 contentLength = contentLengthFromHeaders(headers);
     if (state->expectedUpstreamBytes <= 0 && contentLength > 0) {
         state->expectedUpstreamBytes = contentLength;
     }
     QByteArray extraHeaders;
-    const QByteArray contentRange = reply->rawHeader("Content-Range");
+    const QByteArray contentRange = headerValueBytes(headers, QStringLiteral("Content-Range"));
     if (!contentRange.isEmpty()) {
         const qint64 responseStart = parseContentRangeStart(contentRange);
         if (responseStart >= 0 && responseStart != state->upstreamStartByte) {
@@ -1707,7 +2194,7 @@ bool AudioCacheManager::ensureProxyHeadersSent(QNetworkReply* reply, ProxyStream
         state->upstreamHeadersValidated = true;
         qDebug() << "[AudioCacheProxy] Resumed upstream headers validated:"
                  << "status=" << statusCode << "range=" << state->upstreamRangeHeaderRaw
-                 << "contentRange=" << reply->rawHeader("Content-Range")
+                 << "contentRange=" << contentRange
                  << "retry=" << state->retryCount;
         return true;
     }
@@ -1716,7 +2203,7 @@ bool AudioCacheManager::ensureProxyHeadersSent(QNetworkReply* reply, ProxyStream
              << "status=" << (clientRequestedRange ? 206 : 200)
              << "upstreamStatus=" << statusCode << "range=" << state->upstreamRangeHeaderRaw
              << "contentLength=" << contentLength
-             << "contentRange=" << reply->rawHeader("Content-Range")
+             << "contentRange=" << contentRange
              << "seekHintTakeover=" << state->seekHintTakeover
              << "seekTargetMs=" << state->seekTargetMs
              << "proxy_original_range_start=" << state->proxyOriginalRangeStart
@@ -1727,11 +2214,15 @@ bool AudioCacheManager::ensureProxyHeadersSent(QNetworkReply* reply, ProxyStream
         markSeekHintHeadersSent(state->cacheKey, state->seekHintGeneration);
     }
 
-    state->socket->write(
-        buildHttpHeaders(clientRequestedRange ? 206 : 200, outboundReason, contentType,
-                         contentLength, extraHeaders));
+    state->socket->write(buildHttpHeaders(clientRequestedRange ? 206 : 200, outboundReason,
+                                          contentType, contentLength, extraHeaders));
     state->headerSent = true;
     state->upstreamHeadersValidated = true;
+    if (!state->pendingBody.isEmpty()) {
+        const QByteArray pending = state->pendingBody;
+        state->pendingBody.clear();
+        forwardProxyChunk(state, pending);
+    }
     return true;
 }
 
@@ -1759,6 +2250,7 @@ bool AudioCacheManager::tryResumeProxyUpstream(ProxyStreamState* state, const QS
     state->upstreamStartByte = resumeOffset;
     state->upstreamBytesForwarded = 0;
     state->upstreamHeadersValidated = false;
+    state->pendingBody.clear();
     state->collectedForCache.clear();
     state->cacheWriteBuffer.clear();
 
@@ -2049,14 +2541,15 @@ void AudioCacheManager::persistProxyCacheChunk(const QString& cacheKey, qint64 c
     }
 }
 
-void AudioCacheManager::updateTrackMetaFromProxyReply(const QString& cacheKey,
-                                                      QNetworkReply* reply) {
-    if (!reply) {
+void AudioCacheManager::updateTrackMetaFromProxyHeaders(
+    const QString& cacheKey, const QMap<QString, QString>& headers) {
+    if (cacheKey.isEmpty()) {
         return;
     }
 
-    qint64 contentLength = reply->header(QNetworkRequest::ContentLengthHeader).toLongLong();
-    const qint64 parsedLength = parseContentRangeLength(reply->rawHeader("Content-Range"));
+    qint64 contentLength = contentLengthFromHeaders(headers);
+    const qint64 parsedLength =
+        parseContentRangeLength(headerValue(headers, QStringLiteral("Content-Range")));
     if (parsedLength > 0) {
         contentLength = parsedLength;
     }
@@ -2254,7 +2747,8 @@ bool AudioCacheManager::hasChunk(const QString& cacheKey, qint64 chunkIndex) con
 
 void AudioCacheManager::queueFullFileDownload(const QUrl& url, const QString& cacheKey,
                                               qint64 contentLength,
-                                              QNetworkRequest::Priority priority) {
+                                              CacheRequestPriority priority) {
+    Q_UNUSED(priority);
     if (!shouldFullCacheByAudioType(url) || contentLength <= 0) {
         return;
     }
@@ -2273,15 +2767,18 @@ void AudioCacheManager::queueFullFileDownload(const QUrl& url, const QString& ca
     }
 
     QDir().mkpath(m_cacheDirectory);
-    QNetworkRequest request(url);
-    request.setAttribute(QNetworkRequest::FollowRedirectsAttribute, true);
-    request.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("FFmpegMusicPlayer/1.0"));
-    request.setPriority(priority);
+    CurlNetworkTransport::Request request;
+    request.url = url.toString(QUrl::FullyEncoded);
+    request.method = QStringLiteral("GET");
+    request.userAgent = QStringLiteral("FFmpegMusicPlayer/1.0");
+    request.timeoutMs = 120000;
 
-    QNetworkReply* reply = m_networkManager.get(request);
+    const quint64 requestId = nextRequestId();
+    const DownloadTask task{cacheKey, url, 0, contentLength - 1, -1,
+                            legacyFullCachePathForUrl(url), false, true};
     m_inflightChunkKeys.insert(inflightKey);
-    m_downloadTasks.insert(reply, DownloadTask{cacheKey, url, 0, contentLength - 1, -1,
-                                               legacyFullCachePathForUrl(url), false, true});
+    m_downloadTasks.insert(requestId, task);
+    launchDownloadTask(requestId, task, request);
 
     qDebug() << "[AudioCache] Full cache queued:"
              << "bytes=" << contentLength << "url=" << url.toString();
@@ -2289,7 +2786,8 @@ void AudioCacheManager::queueFullFileDownload(const QUrl& url, const QString& ca
 
 void AudioCacheManager::queueChunkDownload(const QUrl& url, const QString& cacheKey,
                                            qint64 chunkIndex, qint64 startByte, qint64 endByte,
-                                           QNetworkRequest::Priority priority) {
+                                           CacheRequestPriority priority) {
+    Q_UNUSED(priority);
     if (chunkIndex < 0 || endByte < startByte) {
         return;
     }
@@ -2306,17 +2804,19 @@ void AudioCacheManager::queueChunkDownload(const QUrl& url, const QString& cache
         return;
     }
 
-    QNetworkRequest request(url);
-    request.setAttribute(QNetworkRequest::FollowRedirectsAttribute, true);
-    request.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("FFmpegMusicPlayer/1.0"));
-    request.setPriority(priority);
-    request.setRawHeader("Range", QByteArray("bytes=") + QByteArray::number(startByte) +
-                                      QByteArray("-") + QByteArray::number(endByte));
+    CurlNetworkTransport::Request request;
+    request.url = url.toString(QUrl::FullyEncoded);
+    request.method = QStringLiteral("GET");
+    request.userAgent = QStringLiteral("FFmpegMusicPlayer/1.0");
+    request.timeoutMs = 30000;
+    request.headers.insert(QStringLiteral("Range"),
+                           QStringLiteral("bytes=%1-%2").arg(startByte).arg(endByte));
 
-    QNetworkReply* reply = m_networkManager.get(request);
+    const quint64 requestId = nextRequestId();
+    const DownloadTask task{cacheKey, url, startByte, endByte, chunkIndex, targetFile, false};
     m_inflightChunkKeys.insert(inflightKey);
-    m_downloadTasks.insert(
-        reply, DownloadTask{cacheKey, url, startByte, endByte, chunkIndex, targetFile, false});
+    m_downloadTasks.insert(requestId, task);
+    launchDownloadTask(requestId, task, request);
 
     qDebug() << "[AudioCache] Queue range:"
              << "chunk=" << chunkIndex << "range=" << QString("%1-%2").arg(startByte).arg(endByte)
@@ -2340,15 +2840,18 @@ void AudioCacheManager::ensureTrackMeta(const QUrl& url, const QString& cacheKey
         return;
     }
 
-    QNetworkRequest request(url);
-    request.setAttribute(QNetworkRequest::FollowRedirectsAttribute, true);
-    request.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("FFmpegMusicPlayer/1.0"));
-    request.setPriority(QNetworkRequest::HighPriority);
-    request.setRawHeader("Range", QByteArray("bytes=0-0"));
+    CurlNetworkTransport::Request request;
+    request.url = url.toString(QUrl::FullyEncoded);
+    request.method = QStringLiteral("GET");
+    request.userAgent = QStringLiteral("FFmpegMusicPlayer/1.0");
+    request.timeoutMs = 8000;
+    request.headers.insert(QStringLiteral("Range"), QStringLiteral("bytes=0-0"));
 
-    QNetworkReply* reply = m_networkManager.get(request);
+    const quint64 requestId = nextRequestId();
+    const DownloadTask task{cacheKey, url, 0, 0, -1, QString(), true};
     m_inflightChunkKeys.insert(inflightKey);
-    m_downloadTasks.insert(reply, DownloadTask{cacheKey, url, 0, 0, -1, QString(), true});
+    m_downloadTasks.insert(requestId, task);
+    launchDownloadTask(requestId, task, request);
 }
 
 void AudioCacheManager::updateTrackMeta(const QString& cacheKey, qint64 contentLength,
@@ -2413,6 +2916,15 @@ bool AudioCacheManager::loadTrackMeta(const QString& cacheKey, TrackMeta* out) c
         static_cast<qint64>(obj.value(QStringLiteral("seek_index_file_size")).toDouble(-1));
     meta.seekIndexVersion = obj.value(QStringLiteral("seek_index_version")).toString();
     meta.seekIndexMusicPath = obj.value(QStringLiteral("seek_index_music_path")).toString();
+    meta.seekIndexGoodSamples =
+        obj.value(QStringLiteral("seek_index_good_samples")).toInt(0);
+    meta.seekIndexBadSamples = obj.value(QStringLiteral("seek_index_bad_samples")).toInt(0);
+    meta.seekIndexGlobalBiasBytes =
+        static_cast<qint64>(obj.value(QStringLiteral("seek_index_global_bias_bytes")).toDouble(0));
+    meta.seekIndexGlobalBiasMs =
+        static_cast<qint64>(obj.value(QStringLiteral("seek_index_global_bias_ms")).toDouble(0));
+    meta.seekIndexCorrectionUpdatedAtMs = static_cast<qint64>(
+        obj.value(QStringLiteral("seek_index_correction_updated_at_ms")).toDouble(0));
     const QJsonArray pointsArray = obj.value(QStringLiteral("seek_index_points")).toArray();
     meta.seekIndexPoints.reserve(pointsArray.size());
     for (const QJsonValue& value : pointsArray) {
@@ -2425,6 +2937,20 @@ bool AudioCacheManager::loadTrackMeta(const QString& cacheKey, TrackMeta* out) c
             continue;
         }
         meta.seekIndexPoints.push_back(TrackMeta::SeekIndexPoint{timeMs, byteOffset});
+    }
+    const QJsonArray localPointsArray =
+        obj.value(QStringLiteral("local_seek_points")).toArray();
+    meta.localSeekPoints.reserve(localPointsArray.size());
+    for (const QJsonValue& value : localPointsArray) {
+        const QJsonObject pointObj = value.toObject();
+        const qint64 timeMs =
+            static_cast<qint64>(pointObj.value(QStringLiteral("time_ms")).toDouble(-1));
+        const qint64 byteOffset =
+            static_cast<qint64>(pointObj.value(QStringLiteral("byte_offset")).toDouble(-1));
+        if (timeMs < 0 || byteOffset < 0) {
+            continue;
+        }
+        meta.localSeekPoints.push_back(TrackMeta::SeekIndexPoint{timeMs, byteOffset});
     }
 
     {
@@ -2454,6 +2980,14 @@ void AudioCacheManager::persistTrackMeta(const QString& cacheKey, const TrackMet
     obj.insert(QStringLiteral("seek_index_file_size"), static_cast<double>(meta.seekIndexFileSize));
     obj.insert(QStringLiteral("seek_index_version"), meta.seekIndexVersion);
     obj.insert(QStringLiteral("seek_index_music_path"), meta.seekIndexMusicPath);
+    obj.insert(QStringLiteral("seek_index_good_samples"), meta.seekIndexGoodSamples);
+    obj.insert(QStringLiteral("seek_index_bad_samples"), meta.seekIndexBadSamples);
+    obj.insert(QStringLiteral("seek_index_global_bias_bytes"),
+               static_cast<double>(meta.seekIndexGlobalBiasBytes));
+    obj.insert(QStringLiteral("seek_index_global_bias_ms"),
+               static_cast<double>(meta.seekIndexGlobalBiasMs));
+    obj.insert(QStringLiteral("seek_index_correction_updated_at_ms"),
+               static_cast<double>(meta.seekIndexCorrectionUpdatedAtMs));
 
     QJsonArray pointsArray;
     for (const TrackMeta::SeekIndexPoint& point : meta.seekIndexPoints) {
@@ -2463,6 +2997,15 @@ void AudioCacheManager::persistTrackMeta(const QString& cacheKey, const TrackMet
         pointsArray.append(pointObj);
     }
     obj.insert(QStringLiteral("seek_index_points"), pointsArray);
+
+    QJsonArray localPointsArray;
+    for (const TrackMeta::SeekIndexPoint& point : meta.localSeekPoints) {
+        QJsonObject pointObj;
+        pointObj.insert(QStringLiteral("time_ms"), static_cast<double>(point.timeMs));
+        pointObj.insert(QStringLiteral("byte_offset"), static_cast<double>(point.byteOffset));
+        localPointsArray.append(pointObj);
+    }
+    obj.insert(QStringLiteral("local_seek_points"), localPointsArray);
 
     file.write(QJsonDocument(obj).toJson(QJsonDocument::Compact));
     file.close();

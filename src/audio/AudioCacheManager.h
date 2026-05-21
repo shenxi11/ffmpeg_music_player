@@ -2,14 +2,17 @@
 #define AUDIO_CACHE_MANAGER_H
 
 #include <QHash>
+#include <QMap>
 #include <QMutex>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
 #include <QObject>
 #include <QPointer>
 #include <QSet>
 #include <QUrl>
 #include <QVector>
+#include <atomic>
+#include <memory>
+
+#include "network/curl_network_transport.h"
 
 class QTcpServer;
 class QTcpSocket;
@@ -40,10 +43,18 @@ class AudioCacheManager : public QObject {
     struct DirectSeekHint {
         bool valid = false;
         bool seekIndexHit = false;
+        bool exact = false;
         bool registeredHint = false;
+        int confidenceScore = 0;
+        QString confidenceReason;
         int generation = 0;
         qint64 targetMs = -1;
         qint64 targetByte = -1;
+        qint64 rawTargetByte = -1;
+        qint64 correctedTargetByte = -1;
+        qint64 correctionBytes = 0;
+        qint64 anchorTimeMs = -1;
+        qint64 preRollMs = -1;
         qint64 contentLength = -1;
     };
 
@@ -51,13 +62,21 @@ class AudioCacheManager : public QObject {
         bool hasHint = false;
         bool targetMatches = false;
         bool seekIndexHit = false;
+        bool exact = false;
         bool takeoverStarted = false;
         bool takeoverPending = false;
         bool takeoverHeadersSent = false;
+        int confidenceScore = 0;
+        QString confidenceReason;
         int generation = 0;
         int activeProxyStreams = 0;
         qint64 targetMs = -1;
         qint64 targetByte = -1;
+        qint64 rawTargetByte = -1;
+        qint64 correctedTargetByte = -1;
+        qint64 correctionBytes = 0;
+        qint64 anchorTimeMs = -1;
+        qint64 preRollMs = -1;
         qint64 proxyOriginalRangeStart = -1;
         qint64 proxyEffectiveRangeStart = -1;
         qint64 takeoverAgeMs = -1;
@@ -74,21 +93,29 @@ class AudioCacheManager : public QObject {
     // Save known duration to improve byte-range estimation.
     void noteTrackDuration(const QUrl& originalUrl, qint64 durationMs);
 
+    // Return known duration from track metadata without triggering network I/O.
+    qint64 knownTrackDuration(const QUrl& originalUrl) const;
+
+    void noteSeekIndexObservation(const QUrl& originalUrl, qint64 targetMs, qint64 hintedByte,
+                                  qint64 firstDecodedMs, bool accepted, int generation);
+
     bool hasResolvedSeekIndexForPlaybackUrl(const QUrl& playbackUrl) const;
 
   signals:
     void fullFileCacheReady(const QUrl& originalUrl, const QUrl& localFileUrl);
 
   private slots:
-    void onDownloadFinished(QNetworkReply* reply);
-    void onSeekIndexReplyFinished();
     void onProxySocketReadyRead();
     void onProxySocketDisconnected();
     void onProxySocketDestroyed(QObject* obj);
-    void onProxyUpstreamReadyRead();
-    void onProxyUpstreamFinished();
 
   private:
+    enum class CacheRequestPriority {
+        Low,
+        Normal,
+        High
+    };
+
     struct DownloadTask {
         QString cacheKey;
         QUrl originalUrl;
@@ -115,6 +142,28 @@ class AudioCacheManager : public QObject {
             qint64 byteOffset = 0;
         };
         QVector<SeekIndexPoint> seekIndexPoints;
+        QVector<SeekIndexPoint> localSeekPoints;
+        int seekIndexGoodSamples = 0;
+        int seekIndexBadSamples = 0;
+        qint64 seekIndexGlobalBiasBytes = 0;
+        qint64 seekIndexGlobalBiasMs = 0;
+        qint64 seekIndexCorrectionUpdatedAtMs = 0;
+    };
+
+    struct SeekIndexEstimate {
+        bool hit = false;
+        bool exact = false;
+        int confidenceScore = 0;
+        QString confidenceReason;
+        qint64 rawTargetByte = -1;
+        qint64 correctedTargetByte = -1;
+        qint64 correctionBytes = 0;
+        qint64 previousTimeMs = -1;
+        qint64 nextTimeMs = -1;
+        qint64 previousByte = -1;
+        qint64 nextByte = -1;
+        qint64 anchorTimeMs = -1;
+        qint64 preRollMs = -1;
     };
 
     struct SeekIndexRequest {
@@ -127,6 +176,14 @@ class AudioCacheManager : public QObject {
         qint64 targetByte = -1;
         qint64 contentLength = -1;
         bool seekIndexHit = false;
+        bool exact = false;
+        int confidenceScore = 0;
+        QString confidenceReason;
+        qint64 rawTargetByte = -1;
+        qint64 correctedTargetByte = -1;
+        qint64 correctionBytes = 0;
+        qint64 anchorTimeMs = -1;
+        qint64 preRollMs = -1;
         int generation = 0;
         qint64 expiresAtMs = 0;
         qint64 takeoverAtMs = 0;
@@ -143,6 +200,7 @@ class AudioCacheManager : public QObject {
         bool upstreamHeadersValidated = false;
         qint64 bytesForwarded = 0;
         qint64 upstreamBytesForwarded = 0;
+        QByteArray pendingBody;
         QByteArray collectedForCache;
         QByteArray cacheWriteBuffer;
         bool hasRange = false;
@@ -181,15 +239,29 @@ class AudioCacheManager : public QObject {
     QString musicPathForSeekIndexUrl(const QUrl& url) const;
     bool shouldRefreshSeekIndex(const TrackMeta& meta) const;
     void ensureSeekIndex(const QUrl& originalUrl, const QString& cacheKey, qint64 knownDurationMs);
-    qint64 estimateCenterByteFromSeekIndex(const TrackMeta& meta, qint64 targetMs) const;
+    qint64 estimateRawByteFromSeekIndex(const TrackMeta& meta, qint64 targetMs,
+                                        SeekIndexEstimate* estimate = nullptr) const;
+    SeekIndexEstimate estimateCenterByteFromSeekIndex(const TrackMeta& meta,
+                                                      qint64 targetMs) const;
     void registerSeekHint(const QUrl& originalUrl, const QString& cacheKey, qint64 targetMs,
-                          qint64 targetByte, qint64 contentLength, bool seekIndexHit);
+                          qint64 contentLength, const SeekIndexEstimate& estimate);
     bool resolveSeekHintForRange(const QString& cacheKey, qint64 requestStart, qint64 knownTotal,
                                  SeekHint* out) const;
     void markSeekHintTakeover(const QString& cacheKey, const SeekHint& hint);
     void markSeekHintHeadersSent(const QString& cacheKey, int generation);
     void cancelProxyStreamsForCacheKey(const QString& cacheKey);
     void cancelBackgroundRangesForCacheKey(const QString& cacheKey);
+    quint64 nextRequestId();
+    std::shared_ptr<std::atomic_bool> registerAbortFlag(quint64 requestId);
+    void abortRequest(quint64 requestId);
+    void launchDownloadTask(quint64 requestId, const DownloadTask& task,
+                            const CurlNetworkTransport::Request& request);
+    void handleDownloadResponse(quint64 requestId,
+                                const CurlNetworkTransport::Response& response);
+    void launchSeekIndexRequest(quint64 requestId, const SeekIndexRequest& requestInfo,
+                                const CurlNetworkTransport::Request& request);
+    void handleSeekIndexResponse(quint64 requestId,
+                                 const CurlNetworkTransport::Response& response);
 
     QString legacyFullCachePathForUrl(const QUrl& url) const;
     bool hasValidFullCache(const QUrl& url, qint64 expectedSize = -1) const;
@@ -198,10 +270,10 @@ class AudioCacheManager : public QObject {
     QString chunkFilePath(const QString& cacheKey, qint64 chunkIndex) const;
     bool hasChunk(const QString& cacheKey, qint64 chunkIndex) const;
     void queueFullFileDownload(const QUrl& url, const QString& cacheKey, qint64 contentLength,
-                               QNetworkRequest::Priority priority = QNetworkRequest::LowPriority);
+                               CacheRequestPriority priority = CacheRequestPriority::Low);
     void queueChunkDownload(const QUrl& url, const QString& cacheKey, qint64 chunkIndex,
                             qint64 startByte, qint64 endByte,
-                            QNetworkRequest::Priority priority = QNetworkRequest::LowPriority);
+                            CacheRequestPriority priority = CacheRequestPriority::Low);
 
     void ensureTrackMeta(const QUrl& url, const QString& cacheKey);
     void updateTrackMeta(const QString& cacheKey, qint64 contentLength, qint64 durationMs);
@@ -217,7 +289,13 @@ class AudioCacheManager : public QObject {
     void onProxySocketReadyRead(QTcpSocket* socket);
     void handleProxyRequest(QTcpSocket* socket, const QByteArray& requestHeaders);
     void startProxyUpstreamRequest(const ProxyStreamState& state);
-    bool ensureProxyHeadersSent(QNetworkReply* reply, ProxyStreamState* state);
+    void handleProxyHeaders(quint64 requestId, int statusCode,
+                            const QMap<QString, QString>& headers);
+    void handleProxyData(quint64 requestId, const QByteArray& chunk);
+    void handleProxyFinished(quint64 requestId, const CurlNetworkTransport::Response& response);
+    bool ensureProxyHeadersSent(int upstreamStatus, const QMap<QString, QString>& headers,
+                                ProxyStreamState* state);
+    void forwardProxyChunk(ProxyStreamState* state, const QByteArray& chunk);
     bool tryResumeProxyUpstream(ProxyStreamState* state, const QString& reason);
     bool tryServeCachedRange(QTcpSocket* socket, const QString& cacheKey,
                              const QByteArray& contentType, qint64 rangeStart, qint64 rangeEnd,
@@ -230,7 +308,8 @@ class AudioCacheManager : public QObject {
     void persistAlignedProxyChunk(const ProxyStreamState& state);
     void persistProxyCacheChunk(const QString& cacheKey, qint64 chunkIndex,
                                 const QByteArray& payload);
-    void updateTrackMetaFromProxyReply(const QString& cacheKey, QNetworkReply* reply);
+    void updateTrackMetaFromProxyHeaders(const QString& cacheKey,
+                                         const QMap<QString, QString>& headers);
     bool parseHttpRange(const QByteArray& rangeHeader, qint64* start, qint64* end) const;
     void sendProxyError(QTcpSocket* socket, int statusCode, const QByteArray& reason) const;
     QByteArray buildHttpHeaders(int statusCode, const QByteArray& reason,
@@ -240,9 +319,10 @@ class AudioCacheManager : public QObject {
   private:
     QString m_cacheDirectory;
     QString m_chunkRootDirectory;
-    QNetworkAccessManager m_networkManager;
-    QHash<QNetworkReply*, DownloadTask> m_downloadTasks;
-    QHash<QNetworkReply*, SeekIndexRequest> m_seekIndexRequests;
+    quint64 m_nextRequestId = 1;
+    QHash<quint64, DownloadTask> m_downloadTasks;
+    QHash<quint64, SeekIndexRequest> m_seekIndexRequests;
+    QHash<quint64, std::shared_ptr<std::atomic_bool>> m_abortFlags;
     QSet<QString> m_inflightChunkKeys;
     QHash<QString, TrackMeta> m_trackMetaCache;
 
@@ -253,7 +333,7 @@ class AudioCacheManager : public QObject {
     mutable QTcpServer* m_proxyServer = nullptr;
     mutable quint16 m_proxyPort = 0;
     mutable QHash<QTcpSocket*, QByteArray> m_proxyReadBuffers;
-    QHash<QNetworkReply*, ProxyStreamState> m_proxyStreamStates;
+    QHash<quint64, ProxyStreamState> m_proxyStreamStates;
     QVector<MemoryRangeWindow> m_memoryRangeWindows;
     QHash<QString, SeekHint> m_seekHints;
     int m_seekHintGeneration = 0;

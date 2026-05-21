@@ -39,7 +39,6 @@ class PlaybackStateManager;
 class QCloseEvent;
 class QTimer;
 class QUrl;
-class QNetworkAccessManager;
 class QScrollArea;
 class QVBoxLayout;
 class QLabel;
@@ -144,7 +143,6 @@ class MainWidget : public QWidget {
     QHash<qint64, QString> m_playlistDerivedCoverUrls;
     QSet<qint64> m_playlistCoverPrefetchInFlight;
     QSet<qint64> m_playlistCoverPrefetchResolved;
-    QNetworkAccessManager* m_sidebarCoverNetworkManager = nullptr;
     QHash<QString, QIcon> m_sidebarCoverIconCache;
     QSet<QString> m_sidebarCoverRequestsInFlight;
     bool m_localOnlyMode = false;
@@ -239,7 +237,7 @@ class MainWidget : public QWidget {
     void handleLocalAndDownloadPlayMusic(const QString& filename);
     void handleLocalAndDownloadDeleteMusic(const QString& filename);
     void handleNetListPlayClick(const QString& name, const QString& artist, const QString& cover,
-                                bool flag, const QString& originalMusicPath);
+                                bool flag, const QString& originalMusicPath, int durationSec);
     void handleHistoryPlayMusic(const QString& filePath);
     void handleHistoryPlayMusicWithMetadata(const QString& filePath, const QString& title,
                                             const QString& artist, const QString& cover);
@@ -342,7 +340,9 @@ class MainWidget : public QWidget {
     void openCommentContentPage();
     void closeCommentContentPage(bool restorePrevious);
     void rememberPlaybackQueueMetadata(const QString& filePath, const QString& title,
-                                       const QString& artist, const QString& cover);
+                                       const QString& artist, const QString& cover,
+                                       int durationSec = 0,
+                                       const QString& durationText = QString());
 
     // 主窗口首页联动处理（替代构造函数内大段 lambda）。
     void handlePlaybackPauseAudioRequested();

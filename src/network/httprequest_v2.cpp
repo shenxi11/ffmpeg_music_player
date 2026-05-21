@@ -12,19 +12,18 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QHash>
-#include <QHttpMultiPart>
-#include <QHttpPart>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QMetaObject>
 #include <QMimeDatabase>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
-#include <QNetworkRequest>
 #include <QSet>
 #include <QStringList>
+#include <QtConcurrent>
 #include <QUrl>
 #include <QUrlQuery>
+
+#include "curl_network_transport.h"
 
 namespace {
 QString readArtistFromObject(const QJsonObject& obj);
@@ -170,6 +169,16 @@ QString formatDurationFromSeconds(int totalSeconds) {
     if (totalSeconds <= 0) {
         return QString();
     }
+    if (totalSeconds >= 3600) {
+        const int hours = totalSeconds / 3600;
+        const int minutes = (totalSeconds % 3600) / 60;
+        const int seconds = totalSeconds % 60;
+        return QString("%1:%2:%3")
+            .arg(hours, 2, 10, QLatin1Char('0'))
+            .arg(minutes, 2, 10, QLatin1Char('0'))
+            .arg(seconds, 2, 10, QLatin1Char('0'));
+    }
+
     const int minutes = totalSeconds / 60;
     const int seconds = totalSeconds % 60;
     return QString("%1:%2")
@@ -177,54 +186,119 @@ QString formatDurationFromSeconds(int totalSeconds) {
         .arg(seconds, 2, 10, QLatin1Char('0'));
 }
 
-QString durationTextFromValue(const QJsonValue& value) {
-    if (value.isUndefined() || value.isNull()) {
-        return QString();
-    }
-
-    if (value.isDouble()) {
-        return formatDurationFromSeconds(static_cast<int>(value.toDouble()));
-    }
-
-    QString text = value.toString().trimmed();
+int parseDurationSecFromText(const QString& textValue) {
+    QString text = textValue.trimmed();
     if (text.isEmpty()) {
-        return QString();
+        return 0;
     }
+    if (text.compare(QStringLiteral("error"), Qt::CaseInsensitive) == 0 ||
+        text.compare(QStringLiteral("null"), Qt::CaseInsensitive) == 0 ||
+        text.compare(QStringLiteral("undefined"), Qt::CaseInsensitive) == 0) {
+        return 0;
+    }
+
+    text.replace(QStringLiteral("秒"), QString());
+    text.replace(QStringLiteral("seconds"), QString(), Qt::CaseInsensitive);
+    text.replace(QStringLiteral("second"), QString(), Qt::CaseInsensitive);
+    text.replace(QStringLiteral("secs"), QString(), Qt::CaseInsensitive);
+    text.replace(QStringLiteral("sec"), QString(), Qt::CaseInsensitive);
+    text = text.trimmed();
 
     if (text.contains(':')) {
-        return text;
+        const QStringList parts = text.split(':', Qt::SkipEmptyParts);
+        bool ok = true;
+        int seconds = 0;
+        if (parts.size() == 2) {
+            bool okMin = false;
+            bool okSec = false;
+            const int minutes = parts.at(0).toInt(&okMin);
+            const int sec = parts.at(1).toInt(&okSec);
+            ok = okMin && okSec;
+            seconds = minutes * 60 + sec;
+        } else if (parts.size() == 3) {
+            bool okHour = false;
+            bool okMin = false;
+            bool okSec = false;
+            const int hours = parts.at(0).toInt(&okHour);
+            const int minutes = parts.at(1).toInt(&okMin);
+            const int sec = parts.at(2).toInt(&okSec);
+            ok = okHour && okMin && okSec;
+            seconds = hours * 3600 + minutes * 60 + sec;
+        } else {
+            ok = false;
+        }
+        return ok ? qMax(0, seconds) : 0;
     }
 
     bool ok = false;
     const double asSec = text.toDouble(&ok);
     if (ok) {
-        return formatDurationFromSeconds(static_cast<int>(asSec));
+        return qMax(0, static_cast<int>(asSec + 0.5));
     }
 
     const QStringList parts = text.split(' ', Qt::SkipEmptyParts);
     if (!parts.isEmpty()) {
         const double secFromText = parts.first().toDouble(&ok);
         if (ok) {
-            return formatDurationFromSeconds(static_cast<int>(secFromText));
+            return qMax(0, static_cast<int>(secFromText + 0.5));
         }
     }
 
-    return QString();
+    return 0;
+}
+
+int parseDurationSecFromValue(const QJsonValue& value, bool milliseconds = false) {
+    if (value.isUndefined() || value.isNull()) {
+        return 0;
+    }
+
+    if (value.isDouble()) {
+        const double raw = value.toDouble();
+        return qMax(0, static_cast<int>((milliseconds ? raw / 1000.0 : raw) + 0.5));
+    }
+
+    const QString text = value.toString().trimmed();
+    if (text.isEmpty()) {
+        return 0;
+    }
+
+    if (milliseconds) {
+        bool ok = false;
+        const double rawMs = text.toDouble(&ok);
+        if (ok) {
+            return qMax(0, static_cast<int>(rawMs / 1000.0 + 0.5));
+        }
+    }
+
+    return parseDurationSecFromText(text);
+}
+
+int parseDurationSecFromObject(const QJsonObject& obj) {
+    const int durationSec = parseDurationSecFromValue(obj.value(QStringLiteral("duration_sec")));
+    if (durationSec > 0) {
+        return durationSec;
+    }
+
+    const int durationMs = parseDurationSecFromValue(obj.value(QStringLiteral("duration_ms")), true);
+    if (durationMs > 0) {
+        return durationMs;
+    }
+
+    const int camelDurationMs =
+        parseDurationSecFromValue(obj.value(QStringLiteral("durationMs")), true);
+    if (camelDurationMs > 0) {
+        return camelDurationMs;
+    }
+
+    return parseDurationSecFromValue(obj.value(QStringLiteral("duration")));
+}
+
+QString durationTextFromValue(const QJsonValue& value) {
+    return formatDurationFromSeconds(parseDurationSecFromValue(value));
 }
 
 QString readDurationFromObject(const QJsonObject& obj) {
-    static const QStringList keys = {"duration", "duration_sec", "durationSec", "duration_ms",
-                                     "durationMs"};
-    for (const QString& key : keys) {
-        if (!obj.contains(key)) {
-            continue;
-        }
-        const QString duration = durationTextFromValue(obj.value(key));
-        if (!duration.isEmpty()) {
-            return duration;
-        }
-    }
-    return QString();
+    return formatDurationFromSeconds(parseDurationSecFromObject(obj));
 }
 
 QString normalizeArtist(const QString& artist) {
@@ -409,49 +483,7 @@ QString parseMessageText(const QJsonObject& obj, const QString& fallback = QStri
 }
 
 int durationSecondsFromText(const QString& duration) {
-    const QString text = duration.trimmed();
-    if (text.isEmpty()) {
-        return 0;
-    }
-
-    if (text.contains(':')) {
-        const QStringList parts = text.split(':', Qt::SkipEmptyParts);
-        if (parts.size() == 2) {
-            bool okMin = false;
-            bool okSec = false;
-            const int minutes = parts[0].toInt(&okMin);
-            const int seconds = parts[1].toInt(&okSec);
-            if (okMin && okSec) {
-                return qMax(0, minutes * 60 + seconds);
-            }
-        } else if (parts.size() == 3) {
-            bool okHour = false;
-            bool okMin = false;
-            bool okSec = false;
-            const int hours = parts[0].toInt(&okHour);
-            const int minutes = parts[1].toInt(&okMin);
-            const int seconds = parts[2].toInt(&okSec);
-            if (okHour && okMin && okSec) {
-                return qMax(0, hours * 3600 + minutes * 60 + seconds);
-            }
-        }
-    }
-
-    bool ok = false;
-    const double asDouble = text.toDouble(&ok);
-    if (ok) {
-        return qMax(0, static_cast<int>(asDouble));
-    }
-
-    const QStringList split = text.split(' ', Qt::SkipEmptyParts);
-    if (!split.isEmpty()) {
-        const double head = split.first().toDouble(&ok);
-        if (ok) {
-            return qMax(0, static_cast<int>(head));
-        }
-    }
-
-    return 0;
+    return parseDurationSecFromText(duration);
 }
 
 QString rewriteServiceUrlToBase(const QString& rawUrl, const QString& baseUrl) {
@@ -814,7 +846,6 @@ void HttpRequestV2::getAllFiles(bool useCache) {
                     QJsonObject fileObj = value.toObject();
                     QString filePath = fileObj["path"].toString();
                     filePath = normalizeOnlineMediaPath(filePath, m_baseUrl);
-                    QString durationStr = fileObj["duration"].toString();
                     QString coverUrl =
                         rewriteServiceUrlToBase(fileObj["cover_art_url"].toString(), m_baseUrl);
                     rememberCoverForMusicPath(filePath, coverUrl);
@@ -823,19 +854,10 @@ void HttpRequestV2::getAllFiles(bool useCache) {
                         artist = QStringLiteral("Unknown Artist");
                     }
 
-                    // 解析时长
-                    double durationValue = 0.0;
-                    if (durationStr != "Error") {
-                        QStringList parts = durationStr.split(" ");
-                        if (!parts.isEmpty()) {
-                            durationValue = parts[0].toDouble();
-                        }
-                    }
-
                     Music music;
                     music.setSongPath(filePath);
                     music.setSinger(artist);
-                    music.setDuration(static_cast<long>(durationValue));
+                    music.setDuration(parseDurationSecFromObject(fileObj));
                     music.setPicPath(coverUrl);
                     rememberCoverForSongMeta(fileNameFromPath(filePath), artist, coverUrl);
 
@@ -1084,7 +1106,9 @@ void HttpRequestV2::getFavorites(const QString& userAccount, bool useCache) {
                 favorite["path"] = path;
                 favorite["title"] = favObj["title"].toString();
                 favorite["artist"] = favObj["artist"].toString();
-                favorite["duration"] = favObj["duration"].toString();
+                const int durationSec = parseDurationSecFromObject(favObj);
+                favorite["duration_sec"] = durationSec;
+                favorite["duration"] = formatDurationFromSeconds(durationSec);
                 favorite["is_local"] = isLocal;
                 favorite["added_at"] = favObj["added_at"].toString();
                 favorite["cover_art_url"] = coverArtUrl;
@@ -1115,18 +1139,7 @@ void HttpRequestV2::addPlayHistory(const QString& userAccount, const QString& pa
     // body: music_path, music_title, artist, album, duration_sec, is_local
     QString url = "user/history/add?user_account=" + QString(QUrl::toPercentEncoding(userAccount));
 
-    int durationSec = 0;
-    const QString trimmedDuration = duration.trimmed();
-    if (trimmedDuration.contains(":")) {
-        const QStringList parts = trimmedDuration.split(":");
-        if (parts.size() >= 2) {
-            durationSec = parts[0].toInt() * 60 + parts[1].toInt();
-        }
-    } else if (trimmedDuration.contains(" ")) {
-        durationSec = static_cast<int>(trimmedDuration.split(" ").first().toDouble());
-    } else {
-        durationSec = trimmedDuration.toInt();
-    }
+    const int durationSec = durationSecondsFromText(duration);
 
     QJsonObject json;
     json["music_path"] = path;
@@ -1207,13 +1220,15 @@ void HttpRequestV2::getPlayHistory(const QString& userAccount, int limit, bool u
                     path = normalized;
                 }
 
-                QString duration = readDurationFromObject(histObj);
-                if (duration.isEmpty()) {
+                int durationSec = parseDurationSecFromObject(histObj);
+                QString duration = formatDurationFromSeconds(durationSec);
+                if (durationSec <= 0 || duration.isEmpty()) {
                     const QString key = normalizeMusicPathForLookup(path);
                     if (!key.isEmpty()) {
                         const QString cachedDuration = localDurationByPath.value(key);
                         if (!cachedDuration.isEmpty()) {
                             duration = cachedDuration;
+                            durationSec = durationSecondsFromText(cachedDuration);
                             qDebug() << "[HttpRequestV2] Filled history duration from local cache:"
                                      << path << duration;
                         }
@@ -1224,6 +1239,7 @@ void HttpRequestV2::getPlayHistory(const QString& userAccount, int limit, bool u
                 historyItem["title"] = histObj["title"].toString();
                 historyItem["artist"] = readArtistFromObject(histObj);
                 historyItem["album"] = histObj["album"].toString();
+                historyItem["duration_sec"] = durationSec;
                 historyItem["duration"] = duration;
                 historyItem["is_local"] = isLocal;
                 historyItem["play_time"] = histObj["play_time"].toString();
@@ -1327,11 +1343,8 @@ void HttpRequestV2::getAudioRecommendations(const QString& userId, const QString
                 streamUrl = normalizeOnlineMediaPath(rawPath, m_baseUrl);
             }
 
-            const double durationSec = itemObj.value(QStringLiteral("duration_sec")).toDouble(0.0);
-            QString durationText = formatDurationFromSeconds(static_cast<int>(durationSec + 0.5));
-            if (durationText.isEmpty()) {
-                durationText = readDurationFromObject(itemObj);
-            }
+            const int durationSec = parseDurationSecFromObject(itemObj);
+            const QString durationText = formatDurationFromSeconds(durationSec);
 
             QVariantMap item;
             item.insert(QStringLiteral("song_id"),
@@ -1443,13 +1456,8 @@ void HttpRequestV2::getSimilarRecommendations(const QString& songId, int limit) 
                     streamUrl = normalizeOnlineMediaPath(rawPath, m_baseUrl);
                 }
 
-                const double durationSec =
-                    itemObj.value(QStringLiteral("duration_sec")).toDouble(0.0);
-                QString durationText =
-                    formatDurationFromSeconds(static_cast<int>(durationSec + 0.5));
-                if (durationText.isEmpty()) {
-                    durationText = readDurationFromObject(itemObj);
-                }
+                const int durationSec = parseDurationSecFromObject(itemObj);
+                const QString durationText = formatDurationFromSeconds(durationSec);
 
                 QVariantMap item;
                 const QString itemSongId = itemObj.value(QStringLiteral("song_id")).toString();
@@ -1559,13 +1567,8 @@ void HttpRequestV2::getHotMusicChart(const QString& window, int limit) {
                         ? rawPath
                         : itemObj.value(QStringLiteral("music_path")).toString().trimmed();
 
-                const double durationSec =
-                    itemObj.value(QStringLiteral("duration_sec")).toDouble(0.0);
-                QString durationText =
-                    formatDurationFromSeconds(static_cast<int>(durationSec + 0.5));
-                if (durationText.isEmpty()) {
-                    durationText = readDurationFromObject(itemObj);
-                }
+                const int durationSec = parseDurationSecFromObject(itemObj);
+                const QString durationText = formatDurationFromSeconds(durationSec);
 
                 QString coverArtUrl = rewriteServiceUrlToBase(
                     itemObj.value(QStringLiteral("cover_art_url")).toString(), m_baseUrl);
@@ -1850,17 +1853,7 @@ void HttpRequestV2::getMusicByArtist(const QString& artist) {
                     if (artistName.trimmed().isEmpty()) {
                         artistName = QStringLiteral("Unknown Artist");
                     }
-                    const QString durationText = readDurationFromObject(obj);
-                    int durationSec = 0;
-                    if (!durationText.isEmpty()) {
-                        const QStringList parts = durationText.split(':');
-                        if (parts.size() == 2) {
-                            durationSec = parts[0].toInt() * 60 + parts[1].toInt();
-                        }
-                    }
-                    if (durationSec <= 0 && obj.value("duration").isDouble()) {
-                        durationSec = static_cast<int>(obj.value("duration").toDouble());
-                    }
+                    const int durationSec = parseDurationSecFromObject(obj);
 
                     QString coverRaw = obj.value("cover_art_url").toString();
                     if (coverRaw.trimmed().isEmpty()) {
@@ -2230,7 +2223,6 @@ void HttpRequestV2::getMusic(const QString& keyword) {
                         QJsonObject fileObj = value.toObject();
                         QString filePath = fileObj["path"].toString();
                         filePath = normalizeOnlineMediaPath(filePath, m_baseUrl);
-                        QString durationStr = fileObj["duration"].toString();
                         QString coverUrl =
                             rewriteServiceUrlToBase(fileObj["cover_art_url"].toString(), m_baseUrl);
                         rememberCoverForMusicPath(filePath, coverUrl);
@@ -2239,23 +2231,10 @@ void HttpRequestV2::getMusic(const QString& keyword) {
                             artist = QStringLiteral("Unknown Artist");
                         }
 
-                        // 解析时长字符串："239.49 seconds" -> 秒数
-                        double durationValue = 0.0;
-                        if (durationStr != "Error") {
-                            QStringList parts = durationStr.split(" ");
-                            if (!parts.isEmpty()) {
-                                durationValue = parts[0].toDouble();
-                            }
-                        }
-
-                        int totalSeconds = static_cast<int>(durationValue);
-                        int minutes = totalSeconds / 60;
-                        int seconds = totalSeconds % 60;
-
                         // 使用 Music 的 setter 方法设置属性
                         Music music;
                         music.setSongPath(filePath);
-                        music.setDuration(totalSeconds * 1000); // 转换为毫秒
+                        music.setDuration(parseDurationSecFromObject(fileObj));
                         music.setPicPath(coverUrl);
                         music.setSinger(artist);
 
@@ -2549,12 +2528,9 @@ QVariantMap HttpRequestV2::parsePlaylistDetailPayload(const Network::NetworkResp
             musicPath = normalizeOnlineMediaPath(musicPath, m_baseUrl);
         }
 
-        QString durationText = readDurationFromObject(obj);
-        if (durationText.isEmpty()) {
-            durationText =
-                formatDurationFromSeconds(obj.value(QStringLiteral("duration_sec")).toInt());
-        }
-        totalDurationSec += obj.value(QStringLiteral("duration_sec")).toInt();
+        const int durationSec = parseDurationSecFromObject(obj);
+        const QString durationText = formatDurationFromSeconds(durationSec);
+        totalDurationSec += durationSec;
 
         QString coverArtUrl = rewriteServiceUrlToBase(
             obj.value(QStringLiteral("cover_art_url")).toString(), m_baseUrl);
@@ -2595,8 +2571,7 @@ QVariantMap HttpRequestV2::parsePlaylistDetailPayload(const Network::NetworkResp
         item.insert(QStringLiteral("artist"), readArtistFromObject(obj));
         item.insert(QStringLiteral("album"), obj.value(QStringLiteral("album")).toString());
         item.insert(QStringLiteral("duration"), durationText);
-        item.insert(QStringLiteral("duration_sec"),
-                    obj.value(QStringLiteral("duration_sec")).toInt());
+        item.insert(QStringLiteral("duration_sec"), durationSec);
         item.insert(QStringLiteral("is_local"), isLocal);
         item.insert(QStringLiteral("added_at"), obj.value(QStringLiteral("added_at")).toString());
         item.insert(QStringLiteral("cover_art_url"), coverArtUrl);
@@ -3119,66 +3094,51 @@ void HttpRequestV2::uploadAvatar(const QString& account, const QString& sessionT
         return;
     }
 
-    auto* file = new QFile(trimmedFilePath);
-    if (!file->open(QIODevice::ReadOnly)) {
-        file->deleteLater();
+    QFile file(trimmedFilePath);
+    if (!file.open(QIODevice::ReadOnly)) {
         emit signalUploadAvatarResult(false, QString(), QStringLiteral("头像文件无法读取"), 400);
         return;
     }
-
-    QHttpPart accountPart;
-    accountPart.setHeader(QNetworkRequest::ContentDispositionHeader,
-                          QVariant(QStringLiteral("form-data; name=\"account\"")));
-    accountPart.setBody(trimmedAccount.toUtf8());
-
-    QHttpPart tokenPart;
-    tokenPart.setHeader(QNetworkRequest::ContentDispositionHeader,
-                        QVariant(QStringLiteral("form-data; name=\"session_token\"")));
-    tokenPart.setBody(trimmedToken.toUtf8());
+    file.close();
 
     QMimeDatabase mimeDatabase;
     const QString mimeType = mimeDatabase.mimeTypeForFile(trimmedFilePath).name();
 
-    QHttpPart avatarPart;
-    avatarPart.setHeader(QNetworkRequest::ContentTypeHeader,
-                         mimeType.isEmpty() ? QVariant(QStringLiteral("application/octet-stream"))
-                                            : QVariant(mimeType));
-    avatarPart.setHeader(QNetworkRequest::ContentDispositionHeader,
-                         QVariant(QStringLiteral("form-data; name=\"avatar\"; filename=\"%1\"")
-                                      .arg(QFileInfo(trimmedFilePath).fileName())));
-    avatarPart.setBodyDevice(file);
+    CurlNetworkTransport::Request request;
+    request.url = m_baseUrl + QStringLiteral("users/profile/avatar");
+    request.method = QStringLiteral("POST");
+    request.timeoutMs = 30000;
+    request.multipartParts = {
+        CurlNetworkTransport::MultipartPart{QStringLiteral("account"), trimmedAccount.toUtf8(),
+                                            QString(), QString(), QString(), false},
+        CurlNetworkTransport::MultipartPart{QStringLiteral("session_token"), trimmedToken.toUtf8(),
+                                            QString(), QString(), QString(), false},
+        CurlNetworkTransport::MultipartPart{QStringLiteral("avatar"), QByteArray(), trimmedFilePath,
+                                            QFileInfo(trimmedFilePath).fileName(),
+                                            mimeType.isEmpty()
+                                                ? QStringLiteral("application/octet-stream")
+                                                : mimeType,
+                                            true}
+    };
 
-    auto* multiPart = new QHttpMultiPart(QHttpMultiPart::FormDataType);
-    multiPart->append(accountPart);
-    multiPart->append(tokenPart);
-    multiPart->append(avatarPart);
-    file->setParent(multiPart);
-
-    auto* manager = new QNetworkAccessManager(this);
-    QNetworkRequest request(QUrl(m_baseUrl + QStringLiteral("users/profile/avatar")));
-    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
-                         QNetworkRequest::NoLessSafeRedirectPolicy);
-
-    QNetworkReply* reply = manager->post(request, multiPart);
-    multiPart->setParent(reply);
-
-    connect(reply, &QNetworkReply::finished, this, [this, reply, manager]() {
-        const int statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-        const QByteArray body = reply->readAll();
+    QtConcurrent::run([this, request]() {
+        const CurlNetworkTransport::Response response = CurlNetworkTransport::perform(request);
+        QMetaObject::invokeMethod(this, [this, response]() {
+        const int statusCode = response.statusCode;
+        const QByteArray body = response.body;
         const QJsonDocument doc = QJsonDocument::fromJson(body);
         const QJsonObject rootObj = doc.isObject() ? doc.object() : QJsonObject();
-        const bool success =
-            reply->error() == QNetworkReply::NoError && parseSuccessFlag(rootObj, true);
-        const QString fallbackMessage = reply->error() == QNetworkReply::NoError
+        const bool success = response.error == CurlNetworkTransport::Error::NoError &&
+                             parseSuccessFlag(rootObj, true);
+        const QString fallbackMessage = response.error == CurlNetworkTransport::Error::NoError
                                             ? QStringLiteral("头像上传失败")
-                                            : reply->errorString();
+                                            : response.errorString;
         const QString message = parseMessageText(rootObj, fallbackMessage);
         const QString avatarUrl = rewriteServiceUrlToBase(
             unwrapDataObject(rootObj).value(QStringLiteral("avatar_url")).toString(), m_baseUrl);
 
         emit signalUploadAvatarResult(success, success ? avatarUrl : QString(), message,
                                       statusCode);
-        reply->deleteLater();
-        manager->deleteLater();
+        }, Qt::QueuedConnection);
     });
 }

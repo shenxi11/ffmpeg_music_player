@@ -36,6 +36,7 @@ VideoPlayerWindow::VideoPlayerWindow(QWidget* parent)
 
 VideoPlayerWindow::~VideoPlayerWindow() {
     qDebug() << "[VideoPlayerWindow] Destructor";
+    releaseMediaSession();
 }
 
 void VideoPlayerWindow::setupUI() {
@@ -251,11 +252,7 @@ void VideoPlayerWindow::loadVideo(const QString& filePath) {
 
     qDebug() << "[VideoPlayerWindow] Loading video:" << filePath;
 
-    if (m_mediaSession) {
-        m_mediaSession->stop();
-        delete m_mediaSession;
-        m_mediaSession = nullptr;
-    }
+    releaseMediaSession();
 
     m_isPlaying = false;
     m_currentPosition = 0;
@@ -306,6 +303,11 @@ void VideoPlayerWindow::loadVideo(const QString& filePath) {
     }
     if (!m_mediaSession->loadSource(url)) {
         qWarning() << "[VideoPlayerWindow] Failed to load video";
+        releaseMediaSession();
+        m_currentFilePath.clear();
+        if (m_fileNameLabel) {
+            m_fileNameLabel->setText(QStringLiteral(u"\u672a\u52a0\u8f7d\u89c6\u9891"));
+        }
         return;
     }
 
@@ -757,6 +759,24 @@ void VideoPlayerWindow::recoverRendererAfterWindowModeChange() {
     m_renderWidget->update();
 }
 
+void VideoPlayerWindow::releaseMediaSession() {
+    if (m_renderWidget) {
+        m_renderWidget->stop();
+        m_renderWidget->setVideoBuffer(nullptr);
+    }
+
+    if (!m_mediaSession) {
+        return;
+    }
+
+    m_mediaSession->stop();
+    if (m_mediaSession->videoSession()) {
+        m_mediaSession->videoSession()->setVideoRenderer(nullptr);
+    }
+    delete m_mediaSession;
+    m_mediaSession = nullptr;
+}
+
 void VideoPlayerWindow::changeEvent(QEvent* event) {
     QWidget::changeEvent(event);
 
@@ -780,11 +800,7 @@ void VideoPlayerWindow::closeEvent(QCloseEvent* event) {
     }
     emit playStateChanged(false);
 
-    if (m_mediaSession) {
-        m_mediaSession->stop();
-        delete m_mediaSession;
-        m_mediaSession = nullptr;
-    }
+    releaseMediaSession();
 
     m_isPlaying = false;
     m_currentPosition = 0;
@@ -814,10 +830,6 @@ void VideoPlayerWindow::closeEvent(QCloseEvent* event) {
     }
     if (m_fullScreenBtn) {
         m_fullScreenBtn->setText(QStringLiteral(u"\u6700\u5927\u5316"));
-    }
-
-    if (m_renderWidget) {
-        m_renderWidget->stop();
     }
 
     qDebug() << "[VideoPlayerWindow] Window closed, all resources cleaned";

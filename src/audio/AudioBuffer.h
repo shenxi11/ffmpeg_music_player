@@ -10,6 +10,14 @@
 class AudioBuffer
 {
 public:
+    struct BufferStats {
+        int availableBytes = 0;
+        int capacityBytes = 0;
+        int freeBytes = 0;
+        int initialCapacityBytes = 0;
+        int maxCapacityBytes = 0;
+    };
+
     explicit AudioBuffer(int initialCapacity = 64 * 1024, int maxCapacity = 10 * 1024 * 1024);
     ~AudioBuffer() = default;
 
@@ -28,17 +36,26 @@ public:
     // 清空缓冲区
     void clear();
     
-    // 重置缓冲区到初始容量（用于seek后优化）
+    // 清空数据并显式恢复到构造时的初始容量；普通 seek 清空应使用 clear() 保持扩容容量。
     void reset();
     
     // 获取缓冲区容量
-    int capacity() const { return m_capacity; }
+    int capacity() const;
+    int initialCapacity() const;
+    int maxCapacity() const;
+    BufferStats stats() const;
+
+    // 确保总容量至少达到目标值；该操作只扩容，不收缩。
     bool ensureCapacity(int targetCapacityBytes);
 
 private:
+    int clampedDataSizeLocked() const;
+    int availableSpaceLocked() const;
+    BufferStats statsLocked() const;
     bool expandBuffer(int requiredBytes);
     
     mutable QMutex m_mutex;
+    const int m_initialCapacity;
     int m_capacity;
     const int m_maxCapacity;
     QByteArray m_buffer;

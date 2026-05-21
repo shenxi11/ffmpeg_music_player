@@ -34,6 +34,11 @@ class AudioCurlStreamBackend {
         int statusCode = 0;
         qint64 responseStart = -1;
         qint64 totalLength = -1;
+        qint64 elapsedMs = -1;
+        qint64 ttfbMs = -1;
+        qint64 bytesReceived = 0;
+        qint64 bytesDelivered = 0;
+        qint64 avgKiBps = 0;
         QString error;
     };
 
@@ -67,7 +72,12 @@ class AudioCurlStreamBackend {
     QByteArray m_headerBuffer;
     QByteArray m_encodedUrl;
     QByteArray m_rangeSpec;
+    QByteArray m_pendingWriteBuffer;
     qint64 m_requestedOffset = 0;
+    qint64 m_fetchStartedMs = 0;
+    qint64 m_firstBodyByteMs = -1;
+    qint64 m_fetchBytesReceived = 0;
+    qint64 m_fetchBytesDelivered = 0;
     Response* m_activeResponse = nullptr;
     DataCallback m_activeDataCallback;
 

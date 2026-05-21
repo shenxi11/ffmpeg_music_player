@@ -1,9 +1,10 @@
 #include "AudioBuffer.h"
 
 AudioBuffer::AudioBuffer(int initialCapacity, int maxCapacity)
-    : m_capacity(initialCapacity),
-      m_maxCapacity(maxCapacity),
-      m_buffer(initialCapacity, 0),
+    : m_initialCapacity(qMax(1, initialCapacity)),
+      m_capacity(m_initialCapacity),
+      m_maxCapacity(qMax(m_initialCapacity, maxCapacity)),
+      m_buffer(m_initialCapacity, 0),
       m_readPos(0),
       m_writePos(0),
       m_dataSize(0)
@@ -14,12 +15,17 @@ int AudioBuffer::write(const char* data, int bytes)
 {
     QMutexLocker locker(&m_mutex);
     
-    if (bytes <= 0) return 0;
+    if (bytes <= 0) {
+        return 0;
+    }
     
     // 检查是否需要扩容
-    if (availableSpace() < bytes) {
+    if (availableSpaceLocked() < bytes) {
         if (!expandBuffer(bytes)) {
-            qWarning() << "AudioBuffer: Failed to expand buffer";
+            qWarning() << "AudioBuffer: Failed to expand buffer"
+                       << "requestedBytes=" << bytes << "availableBytes=" << m_dataSize
+                       << "capacityBytes=" << m_capacity << "freeBytes=" << availableSpaceLocked()
+                       << "maxCapacityBytes=" << m_maxCapacity;
             return 0;
         }
     }
@@ -49,9 +55,11 @@ int AudioBuffer::read(char* dest, int bytes)
 {
     QMutexLocker locker(&m_mutex);
     
-    if (bytes <= 0 || m_dataSize == 0) return 0;
+    if (bytes <= 0 || m_dataSize == 0) {
+        return 0;
+    }
     
-    int bytesToRead = qMin(bytes, m_dataSize);
+    int bytesToRead = qMin(bytes, clampedDataSizeLocked());
     int bytesRead = 0;
     
     // 分段读取（处理环形边界）
@@ -76,13 +84,13 @@ int AudioBuffer::read(char* dest, int bytes)
 int AudioBuffer::availableBytes() const
 {
     QMutexLocker locker(&m_mutex);
-    return m_dataSize;
+    return clampedDataSizeLocked();
 }
 
 int AudioBuffer::availableSpace() const
 {
-    //QMutexLocker locker(&m_mutex);
-    return m_capacity - m_dataSize;
+    QMutexLocker locker(&m_mutex);
+    return availableSpaceLocked();
 }
 
 void AudioBuffer::clear()
@@ -99,9 +107,10 @@ void AudioBuffer::reset()
     m_readPos = 0;
     m_writePos = 0;
     m_dataSize = 0;
-    m_capacity = 64 * 1024;  // 重置到初始容量
+    m_capacity = m_initialCapacity;
     m_buffer.resize(m_capacity);
-    qDebug() << "AudioBuffer: Reset to initial capacity" << m_capacity;
+    qDebug() << "AudioBuffer: Reset to initial capacity"
+             << "capacityBytes=" << m_capacity << "maxCapacityBytes=" << m_maxCapacity;
 }
 
 bool AudioBuffer::ensureCapacity(int targetCapacityBytes)
@@ -118,23 +127,85 @@ bool AudioBuffer::ensureCapacity(int targetCapacityBytes)
     const int requiredBytes = qMax(0, targetCapacityBytes - m_dataSize);
     const bool ok = expandBuffer(requiredBytes);
     if (ok) {
-        qDebug() << "AudioBuffer: Ensured capacity to" << m_capacity << "bytes";
+        qDebug() << "AudioBuffer: Ensured capacity"
+                 << "targetCapacityBytes=" << targetCapacityBytes
+                 << "capacityBytes=" << m_capacity
+                 << "availableBytes=" << clampedDataSizeLocked()
+                 << "freeBytes=" << availableSpaceLocked()
+                 << "maxCapacityBytes=" << m_maxCapacity;
     }
     return ok;
 }
 
+int AudioBuffer::capacity() const
+{
+    QMutexLocker locker(&m_mutex);
+    return m_capacity;
+}
+
+int AudioBuffer::initialCapacity() const
+{
+    QMutexLocker locker(&m_mutex);
+    return m_initialCapacity;
+}
+
+int AudioBuffer::maxCapacity() const
+{
+    QMutexLocker locker(&m_mutex);
+    return m_maxCapacity;
+}
+
+AudioBuffer::BufferStats AudioBuffer::stats() const
+{
+    QMutexLocker locker(&m_mutex);
+    return statsLocked();
+}
+
+int AudioBuffer::clampedDataSizeLocked() const
+{
+    return qBound(0, m_dataSize, m_capacity);
+}
+
+int AudioBuffer::availableSpaceLocked() const
+{
+    return qMax(0, m_capacity - clampedDataSizeLocked());
+}
+
+AudioBuffer::BufferStats AudioBuffer::statsLocked() const
+{
+    const int available = clampedDataSizeLocked();
+    return {available, m_capacity, qMax(0, m_capacity - available), m_initialCapacity,
+            m_maxCapacity};
+}
+
 bool AudioBuffer::expandBuffer(int requiredBytes)
 {
+    if (requiredBytes <= 0) {
+        return true;
+    }
+
     int newCapacity = m_capacity;
     while (newCapacity - m_dataSize < requiredBytes) {
-        newCapacity *= 2;
+        if (newCapacity > m_maxCapacity / 2) {
+            newCapacity = m_maxCapacity;
+        } else {
+            newCapacity *= 2;
+        }
         if (newCapacity > m_maxCapacity) {
             qWarning() << "AudioBuffer: Cannot expand beyond max capacity" << m_maxCapacity;
             return false;
         }
+        if (newCapacity - m_dataSize < requiredBytes && newCapacity == m_maxCapacity) {
+            qWarning() << "AudioBuffer: Cannot expand enough"
+                       << "requiredBytes=" << requiredBytes << "availableBytes=" << m_dataSize
+                       << "capacityBytes=" << m_capacity << "maxCapacityBytes=" << m_maxCapacity;
+            return false;
+        }
     }
     
-    if (newCapacity == m_capacity) return true;
+    if (newCapacity == m_capacity) {
+        return true;
+    }
     
     // 重新分配缓冲区
     QByteArray newBuffer(newCapacity, 0);
@@ -157,6 +228,9 @@ bool AudioBuffer::expandBuffer(int requiredBytes)
     m_readPos = 0;
     m_writePos = m_dataSize;
     
-    qDebug() << "AudioBuffer: Expanded to" << newCapacity << "bytes";
+    qDebug() << "AudioBuffer: Expanded"
+             << "capacityBytes=" << newCapacity << "availableBytes=" << clampedDataSizeLocked()
+             << "freeBytes=" << availableSpaceLocked()
+             << "maxCapacityBytes=" << m_maxCapacity;
     return true;
 }

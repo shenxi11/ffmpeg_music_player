@@ -26,6 +26,7 @@ VideoSession::~VideoSession() {
     qDebug() << "[VideoSession] Destroying...";
 
     stop();
+    setVideoRenderer(nullptr);
 
     if (m_decoder) {
         delete m_decoder;
@@ -46,6 +47,15 @@ VideoSession::~VideoSession() {
 }
 
 void VideoSession::setVideoRenderer(QWidget* renderer) {
+    if (!renderer) {
+        if (m_renderer) {
+            QMetaObject::invokeMethod(m_renderer, "stop");
+            QMetaObject::invokeMethod(m_renderer, "setVideoBuffer", Q_ARG(VideoBuffer*, nullptr));
+        }
+        m_renderer = nullptr;
+        return;
+    }
+
     m_renderer = renderer;
 
     if (m_renderer && m_buffer) {
@@ -86,6 +96,10 @@ void VideoSession::setStreamingMode(bool enabled) {
 }
 
 bool VideoSession::initVideoStream(AVStream* stream) {
+    return initVideoStream(stream, VideoDecodeOptions());
+}
+
+bool VideoSession::initVideoStream(AVStream* stream, const VideoDecodeOptions& options) {
     if (!stream) {
         qWarning() << "[VideoSession] Invalid stream";
         return false;
@@ -110,7 +124,7 @@ bool VideoSession::initVideoStream(AVStream* stream) {
              << "Codec:" << avcodec_get_name(stream->codecpar->codec_id)
              << "SAR:" << m_sampleAspectRatio.num << "/" << m_sampleAspectRatio.den;
 
-    if (!m_decoder->init(stream)) {
+    if (!m_decoder->init(stream, options)) {
         qWarning() << "[VideoSession] Failed to init decoder";
         return false;
     }

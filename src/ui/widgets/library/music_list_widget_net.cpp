@@ -34,6 +34,7 @@ void MusicListWidgetNet::onPlayClick(const QString name, const QString artist,
                                      const QString cover) {
     currentSongArtist = artist;
     currentSongCover = cover;
+    currentSongDurationSec = qMax(0, static_cast<int>(song_duration.value(name, 0.0) + 0.5));
     if (m_viewModel) {
         m_viewModel->resolveStreamUrl(name, artist, cover);
     }

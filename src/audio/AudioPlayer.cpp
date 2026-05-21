@@ -1,5 +1,6 @@
 ﻿#include "AudioPlayer.h"
 #include <QAudioFormat>
+#include <QElapsedTimer>
 #include <QtGlobal>
 
 AudioPlayer& AudioPlayer::instance()
@@ -266,14 +267,21 @@ void AudioPlayer::writeAudioData(const QByteArray& data, qint64 timestampMs, con
         }
     }
     
-    static int writeCount = 0;
-    if (++writeCount % 100 == 0) {
-        qDebug() << "AudioPlayer: Received" << writeCount << "data packets, size:" << data.size() 
-                 << "buffer level:" << m_buffer->availableBytes();
-    }
-    
     // 写入共享环形缓冲区
-    m_buffer->write(data.data(), data.size());
+    const int bytesWritten = m_buffer->write(data.data(), data.size());
+    if (bytesWritten < data.size()) {
+        const AudioBuffer::BufferStats stats = m_buffer->stats();
+        qWarning() << "AudioPlayer: Audio buffer write underrun"
+                   << "requestedBytes=" << data.size()
+                   << "writtenBytes=" << bytesWritten
+                   << "bufferedBytes=" << stats.availableBytes
+                   << "capacityBytes=" << stats.capacityBytes
+                   << "freeBytes=" << stats.freeBytes
+                   << "maxCapacityBytes=" << stats.maxCapacityBytes;
+        if (bytesWritten <= 0) {
+            return;
+        }
+    }
     
     
     m_cv.notify_one();
@@ -281,7 +289,7 @@ void AudioPlayer::writeAudioData(const QByteArray& data, qint64 timestampMs, con
     
     {
         std::lock_guard<std::mutex> lock(m_timestampMutex);
-        m_timestampQueue.push({timestampMs, data.size()});
+        m_timestampQueue.push({timestampMs, bytesWritten});
     }
     
     
@@ -306,6 +314,9 @@ void AudioPlayer::playbackThread()
     const int readSize = 4096; // 每次读取 4KB PCM
     char* readBuffer = new char[readSize];
     int loopCount = 0;
+    int backpressureLogCount = 0;
+    QElapsedTimer backpressureTimer;
+    backpressureTimer.start();
     while (m_threadRunning && !m_stopRequested) {
         {
             std::unique_lock<std::mutex> lock(m_playMutex);
@@ -325,13 +336,35 @@ void AudioPlayer::playbackThread()
             
             qint64 bytesFree = m_audioOutput->bytesFree();
             if (bytesFree < readSize * 2) {
-                
+                ++backpressureLogCount;
+                if (backpressureLogCount == 1) {
+                    backpressureTimer.restart();
+                }
+                if (backpressureLogCount % 1000 == 0 && backpressureTimer.elapsed() >= 2000) {
+                    const AudioBuffer::BufferStats stats = m_buffer->stats();
+                    qDebug() << "AudioPlayer: Audio device backpressure"
+                             << "deviceBytesFree=" << bytesFree
+                             << "bufferedBytes=" << stats.availableBytes
+                             << "capacityBytes=" << stats.capacityBytes
+                             << "freeBytes=" << stats.freeBytes
+                             << "fillLevel=" << bufferFillLevel() << "%";
+                }
                 continue;
             }
+            backpressureLogCount = 0;
+            backpressureTimer.restart();
             
             // 从共享缓冲区取出待播放数据
             int bytesRead = m_buffer->read(readBuffer, readSize);
             if (bytesRead <= 0) {
+                const AudioBuffer::BufferStats stats = m_buffer->stats();
+                qWarning() << "AudioPlayer: Audio buffer underrun on playback read"
+                           << "requestedBytes=" << readSize
+                           << "readBytes=" << bytesRead
+                           << "bufferedBytes=" << stats.availableBytes
+                           << "capacityBytes=" << stats.capacityBytes
+                           << "freeBytes=" << stats.freeBytes
+                           << "fillLevel=" << bufferFillLevel() << "%";
                 continue;
             }
             
@@ -480,12 +513,19 @@ void AudioPlayer::setCurrentTimestamp(qint64 timestampMs)
 
 int AudioPlayer::bufferFillLevel() const
 {
-    if (!m_buffer) return 0;
-    
-    int available = m_buffer->availableBytes();
-    int capacity = m_buffer->capacity();
-    
-    return capacity > 0 ? (available * 100 / capacity) : 0;
+    if (!m_buffer) {
+        return 0;
+    }
+
+    const AudioBuffer::BufferStats stats = m_buffer->stats();
+    if (stats.capacityBytes <= 0) {
+        return 0;
+    }
+
+    const qint64 available = qBound<qint64>(0, stats.availableBytes, stats.capacityBytes);
+    const qint64 capacity = stats.capacityBytes;
+    const qint64 percent = (available * 100) / capacity;
+    return qBound(0, static_cast<int>(percent), 100);
 }
 
 void AudioPlayer::ensureBufferCapacity(int targetCapacityBytes)
@@ -493,8 +533,28 @@ void AudioPlayer::ensureBufferCapacity(int targetCapacityBytes)
     if (!m_buffer || targetCapacityBytes <= 0) {
         return;
     }
+    const AudioBuffer::BufferStats before = m_buffer->stats();
     if (!m_buffer->ensureCapacity(targetCapacityBytes)) {
-        qWarning() << "AudioPlayer: ensureBufferCapacity failed, target:" << targetCapacityBytes;
+        const AudioBuffer::BufferStats after = m_buffer->stats();
+        qWarning() << "AudioPlayer: ensureBufferCapacity failed"
+                   << "targetCapacityBytes=" << targetCapacityBytes
+                   << "beforeCapacityBytes=" << before.capacityBytes
+                   << "capacityBytes=" << after.capacityBytes
+                   << "bufferedBytes=" << after.availableBytes
+                   << "freeBytes=" << after.freeBytes
+                   << "maxCapacityBytes=" << after.maxCapacityBytes;
+        return;
+    }
+
+    const AudioBuffer::BufferStats after = m_buffer->stats();
+    if (after.capacityBytes != before.capacityBytes) {
+        qDebug() << "AudioPlayer: ensureBufferCapacity applied"
+                 << "targetCapacityBytes=" << targetCapacityBytes
+                 << "beforeCapacityBytes=" << before.capacityBytes
+                 << "capacityBytes=" << after.capacityBytes
+                 << "bufferedBytes=" << after.availableBytes
+                 << "freeBytes=" << after.freeBytes
+                 << "fillLevel=" << bufferFillLevel() << "%";
     }
 }
 

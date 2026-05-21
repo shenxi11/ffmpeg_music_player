@@ -6,6 +6,7 @@
 #include "search_history_popup.h"
 #include "searchbox_qml.h"
 #include "settings_manager.h"
+#include "curl_network_transport.h"
 
 #include <QApplication>
 #include <QCoreApplication>
@@ -20,15 +21,14 @@
 #include <QJsonObject>
 #include <QLabel>
 #include <QMessageBox>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
-#include <QNetworkRequest>
+#include <QMetaObject>
 #include <QPixmap>
 #include <QSaveFile>
 #include <QScrollArea>
 #include <QStandardPaths>
 #include <QStyle>
 #include <QTimer>
+#include <QtConcurrent>
 #include <QUrl>
 #include <QVBoxLayout>
 
@@ -1033,7 +1033,6 @@ void MainWidget::handleRecommendPlayMusicWithMetadata(
     const QString& filePath, const QString& musicPath, const QString& title, const QString& artist,
     const QString& cover, const QString& duration, const QString& songId, const QString& requestId,
     const QString& modelVersion, const QString& scene) {
-    Q_UNUSED(duration);
     Q_UNUSED(requestId);
     Q_UNUSED(modelVersion);
     Q_UNUSED(scene);
@@ -1048,7 +1047,7 @@ void MainWidget::handleRecommendPlayMusicWithMetadata(
     localAndDownloadWidget->setPlayingState("", false);
 
     const QString normalizedArtist = normalizeArtistForHistory(artist);
-    rememberPlaybackQueueMetadata(filePath, title, normalizedArtist, cover);
+    rememberPlaybackQueueMetadata(filePath, title, normalizedArtist, cover, 0, duration);
     w->setPlayNet(true);
     w->setNetworkMetadata(title, normalizedArtist, cover);
     applyCommentTrackContext(musicPath, title, normalizedArtist, cover);
@@ -1126,7 +1125,9 @@ void MainWidget::handlePendingSimilarSongPlayback() {
     localAndDownloadWidget->setPlayingState("", false);
 
     w->setPlayNet(true);
-    rememberPlaybackQueueMetadata(filePath, title, artist, cover);
+    rememberPlaybackQueueMetadata(filePath, title, artist, cover,
+                                  item.value(QStringLiteral("duration_sec")).toInt(),
+                                  item.value(QStringLiteral("duration")).toString());
     w->setNetworkMetadata(title, artist, cover);
     applyCommentTrackContext(originalMusicPath, title, artist, cover);
     m_networkMusicArtist = artist;
@@ -1493,20 +1494,21 @@ void MainWidget::requestSidebarPlaylistCoverIcon(const QString& coverUrl) {
         return;
     }
 
-    if (!m_sidebarCoverNetworkManager) {
-        m_sidebarCoverNetworkManager = new QNetworkAccessManager(this);
-    }
-
     m_sidebarCoverRequestsInFlight.insert(source);
-    QNetworkRequest request{QUrl(source)};
-    QNetworkReply* reply = m_sidebarCoverNetworkManager->get(request);
-    connect(reply, &QNetworkReply::finished, this, [this, reply, source]() {
+    QtConcurrent::run([this, source]() {
+        CurlNetworkTransport::Request request;
+        request.url = source;
+        request.method = QStringLiteral("GET");
+        request.timeoutMs = 15000;
+        const CurlNetworkTransport::Response response = CurlNetworkTransport::perform(request);
+
+        QMetaObject::invokeMethod(this, [this, source, response]() {
         m_sidebarCoverRequestsInFlight.remove(source);
 
-        const QByteArray payload = reply->readAll();
+        const QByteArray payload = response.body;
         QPixmap pixmap;
-        const bool loaded =
-            reply->error() == QNetworkReply::NoError && pixmap.loadFromData(payload);
+        const bool loaded = response.error == CurlNetworkTransport::Error::NoError &&
+                            pixmap.loadFromData(payload);
         if (loaded) {
             m_sidebarCoverIconCache.insert(source, QIcon(pixmap));
             const QString cacheFilePath = cachedCoverFilePathForSource(source);
@@ -1528,8 +1530,7 @@ void MainWidget::requestSidebarPlaylistCoverIcon(const QString& coverUrl) {
                 button->update();
             }
         }
-
-        reply->deleteLater();
+        }, Qt::QueuedConnection);
     });
 }
 

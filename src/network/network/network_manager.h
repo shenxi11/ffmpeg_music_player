@@ -6,11 +6,10 @@
 #include <QElapsedTimer>
 #include <QMap>
 #include <QMutex>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
-#include <QNetworkRequest>
 #include <QObject>
 #include <QTimer>
+
+#include <atomic>
 
 namespace Network {
 
@@ -19,14 +18,13 @@ class NetworkManager;
 } // namespace Network
 
 /**
- * @brief 网络管理器类 - QNetworkAccessManager的单例包装器
+ * @brief 网络管理器类 - libcurl 统一入口。
  *
  * 功能：
- * 1. 单例管理QNetworkAccessManager，确保连接复用
- * 2. 超时管理
- * 3. 重试机制（支持指数退避）
- * 4. 请求统计
- * 5. 线程安全
+ * 1. 统一调度 libcurl 请求；
+ * 2. 保持原有 NetworkService 对外接口；
+ * 3. 支持超时、重试、取消、进度和统计；
+ * 4. 回调统一回到 NetworkManager 所在线程，避免 UI 线程安全问题。
  */
 class Network::NetworkManager : public QObject {
     Q_OBJECT
@@ -34,57 +32,18 @@ class Network::NetworkManager : public QObject {
   public:
     static NetworkManager& instance();
 
-    /**
-     * @brief 发送HTTP请求
-     * @param url 请求URL
-     * @param method HTTP方法
-     * @param data 请求体数据（仅POST/PUT等）
-     * @param options 请求选项
-     * @param callback 响应回调
-     * @param progressCallback 进度回调（可选）
-     * @return 请求ID，用于取消请求
-     */
     QString sendRequest(const QString& url, HttpMethod method, const QByteArray& data,
                         const RequestOptions& options, ResponseCallback callback,
                         ProgressCallback progressCallback = nullptr);
 
-    /**
-     * @brief 取消请求
-     * @param requestId 请求ID
-     */
     void cancelRequest(const QString& requestId);
-
-    /**
-     * @brief 取消所有请求
-     */
     void cancelAllRequests();
 
-    /**
-     * @brief 获取统计信息
-     */
     RequestStats getStats() const;
-
-    /**
-     * @brief 重置统计信息
-     */
     void resetStats();
 
-    /**
-     * @brief 设置全局超时时间
-     * @param timeout 超时时间（毫秒）
-     */
     void setGlobalTimeout(int timeout);
-
-    /**
-     * @brief 设置最大并发连接数
-     * @param maxConnections 最大连接数
-     */
     void setMaxConnections(int maxConnections);
-
-    /**
-     * @brief DNS预热
-     * @param hostname 主机名
-     */
     void prewarmDns(const QString& hostname);
 
   signals:
@@ -109,45 +68,35 @@ class Network::NetworkManager : public QObject {
         RequestOptions options;
         ResponseCallback callback;
         ProgressCallback progressCallback;
-        QNetworkReply* reply = nullptr;
-        QTimer* timeoutTimer = nullptr;
         QTimer* retryTimer = nullptr;
         QElapsedTimer* elapsedTimer = nullptr;
+        std::shared_ptr<std::atomic_bool> cancelled;
         int currentRetry = 0;
         bool completed = false;
     };
 
   private slots:
-    void onReplyFinished();
-    void onReplyDownloadProgress(qint64 bytesReceived, qint64 bytesTotal);
-    void onRequestTimeout();
     void onRetryTimerTimeout();
 
   private:
     void executeRequest(std::shared_ptr<RequestContext> context);
-    void handleReplyFinished(std::shared_ptr<RequestContext> context);
-    void handleTimeout(std::shared_ptr<RequestContext> context);
+    void handleCurlFinished(const QString& requestId, const NetworkResponse& response);
     void retryRequest(std::shared_ptr<RequestContext> context);
     int calculateRetryDelay(int retry, const RequestOptions& options);
-    QNetworkReply* detachReply(RequestContext* context);
-    void disposeReply(QNetworkReply* reply, bool abortReply);
     void cleanupTimers(RequestContext* context);
     void cleanupElapsedTimer(RequestContext* context);
     void removeActiveRequest(const std::shared_ptr<RequestContext>& context);
 
-    QNetworkRequest createRequest(const QString& url, const RequestOptions& options);
+    QMap<QString, QString> createHeaders(const RequestOptions& options) const;
     QString httpMethodToString(HttpMethod method) const;
+    NetworkResponse makeCancelledResponse(const RequestContext& context) const;
     void updateStats(const NetworkResponse& response);
 
-    QNetworkAccessManager* m_manager;
     QMap<QString, std::shared_ptr<RequestContext>> m_activeRequests;
     mutable QMutex m_mutex;
 
-    // 配置
-    int m_globalTimeout = 30000; // 默认30秒
-    int m_maxConnections = 6;    // 默认6个并发连接
-
-    // 统计信息
+    int m_globalTimeout = 30000;
+    int m_maxConnections = 6;
     RequestStats m_stats;
 };
 

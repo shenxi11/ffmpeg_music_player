@@ -7,6 +7,7 @@
 #include "VideoSession.h"
 
 #include <QDebug>
+#include <QElapsedTimer>
 #include <QFileInfo>
 #include <QPair>
 #include <QUuid>
@@ -22,13 +23,26 @@ extern "C" {
 #include <libavutil/opt.h>
 }
 
+namespace {
+qint64 monotonicNowMs() {
+    static QElapsedTimer timer;
+    static const bool initialized = []() {
+        timer.start();
+        return true;
+    }();
+    Q_UNUSED(initialized);
+    return timer.elapsed();
+}
+}
+
 MediaSession::MediaSession(QObject* parent)
     : QObject(parent), m_audioSession(nullptr), m_videoSession(nullptr), m_formatContext(nullptr),
       m_audioStreamIndex(-1), m_videoStreamIndex(-1), m_audioCodecCtx(nullptr),
       m_audioFrame(nullptr), m_audioFilterGraph(nullptr), m_audioFilterSrcCtx(nullptr),
-      m_audioFilterSinkCtx(nullptr), m_audioOutputSampleRate(44100), m_hlsSource(false),
-      m_duration(0), m_state(Stopped), m_playbackRate(1.0), m_syncTimer(nullptr),
-      m_syncEnabled(true), m_masterClock(0), m_demuxThread(nullptr),
+      m_audioFilterSinkCtx(nullptr), m_audioOutputSampleRate(44100), m_abortIo(false),
+      m_ioDeadlineMs(0), m_hlsSource(false), m_duration(0), m_state(Stopped),
+      m_playbackRate(1.0), m_syncTimer(nullptr), m_syncEnabled(true), m_masterClock(0),
+      m_demuxThread(nullptr),
       m_demuxState(DemuxState::Stopped), m_pendingAudioClockSyncMs(std::nullopt),
       m_lastSeekTargetMs(0), m_hlsSeekStepBackMs(0), m_waitingFirstPacketAfterSeek(false),
       m_seekEofRetryCount(0),
@@ -65,7 +79,19 @@ MediaSession::~MediaSession() {
 }
 
 bool MediaSession::loadSource(const QUrl& url) {
+    return loadSource(url, MediaOpenOptions());
+}
+
+bool MediaSession::loadSource(const QUrl& url, const MediaOpenOptions& options) {
     qDebug() << "[MediaSession] Loading source:" << url;
+
+    m_openOptions = options;
+    m_networkStats = NetworkStats();
+    m_networkStats.openTimeoutMs = m_openOptions.networkTimeoutMs;
+    m_networkStats.readTimeoutMs = m_openOptions.readTimeoutMs;
+    m_networkStats.reconnectEnabled = m_openOptions.reconnectEnabled;
+    m_abortIo.store(false);
+    m_ioDeadlineMs.store(0);
 
     QString filePath = url.isLocalFile() ? url.toLocalFile() : url.toString();
 
@@ -98,7 +124,10 @@ bool MediaSession::loadSource(const QUrl& url) {
         //         this, &MediaSession::onVideoFrameRendered);
 
         AVStream* videoStream = m_formatContext->streams[m_videoStreamIndex];
-        if (!m_videoSession->initVideoStream(videoStream)) {
+        VideoDecodeOptions decodeOptions;
+        decodeOptions.enableHardwareDecode = m_openOptions.enableHardwareVideoDecode;
+        decodeOptions.preferredHardwareDevice = AV_HWDEVICE_TYPE_D3D11VA;
+        if (!m_videoSession->initVideoStream(videoStream, decodeOptions)) {
             qWarning() << "[MediaSession] Failed to init video stream";
             delete m_videoSession;
             m_videoSession = nullptr;
@@ -122,6 +151,8 @@ bool MediaSession::loadSource(const QUrl& url) {
 void MediaSession::unloadSource() {
     qDebug() << "[MediaSession] Unloading source";
     setPlaybackRate(1.0);
+    m_abortIo.store(true);
+    clearIoDeadline();
 
     stopDemux();
 
@@ -140,6 +171,8 @@ void MediaSession::unloadSource() {
     cleanupDemuxer();
 
     m_currentUrl.clear();
+    m_sourceInfo = VideoSourceInfo();
+    m_abortIo.store(false);
     m_duration = 0;
 }
 
@@ -328,6 +361,9 @@ bool MediaSession::seekTo(qint64 positionMs) {
         return false;
     }
 
+    m_abortIo.store(true);
+    clearIoDeadline();
+
     bool wasRunning = isDemuxRunning();
     if (wasRunning) {
         setDemuxState(DemuxState::Stopped);
@@ -337,13 +373,18 @@ bool MediaSession::seekTo(qint64 positionMs) {
         }
         m_demuxPauseCv.notify_all();
 
-        if (m_demuxThread && !m_demuxThread->isFinished()) {
-            qDebug() << "[MediaSession] Waiting for demux thread to stop...";
-            m_demuxThread->wait(1000);
-            qDebug() << "[MediaSession] Demux thread stopped";
+        if (!waitForDemuxThreadStopped(1500)) {
+            if (wasRunning) {
+                setDemuxState(DemuxState::Running);
+            }
+            m_abortIo.store(false);
+            setState(Error);
+            emit playbackError(QStringLiteral("Seek failed: demux thread did not stop"));
+            return false;
         }
     }
 
+    m_abortIo.store(false);
     int ret = seekDemuxer(targetPositionMs);
     if (ret < 0) {
         char errbuf[AV_ERROR_MAX_STRING_SIZE] = {0};
@@ -352,6 +393,7 @@ bool MediaSession::seekTo(qint64 positionMs) {
         if (wasRunning) {
             setDemuxState(DemuxState::Running);
         }
+        m_abortIo.store(false);
         setState(Error);
         emit playbackError(QStringLiteral("Seek failed: %1").arg(QString::fromLatin1(errbuf)));
         return false;
@@ -504,20 +546,41 @@ void MediaSession::updatePosition() {
 }
 
 bool MediaSession::initDemuxer(const QString& filePath) {
-    const QString lowered = filePath.trimmed().toLower();
-    m_hlsSource = lowered.contains(QStringLiteral(".m3u8"));
+    m_sourceInfo = classifySource(filePath);
+    m_hlsSource = m_sourceInfo.hlsSource;
 
-    int ret = avformat_open_input(&m_formatContext, filePath.toUtf8().data(), nullptr, nullptr);
+    m_formatContext = avformat_alloc_context();
+    if (!m_formatContext) {
+        qWarning() << "[MediaSession] Failed to allocate AVFormatContext";
+        return false;
+    }
+    m_formatContext->interrupt_callback.callback = &MediaSession::interruptCallback;
+    m_formatContext->interrupt_callback.opaque = this;
+
+    AVDictionary* options = nullptr;
+    applyInputOptions(&options);
+
+    setIoDeadlineMs(m_openOptions.networkTimeoutMs);
+    int ret = avformat_open_input(&m_formatContext, filePath.toUtf8().data(), nullptr, &options);
+    clearIoDeadline();
+    av_dict_free(&options);
     if (ret < 0) {
         char errbuf[128];
         av_strerror(ret, errbuf, sizeof(errbuf));
         qWarning() << "[MediaSession] Failed to open input:" << errbuf;
+        m_networkStats.lastReadError = QString::fromLatin1(errbuf);
+        if (m_formatContext) {
+            avformat_close_input(&m_formatContext);
+        }
         return false;
     }
 
+    setIoDeadlineMs(m_openOptions.networkTimeoutMs);
     ret = avformat_find_stream_info(m_formatContext, nullptr);
+    clearIoDeadline();
     if (ret < 0) {
         qWarning() << "[MediaSession] Failed to find stream info";
+        m_networkStats.lastReadError = QStringLiteral("Failed to find stream info");
         avformat_close_input(&m_formatContext);
         return false;
     }
@@ -538,6 +601,10 @@ bool MediaSession::initDemuxer(const QString& filePath) {
     }
 
     qDebug() << "[MediaSession] Duration:" << m_duration << "ms";
+    qDebug() << "[MediaSession] Source info - network:" << m_sourceInfo.networkSource
+             << "hls:" << m_sourceInfo.hlsSource << "live:" << m_sourceInfo.liveSource
+             << "canSeek:" << m_sourceInfo.canSeek
+             << "cacheMs:" << m_sourceInfo.preferredCacheMs;
 
     av_dump_format(m_formatContext, 0, filePath.toUtf8().data(), 0);
 
@@ -577,6 +644,19 @@ qint64 MediaSession::normalizedSeekPosition(qint64 positionMs) const {
 }
 
 void MediaSession::cleanupDemuxer() {
+    m_abortIo.store(true);
+    clearIoDeadline();
+
+    if (m_demuxThread && !m_demuxThread->isFinished()) {
+        setDemuxState(DemuxState::Stopped);
+        {
+            std::lock_guard<std::mutex> lock(m_demuxPauseMutex);
+            setDemuxState(DemuxState::Stopped);
+        }
+        m_demuxPauseCv.notify_all();
+        waitForDemuxThreadStopped(1500);
+    }
+
     if (m_formatContext) {
         avformat_close_input(&m_formatContext);
         m_formatContext = nullptr;
@@ -584,6 +664,7 @@ void MediaSession::cleanupDemuxer() {
 
     m_audioStreamIndex = -1;
     m_videoStreamIndex = -1;
+    m_abortIo.store(false);
 }
 
 void MediaSession::startDemux() {
@@ -614,6 +695,7 @@ void MediaSession::startDemux() {
     }
 
     qDebug() << "[MediaSession] Starting demux thread";
+    m_abortIo.store(false);
     setDemuxState(DemuxState::Running);
 
     m_demuxThread = QThread::create([this]() {
@@ -625,11 +707,13 @@ void MediaSession::startDemux() {
 }
 
 void MediaSession::stopDemux() {
-    if (!isDemuxRunning()) {
+    if (!isDemuxRunning() && (!m_demuxThread || m_demuxThread->isFinished())) {
         return;
     }
 
     qDebug() << "[MediaSession] Stopping demux thread";
+    m_abortIo.store(true);
+    clearIoDeadline();
 
     setDemuxState(DemuxState::Stopped);
     {
@@ -638,11 +722,31 @@ void MediaSession::stopDemux() {
     }
     m_demuxPauseCv.notify_all();
 
-    if (m_demuxThread) {
-        m_demuxThread->quit();
-        m_demuxThread->wait(1000);
-        m_demuxThread = nullptr;
+    waitForDemuxThreadStopped(1500);
+
+    m_abortIo.store(false);
+}
+
+bool MediaSession::waitForDemuxThreadStopped(int timeoutMs) {
+    if (!m_demuxThread) {
+        return true;
     }
+
+    if (m_demuxThread->isFinished()) {
+        m_demuxThread = nullptr;
+        return true;
+    }
+
+    qDebug() << "[MediaSession] Waiting for demux thread to stop...";
+    m_demuxThread->quit();
+    if (!m_demuxThread->wait(qMax(1, timeoutMs))) {
+        qWarning() << "[MediaSession] Demux thread did not stop before timeout";
+        return false;
+    }
+
+    qDebug() << "[MediaSession] Demux thread stopped";
+    m_demuxThread = nullptr;
+    return true;
 }
 
 void MediaSession::demuxLoop() {
@@ -703,13 +807,16 @@ void MediaSession::demuxLoop() {
             continue;
         }
 
+        setIoDeadlineMs(m_openOptions.readTimeoutMs);
         int ret = av_read_frame(m_formatContext, pkt);
+        clearIoDeadline();
 
         if (ret < 0) {
             if (ret == AVERROR_EOF) {
                 if (m_hlsSource && m_waitingFirstPacketAfterSeek && audioPacketCount == 0 &&
                     videoPacketCount == 0 && m_seekEofRetryCount < 3) {
                     ++m_seekEofRetryCount;
+                    ++m_networkStats.eofRetryCount;
                     m_hlsSeekStepBackMs += 2000;
                     const qint64 retryPositionMs =
                         qMax<qint64>(0, m_lastSeekTargetMs - m_hlsSeekStepBackMs);
@@ -733,6 +840,8 @@ void MediaSession::demuxLoop() {
                 char errbuf[128];
                 av_strerror(ret, errbuf, sizeof(errbuf));
                 qWarning() << "[MediaSession] Read frame error:" << errbuf;
+                ++m_networkStats.readErrorCount;
+                m_networkStats.lastReadError = QString::fromLatin1(errbuf);
             }
             break;
         }
@@ -879,6 +988,7 @@ void MediaSession::demuxLoop() {
     av_packet_free(&pkt);
 
     setDemuxState(DemuxState::Stopped);
+    clearIoDeadline();
 
     qDebug() << "[MediaSession] Demux loop finished - Audio packets:" << audioPacketCount
              << "Video packets:" << videoPacketCount;
@@ -890,6 +1000,117 @@ void MediaSession::setState(PlaybackState state) {
         m_state = state;
         emit stateChanged(state);
     }
+}
+
+MediaSession::VideoSourceInfo MediaSession::classifySource(const QString& filePath) const {
+    VideoSourceInfo info;
+    const QString trimmed = filePath.trimmed();
+    const QString lowered = trimmed.toLower();
+    info.url = trimmed;
+    info.networkSource =
+        lowered.startsWith(QStringLiteral("http://")) || lowered.startsWith(QStringLiteral("https://"));
+    info.hlsSource = lowered.contains(QStringLiteral(".m3u8")) ||
+                     lowered.contains(QStringLiteral("/video-hls/")) ||
+                     lowered.contains(QStringLiteral("/hls/"));
+    info.liveSource = info.hlsSource && (lowered.contains(QStringLiteral("/live/")) ||
+                                         lowered.contains(QStringLiteral("event.m3u8")) ||
+                                         lowered.contains(QStringLiteral("live.m3u8")));
+    if (info.hlsSource) {
+        info.sourceType = info.liveSource ? SourceType::HlsLive : SourceType::HlsVod;
+        info.canSeek = !info.liveSource;
+        info.preferredCacheMs = info.liveSource ? 3000 : 2200;
+    } else if (info.networkSource) {
+        info.sourceType = SourceType::HttpFile;
+        info.canSeek = true;
+        info.preferredCacheMs = 900;
+    } else {
+        info.sourceType = SourceType::LocalFile;
+        info.canSeek = true;
+        info.preferredCacheMs = 450;
+    }
+    return info;
+}
+
+void MediaSession::applyInputOptions(AVDictionary** options) const {
+    if (!options || !m_sourceInfo.networkSource) {
+        return;
+    }
+
+    const QByteArray timeoutUs =
+        QByteArray::number(static_cast<qint64>(qMax(500, m_openOptions.networkTimeoutMs)) * 1000);
+    const QByteArray readTimeoutUs =
+        QByteArray::number(static_cast<qint64>(qMax(500, m_openOptions.readTimeoutMs)) * 1000);
+    av_dict_set(options, "timeout", timeoutUs.constData(), 0);
+    av_dict_set(options, "rw_timeout", readTimeoutUs.constData(), 0);
+    av_dict_set(options, "multiple_requests", "1", 0);
+    av_dict_set(options, "probesize",
+                QByteArray::number(qMax(64 * 1024, m_openOptions.probeSizeBytes)).constData(), 0);
+    av_dict_set(options, "analyzeduration",
+                QByteArray::number(qMax(300000, m_openOptions.analyzeDurationUs)).constData(), 0);
+
+    if (m_openOptions.preferSeekableHttp && !m_sourceInfo.liveSource) {
+        av_dict_set(options, "seekable", "1", 0);
+    }
+
+    if (m_openOptions.reconnectEnabled) {
+        av_dict_set(options, "reconnect", "1", 0);
+        av_dict_set(options, "reconnect_streamed", "1", 0);
+        av_dict_set(options, "reconnect_at_eof", m_sourceInfo.liveSource ? "1" : "0", 0);
+        av_dict_set(options, "reconnect_on_network_error", "1", 0);
+        av_dict_set(options, "reconnect_on_http_error", "408,429,500,502,503,504", 0);
+        av_dict_set(options, "reconnect_delay_max",
+                    QByteArray::number(qMax(1, m_openOptions.reconnectDelayMaxSeconds))
+                        .constData(),
+                    0);
+    }
+
+    if (!m_openOptions.userAgent.trimmed().isEmpty()) {
+        const QByteArray userAgent = m_openOptions.userAgent.toUtf8();
+        av_dict_set(options, "user_agent", userAgent.constData(), 0);
+    }
+
+    if (!m_openOptions.headers.isEmpty()) {
+        QByteArray headerBlock;
+        for (auto it = m_openOptions.headers.cbegin(); it != m_openOptions.headers.cend(); ++it) {
+            if (it.key().trimmed().isEmpty()) {
+                continue;
+            }
+            headerBlock += it.key().toUtf8();
+            headerBlock += ": ";
+            headerBlock += it.value().toUtf8();
+            headerBlock += "\r\n";
+        }
+        if (!headerBlock.isEmpty()) {
+            av_dict_set(options, "headers", headerBlock.constData(), 0);
+        }
+    }
+}
+
+void MediaSession::setIoDeadlineMs(int timeoutMs) {
+    if (!m_sourceInfo.networkSource || timeoutMs <= 0) {
+        m_ioDeadlineMs.store(0);
+        return;
+    }
+
+    m_ioDeadlineMs.store(monotonicNowMs() + timeoutMs);
+}
+
+void MediaSession::clearIoDeadline() {
+    m_ioDeadlineMs.store(0);
+}
+
+bool MediaSession::shouldAbortIo() const {
+    if (m_abortIo.load()) {
+        return true;
+    }
+
+    const qint64 deadline = m_ioDeadlineMs.load();
+    return deadline > 0 && monotonicNowMs() >= deadline;
+}
+
+int MediaSession::interruptCallback(void* opaque) {
+    auto* self = static_cast<MediaSession*>(opaque);
+    return self && self->shouldAbortIo() ? 1 : 0;
 }
 
 bool MediaSession::initAudioDecoder(AVStream* stream) {

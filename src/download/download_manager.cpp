@@ -1,8 +1,8 @@
 #include "download_manager.h"
 
 #include "cover_cache_manager.h"
+#include "curl_network_transport.h"
 
-#include <QEventLoop>
 #include <QUuid>
 
 namespace {
@@ -53,31 +53,9 @@ void DownloadThread::abort()
 
 void DownloadThread::handleReplyDownloadProgress(qint64 bytesReceived, qint64 bytesTotal)
 {
-    if (m_aborted.loadAcquire()) {
-        if (m_currentReply) {
-            m_currentReply->abort();
-        }
-        return;
-    }
-
     const qint64 totalSize = bytesTotal + m_startByte;
     const qint64 receivedSize = bytesReceived + m_startByte;
     emit progressUpdated(m_taskId, receivedSize, totalSize);
-}
-
-void DownloadThread::handleReplyReadyRead()
-{
-    if (m_aborted.loadAcquire()) {
-        if (m_currentReply) {
-            m_currentReply->abort();
-        }
-        return;
-    }
-
-    if (!m_currentReply || !m_currentFile) {
-        return;
-    }
-    m_currentFile->write(m_currentReply->readAll());
 }
 
 void DownloadThread::run()
@@ -86,25 +64,6 @@ void DownloadThread::run()
 
     emit started(m_taskId);
 
-    // 创建独立的 NetworkAccessManager（线程安全）
-    QNetworkAccessManager networkManager;
-
-    QNetworkRequest request(m_url);
-    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-
-    // 如果是续传，设置 Range 头
-    if (m_startByte > 0) {
-        QString rangeHeader = QString("bytes=%1-").arg(m_startByte);
-        request.setRawHeader("Range", rangeHeader.toUtf8());
-        qDebug() << "[DownloadThread]" << m_taskId << "Resume with Range:" << rangeHeader;
-    }
-
-    // 发起请求
-    QNetworkReply* reply = !m_postData.isEmpty() ?
-        networkManager.post(request, m_postData) :
-        networkManager.get(request);
-    m_currentReply = reply;
-
     // 打开文件用于写入
     QFile file(m_savePath);
     QIODevice::OpenMode openMode = m_startByte > 0 ?
@@ -112,40 +71,49 @@ void DownloadThread::run()
 
     if (!file.open(openMode)) {
         qDebug() << "[DownloadThread]" << m_taskId << "Failed to open file:" << file.errorString();
-        reply->abort();
-        reply->deleteLater();
         emit finished(m_taskId, false, "Failed to open file: " + file.errorString());
-        m_currentReply = nullptr;
         return;
     }
     m_currentFile = &file;
 
-    QObject::connect(reply, &QNetworkReply::downloadProgress,
-                     this, &DownloadThread::handleReplyDownloadProgress,
-                     Qt::DirectConnection);
-    QObject::connect(reply, &QNetworkReply::readyRead,
-                     this, &DownloadThread::handleReplyReadyRead,
-                     Qt::DirectConnection);
+    CurlNetworkTransport::Request request;
+    request.url = m_url;
+    request.method = m_postData.isEmpty() ? QStringLiteral("GET") : QStringLiteral("POST");
+    request.body = m_postData;
+    request.timeoutMs = 0x7fffffff;
+    request.headers.insert(QStringLiteral("Content-Type"), QStringLiteral("application/json"));
+    if (m_startByte > 0) {
+        const QString rangeHeader = QStringLiteral("bytes=%1-").arg(m_startByte);
+        request.headers.insert(QStringLiteral("Range"), rangeHeader);
+        qDebug() << "[DownloadThread]" << m_taskId << "Resume with Range:" << rangeHeader;
+    }
+    request.shouldAbort = [this]() {
+        return m_aborted.loadAcquire() != 0;
+    };
+    request.onDownloadProgress = [this](qint64 received, qint64 total) {
+        handleReplyDownloadProgress(received, total);
+    };
+    request.onData = [this](const QByteArray& chunk) {
+        if (m_aborted.loadAcquire()) {
+            return false;
+        }
+        return m_currentFile && m_currentFile->write(chunk) == chunk.size();
+    };
 
-    // 使用事件循环等待下载完成
-    QEventLoop loop;
-    QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
-    loop.exec();
+    const CurlNetworkTransport::Response response = CurlNetworkTransport::perform(request);
 
     // 检查是否被中止
     if (m_aborted.loadAcquire()) {
         file.close();
-        reply->deleteLater();
-        m_currentReply = nullptr;
         m_currentFile = nullptr;
         emit finished(m_taskId, false, "Download aborted by user");
         return;
     }
 
     // 检查网络错误。续传命中 HTTP 416 时，说明服务端判定本地文件已完整。
-    if (reply->error() != QNetworkReply::NoError) {
-        const int httpStatus =
-            reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+    if (response.error != CurlNetworkTransport::Error::NoError ||
+        (response.statusCode >= 400 && response.statusCode != 416)) {
+        const int httpStatus = response.statusCode;
         const qint64 localFileSize = file.size();
 
         if (m_startByte > 0 && httpStatus == 416 && localFileSize > 0) {
@@ -154,35 +122,25 @@ void DownloadThread::run()
                      << localFileSize;
             file.flush();
             file.close();
-            reply->deleteLater();
-            m_currentReply = nullptr;
             m_currentFile = nullptr;
             emit progressUpdated(m_taskId, localFileSize, localFileSize);
             emit finished(m_taskId, true, QString());
             return;
         }
 
-        QString errorMsg = reply->errorString();
+        QString errorMsg = response.errorString.isEmpty()
+                               ? QStringLiteral("HTTP status %1").arg(httpStatus)
+                               : response.errorString;
         qDebug() << "[DownloadThread]" << m_taskId << "Network error:" << errorMsg
                  << "HTTP status:" << httpStatus;
         file.close();
-        reply->deleteLater();
-        m_currentReply = nullptr;
         m_currentFile = nullptr;
         emit finished(m_taskId, false, errorMsg);
         return;
     }
 
-    // 写入剩余数据
-    QByteArray remainingData = reply->readAll();
-    if (!remainingData.isEmpty()) {
-        file.write(remainingData);
-    }
-
     file.flush();
     file.close();
-    reply->deleteLater();
-    m_currentReply = nullptr;
     m_currentFile = nullptr;
 
     qDebug() << "[DownloadThread]" << m_taskId << "completed successfully";

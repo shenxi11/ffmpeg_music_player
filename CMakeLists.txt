@@ -60,15 +60,29 @@ find_package(Qt5 REQUIRED COMPONENTS Core)
 message(STATUS "Qt5 Version: ${Qt5_VERSION}")
 message(STATUS "Qt5 Location: ${Qt5_DIR}")
 
-option(CLOUDMUSIC_AUDIO_ENABLE_LIBCURL "Enable optional libcurl backend for remote audio streaming" ON)
-if(CLOUDMUSIC_AUDIO_ENABLE_LIBCURL)
-    find_package(CURL QUIET)
-    if(CURL_FOUND)
-        message(STATUS "libcurl backend enabled for remote audio streaming")
-    else()
-        message(STATUS "libcurl not found; remote audio streaming uses Qt Network backend")
+set(CLOUDMUSIC_VCPKG_ROOT "" CACHE PATH "Optional vcpkg root used to locate libcurl")
+set(CLOUDMUSIC_VCPKG_INSTALLED_DIR "")
+set(CLOUDMUSIC_VCPKG_SEARCH_ROOTS
+    "${CLOUDMUSIC_VCPKG_ROOT}"
+    "$ENV{VCPKG_ROOT}"
+    "E:/vcpkg"
+    "D:/vcpkg"
+    "C:/vcpkg"
+)
+foreach(VCPKG_ROOT_CANDIDATE ${CLOUDMUSIC_VCPKG_SEARCH_ROOTS})
+    if(VCPKG_ROOT_CANDIDATE AND
+       EXISTS "${VCPKG_ROOT_CANDIDATE}/installed/x64-windows/share/curl/CURLConfig.cmake")
+        set(CLOUDMUSIC_VCPKG_INSTALLED_DIR "${VCPKG_ROOT_CANDIDATE}/installed/x64-windows")
+        list(APPEND CMAKE_PREFIX_PATH "${CLOUDMUSIC_VCPKG_INSTALLED_DIR}")
+        break()
     endif()
+endforeach()
+
+find_package(CURL CONFIG QUIET)
+if(NOT CURL_FOUND)
+    find_package(CURL REQUIRED)
 endif()
+message(STATUS "libcurl transport enabled for all HTTP client requests")
 
 # FFmpeg 路径配置
 set(FFMPEG_DIR "E:/ffmpeg4.4/bin")
@@ -88,6 +102,8 @@ file(GLOB_RECURSE PROJECT_SOURCES CONFIGURE_DEPENDS
 list(APPEND PROJECT_SOURCES
     "${SRC_ROOT}/common/cover_lookup.cpp"
     "${SRC_ROOT}/common/cover_lookup.h"
+    "${SRC_ROOT}/network/curl_network_transport.cpp"
+    "${SRC_ROOT}/network/curl_network_transport.h"
     "${SRC_ROOT}/app/main_widget.menu_auth.cpp"
     "${SRC_ROOT}/app/main_widget.library_connections.cpp"
     "${SRC_ROOT}/app/main_widget.playback_connections.cpp"
@@ -188,6 +204,10 @@ add_executable(${PROJECT_NAME}
     ${PROJECT_RESOURCES}
 )
 
+if(WIN32)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+endif()
+
 
 target_link_libraries(ffmpeg_music_player PRIVATE Qt5::Core)
 # Qt5 翻译
@@ -230,9 +250,25 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     OpenGL::GL
 )
 
-if(CLOUDMUSIC_AUDIO_ENABLE_LIBCURL AND CURL_FOUND)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE CLOUDMUSIC_AUDIO_USE_LIBCURL)
-    target_link_libraries(${PROJECT_NAME} PRIVATE CURL::libcurl)
+target_compile_definitions(${PROJECT_NAME} PRIVATE CLOUDMUSIC_AUDIO_USE_LIBCURL)
+target_link_libraries(${PROJECT_NAME} PRIVATE CURL::libcurl)
+
+if(WIN32 AND CLOUDMUSIC_VCPKG_INSTALLED_DIR)
+    set(CLOUDMUSIC_CURL_RUNTIME_DLLS
+        "${CLOUDMUSIC_VCPKG_INSTALLED_DIR}/bin/libcurl.dll"
+        "${CLOUDMUSIC_VCPKG_INSTALLED_DIR}/debug/bin/libcurl-d.dll"
+        "${CLOUDMUSIC_VCPKG_INSTALLED_DIR}/bin/z.dll"
+        "${CLOUDMUSIC_VCPKG_INSTALLED_DIR}/debug/bin/zd.dll"
+    )
+    foreach(CURL_RUNTIME_DLL ${CLOUDMUSIC_CURL_RUNTIME_DLLS})
+        if(EXISTS "${CURL_RUNTIME_DLL}")
+            add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${CURL_RUNTIME_DLL}"
+                $<TARGET_FILE_DIR:${PROJECT_NAME}>
+            )
+        endif()
+    endforeach()
 endif()
 
 # 设置输出目录（使用 CMake 默认路径）

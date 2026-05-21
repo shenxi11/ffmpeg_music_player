@@ -1,0 +1,4 @@
+interface:
+  display_name: "Desktop Playback Log Analysis"
+  short_description: "Analyze desktop playback logs with 打印日志.txt as the default source."
+  default_prompt: "Use $desktop-playback-log-analysis for desktop playback, seek, buffering, wrong-position audio, and lyrics-sync log diagnosis. Unless the user explicitly names another log file, read E:\\FFmpeg_whisper\\ffmpeg_music_player\\打印日志.txt first."

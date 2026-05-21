@@ -96,3 +96,10 @@ Use this file only for decisions that affect more than one active Codex session.
 - Reason: The current build blockage comes from the AI plugin dependency chain, but the project still needs the generic plugin host for the remaining plugins.
 - Constraints: Do not rename or relocate shared non-AI icon resources just because they currently live under `qml/assets/ai/icons`. Do not expand the change into a general plugin-system rewrite.
 - Follow-up: Remove `plugins/ai_assistant_plugin`, `src/agent`, `qml/components/agent`, the repo-root `agent/` runtime directory, AI-specific shell entrypoints, and Agent-facing docs from the repo, then validate that the client still builds without `Qt5::WebSockets`/`llama`/`ggml` requirements.
+
+### 2026-05-19 - Remote MP3 Seek Index Is A Hint, Not An Exact Byte Contract
+- Scope: `playback-and-audio`
+- Decision: Remote MP3 seek must let FFmpeg demux seek own the final byte position. Client-side seek index output is treated as a prefetch/confidence hint unless observation data proves it is exact.
+- Reason: Runtime logs show normal MP3 `seekIndexHit=true` can land 14s or more before the requested time, causing `AudioSession` to wait several seconds for decoded timestamps to catch up.
+- Constraints: FLAC remains on its stricter path until a separate FLAC seektable/refine implementation is added. SubAgents may only edit their assigned `src/audio` slices, with public interface changes coordinated by the main agent.
+- Follow-up: Record seek landing observations back into `AudioCacheManager`, avoid non-exact `forceSeekToHint()`, and validate with `E:/FFmpeg_whisper/ffmpeg_music_player/打印日志.txt`.

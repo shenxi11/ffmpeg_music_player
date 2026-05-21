@@ -19,6 +19,15 @@ class VideoBuffer : public QObject {
     Q_OBJECT
 
   public:
+    struct FrameInfo {
+        qint64 pts = 0;
+        qint64 duration = 0;
+        bool isKeyFrame = false;
+        QSize size;
+        int width = 0;
+        int height = 0;
+    };
+
     explicit VideoBuffer(QObject* parent = nullptr);
     ~VideoBuffer() override;
 
@@ -26,6 +35,8 @@ class VideoBuffer : public QObject {
     void push(VideoFrame* frame);
     VideoFrame* pop();
     VideoFrame* peek() const;
+    bool peekInfo(FrameInfo* info) const;
+    VideoFrame* popIfPts(qint64 pts);
 
     // ===== 缓冲区控制 =====
     void clear();

@@ -59,11 +59,7 @@ VideoPlayerPage::VideoPlayerPage(QWidget* parent) : QWidget(parent) {
 }
 
 VideoPlayerPage::~VideoPlayerPage() {
-    if (m_mediaSession) {
-        m_mediaSession->stop();
-        delete m_mediaSession;
-        m_mediaSession = nullptr;
-    }
+    releaseMediaSession();
 }
 
 bool VideoPlayerPage::hasLoadedVideo() const {
@@ -656,7 +652,6 @@ void VideoPlayerPage::connectUiSignals() {
         const int nextIndex =
             (m_qualityPresetBox->currentIndex() + 1) % m_qualityPresetBox->count();
         m_qualityPresetBox->setCurrentIndex(nextIndex);
-        onQualityPresetChanged(nextIndex);
         updatePlaybackButtons();
     });
     connect(m_openFileButton, &QPushButton::clicked, this, &VideoPlayerPage::onOpenFileClicked);
@@ -705,6 +700,36 @@ VideoRendererGL* VideoPlayerPage::activeRenderer() const {
         return m_fullscreenRenderWidget;
     }
     return m_renderWidget;
+}
+
+void VideoPlayerPage::releaseMediaSession() {
+    ++m_rendererRecoveryGeneration;
+
+    MediaSession* session = m_mediaSession;
+    m_mediaSession = nullptr;
+
+    if (session) {
+        disconnect(session, nullptr, this, nullptr);
+        if (VideoSession* videoSession = session->videoSession()) {
+            videoSession->setVideoRenderer(nullptr);
+        }
+    }
+
+    auto detachRenderer = [](VideoRendererGL* renderer) {
+        if (!renderer) {
+            return;
+        }
+        renderer->stop();
+        renderer->setVideoBuffer(nullptr);
+    };
+
+    detachRenderer(m_renderWidget);
+    detachRenderer(m_fullscreenRenderWidget);
+
+    if (session) {
+        session->stop();
+        delete session;
+    }
 }
 
 void VideoPlayerPage::applyRendererPlaybackState(VideoRendererGL* renderer,
@@ -776,12 +801,16 @@ void VideoPlayerPage::switchActiveRenderer() {
     applyRendererPlaybackState(renderer, state);
     renderer->update();
 
-    if (renderer != m_renderWidget && m_renderWidget) {
-        applyRendererPlaybackState(m_renderWidget, MediaSession::Paused);
-    }
-    if (renderer != m_fullscreenRenderWidget && m_fullscreenRenderWidget) {
-        applyRendererPlaybackState(m_fullscreenRenderWidget, MediaSession::Paused);
-    }
+    auto detachInactiveRenderer = [renderer](VideoRendererGL* inactiveRenderer) {
+        if (!inactiveRenderer || inactiveRenderer == renderer) {
+            return;
+        }
+        inactiveRenderer->pause();
+        inactiveRenderer->setVideoBuffer(nullptr);
+    };
+
+    detachInactiveRenderer(m_renderWidget);
+    detachInactiveRenderer(m_fullscreenRenderWidget);
 }
 
 void VideoPlayerPage::resetPlaybackUi() {
@@ -834,11 +863,7 @@ void VideoPlayerPage::loadVideo(const QString& filePath) {
         return;
     }
 
-    if (m_mediaSession) {
-        m_mediaSession->stop();
-        delete m_mediaSession;
-        m_mediaSession = nullptr;
-    }
+    releaseMediaSession();
 
     resetPlaybackUi();
     m_currentFilePath = filePath.trimmed();
@@ -861,8 +886,7 @@ void VideoPlayerPage::loadVideo(const QString& filePath) {
     }
 
     if (!m_mediaSession->loadSource(url)) {
-        delete m_mediaSession;
-        m_mediaSession = nullptr;
+        releaseMediaSession();
         m_placeholderTitleLabel->setText(QStringLiteral("视频加载失败"));
         m_placeholderSubtitleLabel->setText(
             QStringLiteral("当前资源暂时无法播放，请稍后重试或打开本地视频。"));
@@ -899,11 +923,7 @@ bool VideoPlayerPage::loadSourceAt(qint64 positionMs, bool resumeAfterLoad, bool
         return false;
     }
 
-    if (m_mediaSession) {
-        m_mediaSession->stop();
-        delete m_mediaSession;
-        m_mediaSession = nullptr;
-    }
+    releaseMediaSession();
 
     const bool previousSliderPressed = m_sliderPressed;
     resetPlaybackUi();
@@ -922,8 +942,7 @@ bool VideoPlayerPage::loadSourceAt(qint64 positionMs, bool resumeAfterLoad, bool
     }
 
     if (!m_mediaSession->loadSource(url)) {
-        delete m_mediaSession;
-        m_mediaSession = nullptr;
+        releaseMediaSession();
         m_placeholderTitleLabel->setText(QStringLiteral("视频加载失败"));
         m_placeholderSubtitleLabel->setText(
             QStringLiteral("当前清晰度暂时无法播放，已保留原始播放入口。"));
@@ -1268,10 +1287,18 @@ void VideoPlayerPage::onQualityPresetChanged(int index) {
     }
 
     const int preset = m_qualityPresetBox->itemData(index, kRendererPresetRole).toInt(nullptr);
-    applyRendererQualityPreset(preset);
-
     const QString sourceUrl =
         m_qualityPresetBox->itemData(index, kSourceUrlRole).toString().trimmed();
+    if (m_switchingQualitySource && !sourceUrl.isEmpty() && sourceUrl != m_currentFilePath) {
+        qWarning() << "[VideoPlayerPage] Ignore quality change while previous switch is active"
+                   << "requested:" << sourceUrl << "current:" << m_currentFilePath;
+        restoreQualitySelectionForCurrentSource();
+        updatePlaybackButtons();
+        return;
+    }
+
+    applyRendererQualityPreset(preset);
+
     if (!sourceUrl.isEmpty() && !m_currentFilePath.isEmpty() && sourceUrl != m_currentFilePath) {
         const qint64 resumePosition = m_currentPosition;
         const bool resumeAfterLoad =
@@ -1779,11 +1806,16 @@ void VideoPlayerPage::scheduleRendererRecovery() {
         return;
     }
 
-    QTimer::singleShot(0, this, [this]() {
-        recoverRendererAfterWindowModeChange();
+    const int generation = ++m_rendererRecoveryGeneration;
+    QTimer::singleShot(0, this, [this, generation]() {
+        if (generation == m_rendererRecoveryGeneration) {
+            recoverRendererAfterWindowModeChange();
+        }
     });
-    QTimer::singleShot(kRendererRecoveryDelayMs, this, [this]() {
-        recoverRendererAfterWindowModeChange();
+    QTimer::singleShot(kRendererRecoveryDelayMs, this, [this, generation]() {
+        if (generation == m_rendererRecoveryGeneration) {
+            recoverRendererAfterWindowModeChange();
+        }
     });
 }
 

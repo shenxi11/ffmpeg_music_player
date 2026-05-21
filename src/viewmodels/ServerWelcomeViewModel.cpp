@@ -1,14 +1,10 @@
 #include "ServerWelcomeViewModel.h"
 
-#include <QEventLoop>
 #include <QJsonDocument>
 #include <QJsonParseError>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
-#include <QNetworkRequest>
-#include <QTimer>
 #include <QUrl>
 
+#include "curl_network_transport.h"
 #include "settings_manager.h"
 
 namespace {
@@ -25,10 +21,7 @@ QString extractResponseMessage(const QJsonObject& root)
 
 }
 
-ServerWelcomeViewModel::ServerWelcomeViewModel(QObject* parent)
-    : BaseViewModel(parent)
-    , m_networkManager(new QNetworkAccessManager(this))
-{
+ServerWelcomeViewModel::ServerWelcomeViewModel(QObject* parent) : BaseViewModel(parent) {
 }
 
 QString ServerWelcomeViewModel::serverHost() const
@@ -183,45 +176,29 @@ QString ServerWelcomeViewModel::normalizeHostInput(const QString& rawHost, int* 
 
 bool ServerWelcomeViewModel::getJson(const QString& fullUrl, QJsonObject* root, QString* errorMessage)
 {
-    QNetworkRequest request{QUrl(fullUrl)};
-    request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
-    request.setRawHeader("Accept", "application/json");
+    CurlNetworkTransport::Request request;
+    request.url = fullUrl;
+    request.method = QStringLiteral("GET");
+    request.timeoutMs = 5000;
+    request.headers.insert(QStringLiteral("Accept"), QStringLiteral("application/json"));
 
-    QNetworkReply* reply = m_networkManager->get(request);
-
-    QEventLoop loop;
-    QTimer timer;
-    timer.setSingleShot(true);
-    connect(&timer, &QTimer::timeout, reply, &QNetworkReply::abort);
-    connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
-    connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
-
-    timer.start(5000);
-    loop.exec();
-    const bool timedOut = !timer.isActive();
-    timer.stop();
-
-    const QByteArray body = reply->readAll();
-    const QNetworkReply::NetworkError networkError = reply->error();
-    const QString networkErrorText = reply->errorString();
-    reply->deleteLater();
-
-    if (timedOut) {
+    const CurlNetworkTransport::Response response = CurlNetworkTransport::perform(request);
+    if (response.timedOut) {
         if (errorMessage) {
             *errorMessage = QStringLiteral("请求超时：%1").arg(fullUrl);
         }
         return false;
     }
 
-    if (networkError != QNetworkReply::NoError) {
+    if (response.error != CurlNetworkTransport::Error::NoError) {
         if (errorMessage) {
-            *errorMessage = QStringLiteral("请求失败：%1（%2）").arg(fullUrl, networkErrorText);
+            *errorMessage = QStringLiteral("请求失败：%1（%2）").arg(fullUrl, response.errorString);
         }
         return false;
     }
 
     QJsonParseError parseError;
-    const QJsonDocument doc = QJsonDocument::fromJson(body, &parseError);
+    const QJsonDocument doc = QJsonDocument::fromJson(response.body, &parseError);
     if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
         if (errorMessage) {
             *errorMessage = QStringLiteral("服务端响应不是有效 JSON：%1").arg(fullUrl);

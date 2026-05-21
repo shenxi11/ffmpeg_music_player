@@ -1,5 +1,6 @@
 #include "PlaybackViewModel.h"
 
+#include "AudioCacheManager.h"
 #include "cover_lookup.h"
 #include "local_music_cache.h"
 
@@ -7,7 +8,68 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QSet>
+#include <QRegularExpression>
 #include <QTime>
+
+namespace {
+
+qint64 parseDurationTextToMs(const QString& text) {
+    const QString trimmed = text.trimmed();
+    if (trimmed.isEmpty()) {
+        return 0;
+    }
+
+    bool numericOk = false;
+    const double numericValue = trimmed.toDouble(&numericOk);
+    if (numericOk && numericValue > 0.0) {
+        return static_cast<qint64>(numericValue * 1000.0);
+    }
+
+    static const QRegularExpression secondsPattern(QStringLiteral(R"(^\s*(\d+(?:\.\d+)?)\s*seconds?\s*$)"),
+                                                   QRegularExpression::CaseInsensitiveOption);
+    const QRegularExpressionMatch secondsMatch = secondsPattern.match(trimmed);
+    if (secondsMatch.hasMatch()) {
+        const double seconds = secondsMatch.captured(1).toDouble(&numericOk);
+        return numericOk && seconds > 0.0 ? static_cast<qint64>(seconds * 1000.0) : 0;
+    }
+
+    const QStringList parts = trimmed.split(':');
+    if (parts.size() != 2 && parts.size() != 3) {
+        return 0;
+    }
+
+    qint64 totalSeconds = 0;
+    for (const QString& part : parts) {
+        bool ok = false;
+        const int value = part.trimmed().toInt(&ok);
+        if (!ok || value < 0) {
+            return 0;
+        }
+        totalSeconds = totalSeconds * 60 + value;
+    }
+    return totalSeconds > 0 ? totalSeconds * 1000 : 0;
+}
+
+qint64 parseDurationMsFromSongData(const QVariantMap& songData) {
+    const qint64 durationSec = songData.value(QStringLiteral("duration_sec")).toLongLong();
+    if (durationSec > 0) {
+        return durationSec * 1000;
+    }
+
+    qint64 durationMs = songData.value(QStringLiteral("duration_ms")).toLongLong();
+    if (durationMs > 0) {
+        return durationMs;
+    }
+
+    durationMs = songData.value(QStringLiteral("durationMs")).toLongLong();
+    if (durationMs > 0) {
+        return durationMs;
+    }
+
+    return parseDurationTextToMs(songData.value(QStringLiteral("duration")).toString());
+}
+
+} // namespace
 
 PlaybackViewModel::PlaybackViewModel(QObject* parent)
     : BaseViewModel(parent), m_audioService(&AudioService::instance()) {
@@ -213,6 +275,14 @@ void PlaybackViewModel::rememberTrackMetadata(const QUrl& url, const QVariantMap
         normalized.insert(QStringLiteral("cover"), cover);
         rememberCoverForMusicPath(key, cover);
         rememberCoverForSongMeta(title, artist, cover);
+    }
+    const qint64 durationMs = parseDurationMsFromSongData(songData);
+    if (durationMs > 0) {
+        normalized.insert(QStringLiteral("duration_sec"),
+                          static_cast<int>((durationMs + 500) / 1000));
+        normalized.insert(QStringLiteral("duration_ms"), durationMs);
+        normalized.insert(QStringLiteral("durationMs"), durationMs);
+        AudioCacheManager::instance().noteTrackDuration(url, durationMs);
     }
     m_playlistMetadataCache.insert(key, normalized);
 }

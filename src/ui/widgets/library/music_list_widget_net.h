@@ -30,6 +30,9 @@ class MusicListWidgetNet : public QWidget {
             listWidget->clearAll();
         }
         m_currentItems.clear();
+        song_duration.clear();
+        song_cover.clear();
+        currentSongDurationSec = 0;
     }
 
     void onPlayClick(const QString name, const QString artist, const QString cover);
@@ -45,7 +48,7 @@ class MusicListWidgetNet : public QWidget {
   signals:
     void signalAddSonglist(const QList<Music>& musicList);
     void signalPlayClick(const QString songName, const QString artist, const QString cover,
-                         bool net, const QString originalMusicPath);
+                         bool net, const QString originalMusicPath, int durationSec);
     void signalLast(QString songName);
     void signalNext(QString songName);
     void signalTranslateButtonClicked();
@@ -77,6 +80,7 @@ class MusicListWidgetNet : public QWidget {
     QVariantList m_currentItems;
     QString currentSongArtist;
     QString currentSongCover;
+    int currentSongDurationSec = 0;
     QString m_currentResolvedOriginalPath;
     QWidget* mainWidget = nullptr;
 };

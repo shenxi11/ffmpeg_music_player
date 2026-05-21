@@ -8,16 +8,19 @@ QString formatDurationForDisplay(double rawDuration)
         return "0:00";
     }
 
-    // Search API currently mixes milliseconds and seconds across endpoints.
-    // Normalize to seconds first, then render as m:ss.
-    double secondsValue = rawDuration;
-    if (rawDuration > 10000.0) {
-        secondsValue = rawDuration / 1000.0;
-    }
-
-    qint64 totalSeconds = static_cast<qint64>(secondsValue + 0.5);
+    qint64 totalSeconds = static_cast<qint64>(rawDuration + 0.5);
     if (totalSeconds < 0) {
         totalSeconds = 0;
+    }
+
+    if (totalSeconds >= 3600) {
+        const qint64 hours = totalSeconds / 3600;
+        const qint64 minutes = (totalSeconds % 3600) / 60;
+        const qint64 seconds = totalSeconds % 60;
+        return QString("%1:%2:%3")
+            .arg(hours, 2, 10, QChar('0'))
+            .arg(minutes, 2, 10, QChar('0'))
+            .arg(seconds, 2, 10, QChar('0'));
     }
 
     const qint64 minutes = totalSeconds / 60;
@@ -90,7 +93,7 @@ void MusicListWidgetNetQml::setPlayingState(const QString& filePath, bool playin
 
 void MusicListWidgetNetQml::addSong(const QString& songName, const QString& filePath, 
              const QString& artist, const QString& duration,
-             const QString& cover)
+             const QString& cover, int durationSec)
 {
     QQuickItem* root = rootObject();
     if (root) {
@@ -99,7 +102,8 @@ void MusicListWidgetNetQml::addSong(const QString& songName, const QString& file
             Q_ARG(QVariant, filePath),
             Q_ARG(QVariant, artist),
             Q_ARG(QVariant, duration),
-            Q_ARG(QVariant, cover));
+            Q_ARG(QVariant, cover),
+            Q_ARG(QVariant, durationSec));
         
         // 每次增项后刷新缓存的歌曲数量。
         updateSongCount();
@@ -113,6 +117,7 @@ void MusicListWidgetNetQml::addSongList(const QStringList& songNames, const QStr
         QVariantList nameList;
         QVariantList pathList;
         QVariantList durationList;
+        QVariantList durationSecList;
         QVariantList coverList;
         QVariantList artistList;
         
@@ -126,6 +131,7 @@ void MusicListWidgetNetQml::addSongList(const QStringList& songNames, const QStr
         
         for (double duration : durations) {
             durationList.append(formatDurationForDisplay(duration));
+            durationSecList.append(qMax(0, static_cast<int>(duration + 0.5)));
         }
         
         for (const QString& cover : coverUrls) {
@@ -141,7 +147,8 @@ void MusicListWidgetNetQml::addSongList(const QStringList& songNames, const QStr
             Q_ARG(QVariant, pathList),
             Q_ARG(QVariant, durationList),
             Q_ARG(QVariant, coverList),
-            Q_ARG(QVariant, artistList));
+            Q_ARG(QVariant, artistList),
+            Q_ARG(QVariant, durationSecList));
         
         // 批量写入后刷新歌曲总数。
         updateSongCount();

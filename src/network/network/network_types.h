@@ -4,7 +4,6 @@
 #include <QString>
 #include <QByteArray>
 #include <QMap>
-#include <QNetworkReply>
 #include <QDateTime>
 #include <functional>
 #include <memory>
@@ -27,6 +26,16 @@ enum class HttpMethod {
     DELETE_METHOD,
     PATCH,
     HEAD_METHOD
+};
+
+enum class NetworkError {
+    NoError,
+    InvalidRequest,
+    TransportError,
+    TimeoutError,
+    AbortedError,
+    FileError,
+    UnknownError
 };
 
 // 请求配置选项
@@ -73,7 +82,7 @@ struct NetworkResponse {
     int statusCode = 0;                         // HTTP状态码
     QByteArray body;                            // 响应体
     QMap<QString, QString> headers;             // 响应头
-    QNetworkReply::NetworkError error = QNetworkReply::NoError;  // 错误类型
+    NetworkError error = NetworkError::NoError; // 错误类型
     QString errorString;                        // 错误信息
     bool isFromCache = false;                   // 是否来自缓存
     qint64 elapsedMs = 0;                       // 请求耗时（毫秒）
@@ -81,7 +90,7 @@ struct NetworkResponse {
     
     // 便捷方法
     bool isSuccess() const {
-        return statusCode >= 200 && statusCode < 300 && error == QNetworkReply::NoError;
+        return statusCode >= 200 && statusCode < 300 && error == NetworkError::NoError;
     }
     
     bool isClientError() const {
@@ -93,7 +102,7 @@ struct NetworkResponse {
     }
     
     bool isNetworkError() const {
-        return error != QNetworkReply::NoError;
+        return error != NetworkError::NoError;
     }
     
     QString getHeader(const QString& name, const QString& defaultValue = QString()) const {

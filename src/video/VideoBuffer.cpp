@@ -67,6 +67,44 @@ VideoFrame* VideoBuffer::peek() const {
     return m_queue.first();
 }
 
+bool VideoBuffer::peekInfo(FrameInfo* info) const {
+    if (!info) {
+        return false;
+    }
+
+    QMutexLocker locker(&m_mutex);
+    if (m_queue.isEmpty()) {
+        return false;
+    }
+
+    const VideoFrame* frame = m_queue.first();
+    info->pts = frame->pts;
+    info->duration = frame->duration;
+    info->isKeyFrame = frame->isKeyFrame;
+    info->size = frame->size;
+    info->width = frame->width;
+    info->height = frame->height;
+    return true;
+}
+
+VideoFrame* VideoBuffer::popIfPts(qint64 pts) {
+    QMutexLocker locker(&m_mutex);
+
+    if (m_queue.isEmpty()) {
+        emit bufferEmpty();
+        return nullptr;
+    }
+
+    VideoFrame* frame = m_queue.first();
+    if (!frame || frame->pts != pts) {
+        return nullptr;
+    }
+
+    frame = m_queue.dequeue();
+    emit bufferLevelChanged(m_queue.size());
+    return frame;
+}
+
 void VideoBuffer::clear() {
     QMutexLocker locker(&m_mutex);
 

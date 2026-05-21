@@ -38,9 +38,9 @@ public:
     void setPlayingState(const QString& filePath, bool playing);
 
     // ===== 业务逻辑方法 =====
-    void addSong(const QString& songName, const QString& filePath, 
+    void addSong(const QString& songName, const QString& filePath,
                  const QString& artist = "", const QString& duration = "0:00",
-                 const QString& cover = "");
+                 const QString& cover = "", int durationSec = 0);
     void addSongList(const QStringList& songNames, const QStringList& relativePaths, 
                      const QList<double>& durations, const QStringList& coverUrls = QStringList(), 
                      const QStringList& artists = QStringList());

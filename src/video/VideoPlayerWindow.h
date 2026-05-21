@@ -79,6 +79,7 @@ private:
     void syncFullScreenButtonText();
     void scheduleRendererRecovery();
     void recoverRendererAfterWindowModeChange();
+    void releaseMediaSession();
     void updateTimeLabel(qint64 currentMs, qint64 totalMs);
     QString formatTime(qint64 ms);
 

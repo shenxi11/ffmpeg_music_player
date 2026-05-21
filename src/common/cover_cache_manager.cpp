@@ -7,12 +7,13 @@
 #include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
-#include <QNetworkRequest>
+#include <QMetaObject>
 #include <QSaveFile>
 #include <QStandardPaths>
+#include <QtConcurrent>
 #include <QUrl>
+
+#include "curl_network_transport.h"
 
 namespace {
 
@@ -55,9 +56,7 @@ CoverCacheManager& CoverCacheManager::instance()
     return manager;
 }
 
-CoverCacheManager::CoverCacheManager(QObject* parent)
-    : QObject(parent), m_networkManager(new QNetworkAccessManager(this))
-{
+CoverCacheManager::CoverCacheManager(QObject* parent) : QObject(parent) {
     QDir().mkpath(cacheDirectory());
 }
 
@@ -167,11 +166,17 @@ void CoverCacheManager::cacheRemoteCover(const QString& rawCover, CacheCallback 
         return;
     }
 
-    QNetworkReply* reply = m_networkManager->get(QNetworkRequest(QUrl(normalizedSource)));
-    connect(reply, &QNetworkReply::finished, this, [this, reply, normalizedSource, rawCover]() {
+    QtConcurrent::run([this, normalizedSource, rawCover]() {
+        CurlNetworkTransport::Request request;
+        request.url = normalizedSource;
+        request.method = QStringLiteral("GET");
+        request.timeoutMs = 15000;
+        const CurlNetworkTransport::Response response = CurlNetworkTransport::perform(request);
+
+        QMetaObject::invokeMethod(this, [this, normalizedSource, rawCover, response]() {
         QString localFilePath;
-        const QByteArray payload = reply->readAll();
-        if (reply->error() == QNetworkReply::NoError && !payload.isEmpty()) {
+        const QByteArray payload = response.body;
+        if (response.error == CurlNetworkTransport::Error::NoError && !payload.isEmpty()) {
             const QString cachePath = cacheFilePathForSource(normalizedSource);
             QDir().mkpath(QFileInfo(cachePath).absolutePath());
             QSaveFile file(cachePath);
@@ -191,7 +196,7 @@ void CoverCacheManager::cacheRemoteCover(const QString& rawCover, CacheCallback 
                 cb(localFilePath);
             }
         }
-        reply->deleteLater();
+        }, Qt::QueuedConnection);
     });
 }
 

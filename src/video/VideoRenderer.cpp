@@ -115,6 +115,9 @@ void VideoRenderer::renderFrame(VideoFrame* frame)
 
 void VideoRenderer::setVideoBuffer(VideoBuffer* buffer)
 {
+    if (!buffer && m_buffer) {
+        m_buffering = false;
+    }
     m_buffer = buffer;
 }
 
@@ -179,9 +182,9 @@ void VideoRenderer::renderNextFrame()
     // 使用音频时钟作为主时钟（音视频同步）
     qint64 audioClock = AudioPlayer::instance().getPlaybackPosition();
     
-    // 从缓冲区查看下一帧
-    VideoFrame* frame = m_buffer->peek();
-    if (!frame) {
+    // 从缓冲区读取下一帧元信息，避免跨锁持有队列内部裸指针。
+    VideoBuffer::FrameInfo frameInfo;
+    if (!m_buffer->peekInfo(&frameInfo)) {
         return;  // 缓冲区空，等待更多帧
     }
     
@@ -189,29 +192,29 @@ void VideoRenderer::renderNextFrame()
     static int debugCounter = 0;
     static qint64 lastRenderTime = 0;
     if (debugCounter++ % 30 == 0) {  // 每30帧打印一次
-        qint64 diff = frame->pts - audioClock;
+        qint64 diff = frameInfo.pts - audioClock;
         qDebug() << "[VideoRenderer] audioClock:" << audioClock 
-                 << "frame->pts:" << frame->pts 
+                 << "frame->pts:" << frameInfo.pts
                  << "diff:" << diff
                  << "buffer_size:" << m_buffer->size();
     }
     
     // 检查帧的PTS是否到达显示时间（允许40ms误差）
-    if (frame->pts > audioClock + 40) {
+    if (frameInfo.pts > audioClock + 40) {
         // 帧还没到显示时间，等待
         return;
     }
     
     // 如果视频落后太多（超过100ms），跳帧
-    if (audioClock > frame->pts + 100) {
-        qDebug() << "[VideoRenderer] Skip frame - video lagging, pts:" << frame->pts << "audio:" << audioClock;
-        frame = m_buffer->pop();
+    if (audioClock > frameInfo.pts + 100) {
+        qDebug() << "[VideoRenderer] Skip frame - video lagging, pts:" << frameInfo.pts << "audio:" << audioClock;
+        VideoFrame* frame = m_buffer->popIfPts(frameInfo.pts);
         delete frame;
         return;
     }
     
     // 从缓冲区取出并渲染
-    frame = m_buffer->pop();
+    VideoFrame* frame = m_buffer->popIfPts(frameInfo.pts);
     if (frame) {
         lastRenderTime = audioClock;
         renderFrame(frame);

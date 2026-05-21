@@ -35,6 +35,7 @@ public:
     void resume();
     void stop();
     void seekTo(qint64 positionMs);
+    void cancelFailedRemoteFlacRecoveryForUserSeek();
     
     // 设置会话音量（最终写入共享 AudioPlayer）
     void setVolume(int volume);
@@ -149,6 +150,11 @@ private:
         bool active = false;
         int percent = 0;
         bool decoderPausedByFlowControl = false;
+        bool decodedWriteSinceEnter = false;
+        int decodedWriteGeneration = 0;
+        qint64 decodedWriteTimestampMs = -1;
+        qint64 lastFlowControlChangeMs = 0;
+        int lastFlowControlLogFill = -1;
         bool hasRecentResume = false;
         bool tailWaitLogActive = false;
     };
@@ -165,6 +171,8 @@ private:
     struct SeekState {
         SeekPhase phase = SeekPhase::Idle;
         bool fastStartMode = false;
+        int nextSeekId = 0;
+        int activeSeekId = 0;
         int retryCount = 0;
         int maxRetries = 4;
         int dispatchedGeneration = 0;
@@ -174,15 +182,30 @@ private:
 
     struct SeekLatencyState {
         SeekLatencyPhase phase = SeekLatencyPhase::Inactive;
+        int seekId = 0;
         qint64 desiredTargetMs = 0;
         qint64 workingTargetMs = 0;
         qint64 firstPacketTimestampMs = -1;
+        qint64 rawFirstPacketTimestampMs = -1;
+        qint64 hintedByte = -1;
+        int seekHintGeneration = 0;
         bool seekIndexHit = false;
+        bool seekHintExact = false;
+        double seekHintConfidence = 0.0;
         bool proxySeekTakeover = false;
+        bool largeDriftLogged = false;
         int accuracyRetryCount = 0;
         int accuracyMaxRetries = 5;
         qint64 accuracyToleranceMs = 2500;
         qint64 hardTimeoutMs = 20000;
+    };
+
+    struct FlacSeekRecoveryState {
+        bool failed = false;
+        bool recoveryInProgress = false;
+        qint64 targetMs = -1;
+        int seekId = 0;
+        int rejectedGeneration = 0;
     };
 
     struct DecodeState {
@@ -220,6 +243,9 @@ private:
     bool consumeInternalPausePending();
     void markPlaybackResumedActivity();
     void finalizeSeekLatencyOnPlaybackResumed();
+    bool resumeFailedRemoteFlacSeekIfNeeded(const char* reason);
+    void beginRemoteFlacSeekRecovery(const char* reason);
+    bool shouldHoldResumeForDecodedWrite(const char* reason);
 
     // Owner 接管与切换
     bool shouldTakeOverFromOwner(const QString& currentOwner, bool treatEmptyOwnerAsTakeover) const;
@@ -241,10 +267,22 @@ private:
     // 解码时间轴/缓冲阈值/恢复判定
     bool isRemoteFastSeekSource() const;
     bool isRemoteFlacSource() const;
+    void publishDuration(qint64 durationMs, const char* source);
+    qint64 fallbackDurationFromCache() const;
     void normalizeDecodedTimestamp(qint64 timestampMs, qint64& normalizedTimestampMs);
     void extendDurationFromDecodedTimestamp(qint64 normalizedTimestampMs);
-    bool handleSeekLatencyOnDecodedTimestamp(qint64& normalizedTimestampMs);
+    bool handleSeekLatencyOnDecodedTimestamp(qint64 rawTimestampMs, qint64& normalizedTimestampMs,
+                                             int seekGeneration);
+    void failRemoteFlacSeek(const char* reason, const QString& error);
+    bool isRemoteFlacSeekFirstPacketError(const QString& error) const;
+    void clearRemoteFlacSeekRecovery(const char* reason);
+    void logRemoteFlacSeekRecoveryState(const char* state, const char* reason) const;
     void applyDecoderFlowControlBeforeWrite(bool isRemoteFlac, int fillLevelBeforeWrite);
+    void enterBufferingWaitForDecodedWrite(const char* reason, bool emitStarted,
+                                           bool resetDecodedWrite = true);
+    void markBufferingDecodedWrite(qint64 normalizedTimestampMs, int bufferedBytes,
+                                   int seekGeneration);
+    bool hasRequiredDecodedGenerationForResume() const;
     bool shouldResumeFromDecodedWrite(int fillLevel, int bufferedBytes, bool isRemoteFlac,
                                       int& requiredLevel, int& requiredBytes) const;
     void startPlayerFromDecodedReady(int fillLevel);
@@ -252,6 +290,7 @@ private:
     void completeDecodedReadyResume();
     void kickBufferingRecovery(const char* reason, int fillLevel, int bufferedBytes);
     void stopBufferingWatchdog();
+    bool canExitBufferingAfterDecodedWrite(const char* reason, int fillLevel, int bufferedBytes);
     bool shouldDebounceBufferingEnter() const;
     bool handleTailLowBufferFallback(qint64 currentPos, int fillLevel, int bufferedBytes);
     bool canExitBufferingByThreshold(int fillLevel, int bufferedBytes, bool isRemoteFlac,
@@ -286,6 +325,7 @@ private:
     QString m_artist;
     QString m_albumArt;
     qint64 m_duration;
+    bool m_hasStableDuration = false;
 
     // 会话运行状态（替代分散标志位）
     PlaybackState m_playback;
@@ -293,6 +333,7 @@ private:
     ClockState m_clock;
     SeekState m_seek;
     SeekLatencyState m_seekLatency;
+    FlacSeekRecoveryState m_flacSeekRecovery;
     DecodeState m_decode;
 
     // seek 宽限窗口，避免 seek 后瞬时状态抖动影响 UI 与自动控制

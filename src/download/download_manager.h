@@ -2,8 +2,6 @@
 #define DOWNLOAD_MANAGER_H
 
 #include <QObject>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
 #include <QQueue>
 #include <QMap>
 #include <QFile>
@@ -84,7 +82,6 @@ signals:
 
 private:
     void handleReplyDownloadProgress(qint64 bytesReceived, qint64 bytesTotal);
-    void handleReplyReadyRead();
 
     QString m_taskId;
     QString m_url;
@@ -92,7 +89,6 @@ private:
     QByteArray m_postData;
     qint64 m_startByte;
     QAtomicInt m_aborted;
-    QNetworkReply* m_currentReply = nullptr;
     QFile* m_currentFile = nullptr;
 };
 

@@ -6,8 +6,6 @@
 #include <QJsonObject>
 #include <QPoint>
 
-class QNetworkAccessManager;
-
 /**
  * @brief 欢迎页视图模型。
  *
@@ -36,8 +34,6 @@ public:
 private:
     static QString normalizeHostInput(const QString& rawHost, int* portInOut);
     bool getJson(const QString& fullUrl, QJsonObject* root, QString* errorMessage);
-
-    QNetworkAccessManager* m_networkManager = nullptr;
 };
 
 #endif // SERVERWELCOMEVIEWMODEL_H

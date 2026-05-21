@@ -34,7 +34,7 @@ public:
     void startDecode();
     void pauseDecode();
     void stopDecode();
-    void seekTo(qint64 positionMs, SeekMode mode = SeekMode::Precise);
+    int seekTo(qint64 positionMs, SeekMode mode = SeekMode::Precise, int seekId = 0);
     
     // 状态查询
     bool isDecoding() const { return m_decoding; }
@@ -73,8 +73,17 @@ public slots:
 
 private:
     static int interruptCallback(void* opaque);
+    bool shouldAbortIo() const;
+    int boundedIoTimeoutMs(int timeoutMs) const;
     void setIoDeadlineMs(int timeoutMs);
     void clearIoDeadline();
+    void beginSeekFirstPacketWait(int seekGeneration, int seekId, qint64 targetMs, int timeoutMs,
+                                  bool applyGeneration, qint64 byteAnchor = -1);
+    void clearSeekFirstPacketWait();
+    bool shouldKeepWaitingForSeekPacket(const char* reason, int retryCount, int maxRetries);
+    int seekFirstPacketRetryBudget(const char* reason, int defaultMaxRetries) const;
+    int seekFirstPacketRetrySleepMs(const char* reason) const;
+    qint64 remoteFlacByteAnchorForLog(qint64 targetMs, int seekGeneration, int seekId) const;
     void cleanup();
     void extractAlbumArt();
     void extractAudioTags();
@@ -114,6 +123,8 @@ private:
     std::atomic<qint64> m_seekTarget;
     std::atomic<int> m_seekMode;
     std::atomic<int> m_seekGeneration;
+    std::atomic<int> m_pendingSeekId;
+    std::atomic<int> m_pendingSeekGeneration;
     std::atomic<int> m_appliedSeekGeneration;
     
     // 当前位置
@@ -131,8 +142,15 @@ private:
     std::atomic<bool> m_ioAbortRequested;
     std::atomic<bool> m_networkSource;
     std::atomic<bool> m_waitingFirstPacketAfterSeek;
+    std::atomic<qint64> m_seekFirstPacketDeadlineUs;
+    std::atomic<qint64> m_waitingSeekTargetMs;
+    std::atomic<qint64> m_waitingSeekByteAnchor;
+    std::atomic<int> m_waitingSeekId;
+    std::atomic<int> m_waitingSeekGeneration;
+    std::atomic<bool> m_validateSeekGenerationOnFirstPacket;
     std::atomic<bool> m_hlsSource;
-    int m_seekEofRetryCount;
+    std::atomic<int> m_seekEofRetryCount;
+    std::atomic<int> m_seekReadFailureCount;
 };
 
 #endif // AUDIODECODER_H

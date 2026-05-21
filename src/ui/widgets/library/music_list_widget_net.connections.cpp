@@ -70,9 +70,12 @@ void MusicListWidgetNet::setupConnections() {
                 QStringList coverUrls;
                 QStringList artists;
                 QVariantList items;
+                song_duration.clear();
+                song_cover.clear();
 
                 for (const Music& music : musicList) {
                     const QString fullPath = music.getSongPath();
+                    const qint64 durationSec = qMax<qint64>(0, music.getDuration());
                     QString relativePath;
 
                     if (fullPath.startsWith("http://") || fullPath.startsWith("https://")) {
@@ -88,7 +91,7 @@ void MusicListWidgetNet::setupConnections() {
 
                     songNames.append(music.getSongName());
                     relativePaths.append(relativePath);
-                    durations.append(static_cast<double>(music.getDuration()));
+                    durations.append(static_cast<double>(durationSec));
                     coverUrls.append(music.getPicPath());
                     artists.append(music.getSinger());
                     const QString title = music.getSongName().trimmed().isEmpty()
@@ -106,14 +109,13 @@ void MusicListWidgetNet::setupConnections() {
                         {QStringLiteral("artist"), artist},
                         {QStringLiteral("coverUrl"), music.getPicPath()},
                         {QStringLiteral("cover"), music.getPicPath()},
-                        {QStringLiteral("durationMs"),
-                         static_cast<qint64>(music.getDuration() > 0 ? music.getDuration() * 1000
-                                                                     : 0)},
+                        {QStringLiteral("duration_sec"), durationSec},
+                        {QStringLiteral("durationMs"), durationSec * 1000},
                         {QStringLiteral("isLocal"), false},
                         {QStringLiteral("sourceType"), QStringLiteral("online")}
                     });
 
-                    song_duration[relativePath] = static_cast<double>(music.getDuration());
+                    song_duration[relativePath] = static_cast<double>(durationSec);
                     song_cover[relativePath] = music.getPicPath();
                 }
 
@@ -137,7 +139,14 @@ void MusicListWidgetNet::setupConnections() {
                     emit songActionRequested(action, payload);
                     return;
                 }
-                emit signalPlayClick(file, artist, cover, true, m_currentResolvedOriginalPath);
+                int durationSec = currentSongDurationSec;
+                if (durationSec <= 0) {
+                    durationSec = qMax(0, static_cast<int>(
+                                              song_duration.value(m_currentResolvedOriginalPath, 0.0) +
+                                              0.5));
+                }
+                emit signalPlayClick(file, artist, cover, true, m_currentResolvedOriginalPath,
+                                     durationSec);
             });
     connect(m_viewModel, &OnlineMusicListViewModel::streamResolveFailed, this, [this]() {
         clearPendingResolvedAction();
@@ -152,14 +161,6 @@ void MusicListWidgetNet::setupConnections() {
 void MusicListWidgetNet::onSongActionRequested(const QString& action,
                                                const QVariant& payloadValue) {
     const QVariantMap payload = payloadValue.toMap();
-    if (action == QStringLiteral("add_favorite")) {
-        emit addToFavorite(payload.value(QStringLiteral("path")).toString(),
-                           payload.value(QStringLiteral("title")).toString(),
-                           payload.value(QStringLiteral("artist")).toString(),
-                           payload.value(QStringLiteral("duration")).toString());
-        return;
-    }
-
     if (action == QStringLiteral("download")) {
         onDownloadMusic(payload.value(QStringLiteral("path")).toString());
         return;

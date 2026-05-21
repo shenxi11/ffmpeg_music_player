@@ -99,6 +99,20 @@ int durationTextToSeconds(const QString& durationText) {
     return 0;
 }
 
+int durationSecondsFromSongData(const QVariantMap& songData) {
+    int durationSeconds = songData.value(QStringLiteral("duration_sec")).toInt();
+    if (durationSeconds > 0) {
+        return durationSeconds;
+    }
+
+    const qint64 durationMs = songData.value(QStringLiteral("durationMs")).toLongLong();
+    if (durationMs > 0) {
+        return static_cast<int>(durationMs / 1000);
+    }
+
+    return durationTextToSeconds(songData.value(QStringLiteral("duration")).toString());
+}
+
 QUrl buildActionSongUrl(const QVariantMap& songData) {
     QString path = songData.value(QStringLiteral("playPath")).toString().trimmed();
     if (path.isEmpty()) {
@@ -131,10 +145,7 @@ QVariantMap buildPlaylistItemFromSong(const QVariantMap& songData) {
     const QString title = songData.value(QStringLiteral("title")).toString().trimmed();
     const QString artist = songData.value(QStringLiteral("artist")).toString().trimmed();
     const QString cover = songData.value(QStringLiteral("cover")).toString().trimmed();
-    const int durationSeconds =
-        songData.value(QStringLiteral("duration_sec")).toInt() > 0
-            ? songData.value(QStringLiteral("duration_sec")).toInt()
-            : durationTextToSeconds(songData.value(QStringLiteral("duration")).toString());
+    const int durationSeconds = durationSecondsFromSongData(songData);
 
     item.insert(QStringLiteral("music_path"), musicPath);
     item.insert(QStringLiteral("music_title"),
@@ -1191,7 +1202,7 @@ void MainWidget::toggleFavoriteByAction(const QString& action, const QVariantMap
     m_viewModel->addFavorite(m_viewModel->currentUserAccount(), path,
                              songData.value(QStringLiteral("title")).toString(),
                              songData.value(QStringLiteral("artist")).toString(),
-                             songData.value(QStringLiteral("duration")).toString(),
+                             QString::number(durationSecondsFromSongData(songData)),
                              songData.value(QStringLiteral("isLocal")).toBool());
 }
 
@@ -1269,7 +1280,8 @@ void MainWidget::playSongByAction(const QVariantMap& songData) {
 }
 
 void MainWidget::rememberPlaybackQueueMetadata(const QString& filePath, const QString& title,
-                                               const QString& artist, const QString& cover) {
+                                               const QString& artist, const QString& cover,
+                                               int durationSec, const QString& durationText) {
     if (!w || !w->playbackViewModel()) {
         return;
     }
@@ -1298,5 +1310,13 @@ void MainWidget::rememberPlaybackQueueMetadata(const QString& filePath, const QS
     songData.insert(QStringLiteral("playPath"), trimmedPath);
     songData.insert(QStringLiteral("isLocal"),
                     !trimmedPath.startsWith(QStringLiteral("http"), Qt::CaseInsensitive));
+    if (durationSec > 0) {
+        songData.insert(QStringLiteral("duration_sec"), durationSec);
+        songData.insert(QStringLiteral("durationMs"),
+                        static_cast<qint64>(durationSec) * 1000);
+    }
+    if (!durationText.trimmed().isEmpty()) {
+        songData.insert(QStringLiteral("duration"), durationText.trimmed());
+    }
     w->playbackViewModel()->rememberTrackMetadata(url, songData);
 }

@@ -1,14 +1,18 @@
 #ifndef VIDEODECODER_H
 #define VIDEODECODER_H
 
+#include <QByteArray>
 #include <QObject>
 #include <QImage>
 #include <QSize>
 #include <QDebug>
 
+#include <utility>
+
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
+#include <libavutil/hwcontext.h>
 #include <libswscale/swscale.h>
 }
 
@@ -26,7 +30,8 @@ struct VideoFrame {
     QSize size;         // 帧尺寸
     
     // OpenGL渲染所需的YUV原始数据
-    uint8_t* data[3];   // Y, U, V 平面数据指针
+    QByteArray planes[3]; // Y, U, V 平面数据
+    const uint8_t* data[3];   // Y, U, V 平面数据指针
     int linesize[3];    // 每个平面的行跨度
     int width;          // 帧宽度
     int height;         // 帧高度
@@ -35,20 +40,23 @@ struct VideoFrame {
         data[0] = data[1] = data[2] = nullptr;
         linesize[0] = linesize[1] = linesize[2] = 0;
     }
-    
-    ~VideoFrame() {
-        // qDebug() << "[VideoFrame] Destructor started";
-        // 释放YUV数据
-        for (int i = 0; i < 3; i++) {
-            if (data[i]) {
-                // qDebug() << "[VideoFrame] Deleting YUV plane" << i;
-                delete[] data[i];
-                data[i] = nullptr;
-                // qDebug() << "[VideoFrame] YUV plane" << i << "deleted";
-            }
+
+    VideoFrame(const VideoFrame&) = delete;
+    VideoFrame& operator=(const VideoFrame&) = delete;
+
+    void setPlane(int index, QByteArray planeData, int lineSize) {
+        if (index < 0 || index >= 3) {
+            return;
         }
-        // qDebug() << "[VideoFrame] Destructor complete";
+        planes[index] = std::move(planeData);
+        data[index] = reinterpret_cast<const uint8_t*>(planes[index].constData());
+        linesize[index] = lineSize;
     }
+};
+
+struct VideoDecodeOptions {
+    bool enableHardwareDecode = true;
+    AVHWDeviceType preferredHardwareDevice = AV_HWDEVICE_TYPE_D3D11VA;
 };
 
 /**
@@ -69,6 +77,7 @@ public:
     
     // ===== 初始化 =====
     bool init(AVStream* stream);
+    bool init(AVStream* stream, const VideoDecodeOptions& options);
     bool init(AVCodecContext* codecCtx);
     
     // ===== 解码控制 =====
@@ -80,6 +89,7 @@ public:
     // ===== 状态查询 =====
     bool isRunning() const { return m_running; }
     QSize videoSize() const { return m_videoSize; }
+    bool isHardwareDecodeActive() const { return m_hwDecodeActive; }
     
 signals:
     void frameDecoded(VideoFrame* frame);
@@ -87,6 +97,11 @@ signals:
     
 private:
     VideoFrame* convertFrame(AVFrame* srcFrame);
+    bool ensureSwsContext(AVFrame* srcFrame);
+    bool initHardwareDevice(const AVCodec* codec, AVCodecContext* codecCtx);
+    void releaseHardwareDevice();
+    AVFrame* softwareFrameForConvert(AVFrame* srcFrame);
+    static AVPixelFormat chooseHardwareFormat(AVCodecContext* ctx, const AVPixelFormat* formats);
     void cleanup();
     
 private:
@@ -94,7 +109,14 @@ private:
     AVCodecContext* m_codecCtx;
     AVCodec* m_codec;
     SwsContext* m_swsCtx;       // 格式转换上下文
+    AVPixelFormat m_swsSrcFormat;
     AVFrame* m_frame;           // 临时帧
+    AVFrame* m_yuvFrame;        // 统一输出的YUV420P帧
+    AVFrame* m_hwTransferFrame; // 硬解帧下载到CPU内存的临时帧
+    AVBufferRef* m_hwDeviceCtx;
+    AVPixelFormat m_hwPixelFormat;
+    VideoDecodeOptions m_decodeOptions;
+    bool m_hwDecodeActive;
     
     // 状态
     bool m_running;

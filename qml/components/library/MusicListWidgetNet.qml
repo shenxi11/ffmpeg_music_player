@@ -177,6 +177,7 @@ Rectangle {
             playPath: item.filePath || "",
             title: displayTitle(item),
             artist: displayArtist(item),
+            duration_sec: item.duration_sec || 0,
             duration: item.duration || "0:00",
             cover: item.cover || "",
             isLocal: false,
@@ -403,15 +404,6 @@ Rectangle {
                             root.playRequested(model.filePath, root.displayArtist(model), model.cover || "")
                             return
                         }
-                        if (action === "add_favorite") {
-                            root.addToFavorite(
-                                model.filePath || "",
-                                root.displayTitle(model),
-                                root.displayArtist(model),
-                                model.duration || ""
-                            )
-                            return
-                        }
                         if (action === "download") {
                             root.downloadRequested(model.filePath || "")
                             return
@@ -433,7 +425,7 @@ Rectangle {
     }
     
     // 提供给 C++ 调用的方法
-    function addSong(songName, filePath, artist, duration, cover) {
+    function addSong(songName, filePath, artist, duration, cover, durationSec) {
         var normalizedName = normalizeText(songName, "")
         if (normalizedName.length === 0) {
             normalizedName = normalizeText(baseNameFromPath(filePath), "未知歌曲")
@@ -442,15 +434,17 @@ Rectangle {
                                   "songName": normalizedName,
                                   "filePath": filePath,
                                   "artist": normalizeText(artist, "未知艺术家"),
+                                  "duration_sec": durationSec || 0,
                                   "duration": duration || "0:00",
                                   "cover": cover || "",
                                   "isPlaying": false
                               })
     }
     
-    function addSongList(songNames, relativePaths, durations, coverUrls, artists) {
+    function addSongList(songNames, relativePaths, durations, coverUrls, artists, durationSecs) {
         coverUrls = coverUrls || []
         artists = artists || []
+        durationSecs = durationSecs || []
         for (var i = 0; i < songNames.length; i++) {
             var normalizedName = normalizeText(songNames[i], "")
             if (normalizedName.length === 0) {
@@ -460,6 +454,7 @@ Rectangle {
                                       "songName": normalizedName,
                                       "filePath": relativePaths[i],
                                       "artist": normalizeText(artists[i], "未知艺术家"),
+                                      "duration_sec": durationSecs[i] || 0,
                                       "duration": durations[i] || "0:00",
                                       "cover": coverUrls[i] || "",
                                       "isPlaying": false

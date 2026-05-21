@@ -24,7 +24,10 @@ bool AudioInputController::postPlayUrl(const QUrl& url) {
     }
 
     clearAll();
-    return m_service->executePlayInternal(url);
+    Command command = makeCommand(CommandType::PlayUrl);
+    command.url = url;
+    enqueue(command);
+    return true;
 }
 
 void AudioInputController::postPause() {
@@ -37,11 +40,7 @@ void AudioInputController::postResume() {
 
 void AudioInputController::postStop() {
     clearAll();
-    Command command = makeCommand(CommandType::Stop);
-    if (m_service) {
-        m_service->executeStopInternal();
-    }
-    Q_UNUSED(command);
+    enqueue(makeCommand(CommandType::Stop));
 }
 
 void AudioInputController::postSeek(const QString& sessionId, qint64 positionMs,

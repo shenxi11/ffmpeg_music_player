@@ -106,7 +106,7 @@ QString NetworkService::sendRequestInternal(
             response.statusCode = cachedEntry->statusCode;
             response.body = cachedEntry->data;
             response.headers = cachedEntry->headers;
-            response.error = QNetworkReply::NoError;
+            response.error = NetworkError::NoError;
             response.isFromCache = true;
             response.elapsedMs = 0;
             response.requestId = "cached-" + cacheKey;

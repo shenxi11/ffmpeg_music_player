@@ -8,8 +8,6 @@
 
 #include <functional>
 
-class QNetworkAccessManager;
-
 /**
  * @brief 客户端封面缓存管理器，统一处理封面 URL 规范化、远程落盘和 QML 展示路径。
  */
@@ -43,7 +41,6 @@ private:
     void updateIndex(const QString& normalizedSource, const QString& rawCover,
                      const QString& localFilePath) const;
 
-    QNetworkAccessManager* m_networkManager = nullptr;
     QHash<QString, QList<CacheCallback>> m_pendingCallbacks;
 };
 

@@ -181,7 +181,7 @@ void MainWidget::handleLocalAndDownloadDeleteMusic(const QString& filename) {
 
 void MainWidget::handleNetListPlayClick(const QString& name, const QString& artist,
                                         const QString& cover, bool flag,
-                                        const QString& originalMusicPath) {
+                                        const QString& originalMusicPath, int durationSec) {
     qDebug() << "[MainWidget] ========== NET MUSIC PLAY SIGNAL ==========";
     qDebug() << "[MainWidget] name:" << name;
     qDebug() << "[MainWidget] artist:" << artist;
@@ -197,7 +197,7 @@ void MainWidget::handleNetListPlayClick(const QString& name, const QString& arti
     w->setPlayNet(flag);
 
     const QString normalizedArtist = normalizeArtistForHistory(artist);
-    rememberPlaybackQueueMetadata(name, QString(), normalizedArtist, cover);
+    rememberPlaybackQueueMetadata(name, QString(), normalizedArtist, cover, durationSec);
     w->setNetworkMetadata(normalizedArtist, cover);
     applyCommentTrackContext(originalMusicPath, QString(), normalizedArtist, cover);
 

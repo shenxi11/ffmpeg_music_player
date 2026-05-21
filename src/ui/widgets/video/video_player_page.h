@@ -79,6 +79,7 @@ class VideoPlayerPage : public QWidget {
     void restoreControlBarToEmbeddedHost();
     void applyRendererPlaybackState(VideoRendererGL* renderer, MediaSession::PlaybackState state);
     VideoRendererGL* activeRenderer() const;
+    void releaseMediaSession();
     void resetPlaybackUi();
     QRect calculateVisibleVideoRect() const;
     bool isCursorInsideStage() const;
@@ -152,6 +153,7 @@ class VideoPlayerPage : public QWidget {
     bool m_switchingQualitySource = false;
     bool m_fallingBackToDirectSource = false;
     bool m_restoringQualitySelection = false;
+    int m_rendererRecoveryGeneration = 0;
     qint64 m_duration = 0;
     qint64 m_currentPosition = 0;
     qint64 m_qualitySwitchResumePosition = 0;

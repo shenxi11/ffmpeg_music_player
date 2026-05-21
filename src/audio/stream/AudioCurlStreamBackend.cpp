@@ -3,6 +3,7 @@
 #include <QDateTime>
 #include <QRegularExpression>
 #include <QtDebug>
+#include <cstring>
 
 #ifdef CLOUDMUSIC_AUDIO_USE_LIBCURL
 #include <curl/curl.h>
@@ -45,6 +46,19 @@ bool parseContentRangeHeader(const QByteArray& headers, qint64* start, qint64* t
     return okStart && okTotal;
 }
 
+qint64 parseUnsatisfiedRangeTotal(const QByteArray& headers) {
+    static const QRegularExpression re(
+        QStringLiteral(R"((?im)^\s*Content-Range:\s*bytes\s+\*/(\d+)\s*$)"));
+    const QRegularExpressionMatch match = re.match(QString::fromLatin1(headers));
+    if (!match.hasMatch()) {
+        return -1;
+    }
+
+    bool ok = false;
+    const qint64 value = match.captured(1).toLongLong(&ok);
+    return ok ? value : -1;
+}
+
 qint64 parseContentLengthHeader(const QByteArray& headers) {
     static const QRegularExpression re(QStringLiteral(R"((?im)^\s*Content-Length:\s*(\d+)\s*$)"));
     const QRegularExpressionMatch match = re.match(QString::fromLatin1(headers));
@@ -64,6 +78,8 @@ bool parseAcceptRangesHeader(const QByteArray& headers) {
     return match.hasMatch() &&
            match.captured(1).contains(QStringLiteral("bytes"), Qt::CaseInsensitive);
 }
+
+constexpr int kCurlWriteFlushBytes = 64 * 1024;
 } // namespace
 
 AudioCurlStreamBackend::AudioCurlStreamBackend() = default;
@@ -150,9 +166,13 @@ AudioCurlStreamBackend::Response AudioCurlStreamBackend::fetchFrom(qint64 offset
     }
     easy = static_cast<CURL*>(m_easy);
 
-    m_abortRequested = false;
     m_headerBuffer.clear();
+    m_pendingWriteBuffer.clear();
     m_requestedOffset = offset;
+    m_fetchStartedMs = QDateTime::currentMSecsSinceEpoch();
+    m_firstBodyByteMs = -1;
+    m_fetchBytesReceived = 0;
+    m_fetchBytesDelivered = 0;
     m_activeResponse = &response;
     m_activeDataCallback = onData;
 
@@ -165,11 +185,16 @@ AudioCurlStreamBackend::Response AudioCurlStreamBackend::fetchFrom(qint64 offset
     curl_easy_setopt(easy, CURLOPT_XFERINFOFUNCTION, &AudioCurlStreamBackend::progressCallback);
     curl_easy_setopt(easy, CURLOPT_XFERINFODATA, this);
 
-    const qint64 startedAt = QDateTime::currentMSecsSinceEpoch();
     const CURLcode code = curl_easy_perform(easy);
+    const qint64 finishedAt = QDateTime::currentMSecsSinceEpoch();
     long status = 0;
     curl_easy_getinfo(easy, CURLINFO_RESPONSE_CODE, &status);
     response.statusCode = static_cast<int>(status);
+    response.elapsedMs = qMax<qint64>(0, finishedAt - m_fetchStartedMs);
+    response.ttfbMs = m_firstBodyByteMs >= 0 ? qMax<qint64>(0, m_firstBodyByteMs - m_fetchStartedMs)
+                                             : -1;
+    response.bytesReceived = m_fetchBytesReceived;
+    response.bytesDelivered = m_fetchBytesDelivered;
     response.interrupted = shouldAbort() || code == CURLE_ABORTED_BY_CALLBACK;
 
     if (!parseHeaders(&response)) {
@@ -185,13 +210,32 @@ AudioCurlStreamBackend::Response AudioCurlStreamBackend::fetchFrom(qint64 offset
 
     m_activeResponse = nullptr;
     m_activeDataCallback = nullptr;
+    if (!response.interrupted && code == CURLE_OK && !m_pendingWriteBuffer.isEmpty()) {
+        if (!onData(m_pendingWriteBuffer)) {
+            response.interrupted = shouldAbort();
+            response.error = response.interrupted ? QStringLiteral("Interrupted")
+                                                  : QStringLiteral("Consumer stopped stream");
+            response.ok = false;
+        } else {
+            m_fetchBytesDelivered += m_pendingWriteBuffer.size();
+            response.bytesDelivered = m_fetchBytesDelivered;
+        }
+    }
+    m_pendingWriteBuffer.clear();
+    if (response.elapsedMs > 0 && response.bytesReceived > 0) {
+        response.avgKiBps = (response.bytesReceived * 1000LL) / response.elapsedMs / 1024LL;
+    }
 
     if (!response.ok && !response.interrupted) {
         m_lastError = response.error;
     }
     qDebug() << "[STREAM_EVT][AudioCurlStreamBackend] fetch_done"
              << "offset=" << offset << "status=" << response.statusCode
-             << "elapsedMs=" << (QDateTime::currentMSecsSinceEpoch() - startedAt)
+             << "elapsedMs=" << response.elapsedMs
+             << "ttfbMs=" << response.ttfbMs
+             << "bytesReceived=" << response.bytesReceived
+             << "bytesDelivered=" << response.bytesDelivered
+             << "avgKiBps=" << response.avgKiBps
              << "ok=" << response.ok << "interrupted=" << response.interrupted
              << "total=" << response.totalLength;
     return response;
@@ -226,10 +270,21 @@ size_t AudioCurlStreamBackend::writeCallback(char* ptr, size_t size, size_t nmem
         return 0;
     }
 
-    QByteArray chunk(ptr, static_cast<int>(byteCount));
-    if (self->m_activeDataCallback && !self->m_activeDataCallback(chunk)) {
+    if (self->m_firstBodyByteMs < 0) {
+        self->m_firstBodyByteMs = QDateTime::currentMSecsSinceEpoch();
+    }
+    self->m_fetchBytesReceived += static_cast<qint64>(byteCount);
+    self->m_pendingWriteBuffer.append(ptr, static_cast<int>(byteCount));
+    if (self->m_pendingWriteBuffer.size() < kCurlWriteFlushBytes) {
+        return byteCount;
+    }
+
+    if (self->m_activeDataCallback && !self->m_activeDataCallback(self->m_pendingWriteBuffer)) {
+        self->m_pendingWriteBuffer.clear();
         return 0;
     }
+    self->m_fetchBytesDelivered += self->m_pendingWriteBuffer.size();
+    self->m_pendingWriteBuffer.clear();
     return byteCount;
 }
 
@@ -274,6 +329,7 @@ bool AudioCurlStreamBackend::configureCommonOptions() {
     curl_easy_setopt(easy, CURLOPT_LOW_SPEED_TIME, 10L);
     curl_easy_setopt(easy, CURLOPT_NOPROGRESS, 0L);
     curl_easy_setopt(easy, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
+    curl_easy_setopt(easy, CURLOPT_BUFFERSIZE, 256L * 1024L);
     return true;
 }
 
@@ -321,10 +377,14 @@ bool AudioCurlStreamBackend::parseHeaders(Response* response) {
     }
 
     if (response->statusCode == 416) {
+        const qint64 totalLength = parseUnsatisfiedRangeTotal(m_headerBuffer);
+        if (totalLength > 0) {
+            m_contentLength = totalLength;
+        }
         response->ok = true;
         response->eof = true;
         response->responseStart = m_requestedOffset;
-        response->totalLength = m_contentLength;
+        response->totalLength = m_contentLength > 0 ? m_contentLength : totalLength;
         return true;
     }
 

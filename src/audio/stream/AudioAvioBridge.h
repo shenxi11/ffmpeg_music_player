@@ -29,10 +29,12 @@ class AudioAvioBridge {
     void setInterruptCallback(InterruptCallback callback);
     bool open(const QUrl& url);
     bool attachTo(AVFormatContext* formatContext);
-    void prepareSeek(qint64 targetMs);
+    bool prepareSeek(qint64 targetMs);
 
     qint64 contentLength() const;
     bool canSeek() const;
+    bool hasActiveApproximateFlacAnchor() const { return m_activeSeekApproximateAnchor; }
+    qint64 activeSeekTargetByte() const { return m_activeSeekTargetByte; }
     QString lastError() const { return m_lastError; }
 
   private:
@@ -41,6 +43,10 @@ class AudioAvioBridge {
 
     int readPacket(uint8_t* buffer, int bufferSize);
     int64_t seek(int64_t offset, int whence);
+    bool shouldRejectInternalSeek(qint64 target, int origin, qint64 length, QString* reason);
+    void consumeActiveSeekGuardBudget(const char* reason);
+    void resetActiveSeekGuard();
+    bool shouldUseFlacApproximateAnchor() const;
 
     std::unique_ptr<AudioPrefetchStream> m_stream;
     QUrl m_url;
@@ -48,6 +54,12 @@ class AudioAvioBridge {
     unsigned char* m_avioBuffer = nullptr;
     QString m_lastError;
     InterruptCallback m_interruptCallback;
+    qint64 m_activeSeekTargetMs = -1;
+    qint64 m_activeSeekTargetByte = -1;
+    qint64 m_activeSeekContentLength = -1;
+    qint64 m_activeSeekSerial = 0;
+    qint64 m_activeSeekGuardBudget = 0;
+    bool m_activeSeekApproximateAnchor = false;
 };
 
 #endif // AUDIOAVIOBRIDGE_H

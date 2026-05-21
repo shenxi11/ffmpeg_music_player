@@ -1,0 +1,4 @@
+interface:
+  display_name: "CloudMusic Server Workflow"
+  short_description: "Constrain CloudMusic backend work to VM microservice_deploy and CloudMusic deployment directories."
+  default_prompt: "Use $cloudmusic-server-workflow whenever the task touches the CloudMusic service backend. Develop and commit only in shen@192.168.1.208:/home/shen/microservice-deploy, then pull/build/deploy/test by default in shen@192.168.1.208:/home/shen/CloudMusic. Use root@122.51.73.110:/root/CloudMusic only when remote/public-server release or validation is explicitly requested."

@@ -5,6 +5,8 @@
 #include <QSize>
 #include <QThread>
 
+#include "VideoDecoder.h"
+
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
@@ -15,6 +17,7 @@ class VideoDecoder;
 class VideoRenderer;
 class VideoBuffer;
 struct VideoFrame;
+struct VideoDecodeOptions;
 
 /**
  * @brief 视频会话 - 管理视频解码和渲染
@@ -33,6 +36,7 @@ class VideoSession : public QObject {
 
     // ===== 初始化 =====
     bool initVideoStream(AVStream* stream);
+    bool initVideoStream(AVStream* stream, const VideoDecodeOptions& options);
 
     // ===== 解码控制 =====
     void start();
